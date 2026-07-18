@@ -31,6 +31,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'vip_expires_at' => 'datetime',
+            'banned_at' => 'datetime',
             'password' => 'hashed',
             'is_tester' => 'boolean',
             'ads_removed' => 'boolean',
@@ -59,8 +60,20 @@ class User extends Authenticatable
         return in_array($this->role, ['gm', 'owner'], true);
     }
 
-    /** extra character slots (of the 3 subscription slots) each VIP tier unlocks */
-    public const VIP_TIER_SLOTS = ['bronze' => 1, 'gold' => 2, 'diamond' => 3];
+    public function isBanned(): bool
+    {
+        return $this->banned_at !== null;
+    }
+
+    /** extra character slots (of the 4 subscription slots) each VIP tier unlocks */
+    public const VIP_TIER_SLOTS = ['bronze' => 1, 'gold' => 2, 'diamond' => 4];
+    public const VIP_TIER_LUCK = ['bronze' => 2, 'gold' => 6, 'diamond' => 12];
+    public const VIP_TIER_REGEN_FLAT = ['bronze' => 1, 'gold' => 2, 'diamond' => 4];
+    public const VIP_TIER_REGEN_PCT = ['bronze' => 10, 'gold' => 25, 'diamond' => 50];
+    public const VIP_TIER_GOLD_XP_PCT = ['bronze' => 10, 'gold' => 20, 'diamond' => 35];
+    public const VIP_TIER_CRAFT_SPEED_PCT = ['bronze' => 15, 'gold' => 30, 'diamond' => 50];
+    public const VIP_TIER_ENERGY_FLAT = ['bronze' => 1, 'gold' => 2, 'diamond' => 4];
+    public const VIP_TIER_ENERGY_PCT = ['bronze' => 10, 'gold' => 25, 'diamond' => 50];
 
     public function hasActiveVip(): bool
     {
@@ -72,10 +85,93 @@ class User extends Authenticatable
         return $this->hasActiveVip() ? (self::VIP_TIER_SLOTS[$this->vip_tier] ?? 0) : 0;
     }
 
-    /** 1 free slot + up to 4 bought with gems + up to 3 more from an active VIP subscription tier. */
+    public function vipLuckBonus(): int
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_LUCK[$this->vip_tier] ?? 0;
+
+        return (int) round(GameConfig::number("vip_luck_{$this->vip_tier}", $fallback));
+    }
+
+    /** Flat HP/mana regen-per-tick bonus from an active VIP subscription. */
+    public function vipRegenFlatBonus(): int
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_REGEN_FLAT[$this->vip_tier] ?? 0;
+
+        return (int) round(GameConfig::number("vip_regen_flat_{$this->vip_tier}", $fallback));
+    }
+
+    /** % bonus applied on top of regen-per-tick from an active VIP subscription. */
+    public function vipRegenPctBonus(): float
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_REGEN_PCT[$this->vip_tier] ?? 0;
+
+        return GameConfig::number("vip_regen_pct_{$this->vip_tier}", $fallback);
+    }
+
+    /** % bonus to gold and XP earned from battles, from an active VIP subscription. */
+    public function vipGoldXpBonusPct(): float
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_GOLD_XP_PCT[$this->vip_tier] ?? 0;
+
+        return GameConfig::number("vip_gold_xp_pct_{$this->vip_tier}", $fallback);
+    }
+
+    /** % reduction to crafting time from an active VIP subscription. */
+    public function vipCraftingSpeedBonus(): float
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_CRAFT_SPEED_PCT[$this->vip_tier] ?? 0;
+
+        return GameConfig::number("vip_craft_speed_pct_{$this->vip_tier}", $fallback);
+    }
+
+    /** Flat Energy regen-per-tick bonus from an active VIP subscription. */
+    public function vipEnergyFlatBonus(): int
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_ENERGY_FLAT[$this->vip_tier] ?? 0;
+
+        return (int) round(GameConfig::number("vip_energy_flat_{$this->vip_tier}", $fallback));
+    }
+
+    /** % bonus applied on top of Energy regen-per-tick from an active VIP subscription. */
+    public function vipEnergyPctBonus(): float
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_ENERGY_PCT[$this->vip_tier] ?? 0;
+
+        return GameConfig::number("vip_energy_pct_{$this->vip_tier}", $fallback);
+    }
+
+    /** up to 4 gem-side slots (1 starter + 3 bought) + up to 4 from an active VIP subscription tier. */
     public function maxCharacterSlots(): int
     {
-        return 1 + min($this->bonus_character_slots, 4) + $this->vipCharacterSlots();
+        return 1 + min($this->bonus_character_slots, 3) + $this->vipCharacterSlots();
     }
 
     public function sendPasswordResetNotification($token): void

@@ -29,8 +29,10 @@ use App\Http\Controllers\Api\ShopController;
 use App\Http\Controllers\Api\SkillController;
 use App\Http\Controllers\Api\SocialiteController;
 use App\Http\Controllers\Api\StoreController;
+use App\Http\Controllers\Api\TradeSkillController;
 use App\Http\Controllers\Api\VipController;
 use App\Http\Controllers\Api\WikiController;
+use App\Http\Controllers\Api\WorldChatController;
 use App\Http\Controllers\Api\ZoneController;
 use Illuminate\Support\Facades\Route;
 
@@ -47,7 +49,7 @@ Route::get('/auth/{provider}/callback', [SocialiteController::class, 'callback']
 // Stripe webhook — no auth, verified by signature instead
 Route::post('/store/webhook', [StoreController::class, 'webhook']);
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::get('/announcements', [AnnouncementController::class, 'index']);
@@ -60,6 +62,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/characters', [CharacterController::class, 'index']);
     Route::post('/characters/{character}/select', [CharacterController::class, 'select']);
+    Route::delete('/characters/{character}', [CharacterController::class, 'destroy']);
     Route::post('/characters/slots/unlock', [CharacterController::class, 'unlockSlot']);
 
     Route::get('/skills', [SkillController::class, 'index']);
@@ -68,8 +71,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/zones', [ZoneController::class, 'index']);
     Route::post('/zones/{zone}/travel', [ZoneController::class, 'travel']);
 
-    Route::get('/battle/enemies', [BattleController::class, 'enemies']);
-    Route::post('/battle/start', [BattleController::class, 'start']);
+    Route::get('/chat/world', [WorldChatController::class, 'index']);
+    Route::post('/chat/world', [WorldChatController::class, 'send'])->middleware('throttle:20,1');
+
+    Route::get('/battle/active', [BattleController::class, 'active']);
+    Route::post('/battle/walk', [BattleController::class, 'walk']);
     Route::get('/battle/{battle}', [BattleController::class, 'show']);
     Route::post('/battle/{battle}/action', [BattleController::class, 'action']);
 
@@ -81,12 +87,18 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/inventory', [InventoryController::class, 'index']);
     Route::post('/inventory/equip', [InventoryController::class, 'equip']);
+    Route::post('/inventory/use', [InventoryController::class, 'use']);
 
     Route::get('/quests', [QuestController::class, 'index']);
     Route::post('/quests/{quest}/claim', [QuestController::class, 'claim']);
 
     Route::get('/crafting/recipes', [CraftingController::class, 'index']);
     Route::post('/crafting/{recipe}/craft', [CraftingController::class, 'craft']);
+    Route::get('/crafting/queue', [CraftingController::class, 'queue']);
+    Route::post('/crafting/jobs/{job}/collect', [CraftingController::class, 'collect']);
+
+    Route::get('/trade-skills', [TradeSkillController::class, 'index']);
+    Route::post('/trade-skills/{skillKey}/gather', [TradeSkillController::class, 'gather']);
 
     Route::get('/pets', [PetController::class, 'index']);
     Route::post('/pets/{pet}/unlock', [PetController::class, 'unlock']);
@@ -96,6 +108,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/guild', [GuildController::class, 'store']);
     Route::post('/guild/{guild}/join', [GuildController::class, 'join']);
     Route::post('/guild/{guild}/message', [GuildController::class, 'message']);
+    Route::post('/guild/{guild}/deposit', [GuildController::class, 'deposit']);
+    Route::post('/guild/{guild}/withdraw', [GuildController::class, 'withdraw']);
+    Route::post('/guild/{guild}/members/{target}/promote', [GuildController::class, 'promote']);
+    Route::post('/guild/{guild}/members/{target}/kick', [GuildController::class, 'kick']);
+    Route::post('/guild/{guild}/leave', [GuildController::class, 'leave']);
 
     Route::get('/leaderboard', [LeaderboardController::class, 'index']);
 
@@ -118,6 +135,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/pvp/challenge/{opponent}', [PvpController::class, 'challenge']);
 
     Route::get('/inbox', [InboxController::class, 'index']);
+    Route::post('/inbox/{mail}/read', [InboxController::class, 'read']);
+    Route::post('/inbox/{mail}/dismiss', [InboxController::class, 'dismiss']);
 
     // Monetization
     Route::get('/store/gems', [StoreController::class, 'gems']);
@@ -143,6 +162,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/players', [GmPlayerController::class, 'index']);
         Route::post('/players/{user}/grant', [GmPlayerController::class, 'grant']);
         Route::post('/players/{user}/ban', [GmPlayerController::class, 'ban']);
+        Route::post('/players/{user}/mail', [GmPlayerController::class, 'mail']);
 
         Route::get('/tickets', [GmTicketController::class, 'index']);
         Route::post('/tickets/{ticket}/resolve', [GmTicketController::class, 'resolve']);

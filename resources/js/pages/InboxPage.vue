@@ -19,37 +19,54 @@ async function decline(item) {
   await load();
 }
 
+async function markRead(item) {
+  await api.post(`/inbox/${item.id}/read`);
+  item.read = true;
+}
+
+async function dismiss(item) {
+  await api.post(`/inbox/${item.id}/dismiss`);
+  items.value = items.value.filter((i) => i !== item);
+}
+
 onMounted(load);
 </script>
 
 <template>
-  <div style="max-width:760px">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
-      <div style="font-size:28px">🔔</div>
-      <h1 class="ox" style="font-size:28px;font-weight:800;margin:0">Inbox</h1>
+  <div class="inbox-page">
+    <div class="inbox-header">
+      <div class="inbox-header__icon">🔔</div>
+      <h1 class="ox inbox-title">Inbox</h1>
     </div>
 
-    <p style="color:rgba(255,255,255,.5);margin:0 0 18px">Friend requests, purchase receipts, and announcements.</p>
+    <p class="inbox-subtitle">Friend requests, purchase receipts, and announcements.</p>
 
-    <div style="display:flex;flex-direction:column;gap:10px">
+    <div class="inbox-list">
       <div
         v-for="(item, i) in items"
         :key="i"
-        style="display:flex;gap:14px;background:#151517;border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:16px"
+        class="inbox-item"
+        :class="{ 'inbox-item--unread': item.type === 'mail' && !item.read }"
       >
-        <div style="width:42px;height:42px;flex:none;border-radius:11px;background:rgba(232,72,47,.14);display:grid;place-items:center;font-size:20px">{{ item.icon }}</div>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;justify-content:space-between;gap:10px">
-            <div class="ox" style="font-weight:700;font-size:14px">{{ item.title }}</div>
+        <div class="inbox-item__icon">{{ item.icon }}</div>
+        <div class="inbox-item__content">
+          <div class="inbox-item__title-row">
+            <div class="ox inbox-item__title">{{ item.title }}</div>
           </div>
-          <div style="font-size:13px;color:rgba(255,255,255,.55);line-height:1.5;margin:4px 0 12px">{{ item.body }}</div>
-          <div v-if="item.invite" style="display:flex;gap:8px">
-            <button @click="accept(item)" style="background:#e8482f;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer">Accept</button>
-            <button @click="decline(item)" style="background:#1f1f23;color:rgba(255,255,255,.7);border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer">Decline</button>
+          <div class="inbox-item__body">{{ item.body }}</div>
+          <div v-if="item.invite" class="inbox-item__actions">
+            <button @click="accept(item)" class="inbox-item__accept">Accept</button>
+            <button @click="decline(item)" class="inbox-item__decline">Decline</button>
+          </div>
+          <div v-else-if="item.type === 'mail'" class="inbox-item__actions">
+            <button v-if="!item.read" @click="markRead(item)" class="inbox-item__accept">Mark read</button>
+            <button @click="dismiss(item)" class="inbox-item__decline">Dismiss</button>
           </div>
         </div>
       </div>
-      <div v-if="!items.length" style="color:rgba(255,255,255,.35);font-size:13px">Nothing here yet.</div>
+      <div v-if="!items.length" class="inbox-empty">Nothing here yet.</div>
     </div>
   </div>
 </template>
+
+<style lang="scss" src="./InboxPage.scss" scoped></style>

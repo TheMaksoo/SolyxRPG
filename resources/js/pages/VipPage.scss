@@ -1,0 +1,122 @@
+@use '../../scss/variables' as v;
+@use '../../scss/mixins' as m;
+
+.vip-header {
+  text-align: center;
+  margin-bottom: 26px;
+}
+
+.vip-header__title {
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.vip-header__subtitle {
+  color: rgba(255, 255, 255, 0.5);
+  margin: 6px 0 0;
+}
+
+.vip-header__current-tier {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 8px;
+
+  strong {
+    color: v.$warning;
+    text-transform: capitalize;
+  }
+}
+
+.vip-message {
+  font-size: 13px;
+  color: v.$danger;
+  max-width: 480px;
+  margin: 0 auto 16px;
+  text-align: center;
+}
+
+.vip-tiers-grid {
+  @include m.grid-auto-fit(240px, 16px);
+  @include m.centered-column(900px);
+}
+
+.vip-tier-card {
+  background: v.$bg-card;
+  border: 1px solid v.$border-subtle;
+  border-radius: 14px;
+  padding: 22px;
+
+  &.is-featured {
+    background: linear-gradient(160deg, #1a1013, v.$bg-card);
+    border-color: rgba(234, 179, 8, 0.35);
+  }
+}
+
+.vip-tier-card__badge {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: v.$warning;
+  margin-bottom: 8px;
+}
+
+.vip-tier-card__label {
+  font-size: 18px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.vip-tier-card__price {
+  text-align: center;
+  margin: 6px 0 16px;
+}
+
+.vip-tier-card__price-amount {
+  font-size: 32px;
+  font-weight: 800;
+}
+
+.vip-tier-card__price-period {
+  font-size: 13px;
+  color: v.$text-muted-40;
+}
+
+.vip-tier-card__perks {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-bottom: 18px;
+}
+
+.vip-tier-card__perk {
+  display: flex;
+  gap: 9px;
+  font-size: 13px;
+  color: v.$text-muted-70;
+}
+
+.vip-tier-card__perk-check {
+  color: v.$success;
+}
+
+.vip-subscribe-btn {
+  @include m.btn-reset;
+  width: 100%;
+  padding: 11px;
+  border-radius: 9px;
+  background: v.$accent;
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.vip-footer {
+  text-align: center;
+  margin-top: 24px;
+  font-size: 13px;
+  color: v.$text-muted-40;
+}
+
+.vip-footer__link {
+  color: v.$accent-hover;
+}

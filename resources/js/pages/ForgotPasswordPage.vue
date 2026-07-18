@@ -24,36 +24,32 @@ async function submit() {
 </script>
 
 <template>
-  <div
-    style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:24px;text-align:center"
-  >
-    <img src="/images/solyx-icon.png" alt="" style="width:56px;height:56px" />
+  <div class="forgot-password-page">
+    <img src="/images/solyx-icon.png" alt="" class="forgot-password-page__logo" />
     <div>
-      <h1 class="ox" style="font-size:26px;font-weight:800;margin:0 0 8px">Reset your password</h1>
-      <p style="color:rgba(255,255,255,.55);font-size:13.5px;margin:0;max-width:320px">
+      <h1 class="ox forgot-password-page__title">Reset your password</h1>
+      <p class="forgot-password-page__subtitle">
         Enter your account email and we'll send a link to reset your password.
       </p>
     </div>
 
-    <form @submit.prevent="submit" style="display:flex;flex-direction:column;gap:10px;width:280px">
+    <form @submit.prevent="submit" class="forgot-password-page__form">
       <input
         v-model="email"
         type="email"
         placeholder="Email"
         required
-        style="padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:#151517;color:#fff;font-size:14px"
+        class="forgot-password-page__input"
       />
-      <p v-if="message" style="color:#4ade80;font-size:12.5px;margin:0">{{ message }}</p>
-      <p v-if="error" style="color:#ff6a4d;font-size:12.5px;margin:0">{{ error }}</p>
-      <button
-        type="submit"
-        :disabled="loading"
-        style="padding:11px 16px;border-radius:10px;border:none;background:#e8482f;color:#fff;font-size:14px;font-weight:700;cursor:pointer"
-      >
+      <p v-if="message" class="forgot-password-page__message">{{ message }}</p>
+      <p v-if="error" class="forgot-password-page__error">{{ error }}</p>
+      <button type="submit" :disabled="loading" class="forgot-password-page__submit">
         {{ loading ? 'Sending…' : 'Send reset link' }}
       </button>
     </form>
 
-    <router-link to="/landing" style="font-size:12.5px;color:rgba(255,255,255,.5)">Back to login</router-link>
+    <router-link to="/landing" class="forgot-password-page__back">Back to login</router-link>
   </div>
 </template>
+
+<style lang="scss" src="./ForgotPasswordPage.scss" scoped></style>

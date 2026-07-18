@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
+use App\Models\Mail;
 use App\Models\Purchase;
 use Illuminate\Http\Request;
 
@@ -15,6 +16,20 @@ class InboxController extends Controller
         $character = $user->character;
 
         $items = collect();
+
+        foreach (Mail::where('recipient_user_id', $user->id)->whereNull('dismissed_at')->latest('created_at')->limit(30)->get() as $m) {
+            $items->push([
+                'id' => $m->id,
+                'type' => 'mail',
+                'icon' => '✉',
+                'title' => $m->subject,
+                'body' => $m->body,
+                'time' => $m->created_at,
+                'invite' => false,
+                'read' => $m->read_at !== null,
+                'dismissable' => true,
+            ]);
+        }
 
         foreach (Announcement::latest('created_at')->limit(10)->get() as $a) {
             $items->push([
@@ -55,5 +70,23 @@ class InboxController extends Controller
         return response()->json([
             'items' => $items->sortByDesc('time')->values(),
         ]);
+    }
+
+    public function read(Request $request, Mail $mail)
+    {
+        abort_unless($mail->recipient_user_id === $request->user()->id, 403);
+
+        $mail->update(['read_at' => $mail->read_at ?? now()]);
+
+        return response()->json(['mail' => $mail]);
+    }
+
+    public function dismiss(Request $request, Mail $mail)
+    {
+        abort_unless($mail->recipient_user_id === $request->user()->id, 403);
+
+        $mail->update(['dismissed_at' => now()]);
+
+        return response()->json(['message' => 'Dismissed.']);
     }
 }

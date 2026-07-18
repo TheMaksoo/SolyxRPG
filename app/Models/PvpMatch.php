@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class PvpMatch extends Model
 {
     public $timestamps = false;
-    protected $fillable = ['character_id', 'opponent_id', 'result', 'rating_delta', 'created_at'];
-    protected $casts = ['created_at' => 'datetime'];
+    protected $fillable = ['character_id', 'opponent_id', 'result', 'rating_delta', 'log_json', 'created_at'];
+    protected $casts = ['created_at' => 'datetime', 'log_json' => 'array'];
 
     public function character(): BelongsTo
     {

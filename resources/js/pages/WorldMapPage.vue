@@ -2,9 +2,11 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../api/client';
+import { useCharacterStore } from '../stores/character';
 import AdBanner from '../components/AdBanner.vue';
 
 const router = useRouter();
+const characterStore = useCharacterStore();
 const zones = ref([]);
 const error = ref('');
 
@@ -18,12 +20,14 @@ const DANGER = {
 async function load() {
   const { data } = await api.get('/zones');
   zones.value = data.zones;
+  if (!characterStore.character) await characterStore.fetch();
 }
 
 async function travel(row) {
   error.value = '';
   try {
-    await api.post(`/zones/${row.zone.id}/travel`);
+    const { data } = await api.post(`/zones/${row.zone.id}/travel`);
+    characterStore.character = data.character;
     router.push('/battle');
   } catch (e) {
     error.value = e.response?.data?.message || 'Cannot travel there yet.';
@@ -35,55 +39,42 @@ onMounted(load);
 
 <template>
   <div>
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
-      <div style="font-size:28px">🗺</div>
-      <h1 class="ox" style="font-size:28px;font-weight:800;margin:0">World Map</h1>
+    <div class="world-map-header">
+      <div class="world-map-header__icon">🗺</div>
+      <h1 class="ox world-map-title">World Map</h1>
     </div>
 
-    <p style="color:rgba(255,255,255,.5);margin:0 0 18px">Travel between zones. Locked zones require a higher level.</p>
-    <p v-if="error" style="color:#ff6a4d;font-size:13px;margin-bottom:14px">{{ error }}</p>
+    <p class="world-map-intro">Travel between zones. Locked zones require a higher level.</p>
+    <p v-if="error" class="world-map-error">{{ error }}</p>
 
     <AdBanner variant="inline" />
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px">
+    <div class="zone-grid">
       <div
         v-for="row in zones"
         :key="row.zone.id"
-        :style="{
-          background: '#151517',
-          border: `1px solid ${row.unlocked ? 'rgba(255,255,255,.07)' : 'rgba(255,255,255,.04)'}`,
-          borderRadius: '14px',
-          overflow: 'hidden',
-          opacity: row.unlocked ? 1 : 0.6,
-        }"
+        class="zone-card"
+        :class="{ 'is-locked': !row.unlocked, 'is-current': characterStore.character?.current_zone_id === row.zone.id }"
       >
-        <div :style="{ height: '120px', background: DANGER[row.zone.danger]?.art, display: 'grid', placeItems: 'center', fontSize: '40px', position: 'relative' }">
+        <div class="zone-card__art" :style="{ background: DANGER[row.zone.danger]?.art }">
           {{ row.zone.glyph }}
-          <div v-if="row.zone.locked" style="position:absolute;inset:0;background:rgba(0,0,0,.55);display:grid;place-items:center;font-size:26px">🔒</div>
+          <div v-if="row.zone.locked" class="zone-card__lock">🔒</div>
         </div>
-        <div style="padding:16px">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div class="ox" style="font-weight:700;font-size:15px">{{ row.zone.name }}</div>
-            <span :style="{ fontSize: '11px', padding: '2px 8px', borderRadius: '5px', background: DANGER[row.zone.danger]?.bg, color: DANGER[row.zone.danger]?.color, textTransform: 'capitalize' }">
+        <div class="zone-card__body">
+          <div class="zone-card__row">
+            <div class="zone-card__name-group">
+              <div class="ox zone-card__name">{{ row.zone.name }}</div>
+              <span v-if="characterStore.character?.current_zone_id === row.zone.id" class="zone-card__here-badge">📍 Here</span>
+            </div>
+            <span
+              class="zone-card__danger-badge"
+              :style="{ background: DANGER[row.zone.danger]?.bg, color: DANGER[row.zone.danger]?.color }"
+            >
               {{ row.zone.danger }}
             </span>
           </div>
-          <div style="font-size:12px;color:rgba(255,255,255,.5);margin:6px 0 12px">Recommended Lv.{{ row.zone.min_level }}+</div>
-          <button
-            @click="travel(row)"
-            :disabled="!row.unlocked"
-            :style="{
-              width: '100%',
-              padding: '9px',
-              borderRadius: '8px',
-              border: 'none',
-              background: row.unlocked ? '#e8482f' : 'rgba(255,255,255,.08)',
-              color: '#fff',
-              fontWeight: 700,
-              fontSize: '12.5px',
-              cursor: row.unlocked ? 'pointer' : 'not-allowed',
-            }"
-          >
+          <div class="zone-card__level">Recommended Lv.{{ row.zone.min_level }}+</div>
+          <button @click="travel(row)" :disabled="!row.unlocked" class="zone-card__travel-btn">
             {{ row.unlocked ? 'Travel' : `Requires Lv.${row.zone.min_level}` }}
           </button>
         </div>
@@ -91,3 +82,5 @@ onMounted(load);
     </div>
   </div>
 </template>
+
+<style lang="scss" src="./WorldMapPage.scss" scoped></style>

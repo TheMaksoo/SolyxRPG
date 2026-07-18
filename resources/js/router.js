@@ -16,6 +16,7 @@ const PAGE_COMPONENT = {
   '/world-map': 'WorldMapPage',
   '/dungeons': 'DungeonsPage',
   '/pets': 'PetsPage',
+  '/trade-skills': 'TradeSkillsPage',
   '/crafting': 'CraftingPage',
   '/guild': 'GuildPage',
   '/friends': 'FriendsPage',

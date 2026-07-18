@@ -44,6 +44,13 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid credentials.'], 422);
         }
 
+        if (Auth::user()->isBanned()) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+
+            return response()->json(['message' => 'This account has been banned.'], 403);
+        }
+
         $request->session()->regenerate();
 
         return response()->json(['user' => Auth::user()->load('character.attributes_', 'characters', 'socialAccounts')]);

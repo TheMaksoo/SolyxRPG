@@ -44,27 +44,24 @@ onMounted(load);
 
 <template>
   <div>
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
-      <div style="font-size:28px">⚔</div>
-      <h1 class="ox" style="font-size:28px;font-weight:800;margin:0">PvP Arena</h1>
+    <div class="pvp-header">
+      <div class="pvp-header__icon">⚔</div>
+      <h1 class="ox pvp-title">PvP Arena</h1>
     </div>
 
-    <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
-      <div style="flex:1;min-width:320px">
-        <div
-          v-if="record"
-          style="background:linear-gradient(150deg,#1a1013,#151517);border:1px solid rgba(232,72,47,.25);border-radius:14px;padding:22px;margin-bottom:18px;display:flex;flex-wrap:wrap;gap:20px;align-items:center"
-        >
-          <div style="width:70px;height:70px;flex:none;border-radius:16px;background:rgba(232,72,47,.16);display:grid;place-items:center;font-size:34px">⚔</div>
-          <div style="flex:1;min-width:160px">
-            <div class="ox" style="font-size:22px;font-weight:800">{{ rank }}</div>
-            <div style="font-size:13px;color:rgba(255,255,255,.5)">{{ record.rating }} rating · {{ record.wins }}W / {{ record.losses }}L</div>
-            <div v-if="record.win_streak > 0" style="font-size:12px;color:#eab308;margin-top:3px">🔥 {{ record.win_streak }} win streak</div>
+    <div class="pvp-layout">
+      <div class="pvp-main">
+        <div v-if="record" class="rank-card">
+          <div class="rank-card__icon">⚔</div>
+          <div class="rank-card__info">
+            <div class="ox rank-card__rank">{{ rank }}</div>
+            <div class="rank-card__meta">{{ record.rating }} rating · {{ record.wins }}W / {{ record.losses }}L</div>
+            <div v-if="record.win_streak > 0" class="rank-card__streak">🔥 {{ record.win_streak }} win streak</div>
           </div>
           <button
             @click="findMatch"
             :disabled="loading"
-            style="background:#e8482f;color:#fff;border:none;border-radius:11px;padding:14px 26px;font-size:15px;font-weight:700;cursor:pointer"
+            class="btn-find-match"
           >
             Find ranked match
           </button>
@@ -72,61 +69,72 @@ onMounted(load);
 
         <div
           v-if="lastResult"
-          :style="{
-            marginBottom: '18px',
-            background: '#151517',
-            border: `1px solid ${lastResult.result === 'win' ? 'rgba(74,222,128,.3)' : 'rgba(255,107,107,.3)'}`,
-            borderRadius: '12px',
-            padding: '16px',
-          }"
+          class="last-result-card"
+          :class="{ 'last-result-card--win': lastResult.result === 'win', 'last-result-card--loss': lastResult.result !== 'win' }"
         >
-          <span :style="{ fontWeight: 700, color: lastResult.result === 'win' ? '#4ade80' : '#ff6a4d' }">
+          <span
+            class="last-result-card__title"
+            :class="lastResult.result === 'win' ? 'last-result-card__title--win' : 'last-result-card__title--loss'"
+          >
             {{ lastResult.result === 'win' ? 'Victory' : 'Defeat' }} vs {{ lastResult.opponent.name }}
           </span>
-          <span style="color:rgba(255,255,255,.5);margin-left:8px">{{ lastResult.rating_delta >= 0 ? '+' : '' }}{{ lastResult.rating_delta }} rating</span>
+          <span class="last-result-card__delta">{{ lastResult.rating_delta >= 0 ? '+' : '' }}{{ lastResult.rating_delta }} rating</span>
+          <div v-if="lastResult.log?.length" class="last-result-card__log">
+            <div v-for="(line, i) in lastResult.log" :key="i" class="last-result-card__log-line">{{ line }}</div>
+          </div>
         </div>
 
-        <div style="font-size:12px;letter-spacing:.15em;color:rgba(255,255,255,.4);font-weight:600;margin-bottom:12px">CHALLENGE A RIVAL</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px">
-          <div v-for="row in opponents" :key="row.character.id" style="background:#151517;border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:16px">
-            <div style="display:flex;align-items:center;gap:11px;margin-bottom:12px">
-              <div style="flex:1;min-width:0">
-                <div style="font-weight:700;font-size:14px">{{ row.character.name }}</div>
-                <div style="font-size:11px;color:rgba(255,255,255,.45);text-transform:capitalize">{{ row.character.base_class }} · Lv.{{ row.character.level }}</div>
+        <div class="challenge-eyebrow">CHALLENGE A RIVAL</div>
+        <div class="opponents-grid">
+          <div v-for="row in opponents" :key="row.character.id" class="opponent-card">
+            <div class="opponent-card__top">
+              <div class="opponent-card__info">
+                <div class="opponent-card__name">{{ row.character.name }}</div>
+                <div class="opponent-card__meta">{{ row.character.base_class }} · Lv.{{ row.character.level }}</div>
               </div>
             </div>
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="font-size:12px;color:#eab308">{{ row.rating }} rating</span>
+            <div class="opponent-card__bottom">
+              <span class="opponent-card__rating">{{ row.rating }} rating</span>
               <button
                 @click="challenge(row)"
                 :disabled="loading"
-                style="background:rgba(232,72,47,.15);color:#ff8163;border:1px solid rgba(232,72,47,.3);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer"
+                class="btn-challenge"
               >
                 Challenge
               </button>
             </div>
           </div>
-          <div v-if="!opponents.length" style="color:rgba(255,255,255,.35);font-size:13px">No other players yet.</div>
+          <div v-if="!opponents.length" class="opponents-empty">No other players yet.</div>
         </div>
       </div>
 
-      <div style="width:280px;flex:none">
-        <div style="font-size:12px;letter-spacing:.15em;color:rgba(255,255,255,.4);font-weight:600;margin-bottom:12px">MATCH HISTORY</div>
-        <div style="background:#151517;border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:6px 16px">
+      <div class="pvp-sidebar">
+        <div class="history-eyebrow">MATCH HISTORY</div>
+        <div class="history-card">
           <div
             v-for="h in history"
             :key="h.id"
-            style="display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-top:1px solid rgba(255,255,255,.05)"
+            class="history-row"
           >
             <div>
-              <div style="font-size:13px;font-weight:600">vs {{ h.opponent.name }}</div>
-              <div :style="{ fontSize: '11px', color: h.result === 'win' ? '#4ade80' : '#ff6a4d' }">{{ h.result === 'win' ? 'Victory' : 'Defeat' }}</div>
+              <div class="history-row__name">vs {{ h.opponent.name }}</div>
+              <div
+                class="history-row__result"
+                :class="h.result === 'win' ? 'history-row__result--win' : 'history-row__result--loss'"
+              >
+                {{ h.result === 'win' ? 'Victory' : 'Defeat' }}
+              </div>
             </div>
-            <span class="ox" :style="{ fontWeight: 700, color: h.result === 'win' ? '#4ade80' : '#ff6a4d' }">{{ h.rating_delta >= 0 ? '+' : '' }}{{ h.rating_delta }}</span>
+            <span
+              class="ox history-row__delta"
+              :class="h.result === 'win' ? 'history-row__delta--win' : 'history-row__delta--loss'"
+            >{{ h.rating_delta >= 0 ? '+' : '' }}{{ h.rating_delta }}</span>
           </div>
-          <div v-if="!history.length" style="padding:14px 0;color:rgba(255,255,255,.35);font-size:12.5px">No matches yet.</div>
+          <div v-if="!history.length" class="history-empty">No matches yet.</div>
         </div>
       </div>
     </div>
   </div>
 </template>
+
+<style lang="scss" src="./PvpPage.scss" scoped></style>

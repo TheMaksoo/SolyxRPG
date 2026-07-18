@@ -1,0 +1,125 @@
+@use '../../scss/variables' as v;
+@use '../../scss/mixins' as m;
+
+.world-map-header {
+  @include m.page-header;
+}
+
+.world-map-header__icon {
+  font-size: 28px;
+}
+
+.world-map-title {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.world-map-intro {
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 0 18px;
+}
+
+.world-map-error {
+  color: v.$danger;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.zone-grid {
+  @include m.grid-auto-fill(260px, 16px);
+}
+
+.zone-card {
+  background: v.$bg-card;
+  border: 1px solid v.$border-subtle;
+  border-radius: 14px;
+  overflow: hidden;
+
+  &.is-locked {
+    border-color: rgba(255, 255, 255, 0.04);
+    opacity: 0.6;
+  }
+
+  &.is-current {
+    border-color: v.$accent;
+  }
+}
+
+.zone-card__art {
+  height: 120px;
+  display: grid;
+  place-items: center;
+  font-size: 40px;
+  position: relative;
+}
+
+.zone-card__lock {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
+  font-size: 26px;
+}
+
+.zone-card__body {
+  padding: 16px;
+}
+
+.zone-card__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.zone-card__name-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.zone-card__name {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.zone-card__here-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: v.$accent-soft;
+  background: v.$accent-tint-15;
+  padding: 2px 7px;
+  border-radius: v.$radius-pill;
+}
+
+.zone-card__danger-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 5px;
+  text-transform: capitalize;
+}
+
+.zone-card__level {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 6px 0 12px;
+}
+
+.zone-card__travel-btn {
+  @include m.btn-reset;
+  width: 100%;
+  padding: 9px;
+  border-radius: v.$radius-sm;
+  background: v.$accent;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12.5px;
+  cursor: pointer;
+
+  &:disabled {
+    background: rgba(255, 255, 255, 0.08);
+    cursor: not-allowed;
+  }
+}

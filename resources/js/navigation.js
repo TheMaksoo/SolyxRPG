@@ -11,6 +11,7 @@ export const NAV = [
   { path: '/world-map', name: 'world-map', label: 'World Map', icon: '🗺' },
   { path: '/dungeons', name: 'dungeons', label: 'Dungeons', icon: '🏰' },
   { path: '/pets', name: 'pets', label: 'Companions', icon: '🐾' },
+  { path: '/trade-skills', name: 'trade-skills', label: 'Trade Skills', icon: '⛏' },
   { path: '/crafting', name: 'crafting', label: 'Crafting', icon: '🔨' },
   { path: '/guild', name: 'guild', label: 'Guild', icon: '🛡' },
   { path: '/friends', name: 'friends', label: 'Friends', icon: '🧑‍🤝‍🧑' },

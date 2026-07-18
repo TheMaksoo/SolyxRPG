@@ -13,27 +13,29 @@ onMounted(async () => {
 
 <template>
   <div>
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
-      <div style="font-size:28px">🏆</div>
-      <h1 class="ox" style="font-size:28px;font-weight:800;margin:0">Leaderboard</h1>
+    <div class="leaderboard-header">
+      <div class="leaderboard-header__icon">🏆</div>
+      <h1 class="ox leaderboard-title">Leaderboard</h1>
     </div>
 
-    <div style="max-width:600px">
+    <div class="leaderboard-ad">
       <AdBanner variant="inline" />
     </div>
 
-    <div style="max-width:600px;background:#151517;border:1px solid rgba(255,255,255,.07);border-radius:13px;overflow:hidden">
+    <div class="leaderboard-table">
       <div
         v-for="row in rows"
         :key="row.character_id"
-        style="display:flex;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.06)"
+        class="leaderboard-row"
       >
-        <span class="ox" style="width:28px;font-weight:800;color:rgba(255,255,255,.4)">#{{ row.rank }}</span>
-        <span style="flex:1;font-size:13.5px" class="ox">{{ row.name }}</span>
-        <span style="font-size:11.5px;color:rgba(255,255,255,.4);text-transform:capitalize">{{ row.base_class }} · Lv.{{ row.level }}</span>
-        <span class="ox" style="font-weight:700;font-size:13px;color:#eab308">{{ row.power }}</span>
+        <span class="ox leaderboard-row__rank">#{{ row.rank }}</span>
+        <span class="ox leaderboard-row__name">{{ row.name }}</span>
+        <span class="leaderboard-row__meta">{{ row.base_class }} · Lv.{{ row.level }}</span>
+        <span class="ox leaderboard-row__power">{{ row.power }}</span>
       </div>
-      <div v-if="rows.length === 0" style="padding:20px;color:rgba(255,255,255,.35);font-size:13px">No ranked characters yet.</div>
+      <div v-if="rows.length === 0" class="leaderboard-empty">No ranked characters yet.</div>
     </div>
   </div>
 </template>
+
+<style lang="scss" src="./LeaderboardPage.scss" scoped></style>

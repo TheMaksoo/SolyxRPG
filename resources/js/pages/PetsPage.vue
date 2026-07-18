@@ -30,43 +30,57 @@ onMounted(load);
 
 <template>
   <div>
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
-      <div style="font-size:28px">🐾</div>
-      <h1 class="ox" style="font-size:28px;font-weight:800;margin:0">Companions</h1>
+    <div class="pets-header">
+      <div class="pets-header__icon">🐾</div>
+      <h1 class="ox pets-title">Companions</h1>
     </div>
 
-    <p v-if="message" style="font-size:13px;color:#ff6a4d;margin-bottom:14px">{{ message }}</p>
+    <p v-if="message" class="pets-message">{{ message }}</p>
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px">
+    <div class="pets-grid">
       <div
         v-for="row in pets"
         :key="row.pet.id"
-        :style="{
-          background: '#151517',
-          border: row.active ? '1px solid #e8482f' : '1px solid rgba(255,255,255,.07)',
-          borderRadius: '13px',
-          padding: '16px',
-        }"
+        class="pet-card"
+        :class="{ 'pet-card--active': row.active }"
       >
-        <div style="font-size:24px;margin-bottom:8px">{{ row.pet.glyph }}</div>
-        <div class="ox" style="font-weight:700;font-size:14.5px;margin-bottom:4px">{{ row.pet.name }}</div>
-        <div style="font-size:12px;color:rgba(255,255,255,.5);margin-bottom:12px">{{ row.pet.description }}</div>
+        <div class="pet-card__glyph">{{ row.pet.glyph }}</div>
+        <div class="ox pet-card__name">{{ row.pet.name }}</div>
+        <div class="pet-card__desc">{{ row.pet.description }}</div>
+        <div class="pet-card__bonuses">
+          <span v-for="b in row.bonuses" :key="b.label" class="pet-card__bonus-chip">+{{ b.pct }}% {{ b.label }}</span>
+        </div>
+        <div v-if="row.owned" class="pet-card__level-block">
+          <div class="pet-card__level-row">
+            <span>Lv.{{ row.level }}</span>
+            <span v-if="row.level < row.max_level">{{ row.xp }} / {{ row.xp_needed }} xp</span>
+            <span v-else>MAX</span>
+          </div>
+          <div class="pet-card__xp-track">
+            <div
+              class="pet-card__xp-fill"
+              :style="{ width: (row.level >= row.max_level ? 100 : Math.round((row.xp / row.xp_needed) * 100)) + '%' }"
+            ></div>
+          </div>
+        </div>
         <button
           v-if="!row.owned"
           @click="unlock(row)"
-          style="width:100%;padding:9px;border-radius:8px;border:none;background:#e8482f;color:#fff;font-weight:700;font-size:12.5px;cursor:pointer"
+          class="pet-card__btn--unlock"
         >
           Unlock — {{ row.pet.unlock_gems }}◆
         </button>
         <button
           v-else-if="!row.active"
           @click="activate(row)"
-          style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#fff;font-size:12.5px;cursor:pointer"
+          class="pet-card__btn--activate"
         >
           Activate
         </button>
-        <span v-else style="font-size:12px;color:#4ade80">Active</span>
+        <span v-else class="pet-card__status--active">Active</span>
       </div>
     </div>
   </div>
 </template>
+
+<style lang="scss" src="./PetsPage.scss" scoped></style>

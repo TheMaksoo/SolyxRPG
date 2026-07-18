@@ -35,62 +35,46 @@ onMounted(load);
 
 <template>
   <div>
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
-      <div style="font-size:28px">🏰</div>
-      <h1 class="ox" style="font-size:28px;font-weight:800;margin:0">Dungeons</h1>
+    <div class="dungeons-header">
+      <div class="dungeons-header__icon">🏰</div>
+      <h1 class="ox dungeons-title">Dungeons</h1>
     </div>
 
-    <p style="color:rgba(255,255,255,.5);margin:0 0 18px">Boss raids with dedicated drop tables. Higher difficulty, better rewards.</p>
-    <p v-if="error" style="color:#ff6a4d;font-size:13px;margin-bottom:14px">{{ error }}</p>
+    <p class="dungeons-intro">Boss raids with dedicated drop tables. Higher difficulty, better rewards.</p>
+    <p v-if="error" class="dungeons-error">{{ error }}</p>
 
     <AdBanner variant="inline" />
 
-    <div style="display:flex;flex-direction:column;gap:14px;max-width:900px">
-      <div
-        v-for="row in dungeons"
-        :key="row.dungeon.id"
-        style="background:#151517;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:18px;display:flex;gap:18px;flex-wrap:wrap;align-items:center"
-      >
-        <div
-          style="width:120px;height:90px;flex:none;border-radius:11px;background:repeating-linear-gradient(45deg,#1c1114,#1c1114 9px,#170e11 9px,#170e11 18px);display:grid;place-items:center;font-size:36px"
-        >
+    <div class="dungeon-list">
+      <div v-for="row in dungeons" :key="row.dungeon.id" class="dungeon-card">
+        <div class="dungeon-card__art">
           {{ row.dungeon.glyph }}
         </div>
-        <div style="flex:1;min-width:200px">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div class="ox" style="font-weight:700;font-size:17px">{{ row.dungeon.name }}</div>
+        <div class="dungeon-card__body">
+          <div class="dungeon-card__title-row">
+            <div class="ox dungeon-card__name">{{ row.dungeon.name }}</div>
             <span
-              :style="{ fontSize: '11px', padding: '3px 9px', borderRadius: '6px', background: DIFF[row.dungeon.difficulty]?.bg, color: DIFF[row.dungeon.difficulty]?.color, fontWeight: 600, textTransform: 'capitalize' }"
+              class="dungeon-card__difficulty"
+              :style="{ background: DIFF[row.dungeon.difficulty]?.bg, color: DIFF[row.dungeon.difficulty]?.color }"
               >{{ row.dungeon.difficulty }}</span
             >
           </div>
-          <div style="font-size:13px;color:rgba(255,255,255,.5);margin:5px 0 8px">
+          <div class="dungeon-card__meta">
             Boss: {{ row.dungeon.boss_monster?.name ?? 'Unknown' }}
             <span v-if="row.dungeon.party_size > 1"> · Party of {{ row.dungeon.party_size }}</span>
           </div>
-          <div v-if="row.dungeon.drops_json" style="font-size:12px;color:#eab308">
+          <div v-if="row.dungeon.drops_json" class="dungeon-card__drops">
             Drops:
             <span v-if="row.dungeon.drops_json.gold">{{ row.dungeon.drops_json.gold }}g</span>
             <span v-if="row.dungeon.drops_json.gems"> · {{ row.dungeon.drops_json.gems }}◆</span>
           </div>
         </div>
-        <button
-          @click="enter(row)"
-          :disabled="!row.unlocked"
-          :style="{
-            padding: '11px 22px',
-            borderRadius: '10px',
-            border: 'none',
-            background: row.unlocked ? '#e8482f' : 'rgba(255,255,255,.08)',
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: '13px',
-            cursor: row.unlocked ? 'pointer' : 'not-allowed',
-          }"
-        >
-          {{ row.unlocked ? 'Enter' : `Requires Lv.${row.dungeon.min_level}` }}
+        <button @click="enter(row)" :disabled="!row.unlocked" class="dungeon-card__enter">
+          {{ row.active_run ? `Resume (Stage ${row.active_run.stage}/${row.active_run.total_stages})` : row.unlocked ? 'Enter' : `Requires Lv.${row.dungeon.min_level}` }}
         </button>
       </div>
     </div>
   </div>
 </template>
+
+<style lang="scss" src="./DungeonsPage.scss" scoped></style>

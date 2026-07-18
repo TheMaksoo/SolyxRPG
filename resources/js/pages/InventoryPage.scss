@@ -1,0 +1,101 @@
+@use '../../scss/variables' as v;
+@use '../../scss/mixins' as m;
+
+.inventory-header {
+  @include m.page-header;
+}
+
+.inventory-header__icon {
+  font-size: 28px;
+}
+
+.inventory-title {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.inventory-section-heading {
+  font-size: 13px;
+  color: v.$text-muted-40;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+
+.inventory-message {
+  color: v.$success;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.inventory-equipped-grid {
+  @include m.grid-auto-fill(200px, 12px);
+  margin-bottom: 24px;
+}
+
+.inventory-bag-grid {
+  @include m.grid-auto-fill(200px, 12px);
+}
+
+.inventory-equipped-card {
+  background: v.$bg-card;
+  border: 1px solid v.$accent;
+  border-radius: 11px;
+  padding: 14px;
+}
+
+.inventory-equipped-card__icon {
+  font-size: 20px;
+  margin-right: 8px;
+}
+
+.inventory-equipped-card__name {
+  font-weight: 700;
+  font-size: 13.5px;
+}
+
+.inventory-empty {
+  color: v.$text-muted-35;
+  font-size: 13px;
+}
+
+.inventory-bag-card {
+  background: v.$bg-card;
+  border: 1px solid v.$border-subtle;
+  border-radius: 11px;
+  padding: 14px;
+}
+
+.inventory-bag-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.inventory-bag-card__icon {
+  font-size: 20px;
+}
+
+.inventory-bag-card__name {
+  font-weight: 700;
+  font-size: 13.5px;
+}
+
+.inventory-bag-card__qty {
+  margin-left: auto;
+  font-size: 12px;
+  color: v.$text-muted-40;
+}
+
+.inventory-bag-card__equip-btn {
+  width: 100%;
+  padding: 7px;
+  border-radius: 7px;
+  border: 1px solid v.$border-medium;
+  background: transparent;
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}

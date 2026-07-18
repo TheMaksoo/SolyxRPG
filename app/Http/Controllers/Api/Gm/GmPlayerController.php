@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Gm;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\Mail;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -49,14 +50,46 @@ class GmPlayerController extends Controller
         return response()->json(['character' => $character->fresh()]);
     }
 
-    /** A dedicated banned_at column + login gate would be the real implementation; this revokes active sessions/tokens as the lightweight version. */
+    public function mail(Request $request, User $user)
+    {
+        $data = $request->validate([
+            'subject' => ['required', 'string', 'max:120'],
+            'body' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $mail = Mail::create([
+            'recipient_user_id' => $user->id,
+            'sender_gm_id' => $request->user()->id,
+            'subject' => $data['subject'],
+            'body' => $data['body'],
+            'created_at' => now(),
+        ]);
+
+        AuditLog::record($request->user()->id, 'gm.player.mail', 'users', $user->id, $data);
+
+        return response()->json(['mail' => $mail]);
+    }
+
+    /** Toggles a persisted ban: sets/clears banned_at and, when banning, revokes active sessions/tokens. */
     public function ban(Request $request, User $user)
     {
+        if ($user->isBanned()) {
+            $user->banned_at = null;
+            $user->save();
+
+            AuditLog::record($request->user()->id, 'gm.player.unban', 'users', $user->id);
+
+            return response()->json(['message' => "Unbanned {$user->name}.", 'banned' => false]);
+        }
+
+        $user->banned_at = now();
+        $user->save();
+
         DB::table('sessions')->where('user_id', $user->id)->delete();
         $user->tokens()->delete();
 
         AuditLog::record($request->user()->id, 'gm.player.ban', 'users', $user->id);
 
-        return response()->json(['message' => "Revoked {$user->name}'s active sessions."]);
+        return response()->json(['message' => "Banned {$user->name} and revoked active sessions.", 'banned' => true]);
     }
 }

@@ -83,26 +83,27 @@ watch(() => props.resource, load, { immediate: true });
 
 <template>
   <div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <div class="ox" style="font-weight:700;font-size:15px">{{ schema().label }} ({{ rows.length }})</div>
-      <button
-        @click="startCreate"
-        style="padding:8px 16px;border-radius:8px;border:none;background:#e8482f;color:#fff;font-weight:700;font-size:12.5px;cursor:pointer"
-      >
+    <div class="gm-editor-header">
+      <div class="ox gm-editor-header__title">{{ schema().label }} ({{ rows.length }})</div>
+      <button @click="startCreate" class="gm-editor-new-btn">
         + New
       </button>
     </div>
 
-    <div v-if="editing" style="background:#151517;border:1px solid rgba(232,72,47,.3);border-radius:12px;padding:18px;margin-bottom:16px">
-      <div class="ox" style="font-weight:700;font-size:13px;margin-bottom:12px">{{ editing.id ? 'Edit' : 'Create' }} {{ schema().label.replace(/s$/, '') }}</div>
-      <p v-if="message" style="font-size:12.5px;color:#ff6a4d;margin-bottom:10px">{{ message }}</p>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px">
-        <div v-for="field in schema().fields" :key="field.name" :style="field.type === 'json' || field.type === 'textarea' ? 'grid-column:1/-1' : ''">
-          <div style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:4px;text-transform:capitalize">{{ field.name.replace(/_/g, ' ') }}</div>
+    <div v-if="editing" class="gm-editor-form">
+      <div class="ox gm-editor-form__title">{{ editing.id ? 'Edit' : 'Create' }} {{ schema().label.replace(/s$/, '') }}</div>
+      <p v-if="message" class="gm-editor-form__error">{{ message }}</p>
+      <div class="gm-editor-form__fields">
+        <div
+          v-for="field in schema().fields"
+          :key="field.name"
+          :class="{ 'gm-editor-field--full': field.type === 'json' || field.type === 'textarea' }"
+        >
+          <div class="gm-editor-field__label">{{ field.name.replace(/_/g, ' ') }}</div>
           <select
             v-if="field.type === 'select'"
             v-model="form[field.name]"
-            style="width:100%;background:#0e0e10;border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:8px;color:#fff;font-size:12.5px;box-sizing:border-box"
+            class="gm-editor-select"
           >
             <option v-for="o in field.options" :key="o" :value="o">{{ o }}</option>
           </select>
@@ -110,50 +111,52 @@ watch(() => props.resource, load, { immediate: true });
             v-else-if="field.type === 'json' || field.type === 'textarea'"
             v-model="form[field.name]"
             rows="3"
-            style="width:100%;background:#0e0e10;border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:8px;color:#fff;font-size:12px;font-family:ui-monospace,monospace;box-sizing:border-box"
+            class="gm-editor-textarea"
           ></textarea>
           <input
             v-else-if="field.type === 'checkbox'"
             type="checkbox"
             v-model="form[field.name]"
-            style="width:18px;height:18px"
+            class="gm-editor-checkbox"
           />
           <input
             v-else
             :type="field.type === 'number' ? 'number' : 'text'"
             v-model="form[field.name]"
-            style="width:100%;background:#0e0e10;border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:8px;color:#fff;font-size:12.5px;box-sizing:border-box"
+            class="gm-editor-input"
           />
         </div>
       </div>
-      <div style="display:flex;gap:8px">
-        <button @click="save" style="padding:8px 18px;border-radius:8px;border:none;background:#e8482f;color:#fff;font-weight:700;font-size:12.5px;cursor:pointer">Save</button>
-        <button @click="cancelEdit" style="padding:8px 18px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#fff;font-size:12.5px;cursor:pointer">Cancel</button>
+      <div class="gm-editor-form__actions">
+        <button @click="save" class="gm-editor-save-btn">Save</button>
+        <button @click="cancelEdit" class="gm-editor-cancel-btn">Cancel</button>
       </div>
     </div>
 
-    <div class="twrap" style="overflow-x:auto;background:#151517;border:1px solid rgba(255,255,255,.07);border-radius:12px">
-      <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+    <div class="twrap gm-editor-table-wrap">
+      <table class="gm-editor-table">
         <thead>
-          <tr style="border-bottom:1px solid rgba(255,255,255,.06)">
-            <th v-for="col in schema().columns" :key="col" style="text-align:left;padding:10px 14px;color:rgba(255,255,255,.4);font-weight:600;text-transform:uppercase;font-size:10.5px">{{ col }}</th>
+          <tr class="gm-editor-table__head-row">
+            <th v-for="col in schema().columns" :key="col" class="gm-editor-table__head-cell">{{ col }}</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in rows" :key="row.id" style="border-bottom:1px solid rgba(255,255,255,.04)">
-            <td v-for="col in schema().columns" :key="col" style="padding:9px 14px">
+          <tr v-for="row in rows" :key="row.id" class="gm-editor-table__row">
+            <td v-for="col in schema().columns" :key="col" class="gm-editor-table__cell">
               <span v-if="typeof row[col] === 'boolean'">{{ row[col] ? '✔' : '—' }}</span>
               <span v-else>{{ row[col] }}</span>
             </td>
-            <td style="padding:9px 14px;text-align:right;white-space:nowrap">
-              <button @click="startEdit(row)" style="background:none;border:none;color:#ff8163;font-size:12px;cursor:pointer;margin-right:10px">Edit</button>
-              <button @click="remove(row)" style="background:none;border:none;color:rgba(255,255,255,.4);font-size:12px;cursor:pointer">Delete</button>
+            <td class="gm-editor-table__cell--actions">
+              <button @click="startEdit(row)" class="gm-editor-edit-link">Edit</button>
+              <button @click="remove(row)" class="gm-editor-delete-link">Delete</button>
             </td>
           </tr>
         </tbody>
       </table>
-      <div v-if="!rows.length" style="padding:20px;color:rgba(255,255,255,.35);font-size:12.5px">No entries yet.</div>
+      <div v-if="!rows.length" class="gm-editor-empty">No entries yet.</div>
     </div>
   </div>
 </template>
+
+<style lang="scss" src="./GmContentEditor.scss" scoped></style>

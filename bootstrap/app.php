@@ -14,7 +14,10 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->statefulApi();
-        $middleware->alias(['gm' => \App\Http\Middleware\EnsureIsGm::class]);
+        $middleware->alias([
+            'gm' => \App\Http\Middleware\EnsureIsGm::class,
+            'not-banned' => \App\Http\Middleware\EnsureNotBanned::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

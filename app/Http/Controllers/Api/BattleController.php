@@ -4,52 +4,77 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Battle;
+use App\Models\DungeonRun;
 use App\Models\Monster;
-use App\Models\Zone;
 use App\Services\CombatService;
+use App\Services\DungeonService;
+use App\Services\GradeService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class BattleController extends Controller
 {
-    public function __construct(private CombatService $combat) {}
+    public function __construct(
+        private CombatService $combat,
+        private DungeonService $dungeons,
+        private GradeService $grades,
+    ) {}
 
-    public function enemies(Request $request)
+    /** The character's in-progress battle, if any — used to resume after a disconnect/reload. */
+    public function active(Request $request)
     {
         $character = $request->user()->character;
         abort_unless($character, 404);
 
-        $zoneId = $request->query('zone', $character->current_zone_id);
+        $battle = Battle::where('character_id', $character->id)->where('status', 'active')->with('monster')->first();
+        $dungeonRun = null;
+        if ($battle) {
+            $this->combat->regenInBattle($battle, $character);
+            if (Schema::hasTable('dungeon_runs')) {
+                $dungeonRun = DungeonRun::where('battle_id', $battle->id)->where('status', 'active')->first();
+            }
+        }
 
-        $monsters = Monster::query()
-            ->where('enabled', true)
-            ->when($zoneId, fn ($q) => $q->where('zone_id', $zoneId))
-            ->where('min_level', '<=', $character->level + 10)
-            ->orderBy('min_level')
-            ->get();
-
-        return response()->json(['enemies' => $monsters]);
+        return response()->json(['battle' => $battle, 'dungeon_run' => $dungeonRun]);
     }
 
-    public function start(Request $request)
+    /** Walks into a fresh, randomly-graded encounter in the character's current zone — the only way to start a fight. */
+    public function walk(Request $request)
     {
         $character = $request->user()->character;
         abort_unless($character, 404);
 
-        $data = $request->validate(['monster_id' => ['required', 'exists:monsters,id']]);
-        $monster = Monster::findOrFail($data['monster_id']);
+        if (Battle::where('character_id', $character->id)->where('status', 'active')->exists()) {
+            return response()->json(['message' => 'You have a battle in progress. Resume it or flee first.'], 422);
+        }
 
-        // one active battle at a time
-        Battle::where('character_id', $character->id)->where('status', 'active')->update(['status' => 'lost']);
+        $character->applyPassiveRegen();
 
-        $battle = $this->combat->start($character, $monster);
+        $zoneId = $character->current_zone_id;
+        $monster = Monster::query()
+            ->where('enabled', true)
+            ->where('is_boss', false)
+            ->when($zoneId, fn ($q) => $q->where('zone_id', $zoneId))
+            ->where('min_level', '<=', $character->level + 10)
+            ->inRandomOrder()
+            ->first();
 
-        return response()->json(['battle' => $battle->load('monster')]);
+        if (! $monster) {
+            return response()->json(['message' => 'No enemies to walk into yet — try a zone that matches your level.'], 422);
+        }
+
+        $grade = $this->grades->roll($character->level);
+        $battle = $this->combat->start($character, $monster, $grade);
+
+        return response()->json(['battle' => $battle->load('monster'), 'grade' => $this->grades->meta($grade)]);
     }
 
     public function show(Request $request, Battle $battle)
     {
         $this->authorizeBattle($request, $battle);
+
+        $this->combat->regenInBattle($battle, $request->user()->character);
 
         return response()->json(['battle' => $battle->load('monster')]);
     }
@@ -59,18 +84,34 @@ class BattleController extends Controller
         $this->authorizeBattle($request, $battle);
 
         $data = $request->validate([
-            'type' => ['required', Rule::in(['attack', 'skill', 'item'])],
+            'type' => ['required', Rule::in(['attack', 'skill', 'item', 'flee'])],
             'skill_id' => ['nullable', 'exists:skills,id'],
             'item_id' => ['nullable', 'exists:items,id'],
         ]);
 
+        $character = $request->user()->character;
+
+        if ($data['type'] === 'flee') {
+            $result = $this->combat->flee($battle, $character);
+            $result['dungeon_run'] = Schema::hasTable('dungeon_runs')
+                ? $this->dungeons->onBattleResolved($battle, $character, 'fled')
+                : null;
+
+            return response()->json($result);
+        }
+
         $result = $this->combat->act(
             $battle,
-            $request->user()->character,
+            $character,
             $data['type'],
             $data['skill_id'] ?? null,
             $data['item_id'] ?? null,
         );
+
+        $outcome = $result['result']['outcome'] ?? null;
+        if ($outcome !== null && Schema::hasTable('dungeon_runs')) {
+            $result['dungeon_run'] = $this->dungeons->onBattleResolved($battle, $character, $outcome);
+        }
 
         return response()->json($result);
     }

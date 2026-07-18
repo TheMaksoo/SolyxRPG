@@ -27,34 +27,28 @@ onMounted(load);
 
 <template>
   <div>
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
-      <div style="font-size:28px">🎁</div>
-      <h1 class="ox" style="font-size:28px;font-weight:800;margin:0">Daily</h1>
+    <div class="daily-header">
+      <div class="daily-header__icon">🎁</div>
+      <h1 class="ox daily-title">Daily</h1>
     </div>
 
-    <div style="max-width:360px">
+    <div class="daily-ad-wrap">
       <AdBanner variant="inline" />
     </div>
 
-    <div v-if="info" style="max-width:360px;background:#151517;border:1px solid rgba(255,255,255,.07);border-radius:13px;padding:24px;text-align:center">
-      <div class="ox" style="font-size:32px;font-weight:800;margin-bottom:6px">{{ info.streak }}</div>
-      <div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:18px">day streak</div>
-      <p v-if="message" style="font-size:13px;color:rgba(255,255,255,.6);margin-bottom:14px">{{ message }}</p>
+    <div v-if="info" class="daily-card">
+      <div class="ox daily-card__streak">{{ info.streak }}</div>
+      <div class="daily-card__label">day streak</div>
+      <p v-if="message" class="daily-message">{{ message }}</p>
       <button
         @click="claim"
         :disabled="!info.can_claim"
-        :style="{
-          padding: '11px 28px',
-          borderRadius: '10px',
-          border: 'none',
-          background: info.can_claim ? '#e8482f' : 'rgba(255,255,255,.08)',
-          color: '#fff',
-          fontWeight: 700,
-          cursor: info.can_claim ? 'pointer' : 'not-allowed',
-        }"
+        class="daily-claim-btn"
       >
         {{ info.can_claim ? 'Claim today’s reward' : 'Already claimed' }}
       </button>
     </div>
   </div>
 </template>
+
+<style lang="scss" src="./DailyPage.scss" scoped></style>

@@ -1,0 +1,66 @@
+@use '../../scss/variables' as v;
+@use '../../scss/mixins' as m;
+
+.world-chat {
+  @include m.card(0);
+  width: 260px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.world-chat__header {
+  @include m.section-eyebrow;
+  padding: 14px 16px;
+  border-bottom: 1px solid v.$border-subtle;
+}
+
+.world-chat__messages {
+  flex: 1;
+  padding: 12px 16px;
+  max-height: 360px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.world-chat__line {
+  font-size: 12px;
+  color: v.$text-muted-70;
+  line-height: 1.4;
+}
+
+.world-chat__empty {
+  color: v.$text-muted-35;
+  font-size: 12px;
+}
+
+.world-chat__input-row {
+  display: flex;
+  gap: 6px;
+  padding: 10px;
+  border-top: 1px solid v.$border-subtle;
+}
+
+.world-chat__input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: v.$radius-sm;
+  border: 1px solid v.$border-medium;
+  background: v.$bg-input;
+  color: #fff;
+  font-size: 12.5px;
+}
+
+.world-chat__send {
+  @include m.btn-reset;
+  padding: 8px 14px;
+  border-radius: v.$radius-sm;
+  background: v.$accent;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}

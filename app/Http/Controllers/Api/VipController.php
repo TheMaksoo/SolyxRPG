@@ -12,9 +12,9 @@ class VipController extends Controller
 {
     /** monthly price in cents per tier; bonus character slots come from User::VIP_TIER_SLOTS */
     private const TIERS = [
-        'bronze' => ['label' => 'Bronze VIP', 'price_cents' => 499],
-        'gold' => ['label' => 'Gold VIP', 'price_cents' => 999],
-        'diamond' => ['label' => 'Diamond VIP', 'price_cents' => 1999],
+        'bronze' => ['label' => 'Bronze VIP', 'price_cents' => 299],
+        'gold' => ['label' => 'Gold VIP', 'price_cents' => 499],
+        'diamond' => ['label' => 'Diamond VIP', 'price_cents' => 999],
     ];
 
     public function index(Request $request)
@@ -22,7 +22,15 @@ class VipController extends Controller
         $user = $request->user();
 
         $tiers = collect(self::TIERS)
-            ->map(fn ($tier, $key) => [...$tier, 'slots' => User::VIP_TIER_SLOTS[$key]])
+            ->map(fn ($tier, $key) => [
+                ...$tier,
+                'slots' => User::VIP_TIER_SLOTS[$key],
+                'luck_bonus' => User::VIP_TIER_LUCK[$key],
+                'regen_flat_bonus' => User::VIP_TIER_REGEN_FLAT[$key],
+                'regen_pct_bonus' => User::VIP_TIER_REGEN_PCT[$key],
+                'gold_xp_pct_bonus' => User::VIP_TIER_GOLD_XP_PCT[$key],
+                'craft_speed_pct_bonus' => User::VIP_TIER_CRAFT_SPEED_PCT[$key],
+            ])
             ->all();
 
         return response()->json([

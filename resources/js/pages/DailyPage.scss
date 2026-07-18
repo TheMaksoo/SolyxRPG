@@ -1,0 +1,58 @@
+@use '../../scss/variables' as v;
+@use '../../scss/mixins' as m;
+
+.daily-header {
+  @include m.page-header;
+}
+
+.daily-header__icon {
+  font-size: 28px;
+}
+
+.daily-title {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.daily-ad-wrap {
+  @include m.centered-column(360px);
+}
+
+.daily-card {
+  @include m.centered-column(360px);
+  @include m.card(24px);
+  text-align: center;
+}
+
+.daily-card__streak {
+  font-size: 32px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.daily-card__label {
+  font-size: 12px;
+  color: v.$text-muted-40;
+  margin-bottom: 18px;
+}
+
+.daily-message {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 14px;
+}
+
+.daily-claim-btn {
+  @include m.btn-reset;
+  padding: 11px 28px;
+  border-radius: v.$radius-md;
+  background: v.$accent;
+  color: #fff;
+  font-weight: 700;
+
+  &:disabled {
+    background: rgba(255, 255, 255, 0.08);
+    cursor: not-allowed;
+  }
+}

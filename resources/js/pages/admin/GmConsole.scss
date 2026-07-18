@@ -1,0 +1,496 @@
+@use '../../../scss/variables' as v;
+@use '../../../scss/mixins' as m;
+
+// Local surface/button patterns reused across this page's tabs — structurally
+// close to the global mixins but with page-specific paddings/radii, so they
+// live here rather than being forced into the shared mixins.
+%gm-tile-base {
+  background: v.$bg-card;
+  border: 1px solid v.$border-subtle;
+  border-radius: 12px;
+}
+
+%gm-btn-base {
+  @include m.btn-reset;
+  font-weight: 700;
+}
+
+// ---- Header banner ----
+.gm-console-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  background: linear-gradient(120deg, rgba(232, 72, 47, 0.16), rgba(232, 72, 47, 0.02));
+  border: 1px solid rgba(232, 72, 47, 0.28);
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+
+.gm-console-banner__left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.gm-console-banner__icon {
+  width: 46px;
+  height: 46px;
+  flex: none;
+  border-radius: 12px;
+  background: rgba(232, 72, 47, 0.18);
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+}
+
+.gm-console-banner__title {
+  font-weight: 800;
+  font-size: 19px;
+}
+
+.gm-console-banner__subtitle {
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+// ---- Main tabs ----
+.gm-console-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 16px;
+}
+
+.gm-console-tab-btn {
+  @extend %gm-btn-base;
+  padding: 8px 16px;
+  border-radius: v.$radius-pill;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: v.$bg-card;
+  color: #fff;
+  font-size: 13px;
+
+  &.is-active {
+    background: v.$accent;
+  }
+}
+
+// ---- Shared eyebrow / empty states ----
+.gm-console-section-label {
+  @include m.section-eyebrow;
+
+  &--spaced {
+    margin-bottom: 12px;
+  }
+}
+
+.gm-console-empty {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 13px;
+
+  &--panel {
+    padding: 16px;
+    font-size: 12.5px;
+  }
+}
+
+// ---- Overview tab ----
+.gm-console-stats-grid {
+  @include m.grid-auto-fit(128px, 12px);
+  margin-bottom: 28px;
+}
+
+.gm-console-stat-tile {
+  @extend %gm-tile-base;
+  padding: 16px;
+}
+
+.gm-console-stat-tile__count {
+  font-size: 22px;
+  font-weight: 800;
+  color: v.$accent;
+  line-height: 1;
+}
+
+.gm-console-stat-tile__label {
+  font-size: 11.5px;
+  color: v.$text-muted-45;
+  margin-top: 2px;
+  text-transform: capitalize;
+}
+
+.gm-console-flags-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.gm-console-panel {
+  @extend %gm-tile-base;
+  overflow: hidden;
+}
+
+.gm-console-flags-row {
+  display: grid;
+  grid-template-columns: 1.6fr 90px 90px;
+  padding: 12px 18px;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+
+  &--header {
+    padding: 11px 18px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.35);
+    font-weight: 600;
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+  }
+}
+
+.gm-console-flags-row__cell--center {
+  text-align: center;
+}
+
+.gm-console-flag-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.gm-console-checkbox {
+  width: 18px;
+  height: 18px;
+}
+
+// ---- Content tab ----
+.gm-console-resource-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.gm-console-resource-tab-btn {
+  @extend %gm-btn-base;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: v.$radius-sm;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: v.$bg-card;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+
+  &.is-active {
+    background: v.$accent-tint-15;
+    color: v.$accent-soft;
+  }
+}
+
+// ---- Players tab ----
+.gm-console-search-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  max-width: 420px;
+}
+
+.gm-console-search-input {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: v.$radius-sm;
+  border: 1px solid v.$border-medium;
+  background: v.$bg-card;
+  color: #fff;
+  font-size: 13px;
+}
+
+.gm-console-search-btn {
+  @extend %gm-btn-base;
+  padding: 9px 16px;
+  border-radius: v.$radius-sm;
+  background: v.$accent;
+  color: #fff;
+  font-size: 12.5px;
+}
+
+.gm-console-player-message {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 14px;
+}
+
+.gm-console-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  &--wide {
+    max-width: 800px;
+  }
+}
+
+.gm-console-player-card {
+  @extend %gm-tile-base;
+  padding: 14px 18px;
+}
+
+.gm-console-player-card__row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.gm-console-player-card__info {
+  flex: 1;
+  min-width: 180px;
+}
+
+.gm-console-player-card__name {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.gm-console-player-card__meta {
+  font-size: 11.5px;
+  color: v.$text-muted-40;
+}
+
+.gm-console-ban-btn {
+  @include m.btn-reset;
+  padding: 7px 14px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  background: transparent;
+  color: #ff6a6a;
+  font-size: 12px;
+
+  &--active {
+    background: rgba(255, 107, 107, 0.18);
+  }
+}
+
+.gm-console-banned-badge {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: v.$radius-pill;
+  background: rgba(255, 107, 107, 0.2);
+  color: #ff6a6a;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  vertical-align: middle;
+}
+
+.gm-console-grant-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.gm-console-mail-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.gm-console-mail-input {
+  width: 140px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1px solid v.$border-medium;
+  background: v.$bg-input;
+  color: #fff;
+  font-size: 12px;
+
+  &--body {
+    flex: 1;
+    width: auto;
+  }
+}
+
+.gm-console-mail-btn {
+  @include m.btn-reset;
+  padding: 7px 14px;
+  border-radius: 7px;
+  background: v.$accent-tint-15;
+  color: v.$accent-soft;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.gm-console-grant-input {
+  width: 90px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1px solid v.$border-medium;
+  background: v.$bg-input;
+  color: #fff;
+  font-size: 12px;
+}
+
+.gm-console-grant-btn {
+  @include m.btn-reset;
+  padding: 7px 14px;
+  border-radius: 7px;
+  background: v.$accent-tint-15;
+  color: v.$accent-soft;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+// ---- Economy tab ----
+.gm-console-intro {
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 0 18px;
+}
+
+.gm-console-note {
+  color: v.$text-muted-45;
+  margin: 0 0 14px;
+  font-size: 12px;
+}
+
+.gm-console-config-grid {
+  @include m.grid-auto-fit(200px, 14px);
+  max-width: 700px;
+}
+
+.gm-console-config-tile {
+  @extend %gm-tile-base;
+  padding: 16px;
+}
+
+.gm-console-config-tile__label {
+  font-size: 11px;
+  color: v.$text-muted-40;
+  margin-bottom: 8px;
+  text-transform: capitalize;
+}
+
+.gm-console-config-tile__row {
+  display: flex;
+  gap: 8px;
+}
+
+.gm-console-config-input {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: 1px solid v.$border-medium;
+  background: v.$bg-input;
+  color: #fff;
+  font-size: 13px;
+}
+
+.gm-console-config-save-btn {
+  @extend %gm-btn-base;
+  padding: 8px 14px;
+  border-radius: 7px;
+  background: v.$accent;
+  color: #fff;
+  font-size: 12px;
+}
+
+// ---- Tickets tab ----
+.gm-console-ticket-card {
+  @extend %gm-tile-base;
+  padding: 16px;
+}
+
+.gm-console-ticket-card__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.gm-console-ticket-card__subject {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.gm-console-ticket-card__meta {
+  font-size: 11px;
+  color: v.$text-muted-40;
+  text-transform: capitalize;
+}
+
+.gm-console-ticket-card__body {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 10px;
+}
+
+.gm-console-ticket-card__from {
+  font-size: 11.5px;
+  color: v.$text-muted-35;
+  margin-bottom: 10px;
+}
+
+.gm-console-ticket-card__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.gm-console-resolve-btn {
+  @extend %gm-btn-base;
+  padding: 7px 14px;
+  border-radius: 7px;
+  background: v.$success;
+  color: v.$bg-page;
+  font-size: 12px;
+}
+
+.gm-console-close-btn {
+  @include m.btn-reset;
+  padding: 7px 14px;
+  border-radius: 7px;
+  border: 1px solid v.$border-medium;
+  background: transparent;
+  color: #fff;
+  font-size: 12px;
+}
+
+// ---- Broadcast tab ----
+.gm-console-broadcast {
+  max-width: 520px;
+}
+
+.gm-console-broadcast-intro {
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 0 14px;
+}
+
+.gm-console-broadcast-textarea {
+  width: 100%;
+  padding: 12px;
+  border-radius: v.$radius-md;
+  border: 1px solid v.$border-medium;
+  background: v.$bg-card;
+  color: #fff;
+  font-size: 13.5px;
+  box-sizing: border-box;
+  margin-bottom: 12px;
+}
+
+.gm-console-broadcast-success {
+  font-size: 13px;
+  color: v.$success;
+  margin-bottom: 12px;
+}
+
+.gm-console-broadcast-btn {
+  @extend %gm-btn-base;
+  padding: 11px 24px;
+  border-radius: v.$radius-md;
+  background: v.$accent;
+  color: #fff;
+}

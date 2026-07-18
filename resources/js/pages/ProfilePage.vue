@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useCharacterStore } from '../stores/character';
 import api from '../api/client';
 
@@ -11,6 +11,41 @@ async function loadAchievements() {
   achievements.value = data.achievements;
 }
 
+const ATTR_ROWS = [
+  { key: 'damage', label: 'Damage' },
+  { key: 'armor', label: 'Armor' },
+  { key: 'hp_cap', label: 'HP Cap' },
+  { key: 'mana_cap', label: 'Mana Cap' },
+  { key: 'hp_regen', label: 'HP Regen' },
+  { key: 'mana_regen', label: 'Mana Regen' },
+  { key: 'crit', label: 'Crit Chance' },
+  { key: 'crit_damage', label: 'Crit Damage' },
+  { key: 'luck', label: 'Luck' },
+  { key: 'dodge', label: 'Dodge' },
+];
+
+const CORE_ROWS = [
+  { label: 'Attack', base: 'base_atk', eff: 'eff_atk' },
+  { label: 'Defense', base: 'base_def', eff: 'eff_def' },
+  { label: 'HP', base: 'hp_max', eff: 'eff_hp_max' },
+  { label: 'Mana', base: 'mana_max', eff: 'eff_mp_max' },
+];
+
+const battlesTotal = computed(() => (store.character?.battles_won ?? 0) + (store.character?.battles_lost ?? 0));
+const winRate = computed(() => (battlesTotal.value > 0 ? Math.round(((store.character?.battles_won ?? 0) / battlesTotal.value) * 100) : 0));
+
+function activeBuff(pctKey, expiresKey) {
+  const pct = store.character?.[pctKey];
+  const expiresAt = store.character?.[expiresKey];
+  if (!pct || !expiresAt) return null;
+  const msLeft = new Date(expiresAt).getTime() - Date.now();
+  if (msLeft <= 0) return null;
+  return `+${pct}% for ${Math.max(1, Math.round(msLeft / 60000))}m`;
+}
+
+const hpRegenBuff = computed(() => activeBuff('hp_regen_buff_pct', 'hp_regen_buff_expires_at'));
+const manaRegenBuff = computed(() => activeBuff('mana_regen_buff_pct', 'mana_regen_buff_expires_at'));
+
 onMounted(() => {
   if (!store.character) store.fetch();
   loadAchievements();
@@ -19,51 +54,123 @@ onMounted(() => {
 
 <template>
   <div v-if="store.character">
-    <div
-      style="background:linear-gradient(150deg,#1a1013,#151517);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:26px;margin-bottom:20px;display:flex;gap:20px;flex-wrap:wrap;align-items:center"
-    >
-      <div class="ox" style="width:80px;height:80px;border-radius:18px;background:#e8482f;display:grid;place-items:center;font-size:30px;font-weight:800">
+    <div class="profile-hero">
+      <div class="ox profile-hero__avatar">
         {{ store.character.name.slice(0, 2).toUpperCase() }}
       </div>
-      <div style="flex:1;min-width:200px">
-        <div class="ox" style="font-size:26px;font-weight:800">{{ store.character.name }}</div>
-        <div style="color:#e8482f;font-weight:600;text-transform:capitalize">
+      <div class="profile-hero__info">
+        <div class="ox profile-hero__name">{{ store.character.name }}</div>
+        <div class="profile-hero__class">
           {{ store.character.spec_class || store.character.base_class }} · Level {{ store.character.level }}
         </div>
-        <div style="font-size:13px;color:rgba(255,255,255,.45);margin-top:4px">
-          {{ store.character.battles_won }} battles won · {{ store.character.bosses_slain }} bosses slain
+        <div class="profile-hero__meta">
+          {{ store.character.battles_won }} won · {{ store.character.battles_lost ?? 0 }} lost ({{ winRate }}% win rate) · {{ store.character.bosses_slain }} bosses slain
+        </div>
+        <div v-if="store.stats" class="profile-hero__xp">
+          <div class="profile-hero__xp-track">
+            <div class="profile-hero__xp-fill" :style="{ width: Math.min(100, Math.round((store.character.xp / (store.stats.xp_max || 1)) * 100)) + '%' }"></div>
+          </div>
+          <div class="profile-hero__xp-label">{{ store.character.xp }} / {{ store.stats.xp_max }} XP</div>
         </div>
       </div>
-      <div v-if="store.stats" style="display:flex;gap:20px">
-        <div style="text-align:center">
-          <div class="ox" style="font-size:22px;font-weight:800;color:#eab308">{{ store.stats.power }}</div>
-          <div style="font-size:11px;color:rgba(255,255,255,.4)">Power</div>
+      <div v-if="store.stats" class="profile-hero__stats">
+        <div class="profile-stat">
+          <div class="ox profile-stat__value profile-stat__value--power">{{ store.stats.power }}</div>
+          <div class="profile-stat__label">Power</div>
         </div>
-        <div style="text-align:center">
-          <div class="ox" style="font-size:22px;font-weight:800;color:#a78bfa">{{ store.character.gold }}g</div>
-          <div style="font-size:11px;color:rgba(255,255,255,.4)">Gold</div>
+        <div class="profile-stat">
+          <div class="ox profile-stat__value profile-stat__value--luck">{{ store.stats.luck ?? 0 }}</div>
+          <div class="profile-stat__label">Luck</div>
+        </div>
+        <div class="profile-stat">
+          <div class="ox profile-stat__value profile-stat__value--gold">{{ store.character.gold }}g</div>
+          <div class="profile-stat__label">Gold</div>
+        </div>
+        <div class="profile-stat">
+          <div class="ox profile-stat__value profile-stat__value--gems">{{ store.character.gems }}◆</div>
+          <div class="profile-stat__label">Gems</div>
         </div>
       </div>
     </div>
 
-    <div style="font-size:12px;letter-spacing:.15em;color:rgba(255,255,255,.4);font-weight:600;margin-bottom:12px">ACHIEVEMENTS</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px">
+    <div v-if="store.stats" class="stats-eyebrow">STATS — base value vs. total with gear, attributes &amp; buffs</div>
+    <div v-if="store.stats" class="stats-panel">
+      <table class="stats-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Base</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in CORE_ROWS" :key="row.label">
+            <td class="stats-table__label">{{ row.label }}</td>
+            <td class="stats-table__base">{{ store.character[row.base] }}</td>
+            <td class="stats-table__eff">{{ store.stats[row.eff] }}</td>
+          </tr>
+          <tr>
+            <td class="stats-table__label">Crit Chance</td>
+            <td class="stats-table__base">—</td>
+            <td class="stats-table__eff">{{ store.stats.crit_chance }}%</td>
+          </tr>
+          <tr>
+            <td class="stats-table__label">Crit Damage</td>
+            <td class="stats-table__base">—</td>
+            <td class="stats-table__eff">{{ store.stats.crit_damage_mult }}x</td>
+          </tr>
+          <tr>
+            <td class="stats-table__label">Dodge Chance</td>
+            <td class="stats-table__base">—</td>
+            <td class="stats-table__eff">{{ store.stats.dodge_chance ?? 0 }}%</td>
+          </tr>
+          <tr>
+            <td class="stats-table__label">Luck</td>
+            <td class="stats-table__base">—</td>
+            <td class="stats-table__eff">{{ store.stats.luck ?? 0 }}</td>
+          </tr>
+          <tr>
+            <td class="stats-table__label">HP Regen</td>
+            <td class="stats-table__base">—</td>
+            <td class="stats-table__eff">
+              +{{ store.regenPerTick }}/5s
+              <span v-if="hpRegenBuff" class="stats-table__buff">({{ hpRegenBuff }})</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="stats-table__label">Mana Regen</td>
+            <td class="stats-table__base">—</td>
+            <td class="stats-table__eff">
+              +{{ store.manaRegenPerTick }}/5s
+              <span v-if="manaRegenBuff" class="stats-table__buff">({{ manaRegenBuff }})</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="attribute-points-eyebrow">ATTRIBUTE POINTS SPENT</div>
+      <div class="attribute-points-grid">
+        <div v-for="a in ATTR_ROWS" :key="a.key" class="attribute-points-chip">
+          <span class="attribute-points-chip__label">{{ a.label }}</span>
+          <span class="attribute-points-chip__value">{{ store.character.attributes_?.[a.key] ?? 0 }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="achievements-eyebrow">ACHIEVEMENTS</div>
+    <div class="achievements-grid">
       <div
         v-for="row in achievements"
         :key="row.achievement.id"
-        :style="{
-          background: '#151517',
-          border: `1px solid ${row.earned ? 'rgba(234,179,8,.35)' : 'rgba(255,255,255,.07)'}`,
-          borderRadius: '12px',
-          padding: '16px',
-          textAlign: 'center',
-          opacity: row.earned ? 1 : 0.45,
-        }"
+        class="achievement-card"
+        :class="{ 'achievement-card--earned': row.earned }"
       >
-        <div style="font-size:30px;margin-bottom:8px">{{ row.achievement.glyph }}</div>
-        <div style="font-weight:700;font-size:13px">{{ row.achievement.name }}</div>
-        <div style="font-size:11px;color:rgba(255,255,255,.45);margin-top:3px">{{ row.achievement.description }}</div>
+        <div class="achievement-card__glyph">{{ row.achievement.glyph }}</div>
+        <div class="achievement-card__name">{{ row.achievement.name }}</div>
+        <div class="achievement-card__desc">{{ row.achievement.description }}</div>
       </div>
     </div>
   </div>
 </template>
+
+<style lang="scss" src="./ProfilePage.scss" scoped></style>

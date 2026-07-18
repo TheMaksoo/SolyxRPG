@@ -1,0 +1,113 @@
+@use '../../scss/variables' as v;
+@use '../../scss/mixins' as m;
+
+.pets-header {
+  @include m.page-header;
+}
+
+.pets-header__icon {
+  font-size: 28px;
+}
+
+.pets-title {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.pets-message {
+  font-size: 13px;
+  color: v.$danger;
+  margin-bottom: 14px;
+}
+
+.pets-grid {
+  @include m.grid-auto-fill(220px, 14px);
+}
+
+.pet-card {
+  @include m.card(16px);
+
+  &--active {
+    border-color: v.$accent;
+  }
+}
+
+.pet-card__glyph {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.pet-card__name {
+  font-weight: 700;
+  font-size: 14.5px;
+  margin-bottom: 4px;
+}
+
+.pet-card__desc {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 12px;
+}
+
+.pet-card__bonuses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.pet-card__bonus-chip {
+  @include m.badge(v.$accent-soft, v.$accent-tint-15);
+}
+
+.pet-card__level-block {
+  margin-bottom: 12px;
+}
+
+.pet-card__level-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: v.$text-muted-45;
+  margin-bottom: 4px;
+}
+
+.pet-card__xp-track {
+  @include m.stat-bar-track;
+}
+
+.pet-card__xp-fill {
+  @include m.stat-bar-fill(v.$accent, v.$accent);
+  height: 100%;
+}
+
+.pet-card__btn {
+  &--unlock {
+    width: 100%;
+    padding: 9px;
+    border-radius: v.$radius-sm;
+    border: none;
+    background: v.$accent;
+    color: #fff;
+    font-weight: 700;
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+
+  &--activate {
+    width: 100%;
+    padding: 9px;
+    border-radius: v.$radius-sm;
+    border: 1px solid v.$border-medium;
+    background: transparent;
+    color: #fff;
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+}
+
+.pet-card__status--active {
+  font-size: 12px;
+  color: v.$success;
+}

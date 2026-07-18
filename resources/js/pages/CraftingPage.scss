@@ -1,0 +1,167 @@
+@use '../../scss/variables' as v;
+@use '../../scss/mixins' as m;
+
+.crafting-header {
+  @include m.page-header;
+}
+
+.crafting-header__icon {
+  font-size: 28px;
+}
+
+.crafting-title {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.crafting-message {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 14px;
+}
+
+.crafting-subtitle {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 14px;
+}
+
+// ---- Rarity odds strip ----
+.rarity-odds-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 20px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.rarity-odds-chip.is-locked {
+  opacity: 0.4;
+  color: v.$text-muted-40 !important;
+}
+
+// ---- Crafting queue ----
+.crafting-queue-eyebrow {
+  @include m.section-eyebrow;
+  margin-bottom: 12px;
+}
+
+.crafting-queue-grid {
+  @include m.grid-auto-fill(300px, 12px);
+  margin-bottom: 24px;
+}
+
+.queue-card {
+  @include m.card(14px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.queue-card__glyph {
+  font-size: 26px;
+}
+
+.queue-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.queue-card__name {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.queue-card__rarity {
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 6px;
+}
+
+.queue-card__status {
+  font-size: 12px;
+  color: v.$text-muted-45;
+  margin-top: 2px;
+}
+
+.queue-card__collect-btn {
+  @include m.btn-reset;
+  flex: none;
+  padding: 8px 14px;
+  border-radius: v.$radius-sm;
+  background: v.$success;
+  color: #06210f;
+  font-weight: 700;
+  font-size: 12px;
+
+  &:disabled {
+    background: v.$bg-input;
+    color: v.$text-muted-40;
+    cursor: default;
+  }
+}
+
+.recipe-grid {
+  @include m.grid-auto-fill(240px);
+}
+
+.recipe-card {
+  @include m.card(16px);
+}
+
+.recipe-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.recipe-card__glyph {
+  font-size: 20px;
+}
+
+.recipe-card__name {
+  font-weight: 700;
+  font-size: 14.5px;
+}
+
+.recipe-card__label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 6px;
+}
+
+.recipe-card__materials {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.material-row {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.72);
+
+  &--missing {
+    color: #ff9a7f;
+  }
+}
+
+.recipe-card__time {
+  font-size: 11px;
+  color: v.$text-muted-45;
+  margin-bottom: 12px;
+}
+
+.recipe-card__craft-btn {
+  @include m.btn-reset;
+  width: 100%;
+  padding: 9px;
+  border-radius: v.$radius-sm;
+  background: v.$accent;
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+}

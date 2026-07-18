@@ -1,0 +1,102 @@
+@use '../../scss/variables' as v;
+@use '../../scss/mixins' as m;
+
+.shop-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.shop-header__left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.shop-header__icon {
+  font-size: 28px;
+}
+
+.shop-title {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.shop-header__currency {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.shop-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.shop-tab-btn {
+  padding: 8px 16px;
+  border-radius: v.$radius-pill;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: v.$bg-card;
+  color: v.$text-primary;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &.is-active {
+    background: v.$accent;
+  }
+}
+
+.shop-message {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 14px;
+}
+
+.shop-grid {
+  @include m.grid-auto-fill(240px, 14px);
+}
+
+.shop-item-card {
+  @include m.card(16px);
+}
+
+.shop-item__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.shop-item__glyph {
+  font-size: 22px;
+}
+
+.shop-item__name {
+  font-weight: 700;
+  font-size: 14.5px;
+}
+
+.shop-item__desc {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.shop-buy-btn {
+  @include m.btn-reset;
+  width: 100%;
+  padding: 9px;
+  border-radius: v.$radius-sm;
+  background: v.$accent;
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+}

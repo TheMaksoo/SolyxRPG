@@ -23,7 +23,6 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call([
-            WikiEntrySeeder::class,
             ClassSeeder::class,
             ZoneSeeder::class,
             MonsterSeeder::class,
@@ -37,6 +36,8 @@ class DatabaseSeeder extends Seeder
             FeatureFlagSeeder::class,
             GameConfigSeeder::class,
             AchievementSeeder::class,
+            // Runs last: derives the monsters/items/pets wiki categories from the rows the seeders above just created.
+            WikiEntrySeeder::class,
         ]);
     }
 }

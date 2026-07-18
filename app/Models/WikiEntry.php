@@ -8,6 +8,8 @@ class WikiEntry extends Model
 {
     protected $fillable = [
         'category',
+        'source_type',
+        'source_id',
         'glyph',
         'name',
         'sub',

@@ -25,18 +25,16 @@ onMounted(() => {
 </script>
 
 <template>
-  <div style="display:flex;min-height:100vh">
-    <aside
-      style="width:230px;flex:none;background:#0e0e10;border-right:1px solid rgba(255,255,255,.06);position:sticky;top:0;height:100vh;overflow-y:auto;padding:18px 12px;display:flex;flex-direction:column"
-    >
-      <div style="display:flex;align-items:center;gap:10px;padding:0 6px 16px">
-        <img src="/images/solyx-icon.png" alt="" style="width:28px;height:28px" />
+  <div class="game-layout">
+    <aside class="sidebar">
+      <div class="sidebar__brand">
+        <img src="/images/solyx-icon.png" alt="" class="sidebar__logo" />
         <div>
-          <div class="ox" style="font-weight:800;letter-spacing:.06em;font-size:15px">SOLYX</div>
-          <div style="font-size:10px;color:rgba(255,255,255,.4);letter-spacing:.1em">WEB GAME</div>
+          <div class="ox sidebar__brand-name">SOLYX</div>
+          <div class="sidebar__brand-tag">WEB GAME</div>
         </div>
       </div>
-      <nav style="flex:1">
+      <nav class="sidebar__nav">
         <router-link
           v-for="n in NAV"
           :key="n.path"
@@ -46,80 +44,51 @@ onMounted(() => {
         >
           <button
             @click="navigate"
-            :style="{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              width: '100%',
-              textAlign: 'left',
-              background: isActive ? 'rgba(232,72,47,.13)' : 'transparent',
-              border: 'none',
-              borderLeft: `3px solid ${isActive ? '#e8482f' : 'transparent'}`,
-              color: isActive ? '#fff' : 'rgba(255,255,255,.62)',
-              padding: '9px 10px',
-              borderRadius: '8px',
-              fontSize: '13.5px',
-              fontWeight: isActive ? '700' : '500',
-              cursor: 'pointer',
-              marginBottom: '2px',
-            }"
+            class="sidebar__nav-btn"
+            :class="{ 'is-active': isActive }"
           >
-            <span style="width:22px;display:inline-block;text-align:center">{{ n.icon }}</span>
+            <span class="sidebar__nav-icon">{{ n.icon }}</span>
             {{ n.label }}
           </button>
         </router-link>
       </nav>
-      <div style="padding:14px 8px 0;margin-top:12px;border-top:1px solid rgba(255,255,255,.06)">
+      <div class="sidebar__footer">
         <router-link
           v-for="n in NAV_FOOTER"
           :key="n.path"
           :to="n.path"
-          style="display:flex;align-items:center;gap:8px;padding:8px 10px;font-size:12.5px;color:rgba(255,255,255,.5);border-radius:8px"
+          class="sidebar__footer-link"
         >
-          <span style="width:18px;display:inline-block;text-align:center">{{ n.icon }}</span>
+          <span class="sidebar__footer-icon">{{ n.icon }}</span>
           {{ n.label }}
         </router-link>
       </div>
     </aside>
 
-    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
-      <header
-        style="height:56px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 26px;border-bottom:1px solid rgba(255,255,255,.06);position:sticky;top:0;background:#0b0b0c;z-index:5;flex-wrap:wrap"
-      >
-        <span class="ox" style="font-size:14px;font-weight:700;color:rgba(255,255,255,.5)"
-          >Solyx Web Game <span style="color:rgba(255,255,255,.25)">—</span>
-          <span style="color:#fff">{{ activeLabel }}</span></span
+    <div class="layout-main-col">
+      <header class="topbar">
+        <span class="ox topbar__title"
+          >Solyx Web Game <span class="topbar__title-sep">—</span>
+          <span class="topbar__title-active">{{ activeLabel }}</span></span
         >
-        <div style="display:flex;align-items:center;gap:10px">
-          <router-link
-            to="/inbox"
-            style="position:relative;background:#151517;border:1px solid rgba(255,255,255,.07);border-radius:20px;width:36px;height:34px;display:grid;place-items:center;color:#ededed;font-size:15px"
-          >
+        <div class="topbar__actions">
+          <router-link to="/inbox" class="topbar__inbox">
             🔔
-            <span
-              v-if="unreadCount > 0"
-              style="position:absolute;top:-4px;right:-4px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#e8482f;color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center"
-              >{{ unreadCount }}</span
-            >
+            <span v-if="unreadCount > 0" class="topbar__inbox-badge">{{ unreadCount }}</span>
           </router-link>
-          <div
-            v-if="characterStore.character"
-            style="display:flex;align-items:center;gap:6px;background:#151517;border:1px solid rgba(255,255,255,.07);border-radius:20px;padding:6px 13px;font-size:13px;font-weight:600"
-          >
-            <span style="color:#eab308">◉</span> {{ characterStore.character.gold }}
+          <div v-if="characterStore.character" class="topbar__pill topbar__pill--gold">
+            <span class="topbar__pill-icon">◉</span> {{ characterStore.character.gold }}
           </div>
-          <router-link
-            v-if="characterStore.character"
-            to="/gem-store"
-            style="display:flex;align-items:center;gap:6px;background:#151517;border:1px solid rgba(232,72,47,.25);border-radius:20px;padding:6px 13px;font-size:13px;font-weight:600"
-          >
-            <span style="color:#e8482f">◆</span> {{ characterStore.character.gems }}
+          <router-link v-if="characterStore.character" to="/gem-store" class="topbar__pill topbar__pill--gems">
+            <span class="topbar__pill-icon">◆</span> {{ characterStore.character.gems }}
           </router-link>
         </div>
       </header>
-      <main style="flex:1;min-width:0;padding:26px 30px;max-width:1300px">
+      <main class="layout-content">
         <router-view />
       </main>
     </div>
   </div>
 </template>
+
+<style lang="scss" src="./GameLayout.scss" scoped></style>

@@ -37,61 +37,59 @@ async function submit() {
 </script>
 
 <template>
-  <div
-    style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:24px;text-align:center"
-  >
-    <img src="/images/solyx-icon.png" alt="" style="width:64px;height:64px" />
+  <div class="landing-page">
+    <img src="/images/solyx-icon.png" alt="" class="landing-logo" />
     <div>
-      <h1 class="ox" style="font-size:36px;font-weight:800;margin:0 0 8px">SOLYX</h1>
-      <p style="color:rgba(255,255,255,.55);font-size:14.5px;margin:0">
+      <h1 class="ox landing-title">SOLYX</h1>
+      <p class="landing-tagline">
         A browser RPG built on top of the Solyx Discord bot.
       </p>
     </div>
 
-    <div style="display:flex;flex-direction:column;gap:10px;width:280px">
+    <div class="landing-providers">
       <a
         v-for="p in providers"
         :key="p.key"
         :href="`/api/auth/${p.key}/redirect`"
-        style="padding:11px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:#151517;color:#fff;font-size:14px;font-weight:600;text-align:center"
+        class="landing-provider-link"
       >
         {{ p.label }}
       </a>
     </div>
 
-    <div style="display:flex;align-items:center;gap:10px;width:280px;color:rgba(255,255,255,.3);font-size:12px">
-      <div style="flex:1;height:1px;background:rgba(255,255,255,.1)"></div>
+    <div class="landing-divider-row">
+      <div class="landing-divider-line"></div>
       or
-      <div style="flex:1;height:1px;background:rgba(255,255,255,.1)"></div>
+      <div class="landing-divider-line"></div>
     </div>
 
-    <form @submit.prevent="submit" style="display:flex;flex-direction:column;gap:10px;width:280px">
+    <form @submit.prevent="submit" class="landing-form">
       <input
         v-if="mode === 'register'"
         v-model="form.name"
         placeholder="Name"
         required
-        style="padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:#151517;color:#fff;font-size:14px"
+        class="landing-input"
       />
       <input
         v-model="form.email"
         type="email"
         placeholder="Email"
         required
-        style="padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:#151517;color:#fff;font-size:14px"
+        class="landing-input"
       />
       <input
         v-model="form.password"
         type="password"
         placeholder="Password"
         required
-        style="padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:#151517;color:#fff;font-size:14px"
+        class="landing-input"
       />
-      <p v-if="error" style="color:#ff6a4d;font-size:12.5px;margin:0">{{ error }}</p>
+      <p v-if="error" class="landing-error">{{ error }}</p>
       <button
         type="submit"
         :disabled="loading"
-        style="padding:11px 16px;border-radius:10px;border:none;background:#e8482f;color:#fff;font-size:14px;font-weight:700;cursor:pointer"
+        class="landing-submit-btn"
       >
         {{ loading ? 'Please wait…' : mode === 'register' ? 'Create account' : 'Log in' }}
       </button>
@@ -99,13 +97,15 @@ async function submit() {
 
     <button
       @click="mode = mode === 'register' ? 'login' : 'register'"
-      style="background:none;border:none;color:rgba(255,255,255,.5);font-size:12.5px;cursor:pointer"
+      class="landing-toggle-btn"
     >
       {{ mode === 'register' ? 'Already have an account? Log in' : "New here? Create an account" }}
     </button>
 
-    <router-link v-if="mode === 'login'" to="/forgot-password" style="font-size:12.5px;color:rgba(255,255,255,.4)">
+    <router-link v-if="mode === 'login'" to="/forgot-password" class="landing-forgot-link">
       Forgot your password?
     </router-link>
   </div>
 </template>
+
+<style lang="scss" src="./LandingPage.scss" scoped></style>

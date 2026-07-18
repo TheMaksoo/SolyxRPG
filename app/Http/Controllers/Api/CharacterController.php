@@ -3,39 +3,46 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Battle;
 use App\Models\Character;
 use App\Models\CharacterAttribute;
 use App\Models\ClassProgression;
 use App\Models\User;
+use App\Services\AttributeService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class CharacterController extends Controller
 {
-    /** gems required to unlock gem-slot tiers 1-4 (slots 2, 3, 7, 8) */
-    private const GEM_SLOT_COSTS = [1 => 750, 2 => 1500, 3 => 4000, 4 => 6000];
+    public function __construct(private AttributeService $attributeService) {}
 
-    /** fixed identity of every slot 1-8: free, gems (tier 1-4), or vip (tier name) */
+    /** gems required to unlock gem-slot tiers 1-3 (slot 1 is the free starter slot). */
+    private const GEM_SLOT_COSTS = [1 => 750, 2 => 1500, 3 => 4000];
+
+    /** fixed identity of every slot 1-8: gems-first, then subscription slots. */
     private const SLOT_DEFS = [
-        1 => ['type' => 'free'],
+        1 => ['type' => 'gems', 'tier' => 0],
         2 => ['type' => 'gems', 'tier' => 1],
         3 => ['type' => 'gems', 'tier' => 2],
-        4 => ['type' => 'vip', 'tier' => 'bronze'],
-        5 => ['type' => 'vip', 'tier' => 'gold'],
-        6 => ['type' => 'vip', 'tier' => 'diamond'],
-        7 => ['type' => 'gems', 'tier' => 3],
-        8 => ['type' => 'gems', 'tier' => 4],
+        4 => ['type' => 'gems', 'tier' => 3],
+        5 => ['type' => 'vip', 'tier' => 'bronze'],
+        6 => ['type' => 'vip', 'tier' => 'gold'],
+        7 => ['type' => 'vip', 'tier' => 'diamond'],
+        8 => ['type' => 'vip', 'tier' => 'diamond'],
     ];
 
     public function index(Request $request)
     {
         $user = $request->user();
-        $characters = $user->characters()->orderBy('id')->get();
+        $characters = $user->characters()
+            ->with(['attributes_', 'skills.skill'])
+            ->orderBy('id')
+            ->get();
         $vipSlotsUnlocked = $user->vipCharacterSlots();
 
         $unlocked = fn (array $def) => match ($def['type']) {
             'free' => true,
-            'gems' => $def['tier'] <= $user->bonus_character_slots,
+            'gems' => $def['tier'] === 0 || $def['tier'] <= $user->bonus_character_slots,
             'vip' => User::VIP_TIER_SLOTS[$def['tier']] <= $vipSlotsUnlocked,
         };
 
@@ -45,12 +52,38 @@ class CharacterController extends Controller
             $isUnlocked = $unlocked($def);
             $character = ($isUnlocked && $charIndex < $characters->count()) ? $characters[$charIndex++] : null;
 
+            $characterData = null;
+            if ($character) {
+                $firstSkill = $character->skills
+                    ->sortBy(fn ($row) => [$row->skill->tier ?? 999, $row->unlocked_at])
+                    ->firstWhere('skill', '!=', null)
+                    ?->skill;
+
+                $characterData = [
+                    'id' => $character->id,
+                    'name' => $character->name,
+                    'base_class' => $character->base_class,
+                    'level' => $character->level,
+                    'hp_max' => $character->hp_max,
+                    'base_atk' => $character->base_atk,
+                    'base_def' => $character->base_def,
+                    'mana_max' => $character->mana_max,
+                    'luck' => $character->attributes_?->luck ?? 0,
+                    'first_skill' => $firstSkill ? [
+                        'name' => $firstSkill->name,
+                        'glyph' => $firstSkill->glyph,
+                    ] : null,
+                ];
+            }
+
             $slots[] = [
                 'number' => $number,
                 'unlocked' => $isUnlocked,
-                'character' => $character,
+                'character' => $characterData,
                 'requirement' => match ($def['type']) {
-                    'gems' => ['type' => 'gems', 'tier' => $def['tier'], 'cost' => self::GEM_SLOT_COSTS[$def['tier']]],
+                    'gems' => $def['tier'] === 0
+                        ? ['type' => 'free']
+                        : ['type' => 'gems', 'tier' => $def['tier'], 'cost' => self::GEM_SLOT_COSTS[$def['tier']]],
                     'vip' => ['type' => 'vip', 'tier' => $def['tier']],
                     default => ['type' => 'free'],
                 },
@@ -76,10 +109,31 @@ class CharacterController extends Controller
         $user->save();
 
         $character->load(['attributes_', 'zone', 'inventory.item', 'skills.skill']);
+        $character->applyPassiveRegen();
 
         return response()->json([
             'character' => $character,
-            'stats' => $character->effectiveStats(),
+            'stats' => $character->effectiveStats() + ['xp_max' => Character::xpForLevel($character->level)],
+        ]);
+    }
+
+    public function destroy(Request $request, Character $character)
+    {
+        $user = $request->user();
+        abort_unless($character->user_id === $user->id, 403);
+
+        $deletedId = $character->id;
+        $character->delete();
+
+        if ((int) $user->active_character_id === $deletedId) {
+            $next = $user->characters()->orderBy('id')->first();
+            $user->active_character_id = $next?->id;
+            $user->save();
+        }
+
+        return response()->json([
+            'deleted_character_id' => $deletedId,
+            'active_character_id' => $user->fresh()->active_character_id,
         ]);
     }
 
@@ -87,7 +141,7 @@ class CharacterController extends Controller
     {
         $user = $request->user();
 
-        if ($user->bonus_character_slots >= 4) {
+        if ($user->bonus_character_slots >= 3) {
             return response()->json(['message' => 'All gem-purchasable slots are already unlocked.'], 422);
         }
 
@@ -122,9 +176,15 @@ class CharacterController extends Controller
             return response()->json(['message' => 'No character yet.'], 404);
         }
 
+        $character->applyPassiveRegen();
+
         return response()->json([
             'character' => $character,
-            'stats' => $character->effectiveStats(),
+            'stats' => $character->effectiveStats() + ['xp_max' => Character::xpForLevel($character->level)],
+            'regen_per_tick' => $character->regenPerTick(),
+            'mana_regen_per_tick' => $character->manaRegenPerTick(),
+            'attribute_costs' => $this->attributeService->allCosts($character->attributes_ ?? new CharacterAttribute()),
+            'in_combat' => Battle::where('character_id', $character->id)->where('status', 'active')->exists(),
         ]);
     }
 
@@ -142,11 +202,13 @@ class CharacterController extends Controller
             'avatar' => ['nullable', 'string', 'max:255'],
         ]);
 
-        [$hp, $atk, $mp] = match ($data['base_class']) {
-            'warrior' => [1200, 280, 100],
-            'mage' => [820, 180, 520],
-            'rogue' => [900, 310, 150],
-            'ranger' => [940, 300, 150],
+        // Tuned against current starter monsters (30-90 HP, 6-16 ATK) and early item gains
+        // so each class has a distinct profile without trivializing early zones.
+        [$hp, $baseAtk, $mp, $baseDef] = match ($data['base_class']) {
+            'warrior' => [230, 12, 90, 14],
+            'mage' => [155, 11, 240, 8],
+            'rogue' => [180, 13, 120, 10],
+            'ranger' => [195, 12, 140, 11],
         };
 
         $character = Character::create([
@@ -158,8 +220,8 @@ class CharacterController extends Controller
             'hp_max' => $hp,
             'mana' => $mp,
             'mana_max' => $mp,
-            'base_atk' => intdiv($atk, 10),
-            'base_def' => 10,
+            'base_atk' => $baseAtk,
+            'base_def' => $baseDef,
         ]);
 
         $character->attributes_()->create([]);
@@ -176,23 +238,27 @@ class CharacterController extends Controller
         abort_unless($character, 404);
 
         $data = $request->validate([
-            'attr' => ['required', Rule::in(['damage', 'armor', 'hp', 'mp', 'crit'])],
+            'attr' => ['required', Rule::in(['damage', 'armor', 'hp_cap', 'hp_regen', 'mana_cap', 'mana_regen', 'crit', 'crit_damage', 'luck', 'dodge', 'energy_cap', 'energy_regen', 'trade_speed'])],
         ]);
 
-        if ($character->attribute_points < 1) {
-            return response()->json(['message' => 'No attribute points available.'], 422);
+        $attributes = $character->attributes_ ?? $character->attributes_()->create([]);
+        $cost = $this->attributeService->costForNextPoint($data['attr'], $attributes->{$data['attr']});
+
+        if ($character->attribute_points < $cost) {
+            return response()->json(['message' => "Not enough attribute points (needs {$cost})."], 422);
         }
 
-        $attributes = $character->attributes_ ?? $character->attributes_()->create([]);
         $attributes->increment($data['attr']);
-        $character->decrement('attribute_points');
+        $character->decrement('attribute_points', $cost);
 
         return response()->json([
             'character' => $character->fresh('attributes_'),
-            'stats' => $character->fresh('attributes_')->effectiveStats(),
+            'stats' => $character->fresh('attributes_')->effectiveStats() + ['xp_max' => Character::xpForLevel($character->level)],
+            'attribute_costs' => $this->attributeService->allCosts($character->fresh('attributes_')->attributes_),
         ]);
     }
 
+    /** Unlocks a skill at rank 1, or — if already unlocked — spends a skill point to upgrade its rank (up to the skill's max_level). */
     public function unlockSkill(Request $request, \App\Models\Skill $skill)
     {
         $character = $request->user()->character;
@@ -201,14 +267,25 @@ class CharacterController extends Controller
         if ($character->skill_points < 1) {
             return response()->json(['message' => 'No skill points available.'], 422);
         }
-        if ($character->level < $skill->level_req) {
-            return response()->json(['message' => "Requires level {$skill->level_req}."], 422);
-        }
-        if ($character->skills()->where('skill_id', $skill->id)->exists()) {
-            return response()->json(['message' => 'Already unlocked.'], 422);
+
+        if ($skill->class_scope !== $character->base_class) {
+            return response()->json(['message' => 'That skill is not part of your class.'], 422);
         }
 
-        $character->skills()->create(['skill_id' => $skill->id, 'unlocked_at' => now()]);
+        $existing = $character->skills()->where('skill_id', $skill->id)->first();
+
+        if ($existing) {
+            if ($existing->level >= $skill->max_level) {
+                return response()->json(['message' => 'Already at max rank.'], 422);
+            }
+            $existing->increment('level');
+        } else {
+            if ($character->level < $skill->level_req) {
+                return response()->json(['message' => "Requires level {$skill->level_req}."], 422);
+            }
+            $character->skills()->create(['skill_id' => $skill->id, 'unlocked_at' => now(), 'level' => 1]);
+        }
+
         $character->decrement('skill_points');
 
         return response()->json(['character' => $character->fresh('skills.skill')]);

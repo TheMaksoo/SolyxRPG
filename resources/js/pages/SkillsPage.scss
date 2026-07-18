@@ -1,0 +1,318 @@
+@use '../../scss/variables' as v;
+@use '../../scss/mixins' as m;
+
+.skills-message {
+  font-size: 13px;
+  color: v.$danger;
+  margin-bottom: 14px;
+}
+
+.skills-section-eyebrow {
+  @include m.section-eyebrow;
+  margin-bottom: 12px;
+}
+
+// ---- Class path ----
+.class-path-grid {
+  @include m.grid-auto-fit(210px, 12px);
+  margin-bottom: 28px;
+}
+
+.class-tier-card {
+  background: v.$bg-card;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.class-tier-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.class-tier-card__heading {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: v.$text-muted-40;
+  font-weight: 600;
+}
+
+.class-tier-card__cap {
+  font-size: 10px;
+  color: v.$accent-soft;
+  font-weight: 700;
+}
+
+.class-tier-card__chosen {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.class-tier-card__chosen-glyph {
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  background: rgba(232, 72, 47, 0.14);
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+}
+
+.class-tier-card__chosen-name {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.class-tier-card__chosen-desc {
+  font-size: 11px;
+  color: v.$text-muted-45;
+}
+
+.class-tier-card__options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.class-tier-card__option-btn {
+  @include m.btn-reset;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: v.$bg-input;
+  border: 1px solid v.$accent-tint-30;
+  border-radius: 9px;
+  padding: 9px 11px;
+  color: v.$text-body;
+}
+
+.class-tier-card__option-glyph {
+  font-size: 18px;
+}
+
+.class-tier-card__option-name {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.class-tier-card__option-desc {
+  font-size: 10px;
+  color: v.$text-muted-45;
+}
+
+.class-tier-card__locked {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: v.$text-muted-35;
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+// ---- Attributes ----
+.attributes-section {
+  @include m.centered-column(920px);
+}
+
+.attributes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.attributes-header__eyebrow {
+  @include m.section-eyebrow;
+}
+
+.attribute-points-badge {
+  background: v.$accent-tint-12;
+  border: 1px solid v.$accent-tint-30;
+  color: v.$accent-soft;
+  padding: 7px 14px;
+  border-radius: 9px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.attributes-grid {
+  @include m.grid-auto-fit(170px, 12px);
+  margin-bottom: 28px;
+}
+
+.attribute-card {
+  background: v.$bg-card;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.attribute-card__label {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.attribute-card__points {
+  font-weight: 600;
+  font-size: 11px;
+  color: v.$accent-soft;
+}
+
+.attribute-card__desc {
+  font-size: 11px;
+  color: v.$text-muted-40;
+  margin-top: 2px;
+}
+
+.attribute-card__cost {
+  font-size: 10px;
+  color: v.$warning;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.attribute-card__btn {
+  @include m.btn-reset;
+  width: 32px;
+  height: 32px;
+  border-radius: v.$radius-sm;
+  background: v.$accent;
+  color: #fff;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+// ---- Skill tree ----
+.skill-tree-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.skill-tree-header__eyebrow {
+  @include m.section-eyebrow;
+}
+
+.skill-points-badge {
+  background: v.$accent-tint-12;
+  border: 1px solid v.$accent-tint-30;
+  color: v.$accent-soft;
+  padding: 9px 16px;
+  border-radius: v.$radius-md;
+  font-weight: 700;
+}
+
+.skill-branches-grid {
+  @include m.centered-column(820px);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.skill-branch__heading {
+  text-align: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: v.$accent;
+  margin-bottom: 14px;
+}
+
+.skill-branch__nodes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skill-node-btn {
+  @include m.btn-reset;
+  background: v.$bg-card;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 11px;
+  padding: 12px;
+  text-align: left;
+  color: #fff;
+
+  &:disabled {
+    cursor: default;
+  }
+
+  &.is-unlocked {
+    background: rgba(232, 72, 47, 0.13);
+    border-color: v.$accent;
+  }
+}
+
+.skill-node-btn__glyph {
+  font-size: 24px;
+  margin-bottom: 6px;
+}
+
+.skill-node-btn__name {
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.skill-node-btn__rank {
+  font-size: 10px;
+  font-weight: 700;
+  color: v.$accent-soft;
+  background: v.$accent-tint-12;
+  border-radius: v.$radius-pill;
+  padding: 1px 7px;
+}
+
+.skill-node-btn__desc {
+  font-size: 11px;
+  color: v.$text-muted-45;
+  margin-top: 3px;
+}
+
+.skill-node-btn__cost {
+  font-size: 10px;
+  color: v.$text-muted-35;
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.skill-node-btn__exact {
+  font-size: 11px;
+  color: v.$accent-soft;
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+.skill-node-btn__next {
+  font-size: 10px;
+  color: v.$text-muted-40;
+  margin-top: 2px;
+}
+
+.skill-node-btn__status {
+  font-size: 11px;
+  margin-top: 6px;
+  color: v.$text-muted-35;
+
+  &.is-unlocked {
+    color: v.$success;
+  }
+
+  &.is-available {
+    color: v.$warning;
+  }
+}

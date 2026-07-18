@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\BattlePassService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
 class DailyController extends Controller
 {
+    public function __construct(private BattlePassService $battlePass = new BattlePassService()) {}
+
     public function index(Request $request)
     {
         $character = $request->user()->character;
@@ -46,6 +49,7 @@ class DailyController extends Controller
         }
 
         $claim->update(['streak' => $streak, 'last_claim_date' => Carbon::today()]);
+        $this->battlePass->addXp($character, 15);
 
         return response()->json(['character' => $character->fresh(), 'streak' => $streak, 'gold' => $gold, 'gems' => $gems]);
     }

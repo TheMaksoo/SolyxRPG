@@ -3,27 +3,34 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Battle;
 use App\Models\Dungeon;
-use App\Services\CombatService;
+use App\Models\DungeonRun;
+use App\Services\DungeonService;
 use Illuminate\Http\Request;
 
 class DungeonController extends Controller
 {
-    public function __construct(private CombatService $combat) {}
+    public function __construct(private DungeonService $dungeons) {}
 
     public function index(Request $request)
     {
         $character = $request->user()->character;
 
+        $activeRuns = $character
+            ? DungeonRun::where('character_id', $character->id)->where('status', 'active')->get()->keyBy('dungeon_id')
+            : collect();
+
         $dungeons = Dungeon::where('enabled', true)->with('bossMonster')->get()->map(fn (Dungeon $d) => [
             'dungeon' => $d,
             'unlocked' => $character && $character->level >= $d->min_level,
+            'active_run' => $activeRuns->get($d->id),
         ]);
 
         return response()->json(['dungeons' => $dungeons]);
     }
 
-    /** Starts a boss battle against the dungeon's boss (solo simplification of the raid party_size). */
+    /** Starts (or resumes) a multi-stage instance run culminating in the dungeon's boss. */
     public function enter(Request $request, Dungeon $dungeon)
     {
         $character = $request->user()->character;
@@ -34,8 +41,23 @@ class DungeonController extends Controller
         }
         abort_unless($dungeon->bossMonster, 422, 'Dungeon has no boss configured.');
 
-        $battle = $this->combat->start($character, $dungeon->bossMonster);
+        $character->applyPassiveRegen();
 
-        return response()->json(['battle' => $battle->load('monster'), 'dungeon' => $dungeon]);
+        $hasRunForThisDungeon = DungeonRun::where('character_id', $character->id)
+            ->where('dungeon_id', $dungeon->id)
+            ->where('status', 'active')
+            ->exists();
+
+        if (! $hasRunForThisDungeon && Battle::where('character_id', $character->id)->where('status', 'active')->exists()) {
+            return response()->json(['message' => 'You have a battle in progress. Resume it or flee first.'], 422);
+        }
+
+        $result = $this->dungeons->enter($character, $dungeon);
+
+        return response()->json([
+            'battle' => $result['battle'],
+            'dungeon' => $dungeon,
+            'dungeon_run' => $result['run'],
+        ]);
     }
 }

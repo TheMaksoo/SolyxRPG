@@ -1,0 +1,62 @@
+@use '../../scss/variables' as v;
+@use '../../scss/mixins' as m;
+
+.screen-placeholder__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.screen-placeholder__icon {
+  font-size: 28px;
+}
+
+.screen-placeholder__title {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.screen-placeholder__badge {
+  font-size: 11px;
+  color: v.$text-muted-40;
+  background: v.$bg-card;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 3px 10px;
+  border-radius: v.$radius-pill;
+}
+
+.screen-placeholder__description {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  max-width: 640px;
+  line-height: 1.6;
+  margin-bottom: 22px;
+}
+
+.screen-placeholder__planned {
+  @include m.card(20px 22px);
+  max-width: 480px;
+}
+
+.screen-placeholder__planned-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: v.$text-muted-40;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.screen-placeholder__list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.screen-placeholder__list-item {
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.65);
+  margin-bottom: 8px;
+  line-height: 1.5;
+}

@@ -1,0 +1,208 @@
+@use '../../scss/variables' as v;
+@use '../../scss/mixins' as m;
+
+.create-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 24px;
+  gap: 26px;
+}
+
+.create-page__header {
+  text-align: center;
+}
+
+.create-page__title {
+  font-size: 26px;
+  font-weight: 800;
+  margin: 0 0 6px;
+}
+
+.create-page__subtitle {
+  color: v.$text-muted-55;
+  font-size: 13px;
+  margin: 0;
+}
+
+.class-grid {
+  @include m.grid-auto-fit(240px, 16px);
+  max-width: 1020px;
+  width: 100%;
+}
+
+.class-card {
+  @include m.card(18px);
+  @include m.card-hover;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  &--selected {
+    background: v.$accent-tint-12;
+    border-color: v.$accent;
+  }
+}
+
+.class-card__check {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: v.$accent;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+}
+
+.class-card__top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.class-card__icon {
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: v.$radius-md;
+  background: v.$bg-input;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+}
+
+.class-card__name {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.class-card__blurb {
+  font-size: 11.5px;
+  color: v.$text-muted-45;
+  margin-top: 2px;
+}
+
+.class-card__stats {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: 30px 1fr 26px;
+  align-items: center;
+  gap: 8px;
+  font-size: 10.5px;
+}
+
+.stat-row__label {
+  font-weight: 700;
+  color: v.$text-muted-45;
+
+  &--hp {
+    color: v.$success;
+  }
+  &--atk {
+    color: v.$accent-soft;
+  }
+  &--def {
+    color: v.$info;
+  }
+  &--mp {
+    color: v.$purple;
+  }
+}
+
+.stat-row__value {
+  text-align: right;
+  color: v.$text-muted-55;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-bar-track {
+  @include m.stat-bar-track;
+  height: 6px;
+}
+
+.stat-bar-fill {
+  display: block;
+
+  &--hp {
+    @include m.stat-bar-fill(v.$success-strong, v.$success);
+  }
+  &--atk {
+    @include m.stat-bar-fill(v.$accent, v.$accent-soft);
+  }
+  &--def {
+    @include m.stat-bar-fill(#0284c7, v.$info-strong);
+  }
+  &--mp {
+    @include m.stat-bar-fill(#7c3aed, v.$purple);
+  }
+}
+
+.class-card__skill {
+  font-size: 11px;
+  color: v.$text-muted-55;
+  border-top: 1px solid v.$border-subtle;
+  padding-top: 12px;
+}
+
+.class-card__skill-glyph {
+  margin-right: 4px;
+}
+
+.class-card__skill-name {
+  color: v.$text-primary;
+  font-weight: 600;
+}
+
+.create-page__form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 280px;
+  max-width: 100%;
+}
+
+.create-name-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: v.$text-muted-45;
+  align-self: flex-start;
+}
+
+.create-name-input {
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: v.$radius-md;
+  border: 1px solid v.$border-medium;
+  background: v.$bg-input;
+  color: v.$text-primary;
+  font-size: 14px;
+
+  &:focus {
+    outline: none;
+    border-color: v.$accent;
+  }
+}
+
+.create-error {
+  color: v.$danger;
+  font-size: 12.5px;
+  margin: 0;
+}
+
+.create-submit-btn {
+  @include m.btn-primary;
+  width: 100%;
+}

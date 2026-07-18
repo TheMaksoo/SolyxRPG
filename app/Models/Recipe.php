@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Recipe extends Model
 {
-    protected $fillable = ['name', 'result_item_id', 'materials_json', 'enabled'];
+    protected $fillable = ['name', 'result_item_id', 'materials_json', 'craft_seconds', 'enabled'];
 
     protected $casts = [
         'materials_json' => 'array',

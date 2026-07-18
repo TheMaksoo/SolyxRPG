@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\CharacterQuest;
 use App\Models\Quest;
+use App\Services\BattlePassService;
 use Illuminate\Http\Request;
 
 class QuestController extends Controller
 {
+    public function __construct(private BattlePassService $battlePass = new BattlePassService()) {}
+
     public function index(Request $request)
     {
         $character = $request->user()->character;
@@ -54,6 +57,7 @@ class QuestController extends Controller
         }
 
         $progress->update(['claimed' => true]);
+        $this->battlePass->addXp($character, 25);
 
         return response()->json(['character' => $character->fresh(), 'quest' => $quest]);
     }

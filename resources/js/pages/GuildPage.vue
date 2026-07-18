@@ -1,17 +1,27 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import api from '../api/client';
+import { useCharacterStore } from '../stores/character';
 
+const characterStore = useCharacterStore();
 const guild = ref(null);
+const myRole = ref('');
 const browse = ref([]);
 const message = ref('');
 const chatBody = ref('');
 const createForm = ref({ name: '', tag: '' });
+const bankForm = ref({ currency: 'gold', amount: '' });
+
+const myCharacterId = computed(() => characterStore.character?.id);
+const canWithdraw = computed(() => myRole.value === 'officer' || myRole.value === 'master');
+const canManage = computed(() => myRole.value === 'officer' || myRole.value === 'master');
 
 async function load() {
   const { data } = await api.get('/guild');
   guild.value = data.guild;
+  myRole.value = data.my_role || '';
   browse.value = data.browse || [];
+  if (!characterStore.character) await characterStore.fetch();
 }
 
 async function create() {
@@ -41,71 +51,163 @@ async function send() {
   await load();
 }
 
+async function deposit() {
+  message.value = '';
+  try {
+    await api.post(`/guild/${guild.value.id}/deposit`, { currency: bankForm.value.currency, amount: Number(bankForm.value.amount) });
+    bankForm.value.amount = '';
+    await load();
+  } catch (e) {
+    message.value = e.response?.data?.message || 'Could not deposit.';
+  }
+}
+
+async function withdraw() {
+  message.value = '';
+  try {
+    await api.post(`/guild/${guild.value.id}/withdraw`, { currency: bankForm.value.currency, amount: Number(bankForm.value.amount) });
+    bankForm.value.amount = '';
+    await load();
+  } catch (e) {
+    message.value = e.response?.data?.message || 'Could not withdraw.';
+  }
+}
+
+async function promote(member, role) {
+  message.value = '';
+  try {
+    await api.post(`/guild/${guild.value.id}/members/${member.character_id}/promote`, { role });
+    await load();
+  } catch (e) {
+    message.value = e.response?.data?.message || 'Could not change role.';
+  }
+}
+
+async function kick(member) {
+  if (!confirm(`Kick ${member.character?.name} from the guild?`)) return;
+  message.value = '';
+  try {
+    await api.post(`/guild/${guild.value.id}/members/${member.character_id}/kick`);
+    await load();
+  } catch (e) {
+    message.value = e.response?.data?.message || 'Could not kick.';
+  }
+}
+
+async function leave() {
+  if (!confirm('Leave this guild?')) return;
+  message.value = '';
+  try {
+    await api.post(`/guild/${guild.value.id}/leave`);
+    await load();
+  } catch (e) {
+    message.value = e.response?.data?.message || 'Could not leave.';
+  }
+}
+
 onMounted(load);
 </script>
 
 <template>
   <div>
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
-      <div style="font-size:28px">🛡</div>
-      <h1 class="ox" style="font-size:28px;font-weight:800;margin:0">Guild</h1>
+    <div class="guild-header">
+      <div class="guild-header__icon">🛡</div>
+      <h1 class="ox guild-title">Guild</h1>
     </div>
 
-    <p v-if="message" style="font-size:13px;color:#ff6a4d;margin-bottom:14px">{{ message }}</p>
+    <p v-if="message" class="guild-message">{{ message }}</p>
 
-    <div v-if="guild" style="max-width:600px">
-      <h2 class="ox" style="font-size:18px;margin:0 0 4px">{{ guild.name }} [{{ guild.tag }}]</h2>
-      <div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:16px">{{ guild.members?.length || 0 }} / {{ guild.member_cap }} members</div>
+    <div v-if="guild" class="guild-panel">
+      <h2 class="ox guild-name">{{ guild.name }} [{{ guild.tag }}]</h2>
+      <div class="guild-member-count">{{ guild.members?.length || 0 }} / {{ guild.member_cap }} members</div>
 
-      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px">
-        <span
+      <div class="guild-bank">
+        <div class="ox guild-bank__title">Guild Bank</div>
+        <div class="guild-bank__balances">{{ guild.bank_gold }}g · {{ guild.bank_gems }}◆</div>
+        <div class="guild-bank-row">
+          <select v-model="bankForm.currency" class="guild-bank-select">
+            <option value="gold">Gold</option>
+            <option value="gems">Gems</option>
+          </select>
+          <input v-model="bankForm.amount" type="number" min="1" placeholder="Amount" class="guild-bank-input" />
+          <button @click="deposit" class="guild-bank-btn">Deposit</button>
+          <button v-if="canWithdraw" @click="withdraw" class="guild-bank-btn guild-bank-btn--withdraw">Withdraw</button>
+        </div>
+      </div>
+
+      <div class="guild-members-list">
+        <div
           v-for="m in guild.members"
           :key="m.id"
-          style="font-size:12px;background:#151517;border:1px solid rgba(255,255,255,.08);padding:6px 12px;border-radius:20px"
+          class="guild-member-row"
         >
-          {{ m.character?.name }} <span style="color:rgba(255,255,255,.35)">· {{ m.role }}</span>
-        </span>
+          <span class="guild-member-chip">
+            {{ m.character?.name }} <span class="guild-member-chip__role">· {{ m.role }}</span>
+          </span>
+          <span v-if="canManage && m.character_id !== myCharacterId" class="guild-member-actions">
+            <button
+              v-if="myRole === 'master' && m.role !== 'officer'"
+              @click="promote(m, 'officer')"
+              class="guild-member-action-btn"
+            >Make officer</button>
+            <button
+              v-if="myRole === 'master' && m.role !== 'member'"
+              @click="promote(m, 'member')"
+              class="guild-member-action-btn"
+            >Demote</button>
+            <button
+              v-if="myRole === 'master'"
+              @click="promote(m, 'master')"
+              class="guild-member-action-btn"
+            >Transfer ownership</button>
+            <button @click="kick(m)" class="guild-member-action-btn guild-member-action-btn--kick">Kick</button>
+          </span>
+        </div>
       </div>
 
-      <div style="background:#0e0e10;border-radius:10px;padding:14px;max-height:220px;overflow-y:auto;margin-bottom:12px">
-        <div v-for="m in [...(guild.messages || [])].reverse()" :key="m.id" style="font-size:12.5px;margin-bottom:6px">
+      <button @click="leave" class="guild-leave-btn">Leave guild</button>
+
+      <div class="guild-chat">
+        <div v-for="m in [...(guild.messages || [])].reverse()" :key="m.id" class="guild-chat__line">
           <strong>{{ m.character?.name }}:</strong> {{ m.body }}
         </div>
-        <div v-if="!guild.messages?.length" style="color:rgba(255,255,255,.3);font-size:12.5px">No messages yet.</div>
+        <div v-if="!guild.messages?.length" class="guild-chat__empty">No messages yet.</div>
       </div>
-      <div style="display:flex;gap:8px">
+      <div class="guild-chat-input-row">
         <input
           v-model="chatBody"
           @keyup.enter="send"
           placeholder="Message the guild…"
-          style="flex:1;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:#151517;color:#fff;font-size:13.5px"
+          class="guild-chat-input"
         />
-        <button @click="send" style="padding:10px 18px;border-radius:10px;border:none;background:#e8482f;color:#fff;font-weight:700;cursor:pointer">Send</button>
+        <button @click="send" class="guild-chat-send">Send</button>
       </div>
     </div>
 
-    <div v-else style="max-width:600px">
-      <div style="background:#151517;border:1px solid rgba(255,255,255,.07);border-radius:13px;padding:18px;margin-bottom:20px">
-        <h3 class="ox" style="margin:0 0 12px;font-size:14px">Start a guild</h3>
-        <div style="display:flex;gap:8px">
-          <input v-model="createForm.name" placeholder="Guild name" style="flex:1;padding:9px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:#0e0e10;color:#fff;font-size:13px" />
-          <input v-model="createForm.tag" maxlength="5" placeholder="TAG" style="width:80px;padding:9px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:#0e0e10;color:#fff;font-size:13px" />
-          <button @click="create" style="padding:9px 16px;border-radius:8px;border:none;background:#e8482f;color:#fff;font-weight:700;cursor:pointer">Create</button>
+    <div v-else class="guild-browse-panel">
+      <div class="guild-create-card">
+        <h3 class="ox guild-create-card__title">Start a guild</h3>
+        <div class="guild-create-row">
+          <input v-model="createForm.name" placeholder="Guild name" class="guild-create-input" />
+          <input v-model="createForm.tag" maxlength="5" placeholder="TAG" class="guild-create-input guild-create-input--tag" />
+          <button @click="create" class="guild-create-btn">Create</button>
         </div>
       </div>
 
-      <h3 class="ox" style="font-size:13px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Browse guilds</h3>
-      <div style="display:flex;flex-direction:column;gap:8px">
+      <h3 class="ox guild-browse-heading">Browse guilds</h3>
+      <div class="guild-browse-list">
         <div
           v-for="g in browse"
           :key="g.id"
-          style="background:#151517;border:1px solid rgba(255,255,255,.07);border-radius:11px;padding:12px 16px;display:flex;align-items:center;gap:12px"
+          class="guild-browse-row"
         >
-          <span style="flex:1;font-size:13.5px" class="ox">{{ g.name }} [{{ g.tag }}]</span>
-          <span style="font-size:12px;color:rgba(255,255,255,.4)">{{ g.members_count }} / {{ g.member_cap }}</span>
-          <button @click="join(g)" style="padding:7px 14px;border-radius:7px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#fff;font-size:12px;cursor:pointer">Join</button>
+          <span class="ox guild-browse-row__name">{{ g.name }} [{{ g.tag }}]</span>
+          <span class="guild-browse-row__count">{{ g.members_count }} / {{ g.member_cap }}</span>
+          <button @click="join(g)" class="guild-browse-row__join">Join</button>
         </div>
       </div>
     </div>
   </div>
 </template>
+
+<style lang="scss" src="./GuildPage.scss" scoped></style>

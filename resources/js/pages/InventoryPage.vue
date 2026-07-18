@@ -1,12 +1,19 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import api from '../api/client';
+import { useCharacterStore } from '../stores/character';
 
+const store = useCharacterStore();
 const inventory = ref([]);
 const loading = ref(false);
+const message = ref('');
 
 const equipped = computed(() => inventory.value.filter((i) => i.equipped));
 const bag = computed(() => inventory.value.filter((i) => !i.equipped));
+
+function isUsable(item) {
+  return !!(item.stat_json?.hp_regen_pct_buff || item.stat_json?.mana_regen_pct_buff);
+}
 
 async function load() {
   const { data } = await api.get('/inventory');
@@ -24,50 +31,76 @@ async function equip(row) {
   }
 }
 
+async function use(row) {
+  loading.value = true;
+  message.value = '';
+  try {
+    const applied = await store.usePotion(row.item_id);
+    message.value = `${row.item.name}: ${applied.join(', ')}`;
+    await load();
+  } catch (e) {
+    message.value = e.response?.data?.message || 'Could not use that item.';
+  } finally {
+    loading.value = false;
+  }
+}
+
 onMounted(load);
 </script>
 
 <template>
   <div>
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
-      <div style="font-size:28px">🎒</div>
-      <h1 class="ox" style="font-size:28px;font-weight:800;margin:0">Inventory</h1>
+    <div class="inventory-header">
+      <div class="inventory-header__icon">🎒</div>
+      <h1 class="ox inventory-title">Inventory</h1>
     </div>
 
-    <h3 class="ox" style="font-size:13px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Equipped</h3>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:24px">
+    <p v-if="message" class="inventory-message">{{ message }}</p>
+
+    <h3 class="ox inventory-section-heading">Equipped</h3>
+    <div class="inventory-equipped-grid">
       <div
         v-for="row in equipped"
         :key="row.id"
-        style="background:#151517;border:1px solid #e8482f;border-radius:11px;padding:14px"
+        class="inventory-equipped-card"
       >
-        <span style="font-size:20px;margin-right:8px">{{ row.item.glyph }}</span>
-        <span class="ox" style="font-weight:700;font-size:13.5px">{{ row.item.name }}</span>
+        <span class="inventory-equipped-card__icon">{{ row.item.glyph }}</span>
+        <span class="ox inventory-equipped-card__name">{{ row.item.name }}</span>
       </div>
-      <div v-if="equipped.length === 0" style="color:rgba(255,255,255,.35);font-size:13px">Nothing equipped yet.</div>
+      <div v-if="equipped.length === 0" class="inventory-empty">Nothing equipped yet.</div>
     </div>
 
-    <h3 class="ox" style="font-size:13px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Bag</h3>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
+    <h3 class="ox inventory-section-heading">Bag</h3>
+    <div class="inventory-bag-grid">
       <div
         v-for="row in bag"
         :key="row.id"
-        style="background:#151517;border:1px solid rgba(255,255,255,.07);border-radius:11px;padding:14px"
+        class="inventory-bag-card"
       >
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <span style="font-size:20px">{{ row.item.glyph }}</span>
-          <span class="ox" style="font-weight:700;font-size:13.5px">{{ row.item.name }}</span>
-          <span v-if="row.qty > 1" style="margin-left:auto;font-size:12px;color:rgba(255,255,255,.4)">×{{ row.qty }}</span>
+        <div class="inventory-bag-card__header">
+          <span class="inventory-bag-card__icon">{{ row.item.glyph }}</span>
+          <span class="ox inventory-bag-card__name">{{ row.item.name }}</span>
+          <span v-if="row.qty > 1" class="inventory-bag-card__qty">×{{ row.qty }}</span>
         </div>
         <button
           v-if="['weapon', 'armor'].includes(row.item.type)"
           @click="equip(row)"
           :disabled="loading"
-          style="width:100%;padding:7px;border-radius:7px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#fff;font-size:12px;cursor:pointer"
+          class="inventory-bag-card__equip-btn"
         >
           Equip
+        </button>
+        <button
+          v-if="isUsable(row.item)"
+          @click="use(row)"
+          :disabled="loading"
+          class="inventory-bag-card__equip-btn"
+        >
+          Use
         </button>
       </div>
     </div>
   </div>
 </template>
+
+<style lang="scss" src="./InventoryPage.scss" scoped></style>

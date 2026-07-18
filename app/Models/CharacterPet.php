@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CharacterPet extends Model
 {
-    protected $fillable = ['character_id', 'pet_id', 'level', 'active'];
+    public const MAX_LEVEL = 25;
+
+    protected $fillable = ['character_id', 'pet_id', 'level', 'xp', 'active'];
     protected $casts = ['active' => 'boolean'];
 
     public function character(): BelongsTo
@@ -18,5 +20,16 @@ class CharacterPet extends Model
     public function pet(): BelongsTo
     {
         return $this->belongsTo(Pet::class);
+    }
+
+    public static function xpForLevel(int $level): int
+    {
+        return 40 * $level;
+    }
+
+    /** Bonus multiplier applied to this pet's bonus_json values, scaled by its level. */
+    public function levelMultiplier(): float
+    {
+        return 1 + ($this->level - 1) * 0.1;
     }
 }

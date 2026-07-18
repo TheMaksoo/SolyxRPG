@@ -1,0 +1,110 @@
+@use '../../scss/variables' as v;
+@use '../../scss/mixins' as m;
+
+.inbox-page {
+  @include m.centered-column(760px);
+}
+
+.inbox-header {
+  @include m.page-header;
+}
+
+.inbox-header__icon {
+  font-size: 28px;
+}
+
+.inbox-title {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.inbox-subtitle {
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 0 18px;
+}
+
+.inbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.inbox-item {
+  display: flex;
+  gap: 14px;
+  background: v.$bg-card;
+  border: 1px solid v.$border-subtle;
+  border-radius: 12px;
+  padding: 16px;
+
+  &--unread {
+    border-color: v.$accent;
+  }
+}
+
+.inbox-item__icon {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border-radius: 11px;
+  background: rgba(232, 72, 47, 0.14);
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+}
+
+.inbox-item__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.inbox-item__title-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.inbox-item__title {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.inbox-item__body {
+  font-size: 13px;
+  color: v.$text-muted-55;
+  line-height: 1.5;
+  margin: 4px 0 12px;
+}
+
+.inbox-item__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.inbox-item__accept {
+  background: v.$accent;
+  color: #fff;
+  border: none;
+  border-radius: v.$radius-sm;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.inbox-item__decline {
+  background: #1f1f23;
+  color: v.$text-muted-70;
+  border: none;
+  border-radius: v.$radius-sm;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.inbox-empty {
+  color: v.$text-muted-35;
+  font-size: 13px;
+}

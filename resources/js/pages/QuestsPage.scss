@@ -1,0 +1,101 @@
+@use '../../scss/variables' as v;
+@use '../../scss/mixins' as m;
+
+.quests-header {
+  @include m.page-header;
+}
+
+.quests-header__icon {
+  font-size: 28px;
+}
+
+.quests-title {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.quests-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.quest-tab {
+  padding: 8px 16px;
+  border-radius: v.$radius-pill;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: v.$bg-card;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &--active {
+    background: v.$accent;
+  }
+}
+
+.quests-message {
+  font-size: 13px;
+  color: v.$danger;
+  margin-bottom: 14px;
+}
+
+.quests-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 600px;
+}
+
+.quest-row {
+  @include m.card(16px);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.quest-row__info {
+  flex: 1;
+}
+
+.quest-row__name {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.quest-row__desc {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 4px;
+}
+
+.quest-row__progress {
+  font-size: 11.5px;
+  color: v.$text-muted-35;
+  margin-top: 6px;
+}
+
+.quest-row__claim-btn {
+  padding: 9px 16px;
+  border-radius: v.$radius-sm;
+  border: none;
+  background: v.$warning;
+  color: v.$bg-card;
+  font-weight: 700;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.quest-row__status {
+  &--claimed {
+    font-size: 12px;
+    color: v.$success;
+  }
+
+  &--pending {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.3);
+  }
+}

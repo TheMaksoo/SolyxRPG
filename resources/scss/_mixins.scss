@@ -1,0 +1,155 @@
+@use 'sass:math';
+@use 'variables' as v;
+
+// Standard dark card surface used everywhere (enemy tiles, stat blocks, list rows...).
+@mixin card($padding: 18px) {
+  background: v.$bg-card;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-lg;
+  padding: $padding;
+}
+
+@mixin card-hover {
+  cursor: pointer;
+  text-align: left;
+  color: v.$text-primary;
+  transition: border-color 0.15s ease;
+
+  &:hover {
+    border-color: v.$border-medium;
+  }
+}
+
+@mixin btn-reset {
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+@mixin btn-primary {
+  @include btn-reset;
+  background: v.$accent;
+  color: #fff;
+  border-radius: v.$radius-md;
+  padding: 12px 24px;
+  font-weight: 700;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}
+
+@mixin btn-secondary {
+  @include btn-reset;
+  background: v.$bg-card;
+  color: v.$text-primary;
+  border: 1px solid v.$border-medium;
+  border-radius: v.$radius-md;
+  padding: 12px 24px;
+  font-weight: 600;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}
+
+@mixin btn-ghost {
+  @include btn-reset;
+  background: transparent;
+  border: 1px solid v.$border-strong;
+  color: v.$text-muted-70;
+  border-radius: v.$radius-sm;
+  padding: 7px 14px;
+  font-size: 12px;
+}
+
+@mixin badge($color, $bg) {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: $color;
+  background: $bg;
+  padding: 3px 7px;
+  border-radius: 6px;
+}
+
+@mixin stat-bar-track {
+  height: 9px;
+  background: #1e1e22;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+@mixin stat-bar-fill($from, $to) {
+  height: 100%;
+  background: linear-gradient(90deg, $from, $to);
+  transition: width 0.3s;
+}
+
+@mixin reward-chip($color, $bg) {
+  background: $bg;
+  color: $color;
+  padding: 10px 18px;
+  border-radius: v.$radius-md;
+  font-weight: 700;
+}
+
+// Responsive card/tile grid — the auto-fill pattern used on nearly every list page.
+@mixin grid-auto-fill($min: 210px, $gap: 14px) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax($min, 1fr));
+  gap: $gap;
+}
+
+@mixin grid-auto-fit($min: 210px, $gap: 14px) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax($min, 1fr));
+  gap: $gap;
+}
+
+@mixin section-eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.15em;
+  color: v.$text-muted-40;
+  font-weight: 600;
+}
+
+@mixin page-header {
+  display: flex;
+  align-items: center;
+  gap: v.$space-3;
+  margin-bottom: v.$space-5;
+}
+
+@mixin centered-column($max-width) {
+  max-width: $max-width;
+  margin: 0 auto;
+}
+
+@mixin art-placeholder {
+  background: repeating-linear-gradient(135deg, #20161b, #20161b 10px, #1a1216 10px, #1a1216 20px);
+  display: grid;
+  place-items: center;
+}
+
+@mixin fade-in {
+  animation: fade-in 0.25s ease;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

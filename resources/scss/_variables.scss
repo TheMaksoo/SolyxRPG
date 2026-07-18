@@ -1,0 +1,66 @@
+// Shared design tokens for the whole app. Every page's SCSS file should
+// pull colors, radii, and spacing from here instead of hardcoding values.
+
+// Surfaces
+$bg-page: #0b0b0c;
+$bg-card: #151517;
+$bg-input: #0e0e10;
+$bg-header: #0b0b0c;
+
+// Borders
+$border-subtle: rgba(255, 255, 255, 0.07);
+$border-medium: rgba(255, 255, 255, 0.12);
+$border-strong: rgba(255, 255, 255, 0.15);
+
+// Text
+$text-primary: #fff;
+$text-body: #ededed;
+$text-muted-70: rgba(255, 255, 255, 0.7);
+$text-muted-55: rgba(255, 255, 255, 0.55);
+$text-muted-45: rgba(255, 255, 255, 0.45);
+$text-muted-40: rgba(255, 255, 255, 0.4);
+$text-muted-35: rgba(255, 255, 255, 0.35);
+
+// Accent / brand
+$accent: #e8482f;
+$accent-hover: #ff6a4d;
+$accent-soft: #ff8163;
+$accent-tint-12: rgba(232, 72, 47, 0.12);
+$accent-tint-15: rgba(232, 72, 47, 0.15);
+$accent-tint-25: rgba(232, 72, 47, 0.25);
+$accent-tint-30: rgba(232, 72, 47, 0.3);
+
+// Semantic
+$success: #4ade80;
+$success-strong: #22c55e;
+$success-tint-12: rgba(74, 222, 128, 0.12);
+$danger: #ff6a4d;
+$warning: #eab308;
+$warning-tint-12: rgba(234, 179, 8, 0.12);
+$info: #5cc7f5;
+$info-strong: #38bdf8;
+$info-tint-25: rgba(56, 189, 248, 0.3);
+$purple: #a78bfa;
+$purple-tint-12: rgba(139, 92, 246, 0.12);
+
+// Radii
+$radius-sm: 8px;
+$radius-md: 10px;
+$radius-lg: 13px;
+$radius-xl: 16px;
+$radius-pill: 20px;
+
+// Spacing scale
+$space-1: 4px;
+$space-2: 8px;
+$space-3: 12px;
+$space-4: 16px;
+$space-5: 20px;
+$space-6: 24px;
+
+// Layout
+$sidebar-width: 230px;
+$content-max-width: 1300px;
+
+// Type
+$font-display: 'Oxanium', -apple-system, sans-serif;

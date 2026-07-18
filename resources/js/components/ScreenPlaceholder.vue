@@ -9,33 +9,25 @@ defineProps({
 
 <template>
   <div>
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-      <div style="font-size:28px">{{ icon }}</div>
-      <h1 class="ox" style="font-size:28px;font-weight:800;margin:0">{{ title }}</h1>
-      <span
-        style="font-size:11px;color:rgba(255,255,255,.4);background:#151517;border:1px solid rgba(255,255,255,.08);padding:3px 10px;border-radius:20px"
-        >Not yet implemented</span
-      >
+    <div class="screen-placeholder__header">
+      <div class="screen-placeholder__icon">{{ icon }}</div>
+      <h1 class="ox screen-placeholder__title">{{ title }}</h1>
+      <span class="screen-placeholder__badge">Not yet implemented</span>
     </div>
-    <p style="font-size:14px;color:rgba(255,255,255,.6);max-width:640px;line-height:1.6;margin-bottom:22px">
+    <p class="screen-placeholder__description">
       {{ description }}
     </p>
-    <div
-      v-if="planned.length"
-      style="background:#151517;border:1px solid rgba(255,255,255,.07);border-radius:13px;padding:20px 22px;max-width:480px"
-    >
-      <div class="ox" style="font-size:12px;font-weight:700;letter-spacing:.06em;color:rgba(255,255,255,.4);text-transform:uppercase;margin-bottom:12px">
+    <div v-if="planned.length" class="screen-placeholder__planned">
+      <div class="ox screen-placeholder__planned-title">
         Planned for this screen
       </div>
-      <ul style="margin:0;padding-left:18px">
-        <li
-          v-for="item in planned"
-          :key="item"
-          style="font-size:13.5px;color:rgba(255,255,255,.65);margin-bottom:8px;line-height:1.5"
-        >
+      <ul class="screen-placeholder__list">
+        <li v-for="item in planned" :key="item" class="screen-placeholder__list-item">
           {{ item }}
         </li>
       </ul>
     </div>
   </div>
 </template>
+
+<style lang="scss" src="./ScreenPlaceholder.scss" scoped></style>

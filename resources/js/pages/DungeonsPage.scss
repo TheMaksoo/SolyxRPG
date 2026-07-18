@@ -1,0 +1,103 @@
+@use '../../scss/variables' as v;
+@use '../../scss/mixins' as m;
+
+.dungeons-header {
+  @include m.page-header;
+}
+
+.dungeons-header__icon {
+  font-size: 28px;
+}
+
+.dungeons-title {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.dungeons-intro {
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 0 18px;
+}
+
+.dungeons-error {
+  color: v.$danger;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.dungeon-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 900px;
+}
+
+.dungeon-card {
+  @include m.card(18px);
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.dungeon-card__art {
+  width: 120px;
+  height: 90px;
+  flex: none;
+  border-radius: 11px;
+  background: repeating-linear-gradient(45deg, #1c1114, #1c1114 9px, #170e11 9px, #170e11 18px);
+  display: grid;
+  place-items: center;
+  font-size: 36px;
+}
+
+.dungeon-card__body {
+  flex: 1;
+  min-width: 200px;
+}
+
+.dungeon-card__title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dungeon-card__name {
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.dungeon-card__difficulty {
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.dungeon-card__meta {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 5px 0 8px;
+}
+
+.dungeon-card__drops {
+  font-size: 12px;
+  color: v.$warning;
+}
+
+.dungeon-card__enter {
+  @include m.btn-reset;
+  padding: 11px 22px;
+  border-radius: 10px;
+  background: v.$accent;
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+
+  &:disabled {
+    background: rgba(255, 255, 255, 0.08);
+    cursor: not-allowed;
+  }
+}

@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\WikiEntry;
+use App\Services\WikiSyncService;
 use Illuminate\Database\Seeder;
 
 class WikiEntrySeeder extends Seeder
@@ -20,36 +21,10 @@ class WikiEntrySeeder extends Seeder
 
     public function run(): void
     {
+        // 'items', 'monsters', and 'pets' are NOT hand-typed here — WikiSyncService derives them
+        // straight from the Item/Monster/Pet tables below, so they can never drift out of sync
+        // with the game's real stats.
         $categories = [
-            'items' => [
-                ['g' => '⚔', 'name' => 'Ashfang Blade', 'sub' => 'Weapon · Legendary', 'rarity' => 'Legendary', 'desc' => 'A blade forged in dragonfire. The signature legendary weapon of Season 3.', 'stats' => [$this->s('+180 ATK', '#ff8163'), $this->s('+12% crit', '#eab308')]],
-                ['g' => '🗡', 'name' => 'Shadow Dagger', 'sub' => 'Weapon · Epic', 'rarity' => 'Epic', 'desc' => 'A wickedly fast dagger that drains life on hit.', 'stats' => [$this->s('+120 ATK', '#ff8163'), $this->s('lifesteal', '#a78bfa')]],
-                ['g' => '🏹', 'name' => 'Emberbow', 'sub' => 'Weapon · Rare', 'rarity' => 'Rare', 'desc' => 'A longbow strung with molten sinew for precise ranged damage.', 'stats' => [$this->s('+95 ATK', '#ff8163')]],
-                ['g' => '🔮', 'name' => 'Void Staff', 'sub' => 'Weapon · Epic', 'rarity' => 'Epic', 'desc' => 'Channels raw void energy into devastating spells.', 'stats' => [$this->s('+140 magic', '#a78bfa')]],
-                ['g' => '🛡', 'name' => 'Aegis Plate', 'sub' => 'Armor · Legendary', 'rarity' => 'Legendary', 'desc' => 'Impenetrable plate armor blessed by the old gods.', 'stats' => [$this->s('+150 DEF', '#5cc7f5')]],
-                ['g' => '🥋', 'name' => 'Shadow Robe', 'sub' => 'Armor · Epic', 'rarity' => 'Epic', 'desc' => 'Woven from shadowsilk; favored by mages.', 'stats' => [$this->s('+90 DEF', '#5cc7f5'), $this->s('+40 MP', '#38bdf8')]],
-                ['g' => '👢', 'name' => 'Swift Boots', 'sub' => 'Armor · Rare', 'rarity' => 'Rare', 'desc' => 'Enchanted boots that make you harder to hit.', 'stats' => [$this->s('+15% dodge', '#4ade80')]],
-                ['g' => '🧪', 'name' => 'Health Potion', 'sub' => 'Consumable · Common', 'rarity' => 'Common', 'desc' => 'Restores 40% of your max HP instantly in battle.', 'stats' => [$this->sg('Restore 40% HP', '#4ade80')]],
-                ['g' => '💧', 'name' => 'Mana Potion', 'sub' => 'Consumable · Common', 'rarity' => 'Common', 'desc' => 'Restores 40% of your max MP instantly in battle.', 'stats' => [$this->sg('Restore 40% MP', '#38bdf8')]],
-                ['g' => '⚗', 'name' => 'Elixir of Power', 'sub' => 'Consumable · Legendary', 'rarity' => 'Legendary', 'desc' => 'Grants +50% ATK for your next three fights.', 'stats' => [$this->s('+50% ATK 3 fights', '#eab308')]],
-                ['g' => '👑', 'name' => 'Golden Crown', 'sub' => 'Cosmetic · Legendary', 'rarity' => 'Legendary', 'desc' => 'A pure flex — no combat stats, all prestige.', 'stats' => [$this->sg('Cosmetic', '#eab308')]],
-                ['g' => '💎', 'name' => 'Iron Ore', 'sub' => 'Material · Common', 'rarity' => 'Common', 'desc' => 'Basic crafting material dropped by golems and mined in caverns.', 'stats' => [$this->sg('Crafting', '#cbd5e1')]],
-            ],
-            'monsters' => [
-                ['g' => '🟢', 'name' => 'Slime', 'sub' => 'Whispering Meadows · Lv.1', 'rarity' => 'Common', 'desc' => 'A harmless jelly that wobbles across the meadow. Every adventurer\'s first fight.', 'stats' => [$this->s('HP 40', '#4ade80'), $this->s('ATK 8', '#ff8163'), $this->sg('12g · 20xp', '#eab308')]],
-                ['g' => '🐭', 'name' => 'Field Mouse', 'sub' => 'Whispering Meadows · Lv.1', 'rarity' => 'Common', 'desc' => 'Skittish rodents that nibble at crops and flee at the first sign of danger.', 'stats' => [$this->s('HP 30', '#4ade80'), $this->s('ATK 6', '#ff8163'), $this->sg('8g · 15xp', '#eab308')]],
-                ['g' => '🐗', 'name' => 'Wild Boar', 'sub' => 'Whispering Meadows · Lv.4', 'rarity' => 'Common', 'desc' => 'Ill-tempered tuskers that charge anything that gets too close.', 'stats' => [$this->s('HP 90', '#4ade80'), $this->s('ATK 16', '#ff8163'), $this->sg('25g · 45xp', '#eab308')]],
-                ['g' => '🗡', 'name' => 'Bandit Scout', 'sub' => 'Whispering Meadows · Lv.10', 'rarity' => 'Common', 'desc' => 'Highwaymen who prey on travelers along the meadow roads.', 'stats' => [$this->s('HP 180', '#4ade80'), $this->s('ATK 28', '#ff8163'), $this->sg('60g · 110xp', '#eab308')]],
-                ['g' => '🕷', 'name' => 'Giant Spider', 'sub' => 'Whispering Meadows · Lv.18', 'rarity' => 'Rare', 'desc' => 'Oversized arachnids nesting in the meadow\'s overgrown hedgerows.', 'stats' => [$this->s('HP 300', '#4ade80'), $this->s('ATK 42', '#ff8163'), $this->sg('110g · 200xp', '#eab308')]],
-                ['g' => '⚔', 'name' => 'Rogue Knight', 'sub' => 'Whispering Meadows · Lv.28', 'rarity' => 'Rare', 'desc' => 'A disgraced knight turned bandit lord, guarding the meadow\'s edge before the Dark Forest.', 'stats' => [$this->s('HP 380', '#4ade80'), $this->s('ATK 55', '#ff8163'), $this->sg('160g · 300xp', '#eab308')]],
-                ['g' => '🐺', 'name' => 'Shadow Wolf', 'sub' => 'Dark Forest · Lv.35', 'rarity' => 'Common', 'desc' => 'Pack hunters that stalk the Dark Forest at dusk.', 'stats' => [$this->s('HP 420', '#4ade80'), $this->s('ATK 60', '#ff8163'), $this->sg('180g · 340xp', '#eab308')]],
-                ['g' => '👻', 'name' => 'Dark Spirit', 'sub' => 'Dark Forest · Lv.38', 'rarity' => 'Rare', 'desc' => 'Restless souls that drain the warmth from the living.', 'stats' => [$this->s('HP 560', '#4ade80'), $this->s('ATK 85', '#ff8163'), $this->sg('260g · 480xp', '#eab308')]],
-                ['g' => '🗿', 'name' => 'Stone Golem', 'sub' => 'Frostpeak · Lv.40', 'rarity' => 'Rare', 'desc' => 'Ancient constructs that guard the frost caverns.', 'stats' => [$this->s('HP 900', '#4ade80'), $this->s('ATK 110', '#ff8163'), $this->sg('420g · 720xp', '#eab308')]],
-                ['g' => '🐉', 'name' => 'Ashfang Dragon', 'sub' => 'Dragon Lair · BOSS', 'rarity' => 'Legendary', 'desc' => 'The Season 3 world boss. Requires a full guild raid.', 'stats' => [$this->s('HP 1600', '#4ade80'), $this->s('ATK 160', '#ff8163'), $this->s('BOSS', '#e8482f')]],
-                ['g' => '❄', 'name' => 'Ice Golem', 'sub' => 'Frostpeak · Lv.42', 'rarity' => 'Rare', 'desc' => 'Golems of living ice that shatter into shards.', 'stats' => [$this->s('HP 1100', '#4ade80'), $this->s('ATK 130', '#ff8163')]],
-                ['g' => '🦑', 'name' => 'Abyss Kraken', 'sub' => 'Sunken Abyss · Lv.50', 'rarity' => 'Epic', 'desc' => 'A leviathan lurking in the drowned depths.', 'stats' => [$this->s('HP 2200', '#4ade80'), $this->s('ATK 200', '#ff8163')]],
-                ['g' => '👁', 'name' => 'Void Sovereign', 'sub' => 'The Void · MYTHIC', 'rarity' => 'Mythic', 'desc' => 'The endgame raid boss that rules the space between worlds.', 'stats' => [$this->s('HP 5000', '#4ade80'), $this->s('ATK 320', '#ff8163'), $this->s('MYTHIC', '#e8482f')]],
-            ],
             'zones' => [
                 ['g' => '🌾', 'name' => 'Whispering Meadows', 'sub' => 'Danger: Safe · Lv.1+', 'rarity' => 'Common', 'desc' => 'The starter zone — rolling fields of slimes and boars.', 'stats' => [$this->sg('Safe', '#4ade80'), $this->sg('Lv.1+', '#cbd5e1')]],
                 ['g' => '🌲', 'name' => 'Dark Forest', 'sub' => 'Danger: Medium · Lv.35+', 'rarity' => 'Rare', 'desc' => 'Shadow wolves and dark spirits roam this high-XP zone.', 'stats' => [$this->sg('Medium', '#eab308'), $this->sg('High XP', '#4ade80')]],
@@ -86,27 +61,27 @@ class WikiEntrySeeder extends Seeder
                 ['g' => '🛡', 'name' => 'Tough Skin', 'sub' => 'Survival · Lv.1', 'rarity' => 'Common', 'desc' => '+20% defense, permanently.', 'stats' => [$this->sg('Passive', '#cbd5e1')]],
                 ['g' => '✨', 'name' => 'Undying', 'sub' => 'Survival · Lv.50', 'rarity' => 'Legendary', 'desc' => 'Survive one otherwise-fatal hit per battle.', 'stats' => [$this->sg('Passive', '#a78bfa')]],
             ],
-            'pets' => [
-                ['g' => '🐺', 'name' => 'Frost Wolf', 'sub' => 'Companion', 'rarity' => 'Rare', 'desc' => 'A loyal wolf that boosts your attack in battle.', 'stats' => [$this->s('+10% ATK', '#ff8163')]],
-                ['g' => '🐲', 'name' => 'Baby Drake', 'sub' => 'Companion', 'rarity' => 'Epic', 'desc' => 'A young dragon that sharpens your critical strikes.', 'stats' => [$this->s('+8% crit', '#eab308')]],
-                ['g' => '🦉', 'name' => 'Spirit Owl', 'sub' => 'Companion', 'rarity' => 'Rare', 'desc' => 'A wise owl that accelerates your XP gains.', 'stats' => [$this->s('+15% XP', '#4ade80')]],
-                ['g' => '🗿', 'name' => 'Mini Golem', 'sub' => 'Companion', 'rarity' => 'Epic', 'desc' => 'A pocket golem that hardens your defenses.', 'stats' => [$this->s('+20% DEF', '#5cc7f5')]],
-            ],
         ];
 
         foreach ($categories as $category => $rows) {
             foreach ($rows as $i => $row) {
-                WikiEntry::create([
-                    'category' => $category,
-                    'glyph' => $row['g'],
-                    'name' => $row['name'],
-                    'sub' => $row['sub'],
-                    'rarity' => $row['rarity'],
-                    'description' => $row['desc'],
-                    'stats' => $row['stats'],
-                    'sort_order' => $i,
-                ]);
+                WikiEntry::updateOrCreate(
+                    ['category' => $category, 'name' => $row['name']],
+                    [
+                        'glyph' => $row['g'],
+                        'sub' => $row['sub'],
+                        'rarity' => $row['rarity'],
+                        'description' => $row['desc'],
+                        'stats' => $row['stats'],
+                        'sort_order' => $i,
+                    ]
+                );
             }
         }
+
+        $wiki = new WikiSyncService();
+        $wiki->syncMonsters();
+        $wiki->syncItems();
+        $wiki->syncPets();
     }
 }

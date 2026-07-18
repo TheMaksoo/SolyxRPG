@@ -1,0 +1,135 @@
+@use '../../scss/variables' as v;
+@use '../../scss/mixins' as m;
+
+.battlepass-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.battlepass-header__title {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.battlepass-header__tier {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.battlepass-header__xp {
+  font-size: 11.5px;
+  color: v.$text-muted-40;
+}
+
+.battlepass-header__premium-badge {
+  color: v.$warning;
+  font-weight: 700;
+  font-size: 13.5px;
+}
+
+.battlepass-unlock-btn {
+  @include m.btn-reset;
+  background: linear-gradient(135deg, v.$accent, v.$warning);
+  color: #fff;
+  border-radius: v.$radius-md;
+  padding: 12px 22px;
+  font-weight: 700;
+}
+
+.battlepass-message {
+  font-size: 13px;
+  color: v.$danger;
+  margin-bottom: 14px;
+}
+
+.battlepass-track {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.battlepass-row {
+  display: flex;
+  gap: 10px;
+  min-width: max-content;
+  align-items: center;
+}
+
+.battlepass-row__label {
+  width: 70px;
+  flex: none;
+  font-size: 11px;
+  color: v.$text-muted-40;
+  text-align: right;
+  padding-right: 6px;
+
+  &--tier {
+    color: v.$warning;
+    font-weight: 700;
+  }
+
+  &--premium {
+    color: v.$accent;
+    font-weight: 700;
+  }
+}
+
+.tier-number-cell {
+  width: 64px;
+  flex: none;
+  text-align: center;
+}
+
+.tier-number {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.3);
+
+  &--reached {
+    color: v.$accent;
+  }
+}
+
+.tier-tile {
+  width: 64px;
+  flex: none;
+  text-align: center;
+  padding: 8px 4px;
+  border-radius: v.$radius-sm;
+  background: v.$bg-card;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+
+  &--reached {
+    background: rgba(74, 222, 128, 0.1);
+    border-color: rgba(74, 222, 128, 0.3);
+  }
+
+  &--premium-reached {
+    background: v.$accent-tint-12;
+    border-color: v.$accent-tint-30;
+  }
+
+  &--dim {
+    opacity: 0.5;
+  }
+}
+
+.tier-tile__glyph {
+  font-size: 20px;
+}
+
+.tier-tile__reward {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 2px;
+
+  &--premium {
+    color: v.$accent-soft;
+  }
+}

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Battle extends Model
 {
-    protected $fillable = ['character_id', 'monster_id', 'character_hp', 'monster_hp', 'status', 'log_json'];
+    protected $fillable = ['character_id', 'monster_id', 'grade', 'character_hp', 'monster_hp', 'monster_hp_max', 'status', 'log_json', 'revived_with_skill'];
     protected $casts = ['log_json' => 'array'];
 
     public function character(): BelongsTo

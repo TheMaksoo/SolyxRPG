@@ -7,7 +7,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CharacterAttribute extends Model
 {
-    protected $fillable = ['character_id', 'damage', 'armor', 'hp', 'mp', 'crit'];
+    protected $fillable = [
+        'character_id', 'damage', 'armor', 'hp_cap', 'hp_regen', 'mana_cap', 'mana_regen',
+        'crit', 'crit_damage', 'luck', 'dodge', 'energy_cap', 'energy_regen', 'trade_speed',
+    ];
 
     public function character(): BelongsTo
     {

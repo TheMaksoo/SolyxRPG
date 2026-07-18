@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCharacterStore } from '../stores/character';
 
@@ -7,16 +7,68 @@ const store = useCharacterStore();
 const router = useRouter();
 
 const classes = [
-  { key: 'warrior', icon: '⚔', name: 'Warrior', blurb: 'High HP and defense. Tank.' },
-  { key: 'mage', icon: '✷', name: 'Mage', blurb: 'Fragile burst caster.' },
-  { key: 'rogue', icon: '🗡', name: 'Rogue', blurb: 'Fast, evasive, crit-focused.' },
-  { key: 'ranger', icon: '🏹', name: 'Ranger', blurb: 'Precise ranged DPS.' },
+  {
+    key: 'warrior',
+    icon: '⚔',
+    name: 'Warrior',
+    blurb: 'High HP and defense. Tank.',
+    stats: { hp: 230, atk: 12, def: 14, mp: 90 },
+    firstSkill: { glyph: '⚔', name: 'Power Strike' },
+  },
+  {
+    key: 'mage',
+    icon: '✷',
+    name: 'Mage',
+    blurb: 'Fragile burst caster.',
+    stats: { hp: 155, atk: 11, def: 8, mp: 240 },
+    firstSkill: { glyph: '✷', name: 'Shadow Bolt' },
+  },
+  {
+    key: 'rogue',
+    icon: '🗡',
+    name: 'Rogue',
+    blurb: 'Fast, evasive, crit-focused.',
+    stats: { hp: 180, atk: 13, def: 10, mp: 120 },
+    firstSkill: { glyph: '🛡', name: 'Tough Skin' },
+  },
+  {
+    key: 'ranger',
+    icon: '🏹',
+    name: 'Ranger',
+    blurb: 'Precise ranged DPS.',
+    stats: { hp: 195, atk: 12, def: 11, mp: 140 },
+    firstSkill: { glyph: '🛡', name: 'Tough Skin' },
+  },
 ];
+
+const STAT_META = [
+  { key: 'hp', label: 'HP' },
+  { key: 'atk', label: 'ATK' },
+  { key: 'def', label: 'DEF' },
+  { key: 'mp', label: 'MP' },
+];
+
+// Scale each stat's bar relative to the highest value among the classes,
+// so the bars are meaningful for comparing builds rather than absolute.
+const maxStats = STAT_META.reduce((max, meta) => {
+  max[meta.key] = Math.max(...classes.map((c) => c.stats[meta.key]));
+  return max;
+}, {});
+
+function statsFor(c) {
+  return STAT_META.map((meta) => ({
+    ...meta,
+    value: c.stats[meta.key],
+    pct: Math.round((c.stats[meta.key] / maxStats[meta.key]) * 100),
+  }));
+}
 
 const selected = ref(null);
 const name = ref('');
 const error = ref('');
 const loading = ref(false);
+
+const canSubmit = computed(() => !!selected.value && !!name.value.trim() && !loading.value);
 
 async function submit() {
   if (!selected.value || !name.value.trim()) {
@@ -37,47 +89,69 @@ async function submit() {
 </script>
 
 <template>
-  <div
-    style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:22px"
-  >
-    <h1 class="ox" style="font-size:26px;font-weight:800;margin:0">Choose your class</h1>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;max-width:640px;width:100%">
+  <div class="create-page">
+    <div class="create-page__header">
+      <h1 class="ox create-page__title">Choose your class</h1>
+      <p class="create-page__subtitle">Every class can master other paths later — start with your favorite.</p>
+    </div>
+
+    <div class="class-grid">
       <button
         v-for="c in classes"
         :key="c.key"
         type="button"
         @click="selected = c.key"
-        :style="{
-          background: selected === c.key ? 'rgba(232,72,47,.13)' : '#151517',
-          border: `1px solid ${selected === c.key ? '#e8482f' : 'rgba(255,255,255,.08)'}`,
-          borderRadius: '13px',
-          padding: '20px 14px',
-          color: '#fff',
-          cursor: 'pointer',
-          textAlign: 'center',
-        }"
+        class="class-card"
+        :class="{ 'class-card--selected': selected === c.key }"
       >
-        <div style="font-size:30px;margin-bottom:8px">{{ c.icon }}</div>
-        <div class="ox" style="font-weight:700;font-size:15px;margin-bottom:4px">{{ c.name }}</div>
-        <div style="font-size:11.5px;color:rgba(255,255,255,.5)">{{ c.blurb }}</div>
+        <div class="class-card__check" v-if="selected === c.key">✓</div>
+
+        <div class="class-card__top">
+          <div class="class-card__icon">{{ c.icon }}</div>
+          <div>
+            <div class="ox class-card__name">{{ c.name }}</div>
+            <div class="class-card__blurb">{{ c.blurb }}</div>
+          </div>
+        </div>
+
+        <div class="class-card__stats">
+          <div v-for="stat in statsFor(c)" :key="stat.key" class="stat-row">
+            <span class="stat-row__label" :class="`stat-row__label--${stat.key}`">{{ stat.label }}</span>
+            <span class="stat-bar-track">
+              <span class="stat-bar-fill" :class="`stat-bar-fill--${stat.key}`" :style="{ width: stat.pct + '%' }"></span>
+            </span>
+            <span class="stat-row__value">{{ stat.value }}</span>
+          </div>
+        </div>
+
+        <div class="class-card__skill">
+          <span class="class-card__skill-glyph">{{ c.firstSkill.glyph }}</span>
+          First Skill: <span class="class-card__skill-name">{{ c.firstSkill.name }}</span>
+        </div>
       </button>
     </div>
 
-    <input
-      v-model="name"
-      placeholder="Character name"
-      maxlength="30"
-      style="width:280px;max-width:100%;padding:11px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:#151517;color:#fff;font-size:14px;text-align:center"
-    />
+    <div class="create-page__form">
+      <label for="character-name" class="create-name-label">Character name</label>
+      <input
+        id="character-name"
+        v-model="name"
+        placeholder="Character name"
+        maxlength="30"
+        class="create-name-input"
+      />
 
-    <p v-if="error" style="color:#ff6a4d;font-size:12.5px;margin:0">{{ error }}</p>
+      <p v-if="error" class="create-error">{{ error }}</p>
 
-    <button
-      @click="submit"
-      :disabled="loading"
-      style="padding:12px 28px;border-radius:10px;border:none;background:#e8482f;color:#fff;font-size:14px;font-weight:700;cursor:pointer"
-    >
-      {{ loading ? 'Creating…' : 'Begin your journey' }}
-    </button>
+      <button
+        @click="submit"
+        :disabled="!canSubmit"
+        class="create-submit-btn"
+      >
+        {{ loading ? 'Creating…' : 'Begin your journey' }}
+      </button>
+    </div>
   </div>
 </template>
+
+<style lang="scss" src="./CharacterCreatePage.scss" scoped></style>

@@ -9,6 +9,13 @@ use Illuminate\Http\Request;
 
 class PetController extends Controller
 {
+    private const STAT_LABELS = [
+        'atk_pct' => 'ATK',
+        'def_pct' => 'DEF',
+        'crit_pct' => 'Crit',
+        'xp_pct' => 'XP',
+    ];
+
     public function index(Request $request)
     {
         $character = $request->user()->character;
@@ -16,11 +23,26 @@ class PetController extends Controller
 
         $owned = $character->pets()->with('pet')->get()->keyBy('pet_id');
 
-        $pets = Pet::where('enabled', true)->get()->map(fn (Pet $pet) => [
-            'pet' => $pet,
-            'owned' => $owned->has($pet->id),
-            'active' => $owned->get($pet->id)?->active ?? false,
-        ]);
+        $pets = Pet::where('enabled', true)->get()->map(function (Pet $pet) use ($owned) {
+            $ownedPet = $owned->get($pet->id);
+            $levelMult = $ownedPet ? $ownedPet->levelMultiplier() : 1.0;
+
+            $bonuses = collect($pet->bonus_json ?? [])->map(fn ($value, $key) => [
+                'label' => self::STAT_LABELS[$key] ?? $key,
+                'pct' => round($value * $levelMult, 1),
+            ])->values();
+
+            return [
+                'pet' => $pet,
+                'owned' => $owned->has($pet->id),
+                'active' => $ownedPet?->active ?? false,
+                'level' => $ownedPet?->level,
+                'xp' => $ownedPet?->xp,
+                'xp_needed' => $ownedPet ? CharacterPet::xpForLevel($ownedPet->level) : null,
+                'max_level' => CharacterPet::MAX_LEVEL,
+                'bonuses' => $bonuses,
+            ];
+        });
 
         return response()->json(['pets' => $pets]);
     }

@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Guild extends Model
 {
-    protected $fillable = ['name', 'tag', 'level', 'xp_perk', 'war_status', 'owner_id', 'member_cap'];
+    protected $fillable = ['name', 'tag', 'level', 'xp_perk', 'war_status', 'owner_id', 'member_cap', 'bank_gold', 'bank_gems'];
 
     public function owner(): BelongsTo
     {

@@ -10,8 +10,36 @@ const data = ref(null);
 const loading = ref(true);
 const busyId = ref(null);
 const error = ref('');
+const deleteTarget = ref(null);
 
 const CLASS_ICON = { warrior: '⚔', mage: '✷', rogue: '🗡', ranger: '🏹' };
+
+const STAT_META = [
+  { key: 'hp', label: 'HP' },
+  { key: 'atk', label: 'ATK' },
+  { key: 'def', label: 'DEF' },
+  { key: 'mp', label: 'MP' },
+];
+const STAT_FIELD = { hp: 'hp_max', atk: 'base_atk', def: 'base_def', mp: 'mana_max' };
+
+// Bars are scaled relative to the highest value among your own characters,
+// so they're meaningful even as stats grow with level/gear.
+const maxStats = computed(() => {
+  const characters = (data.value?.slots ?? []).map((s) => s.character).filter(Boolean);
+  const max = {};
+  for (const meta of STAT_META) {
+    const field = STAT_FIELD[meta.key];
+    max[meta.key] = Math.max(1, ...characters.map((c) => c[field] ?? 0));
+  }
+  return max;
+});
+
+function statsFor(character) {
+  return STAT_META.map((meta) => {
+    const value = character[STAT_FIELD[meta.key]] ?? 0;
+    return { ...meta, value, pct: Math.round((value / maxStats.value[meta.key]) * 100) };
+  });
+}
 
 const nextGemTier = computed(() => (data.value ? data.value.bonus_character_slots + 1 : null));
 
@@ -37,6 +65,40 @@ async function play(character) {
   }
 }
 
+function requestDelete(character) {
+  if (busyId.value) return;
+  deleteTarget.value = character;
+}
+
+function cancelDelete() {
+  if (busyId.value && String(busyId.value).startsWith('delete:')) return;
+  deleteTarget.value = null;
+}
+
+async function removeCharacter() {
+  error.value = '';
+  const character = deleteTarget.value;
+  if (!character) return;
+
+  busyId.value = `delete:${character.id}`;
+  try {
+    const result = await store.remove(character.id);
+    await load();
+
+    if (result.active_character_id) {
+      const activeSlot = data.value?.slots?.find((slot) => slot.character?.id === result.active_character_id);
+      if (activeSlot?.character) {
+        await store.select(activeSlot.character.id);
+      }
+    }
+    deleteTarget.value = null;
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Could not delete character.';
+  } finally {
+    busyId.value = null;
+  }
+}
+
 async function unlock() {
   error.value = '';
   const payer = data.value.slots.map((s) => s.character).find(Boolean);
@@ -56,51 +118,74 @@ onMounted(load);
 </script>
 
 <template>
-  <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 24px;gap:26px">
-    <div style="text-align:center">
-      <h1 class="ox" style="font-size:26px;font-weight:800;margin:0 0 6px">Your Characters</h1>
-      <p style="color:rgba(255,255,255,.5);font-size:13px;margin:0">
+  <div class="character-select-page">
+    <div class="character-select-page__header">
+      <h1 class="ox character-select-page__title">Your Characters</h1>
+      <p class="character-select-page__subtitle">
         Choose a character to play, or open a new slot.
       </p>
     </div>
 
-    <p v-if="error" style="color:#ff6a4d;font-size:12.5px;margin:0">{{ error }}</p>
+    <p v-if="error" class="character-select-page__error">{{ error }}</p>
 
-    <div v-if="loading" style="color:rgba(255,255,255,.4);font-size:13px">Loading…</div>
+    <div v-if="loading" class="character-select-page__loading">Loading…</div>
 
-    <div v-else style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;max-width:920px;width:100%">
+    <div v-else class="character-grid">
       <div
         v-for="slot in data.slots"
         :key="slot.number"
-        style="background:#151517;border:1px solid rgba(255,255,255,.07);border-radius:13px;padding:18px;min-height:170px;display:flex;flex-direction:column;justify-content:space-between"
+        class="slot-card"
       >
         <!-- filled -->
         <template v-if="slot.character">
           <div>
-            <div style="display:flex;justify-content:space-between;align-items:flex-start">
-              <div style="font-size:26px">{{ CLASS_ICON[slot.character.base_class] }}</div>
+            <div class="slot-card__top">
+              <div class="slot-card__icon-name">
+                <div class="slot-card__class-icon">{{ CLASS_ICON[slot.character.base_class] }}</div>
+                <div>
+                  <div class="ox slot-card__name">{{ slot.character.name }}</div>
+                  <div class="slot-card__meta">
+                    Lv.{{ slot.character.level }} {{ slot.character.base_class }}
+                  </div>
+                </div>
+              </div>
               <span
                 v-if="slot.character.id === data.active_character_id"
-                style="font-size:10px;font-weight:700;letter-spacing:.04em;color:#4ade80;background:rgba(74,222,128,.12);padding:3px 7px;border-radius:6px"
+                class="slot-card__active-badge"
                 >ACTIVE</span
               >
             </div>
-            <div class="ox" style="font-weight:700;font-size:15px;margin-top:8px">{{ slot.character.name }}</div>
-            <div style="font-size:11.5px;color:rgba(255,255,255,.45);margin-top:2px;text-transform:capitalize">
-              Lv.{{ slot.character.level }} {{ slot.character.base_class }}
+            <div class="slot-card__stats">
+              <div v-for="stat in statsFor(slot.character)" :key="stat.key" class="stat-row">
+                <span class="stat-row__label" :class="`stat-row__label--${stat.key}`">{{ stat.label }}</span>
+                <span class="stat-bar-track">
+                  <span class="stat-bar-fill" :class="`stat-bar-fill--${stat.key}`" :style="{ width: stat.pct + '%' }"></span>
+                </span>
+                <span class="stat-row__value">{{ stat.value }}</span>
+              </div>
+              <span class="stat-chip stat-chip--luck">🍀 Luck {{ slot.character.luck ?? 0 }}</span>
             </div>
-            <div style="display:flex;gap:10px;margin-top:10px;font-size:11px;color:rgba(255,255,255,.5)">
-              <span>♥ {{ slot.character.hp_max }}</span>
-              <span>⚔ {{ slot.character.base_atk }}</span>
-              <span>✷ {{ slot.character.mana_max }}</span>
+            <div class="slot-card__skill">
+              <span v-if="slot.character.first_skill">
+                <span class="slot-card__skill-glyph">{{ slot.character.first_skill.glyph }}</span>
+                First Skill: <span class="slot-card__skill-name">{{ slot.character.first_skill.name }}</span>
+              </span>
+              <span v-else class="slot-card__skill--none">First Skill: none yet</span>
             </div>
           </div>
           <button
             @click="play(slot.character)"
-            :disabled="busyId === slot.character.id"
-            style="margin-top:14px;padding:9px;border-radius:9px;border:none;background:#e8482f;color:#fff;font-weight:700;font-size:13px;cursor:pointer"
+            :disabled="busyId === slot.character.id || busyId === `delete:${slot.character.id}`"
+            class="slot-card__play-btn"
           >
             {{ busyId === slot.character.id ? 'Loading…' : slot.character.id === data.active_character_id ? 'Continue' : 'Play' }}
+          </button>
+          <button
+            @click="requestDelete(slot.character)"
+            :disabled="busyId === slot.character.id || busyId === `delete:${slot.character.id}`"
+            class="slot-card__delete-btn"
+          >
+            {{ busyId === `delete:${slot.character.id}` ? 'Deleting…' : 'Delete' }}
           </button>
         </template>
 
@@ -108,48 +193,81 @@ onMounted(load);
         <template v-else-if="slot.unlocked">
           <router-link
             to="/character/create"
-            style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:rgba(255,255,255,.5);text-decoration:none;border:1px dashed rgba(255,255,255,.15);border-radius:9px"
+            class="slot-card__create-link"
           >
-            <div style="font-size:22px">+</div>
-            <div style="font-size:12.5px;font-weight:600">Create Character</div>
+            <div class="slot-card__create-icon">+</div>
+            <div class="slot-card__create-label">Create Character</div>
           </router-link>
         </template>
 
         <!-- locked: gems -->
         <template v-else-if="slot.requirement.type === 'gems'">
-          <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:rgba(255,255,255,.35)">
-            <div style="font-size:20px">🔒</div>
-            <div style="font-size:12px">Slot {{ slot.number }}</div>
-            <div style="font-size:11px">{{ slot.requirement.cost }}◆ gems</div>
+          <div class="slot-card__locked">
+            <div class="slot-card__locked-icon">🔒</div>
+            <div class="slot-card__locked-label">Slot {{ slot.number }}</div>
+            <div class="slot-card__locked-cost">{{ slot.requirement.cost }}◆ gems</div>
           </div>
           <button
             v-if="slot.requirement.tier === nextGemTier"
             @click="unlock"
             :disabled="busyId === 'unlock'"
-            style="margin-top:10px;padding:8px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:#0e0e10;color:#fff;font-weight:600;font-size:12px;cursor:pointer"
+            class="slot-card__secondary-btn"
           >
             {{ busyId === 'unlock' ? 'Unlocking…' : `Unlock for ${slot.requirement.cost}◆` }}
           </button>
-          <div v-else style="margin-top:10px;text-align:center;font-size:10.5px;color:rgba(255,255,255,.3)">
+          <div v-else class="slot-card__unlock-hint">
             Unlock earlier slots first
           </div>
         </template>
 
         <!-- locked: vip -->
         <template v-else>
-          <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:rgba(255,255,255,.35)">
-            <div style="font-size:20px">🔒</div>
-            <div style="font-size:12px">Slot {{ slot.number }}</div>
-            <div style="font-size:11px;text-transform:capitalize">{{ slot.requirement.tier }} VIP</div>
+          <div class="slot-card__locked">
+            <div class="slot-card__locked-icon">🔒</div>
+            <div class="slot-card__locked-label">Slot {{ slot.number }}</div>
+            <div class="slot-card__locked-vip">{{ slot.requirement.tier }} VIP</div>
           </div>
           <router-link
             to="/vip"
-            style="margin-top:10px;padding:8px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:#0e0e10;color:#fff;font-weight:600;font-size:12px;text-align:center;text-decoration:none"
+            class="slot-card__secondary-btn"
           >
             View VIP
           </router-link>
         </template>
       </div>
     </div>
+
+    <div
+      v-if="deleteTarget"
+      class="delete-modal-overlay"
+      @click.self="cancelDelete"
+    >
+      <div class="delete-modal">
+        <div class="ox delete-modal__title">Delete Character</div>
+        <p class="delete-modal__text">
+          You are about to delete
+          <strong class="delete-modal__name">{{ deleteTarget.name }}</strong>.
+          This action cannot be undone.
+        </p>
+        <div class="delete-modal__actions">
+          <button
+            @click="cancelDelete"
+            :disabled="busyId === `delete:${deleteTarget.id}`"
+            class="delete-modal__cancel-btn"
+          >
+            Cancel
+          </button>
+          <button
+            @click="removeCharacter"
+            :disabled="busyId === `delete:${deleteTarget.id}`"
+            class="delete-modal__delete-btn"
+          >
+            {{ busyId === `delete:${deleteTarget.id}` ? 'Deleting…' : 'Delete Character' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
+
+<style lang="scss" src="./CharacterSelectPage.scss" scoped></style>

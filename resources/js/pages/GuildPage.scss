@@ -1,0 +1,282 @@
+@use '../../scss/variables' as v;
+@use '../../scss/mixins' as m;
+
+.guild-header {
+  @include m.page-header;
+}
+
+.guild-header__icon {
+  font-size: 28px;
+}
+
+.guild-title {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.guild-message {
+  font-size: 13px;
+  color: v.$danger;
+  margin-bottom: 14px;
+}
+
+// ---- Guild panel (member view) ----
+.guild-panel {
+  @include m.centered-column(600px);
+}
+
+.guild-name {
+  font-size: 18px;
+  margin: 0 0 4px;
+}
+
+.guild-member-count {
+  font-size: 12px;
+  color: v.$text-muted-40;
+  margin-bottom: 16px;
+}
+
+.guild-bank {
+  @include m.card(16px);
+  margin-bottom: 20px;
+}
+
+.guild-bank__title {
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.guild-bank__balances {
+  font-size: 13px;
+  color: v.$text-muted-45;
+  margin-bottom: 12px;
+}
+
+.guild-bank-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.guild-bank-select,
+.guild-bank-input {
+  padding: 8px 10px;
+  border-radius: v.$radius-sm;
+  border: 1px solid v.$border-medium;
+  background: v.$bg-input;
+  color: #fff;
+  font-size: 12.5px;
+}
+
+.guild-bank-input {
+  width: 100px;
+}
+
+.guild-bank-btn {
+  @include m.btn-reset;
+  padding: 8px 14px;
+  border-radius: v.$radius-sm;
+  background: v.$accent;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+
+  &--withdraw {
+    background: transparent;
+    border: 1px solid v.$border-medium;
+  }
+}
+
+.guild-members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.guild-member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.guild-member-chip {
+  font-size: 12px;
+  background: v.$bg-card;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 6px 12px;
+  border-radius: v.$radius-pill;
+}
+
+.guild-member-chip__role {
+  color: v.$text-muted-35;
+}
+
+.guild-member-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.guild-member-action-btn {
+  @include m.btn-reset;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid v.$border-medium;
+  background: transparent;
+  color: v.$text-muted-70;
+  font-size: 11px;
+
+  &--kick {
+    border-color: rgba(255, 107, 107, 0.3);
+    color: #ff6a6a;
+  }
+}
+
+.guild-leave-btn {
+  @include m.btn-reset;
+  display: block;
+  margin: 0 0 20px;
+  padding: 8px 14px;
+  border-radius: v.$radius-sm;
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  background: transparent;
+  color: #ff6a6a;
+  font-size: 12px;
+}
+
+.guild-chat {
+  background: v.$bg-input;
+  border-radius: v.$radius-md;
+  padding: 14px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+
+.guild-chat__line {
+  font-size: 12.5px;
+  margin-bottom: 6px;
+}
+
+.guild-chat__empty {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 12.5px;
+}
+
+.guild-chat-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.guild-chat-input {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: v.$radius-md;
+  border: 1px solid v.$border-medium;
+  background: v.$bg-card;
+  color: #fff;
+  font-size: 13.5px;
+}
+
+.guild-chat-send {
+  padding: 10px 18px;
+  border-radius: v.$radius-md;
+  border: none;
+  background: v.$accent;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+// ---- Browse / create panel ----
+.guild-browse-panel {
+  @include m.centered-column(600px);
+}
+
+.guild-create-card {
+  @include m.card(18px);
+  margin-bottom: 20px;
+}
+
+.guild-create-card__title {
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+
+.guild-create-row {
+  display: flex;
+  gap: 8px;
+}
+
+.guild-create-input {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: v.$radius-sm;
+  border: 1px solid v.$border-medium;
+  background: v.$bg-input;
+  color: #fff;
+  font-size: 13px;
+
+  &--tag {
+    flex: none;
+    width: 80px;
+  }
+}
+
+.guild-create-btn {
+  padding: 9px 16px;
+  border-radius: v.$radius-sm;
+  border: none;
+  background: v.$accent;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.guild-browse-heading {
+  font-size: 13px;
+  color: v.$text-muted-40;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+
+.guild-browse-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.guild-browse-row {
+  background: v.$bg-card;
+  border: 1px solid v.$border-subtle;
+  border-radius: 11px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.guild-browse-row__name {
+  flex: 1;
+  font-size: 13.5px;
+}
+
+.guild-browse-row__count {
+  font-size: 12px;
+  color: v.$text-muted-40;
+}
+
+.guild-browse-row__join {
+  padding: 7px 14px;
+  border-radius: 7px;
+  border: 1px solid v.$border-medium;
+  background: transparent;
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}

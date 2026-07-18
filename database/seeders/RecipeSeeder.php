@@ -10,16 +10,27 @@ class RecipeSeeder extends Seeder
 {
     public function run(): void
     {
-        $ironOreId = Item::where('key', 'iron_ore')->value('id');
-        $ironDaggerId = Item::where('key', 'iron_dagger')->value('id');
+        $ids = Item::whereIn('key', [
+            'iron_bar', 'wood', 'silver_bar', 'ironwood', 'iron_dagger', 'wooden_bow', 'iron_buckler', 'silvered_blade',
+        ])->pluck('id', 'key');
 
-        Recipe::updateOrCreate(
-            ['name' => 'Craft Iron Dagger'],
-            [
-                'result_item_id' => $ironDaggerId,
-                'materials_json' => [['item_id' => $ironOreId, 'qty' => 5]],
-                'enabled' => true,
-            ]
-        );
+        $recipes = [
+            ['name' => 'Craft Iron Dagger', 'result' => 'iron_dagger', 'materials' => [['item' => 'iron_bar', 'qty' => 3]], 'craft_seconds' => 30],
+            ['name' => 'Craft Wooden Bow', 'result' => 'wooden_bow', 'materials' => [['item' => 'wood', 'qty' => 8]], 'craft_seconds' => 25],
+            ['name' => 'Craft Iron Buckler', 'result' => 'iron_buckler', 'materials' => [['item' => 'iron_bar', 'qty' => 4]], 'craft_seconds' => 45],
+            ['name' => 'Craft Silvered Blade', 'result' => 'silvered_blade', 'materials' => [['item' => 'silver_bar', 'qty' => 3], ['item' => 'iron_bar', 'qty' => 2], ['item' => 'ironwood', 'qty' => 2]], 'craft_seconds' => 90],
+        ];
+
+        foreach ($recipes as $recipe) {
+            Recipe::updateOrCreate(
+                ['name' => $recipe['name']],
+                [
+                    'result_item_id' => $ids[$recipe['result']],
+                    'materials_json' => collect($recipe['materials'])->map(fn (array $m) => ['item_id' => $ids[$m['item']], 'qty' => $m['qty']])->all(),
+                    'craft_seconds' => $recipe['craft_seconds'],
+                    'enabled' => true,
+                ]
+            );
+        }
     }
 }

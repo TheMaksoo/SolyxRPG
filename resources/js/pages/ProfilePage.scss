@@ -1,0 +1,226 @@
+@use '../../scss/variables' as v;
+@use '../../scss/mixins' as m;
+
+.profile-hero {
+  background: linear-gradient(150deg, #1a1013, v.$bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: v.$radius-xl;
+  padding: 26px;
+  margin-bottom: v.$space-5;
+  display: flex;
+  gap: v.$space-5;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.profile-hero__avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 18px;
+  background: v.$accent;
+  display: grid;
+  place-items: center;
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.profile-hero__info {
+  flex: 1;
+  min-width: 200px;
+}
+
+.profile-hero__name {
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.profile-hero__class {
+  color: v.$accent;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.profile-hero__meta {
+  font-size: 13px;
+  color: v.$text-muted-45;
+  margin-top: 4px;
+}
+
+.profile-hero__xp {
+  margin-top: 10px;
+  max-width: 320px;
+}
+
+.profile-hero__xp-track {
+  @include m.stat-bar-track;
+}
+
+.profile-hero__xp-fill {
+  @include m.stat-bar-fill(v.$accent, v.$accent-soft);
+}
+
+.profile-hero__xp-label {
+  font-size: 11px;
+  color: v.$text-muted-40;
+  margin-top: 4px;
+}
+
+.profile-hero__stats {
+  display: flex;
+  gap: v.$space-5;
+}
+
+.profile-stat {
+  text-align: center;
+}
+
+.profile-stat__value {
+  font-size: 22px;
+  font-weight: 800;
+
+  &--power {
+    color: v.$warning;
+  }
+
+  &--luck {
+    color: v.$success;
+  }
+
+  &--gold {
+    color: v.$purple;
+  }
+
+  &--gems {
+    color: v.$info;
+  }
+}
+
+.profile-stat__label {
+  font-size: 11px;
+  color: v.$text-muted-40;
+}
+
+// ---- Full stat breakdown ----
+.stats-eyebrow {
+  @include m.section-eyebrow;
+  margin-bottom: 12px;
+}
+
+.stats-panel {
+  @include m.card(22px);
+  margin-bottom: v.$space-5;
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+
+  th {
+    text-align: right;
+    font-size: 11px;
+    color: v.$text-muted-40;
+    font-weight: 600;
+    padding-bottom: 8px;
+
+    &:first-child {
+      text-align: left;
+    }
+  }
+
+  td {
+    padding: 7px 0;
+    border-top: 1px solid v.$border-subtle;
+    text-align: right;
+    font-size: 14px;
+  }
+}
+
+.stats-table__label {
+  text-align: left !important;
+  color: v.$text-muted-55;
+  font-size: 13px !important;
+}
+
+.stats-table__base {
+  color: v.$text-muted-40;
+}
+
+.stats-table__eff {
+  color: v.$text-primary;
+  font-weight: 700;
+}
+
+.stats-table__buff {
+  color: v.$success;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.attribute-points-eyebrow {
+  @include m.section-eyebrow;
+  margin: 20px 0 10px;
+}
+
+.attribute-points-grid {
+  @include m.grid-auto-fill(120px, 10px);
+}
+
+.attribute-points-chip {
+  background: v.$bg-input;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-sm;
+  padding: 9px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.attribute-points-chip__label {
+  font-size: 12px;
+  color: v.$text-muted-45;
+}
+
+.attribute-points-chip__value {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.achievements-eyebrow {
+  @include m.section-eyebrow;
+  margin-bottom: 12px;
+}
+
+.achievements-grid {
+  @include m.grid-auto-fill(180px, 12px);
+}
+
+.achievement-card {
+  background: v.$bg-card;
+  border: 1px solid v.$border-subtle;
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  opacity: 0.45;
+
+  &--earned {
+    border-color: rgba(234, 179, 8, 0.35);
+    opacity: 1;
+  }
+}
+
+.achievement-card__glyph {
+  font-size: 30px;
+  margin-bottom: 8px;
+}
+
+.achievement-card__name {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.achievement-card__desc {
+  font-size: 11px;
+  color: v.$text-muted-45;
+  margin-top: 3px;
+}

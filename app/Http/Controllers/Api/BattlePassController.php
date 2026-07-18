@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\BattlePassService;
 use Illuminate\Http\Request;
 
 class BattlePassController extends Controller
 {
-    private const SEASON = 'ashfall';
     private const PREMIUM_GEM_COST = 950;
 
     public function index(Request $request)
@@ -15,9 +15,13 @@ class BattlePassController extends Controller
         $character = $request->user()->character;
         abort_unless($character, 404);
 
-        $pass = $character->battlePasses()->firstOrCreate(['season' => self::SEASON], ['tier' => 0, 'xp' => 0, 'premium' => false]);
+        $pass = $character->battlePasses()->firstOrCreate(['season' => BattlePassService::SEASON], ['tier' => 0, 'xp' => 0, 'premium' => false]);
 
-        return response()->json(['battle_pass' => $pass, 'premium_gem_cost' => self::PREMIUM_GEM_COST]);
+        return response()->json([
+            'battle_pass' => $pass,
+            'premium_gem_cost' => self::PREMIUM_GEM_COST,
+            'total_tiers' => BattlePassService::TOTAL_TIERS,
+        ]);
     }
 
     /** Direct gem purchase of the premium track — an alternative to routing through Stripe checkout. */
@@ -26,7 +30,7 @@ class BattlePassController extends Controller
         $character = $request->user()->character;
         abort_unless($character, 404);
 
-        $pass = $character->battlePasses()->firstOrCreate(['season' => self::SEASON], ['tier' => 0, 'xp' => 0]);
+        $pass = $character->battlePasses()->firstOrCreate(['season' => BattlePassService::SEASON], ['tier' => 0, 'xp' => 0]);
 
         if ($pass->premium) {
             return response()->json(['message' => 'Already premium.'], 422);
