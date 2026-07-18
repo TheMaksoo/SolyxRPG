@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue';
 import api from '../api/client';
 import { useCharacterStore } from '../stores/character';
+import AdBanner from '../components/AdBanner.vue';
 
 const characterStore = useCharacterStore();
 const enemies = ref([]);
@@ -93,47 +94,50 @@ onMounted(() => {
     </div>
 
     <!-- Fight view -->
-    <div v-else-if="battle.status === 'active'" style="max-width:560px">
-      <div style="background:#151517;border:1px solid rgba(255,255,255,.07);border-radius:13px;padding:20px;margin-bottom:16px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <span class="ox" style="font-weight:700">{{ monster.name }}</span>
-          <span style="font-size:12px;color:rgba(255,255,255,.5)">{{ battle.monster_hp }} / {{ monster.hp }}</span>
+    <div v-else-if="battle.status === 'active'" style="max-width:1010px;display:flex;gap:20px;align-items:flex-start">
+      <div style="flex:1;min-width:0;max-width:560px">
+        <div style="background:#151517;border:1px solid rgba(255,255,255,.07);border-radius:13px;padding:20px;margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span class="ox" style="font-weight:700">{{ monster.name }}</span>
+            <span style="font-size:12px;color:rgba(255,255,255,.5)">{{ battle.monster_hp }} / {{ monster.hp }}</span>
+          </div>
+          <div style="height:10px;background:#0e0e10;border-radius:5px;overflow:hidden">
+            <div :style="{ width: hpPct(battle.monster_hp, monster.hp) + '%', height: '100%', background: '#e8482f' }"></div>
+          </div>
         </div>
-        <div style="height:10px;background:#0e0e10;border-radius:5px;overflow:hidden">
-          <div :style="{ width: hpPct(battle.monster_hp, monster.hp) + '%', height: '100%', background: '#e8482f' }"></div>
-        </div>
-      </div>
 
-      <div style="background:#151517;border:1px solid rgba(255,255,255,.07);border-radius:13px;padding:20px;margin-bottom:16px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <span class="ox" style="font-weight:700">You</span>
+        <div style="background:#151517;border:1px solid rgba(255,255,255,.07);border-radius:13px;padding:20px;margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span class="ox" style="font-weight:700">You</span>
+          </div>
+          <div style="height:10px;background:#0e0e10;border-radius:5px;overflow:hidden">
+            <div :style="{ width: hpPct(battle.character_hp, playerHpMax) + '%', height: '100%', background: '#22c55e' }"></div>
+          </div>
+          <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:6px">{{ battle.character_hp }} HP</div>
         </div>
-        <div style="height:10px;background:#0e0e10;border-radius:5px;overflow:hidden">
-          <div :style="{ width: hpPct(battle.character_hp, playerHpMax) + '%', height: '100%', background: '#22c55e' }"></div>
+
+        <div style="display:flex;gap:10px;margin-bottom:16px">
+          <button
+            @click="act('attack')"
+            :disabled="loading"
+            style="flex:1;padding:12px;border-radius:10px;border:none;background:#e8482f;color:#fff;font-weight:700;cursor:pointer"
+          >
+            Attack
+          </button>
+          <button
+            @click="act('item')"
+            :disabled="loading"
+            style="flex:1;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:#151517;color:#fff;font-weight:600;cursor:pointer"
+          >
+            Use Item
+          </button>
         </div>
-        <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:6px">{{ battle.character_hp }} HP</div>
-      </div>
 
-      <div style="display:flex;gap:10px;margin-bottom:16px">
-        <button
-          @click="act('attack')"
-          :disabled="loading"
-          style="flex:1;padding:12px;border-radius:10px;border:none;background:#e8482f;color:#fff;font-weight:700;cursor:pointer"
-        >
-          Attack
-        </button>
-        <button
-          @click="act('item')"
-          :disabled="loading"
-          style="flex:1;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:#151517;color:#fff;font-weight:600;cursor:pointer"
-        >
-          Use Item
-        </button>
+        <div style="background:#0e0e10;border-radius:10px;padding:12px 14px;font-size:12.5px;color:rgba(255,255,255,.55);max-height:140px;overflow-y:auto">
+          <div v-for="(line, i) in [...(battle.log_json || [])].reverse()" :key="i">{{ line }}</div>
+        </div>
       </div>
-
-      <div style="background:#0e0e10;border-radius:10px;padding:12px 14px;font-size:12.5px;color:rgba(255,255,255,.55);max-height:140px;overflow-y:auto">
-        <div v-for="(line, i) in [...(battle.log_json || [])].reverse()" :key="i">{{ line }}</div>
-      </div>
+      <AdBanner variant="sidebar" />
     </div>
 
     <!-- Result view -->

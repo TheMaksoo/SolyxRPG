@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue';
 import api from '../api/client';
 import { useAuthStore } from '../stores/auth';
+import AdBanner from '../components/AdBanner.vue';
 
 const auth = useAuthStore();
 const items = ref([]);
@@ -74,6 +75,8 @@ onMounted(load);
     </div>
 
     <p v-if="message" style="font-size:13px;color:rgba(255,255,255,.6);margin-bottom:14px">{{ message }}</p>
+
+    <AdBanner variant="inline" />
 
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px">
       <div

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import api from '../api/client';
+import AdBanner from '../components/AdBanner.vue';
 
 const rows = ref([]);
 
@@ -15,6 +16,10 @@ onMounted(async () => {
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
       <div style="font-size:28px">🏆</div>
       <h1 class="ox" style="font-size:28px;font-weight:800;margin:0">Leaderboard</h1>
+    </div>
+
+    <div style="max-width:600px">
+      <AdBanner variant="inline" />
     </div>
 
     <div style="max-width:600px;background:#151517;border:1px solid rgba(255,255,255,.07);border-radius:13px;overflow:hidden">

@@ -17,8 +17,8 @@ class DailyController extends Controller
 
         return response()->json([
             'streak' => $claim->streak ?? 0,
-            'last_claim_date' => $claim->last_claim_date,
-            'can_claim' => ! $claim || ! $claim->last_claim_date || ! $claim->last_claim_date->isToday(),
+            'last_claim_date' => $claim?->last_claim_date,
+            'can_claim' => ! $claim?->last_claim_date || ! $claim->last_claim_date->isToday(),
         ]);
     }
 

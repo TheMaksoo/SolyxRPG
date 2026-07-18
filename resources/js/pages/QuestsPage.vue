@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import api from '../api/client';
+import AdBanner from '../components/AdBanner.vue';
 
 const rows = ref([]);
 const tab = ref('daily');
@@ -61,6 +62,8 @@ onMounted(load);
     </div>
 
     <p v-if="message" style="font-size:13px;color:#ff6a4d;margin-bottom:14px">{{ message }}</p>
+
+    <AdBanner variant="inline" />
 
     <div style="display:flex;flex-direction:column;gap:10px;max-width:600px">
       <div

@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../api/client';
+import AdBanner from '../components/AdBanner.vue';
 
 const router = useRouter();
 const zones = ref([]);
@@ -35,6 +36,8 @@ onMounted(load);
     </div>
 
     <p v-if="error" style="color:#ff6a4d;font-size:13px;margin-bottom:14px">{{ error }}</p>
+
+    <AdBanner variant="inline" />
 
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px">
       <button

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BattleController;
 use App\Http\Controllers\Api\BattlePassController;
@@ -40,6 +41,7 @@ Route::post('/store/webhook', [StoreController::class, 'webhook']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    Route::get('/announcements', [AnnouncementController::class, 'index']);
 
     Route::get('/character', [CharacterController::class, 'show']);
     Route::post('/character', [CharacterController::class, 'store']);
