@@ -30,7 +30,7 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return response()->json(['user' => $user]);
+        return response()->json(['user' => $user->load('character', 'characters', 'socialAccounts')]);
     }
 
     public function login(Request $request)
@@ -46,12 +46,12 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
-        return response()->json(['user' => Auth::user()]);
+        return response()->json(['user' => Auth::user()->load('character.attributes_', 'characters', 'socialAccounts')]);
     }
 
     public function logout(Request $request)
     {
-        Auth::logout();
+        Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
@@ -60,7 +60,7 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
-        $user = $request->user()->load('character.attributes_', 'socialAccounts');
+        $user = $request->user()->load('character.attributes_', 'characters', 'socialAccounts');
 
         return response()->json(['user' => $user]);
     }

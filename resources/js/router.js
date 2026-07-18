@@ -60,6 +60,11 @@ const routes = [
     name: 'character-create',
     component: pageImport('CharacterCreatePage'),
   },
+  {
+    path: '/characters',
+    name: 'character-select',
+    component: pageImport('CharacterSelectPage'),
+  },
   { path: '/wiki', name: 'wiki', component: pageImport('WikiPage') },
   {
     path: '/',
@@ -81,13 +86,15 @@ router.beforeEach(async (to) => {
 
   const isLanding = to.path === '/landing';
   const isCreate = to.path === '/character/create';
+  const isSelect = to.path === '/characters';
   const isPublic = isLanding || to.path === '/wiki' || to.path === '/forgot-password' || to.path === '/reset-password';
 
   if (!auth.isAuthenticated && !isPublic) {
     return '/landing';
   }
-  if (auth.isAuthenticated && !auth.hasCharacter && !isCreate && !isLanding) {
-    return '/character/create';
+  if (auth.isAuthenticated && !auth.hasCharacter && !isCreate && !isSelect && !isLanding) {
+    const hasAnyCharacters = (auth.user?.characters?.length ?? 0) > 0;
+    return hasAnyCharacters ? '/characters' : '/character/create';
   }
   if (auth.isAuthenticated && auth.hasCharacter && (isCreate || isLanding)) {
     return '/dashboard';

@@ -37,11 +37,19 @@ async function logout() {
       </div>
     </div>
 
-    <button
-      @click="logout"
-      style="padding:11px 24px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#fff;font-weight:600;cursor:pointer"
-    >
-      Log out
-    </button>
+    <div style="display:flex;gap:10px">
+      <router-link
+        to="/characters"
+        style="padding:11px 24px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#fff;font-weight:600;text-decoration:none"
+      >
+        Switch Character
+      </router-link>
+      <button
+        @click="logout"
+        style="padding:11px 24px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#fff;font-weight:600;cursor:pointer"
+      >
+        Log out
+      </button>
+    </div>
   </div>
 </template>

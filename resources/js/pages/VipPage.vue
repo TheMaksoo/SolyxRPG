@@ -11,6 +11,10 @@ const PERKS = {
   diamond: ['Everything in Gold', '+35% gold & XP from battles', 'Daily bonus gem stipend', 'Diamond VIP name badge & aura'],
 };
 
+function slotPerk(tier) {
+  return `+${tier.slots} character slot${tier.slots > 1 ? 's' : ''} (up to ${1 + tier.slots} total with subscription)`;
+}
+
 async function load() {
   const { data } = await api.get('/vip');
   info.value = data;
@@ -59,6 +63,9 @@ onMounted(load);
           <span style="font-size:13px;color:rgba(255,255,255,.4)">/mo</span>
         </div>
         <div style="display:flex;flex-direction:column;gap:9px;margin-bottom:18px">
+          <div style="display:flex;gap:9px;font-size:13px;color:rgba(255,255,255,.7)">
+            <span style="color:#4ade80">✔</span>{{ slotPerk(tier) }}
+          </div>
           <div v-for="perk in PERKS[key] || []" :key="perk" style="display:flex;gap:9px;font-size:13px;color:rgba(255,255,255,.7)">
             <span style="color:#4ade80">✔</span>{{ perk }}
           </div>

@@ -3,13 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Stripe\StripeClient;
 
 class VipController extends Controller
 {
-    /** monthly price in cents per tier */
+    /** monthly price in cents per tier; bonus character slots come from User::VIP_TIER_SLOTS */
     private const TIERS = [
         'bronze' => ['label' => 'Bronze VIP', 'price_cents' => 499],
         'gold' => ['label' => 'Gold VIP', 'price_cents' => 999],
@@ -20,10 +21,14 @@ class VipController extends Controller
     {
         $user = $request->user();
 
+        $tiers = collect(self::TIERS)
+            ->map(fn ($tier, $key) => [...$tier, 'slots' => User::VIP_TIER_SLOTS[$key]])
+            ->all();
+
         return response()->json([
             'vip_tier' => $user->vip_tier,
             'vip_expires_at' => $user->vip_expires_at,
-            'tiers' => self::TIERS,
+            'tiers' => $tiers,
         ]);
     }
 

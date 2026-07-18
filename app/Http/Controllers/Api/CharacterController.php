@@ -6,11 +6,112 @@ use App\Http\Controllers\Controller;
 use App\Models\Character;
 use App\Models\CharacterAttribute;
 use App\Models\ClassProgression;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class CharacterController extends Controller
 {
+    /** gems required to unlock gem-slot tiers 1-4 (slots 2, 3, 7, 8) */
+    private const GEM_SLOT_COSTS = [1 => 750, 2 => 1500, 3 => 4000, 4 => 6000];
+
+    /** fixed identity of every slot 1-8: free, gems (tier 1-4), or vip (tier name) */
+    private const SLOT_DEFS = [
+        1 => ['type' => 'free'],
+        2 => ['type' => 'gems', 'tier' => 1],
+        3 => ['type' => 'gems', 'tier' => 2],
+        4 => ['type' => 'vip', 'tier' => 'bronze'],
+        5 => ['type' => 'vip', 'tier' => 'gold'],
+        6 => ['type' => 'vip', 'tier' => 'diamond'],
+        7 => ['type' => 'gems', 'tier' => 3],
+        8 => ['type' => 'gems', 'tier' => 4],
+    ];
+
+    public function index(Request $request)
+    {
+        $user = $request->user();
+        $characters = $user->characters()->orderBy('id')->get();
+        $vipSlotsUnlocked = $user->vipCharacterSlots();
+
+        $unlocked = fn (array $def) => match ($def['type']) {
+            'free' => true,
+            'gems' => $def['tier'] <= $user->bonus_character_slots,
+            'vip' => User::VIP_TIER_SLOTS[$def['tier']] <= $vipSlotsUnlocked,
+        };
+
+        $slots = [];
+        $charIndex = 0;
+        foreach (self::SLOT_DEFS as $number => $def) {
+            $isUnlocked = $unlocked($def);
+            $character = ($isUnlocked && $charIndex < $characters->count()) ? $characters[$charIndex++] : null;
+
+            $slots[] = [
+                'number' => $number,
+                'unlocked' => $isUnlocked,
+                'character' => $character,
+                'requirement' => match ($def['type']) {
+                    'gems' => ['type' => 'gems', 'tier' => $def['tier'], 'cost' => self::GEM_SLOT_COSTS[$def['tier']]],
+                    'vip' => ['type' => 'vip', 'tier' => $def['tier']],
+                    default => ['type' => 'free'],
+                },
+            ];
+        }
+
+        return response()->json([
+            'slots' => $slots,
+            'active_character_id' => $user->active_character_id,
+            'max_slots' => $user->maxCharacterSlots(),
+            'bonus_character_slots' => $user->bonus_character_slots,
+            'vip_tier' => $user->vip_tier,
+            'vip_active' => $user->hasActiveVip(),
+        ]);
+    }
+
+    public function select(Request $request, Character $character)
+    {
+        abort_unless($character->user_id === $request->user()->id, 403);
+
+        $user = $request->user();
+        $user->active_character_id = $character->id;
+        $user->save();
+
+        $character->load(['attributes_', 'zone', 'inventory.item', 'skills.skill']);
+
+        return response()->json([
+            'character' => $character,
+            'stats' => $character->effectiveStats(),
+        ]);
+    }
+
+    public function unlockSlot(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user->bonus_character_slots >= 4) {
+            return response()->json(['message' => 'All gem-purchasable slots are already unlocked.'], 422);
+        }
+
+        $data = $request->validate(['character_id' => ['required', 'exists:characters,id']]);
+        $payer = Character::findOrFail($data['character_id']);
+        abort_unless($payer->user_id === $user->id, 403);
+
+        $tier = $user->bonus_character_slots + 1;
+        $cost = self::GEM_SLOT_COSTS[$tier];
+
+        if ($payer->gems < $cost) {
+            return response()->json(['message' => "Not enough gems. Requires {$cost} gems."], 422);
+        }
+
+        $payer->decrement('gems', $cost);
+        $user->increment('bonus_character_slots');
+
+        return response()->json([
+            'bonus_character_slots' => $user->bonus_character_slots,
+            'max_slots' => $user->fresh()->maxCharacterSlots(),
+            'paid_character' => $payer->fresh(),
+        ]);
+    }
+
     public function show(Request $request)
     {
         $character = $request->user()->character()
@@ -29,8 +130,10 @@ class CharacterController extends Controller
 
     public function store(Request $request)
     {
-        if ($request->user()->character) {
-            return response()->json(['message' => 'Character already exists.'], 422);
+        $user = $request->user();
+
+        if ($user->characters()->count() >= $user->maxCharacterSlots()) {
+            return response()->json(['message' => 'No open character slots.'], 422);
         }
 
         $data = $request->validate([
@@ -47,7 +150,7 @@ class CharacterController extends Controller
         };
 
         $character = Character::create([
-            'user_id' => $request->user()->id,
+            'user_id' => $user->id,
             'name' => $data['name'],
             'base_class' => $data['base_class'],
             'avatar' => $data['avatar'] ?? '',
@@ -60,6 +163,9 @@ class CharacterController extends Controller
         ]);
 
         $character->attributes_()->create([]);
+
+        $user->active_character_id = $character->id;
+        $user->save();
 
         return response()->json(['character' => $character->fresh('attributes_')], 201);
     }

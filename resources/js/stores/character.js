@@ -7,6 +7,7 @@ export const useCharacterStore = defineStore('character', {
         character: null,
         stats: null,
         loading: false,
+        slots: null,
     }),
 
     actions: {
@@ -25,6 +26,24 @@ export const useCharacterStore = defineStore('character', {
             const { data } = await api.post('/character', payload);
             this.character = data.character;
             useAuthStore().setCharacter(data.character);
+        },
+
+        async fetchSlots() {
+            const { data } = await api.get('/characters');
+            this.slots = data;
+            return data;
+        },
+
+        async select(characterId) {
+            const { data } = await api.post(`/characters/${characterId}/select`);
+            this.character = data.character;
+            this.stats = data.stats;
+            useAuthStore().setCharacter(data.character);
+        },
+
+        async unlockSlot(characterId) {
+            const { data } = await api.post('/characters/slots/unlock', { character_id: characterId });
+            return data;
         },
 
         async spendAttribute(attr) {

@@ -23,10 +23,11 @@ async function submit() {
   try {
     if (mode.value === 'register') {
       await auth.register(form.value);
+      router.push('/character/create');
     } else {
       await auth.login({ email: form.value.email, password: form.value.password });
+      router.push('/characters');
     }
-    router.push(auth.hasCharacter ? '/dashboard' : '/character/create');
   } catch (e) {
     error.value = e.response?.data?.message || Object.values(e.response?.data?.errors ?? {})[0]?.[0] || 'Something went wrong.';
   } finally {

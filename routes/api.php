@@ -58,6 +58,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/character/skills/{skill}', [CharacterController::class, 'unlockSkill']);
     Route::post('/character/profession', [CharacterController::class, 'chooseProfession']);
 
+    Route::get('/characters', [CharacterController::class, 'index']);
+    Route::post('/characters/{character}/select', [CharacterController::class, 'select']);
+    Route::post('/characters/slots/unlock', [CharacterController::class, 'unlockSlot']);
+
     Route::get('/skills', [SkillController::class, 'index']);
     Route::get('/class-progressions', [ClassProgressionController::class, 'index']);
 
