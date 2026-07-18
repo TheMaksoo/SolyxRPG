@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import GameLayout from './layouts/GameLayout.vue';
 import { NAV } from './navigation';
+import { useAuthStore } from './stores/auth';
 
 const pageImport = (name) => () => import(`./pages/${name}.vue`);
 
@@ -56,7 +57,30 @@ const routes = [
   },
 ];
 
-export default createRouter({
+const router = createRouter({
   history: createWebHistory(),
   routes,
 });
+
+router.beforeEach(async (to) => {
+  const auth = useAuthStore();
+  if (!auth.checked) {
+    await auth.fetchMe();
+  }
+
+  const isLanding = to.path === '/landing';
+  const isCreate = to.path === '/character/create';
+  const isPublic = isLanding || to.path === '/wiki';
+
+  if (!auth.isAuthenticated && !isPublic) {
+    return '/landing';
+  }
+  if (auth.isAuthenticated && !auth.hasCharacter && !isCreate && !isLanding) {
+    return '/character/create';
+  }
+  if (auth.isAuthenticated && auth.hasCharacter && (isCreate || isLanding)) {
+    return '/dashboard';
+  }
+});
+
+export default router;

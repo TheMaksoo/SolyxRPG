@@ -22,6 +22,20 @@ class DatabaseSeeder extends Seeder
             'email' => 'test@example.com',
         ]);
 
-        $this->call(WikiEntrySeeder::class);
+        $this->call([
+            WikiEntrySeeder::class,
+            ClassSeeder::class,
+            ZoneSeeder::class,
+            MonsterSeeder::class,
+            DungeonSeeder::class,
+            ItemSeeder::class,
+            RecipeSeeder::class,
+            SkillSeeder::class,
+            PetSeeder::class,
+            QuestSeeder::class,
+            EventSeeder::class,
+            FeatureFlagSeeder::class,
+            GameConfigSeeder::class,
+        ]);
     }
 }
