@@ -1,13 +1,17 @@
 <?php
 
+use App\Http\Controllers\Api\AchievementController;
 use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BattleController;
 use App\Http\Controllers\Api\BattlePassController;
 use App\Http\Controllers\Api\CharacterController;
+use App\Http\Controllers\Api\ClassProgressionController;
 use App\Http\Controllers\Api\CraftingController;
 use App\Http\Controllers\Api\DailyController;
+use App\Http\Controllers\Api\DirectMessageController;
 use App\Http\Controllers\Api\DungeonController;
+use App\Http\Controllers\Api\FriendController;
 use App\Http\Controllers\Api\Gm\GmBroadcastController;
 use App\Http\Controllers\Api\Gm\GmConfigController;
 use App\Http\Controllers\Api\Gm\GmContentController;
@@ -15,11 +19,14 @@ use App\Http\Controllers\Api\Gm\GmFeatureFlagController;
 use App\Http\Controllers\Api\Gm\GmPlayerController;
 use App\Http\Controllers\Api\Gm\GmTicketController;
 use App\Http\Controllers\Api\GuildController;
+use App\Http\Controllers\Api\InboxController;
 use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\LeaderboardController;
 use App\Http\Controllers\Api\PetController;
+use App\Http\Controllers\Api\PvpController;
 use App\Http\Controllers\Api\QuestController;
 use App\Http\Controllers\Api\ShopController;
+use App\Http\Controllers\Api\SkillController;
 use App\Http\Controllers\Api\SocialiteController;
 use App\Http\Controllers\Api\StoreController;
 use App\Http\Controllers\Api\VipController;
@@ -48,6 +55,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/character/attributes', [CharacterController::class, 'spendAttribute']);
     Route::post('/character/skills/{skill}', [CharacterController::class, 'unlockSkill']);
     Route::post('/character/profession', [CharacterController::class, 'chooseProfession']);
+
+    Route::get('/skills', [SkillController::class, 'index']);
+    Route::get('/class-progressions', [ClassProgressionController::class, 'index']);
 
     Route::get('/zones', [ZoneController::class, 'index']);
     Route::post('/zones/{zone}/travel', [ZoneController::class, 'travel']);
@@ -85,6 +95,23 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/daily', [DailyController::class, 'index']);
     Route::post('/daily/claim', [DailyController::class, 'claim']);
+
+    Route::get('/achievements', [AchievementController::class, 'index']);
+
+    Route::get('/friends', [FriendController::class, 'index']);
+    Route::post('/friends/{target}/request', [FriendController::class, 'request']);
+    Route::post('/friends/requests/{friendship}/accept', [FriendController::class, 'accept']);
+    Route::post('/friends/requests/{friendship}/decline', [FriendController::class, 'decline']);
+    Route::delete('/friends/{target}', [FriendController::class, 'remove']);
+    Route::post('/friends/{target}/favorite', [FriendController::class, 'toggleFavorite']);
+    Route::get('/friends/{target}/messages', [DirectMessageController::class, 'thread']);
+    Route::post('/friends/{target}/messages', [DirectMessageController::class, 'send']);
+
+    Route::get('/pvp', [PvpController::class, 'index']);
+    Route::post('/pvp/find-match', [PvpController::class, 'findMatch']);
+    Route::post('/pvp/challenge/{opponent}', [PvpController::class, 'challenge']);
+
+    Route::get('/inbox', [InboxController::class, 'index']);
 
     // Monetization
     Route::get('/store/gems', [StoreController::class, 'gems']);

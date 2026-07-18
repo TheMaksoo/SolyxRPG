@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth';
 
 const auth = useAuthStore();
 const packs = ref({});
+const removeAds = ref(null);
 const message = ref('');
 
 const adsVisible = computed(() => !auth.user?.ads_removed && (auth.user?.vip_tier ?? 'none') === 'none');
@@ -12,6 +13,7 @@ const adsVisible = computed(() => !auth.user?.ads_removed && (auth.user?.vip_tie
 async function load() {
   const { data } = await api.get('/store/gems');
   packs.value = data.packs;
+  removeAds.value = data.remove_ads;
 }
 
 async function checkout(sku) {
@@ -55,6 +57,25 @@ onMounted(load);
           ${{ (pack.price_cents / 100).toFixed(2) }}
         </button>
       </div>
+    </div>
+
+    <div
+      v-if="adsVisible && removeAds"
+      style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;background:#151517;border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:16px 18px;margin-top:20px;max-width:1000px"
+    >
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="font-size:24px">🚫</div>
+        <div>
+          <div style="font-weight:700;font-size:14px">Remove Ads</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.5)">One-time purchase — removes ads permanently (also included with any VIP tier).</div>
+        </div>
+      </div>
+      <button
+        @click="checkout('remove_ads')"
+        style="background:#e8482f;color:#fff;border:none;border-radius:9px;padding:10px 18px;font-weight:700;font-size:13px;cursor:pointer"
+      >
+        ${{ (removeAds.price_cents / 100).toFixed(2) }}
+      </button>
     </div>
 
     <div

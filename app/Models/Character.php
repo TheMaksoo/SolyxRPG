@@ -65,6 +65,40 @@ class Character extends Model
         return $this->belongsTo(Zone::class, 'current_zone_id');
     }
 
+    public function sentFriendRequests(): HasMany
+    {
+        return $this->hasMany(Friendship::class, 'requester_id');
+    }
+
+    public function receivedFriendRequests(): HasMany
+    {
+        return $this->hasMany(Friendship::class, 'addressee_id');
+    }
+
+    public function favorites(): HasMany
+    {
+        return $this->hasMany(CharacterFavorite::class);
+    }
+
+    public function pvpRecord(): HasOne
+    {
+        return $this->hasOne(PvpRecord::class);
+    }
+
+    public function achievements(): HasMany
+    {
+        return $this->hasMany(CharacterAchievement::class);
+    }
+
+    /** Accepted friendships in either direction, as a collection of the *other* character. */
+    public function friends()
+    {
+        $sent = $this->sentFriendRequests()->where('status', 'accepted')->with('addressee')->get()->pluck('addressee');
+        $received = $this->receivedFriendRequests()->where('status', 'accepted')->with('requester')->get()->pluck('requester');
+
+        return $sent->concat($received);
+    }
+
     /** Effective combat stats after attribute points, level, and equipped gear, per build guide §7 */
     public function effectiveStats(): array
     {

@@ -27,7 +27,7 @@ class StoreController extends Controller
 
     public function gems()
     {
-        return response()->json(['packs' => self::GEM_PACKS]);
+        return response()->json(['packs' => self::GEM_PACKS, 'remove_ads' => self::OTHER_SKUS['remove_ads']]);
     }
 
     public function checkout(Request $request)

@@ -13,6 +13,8 @@ use App\Models\Skill;
 
 class CombatService
 {
+    public function __construct(private AchievementService $achievements = new AchievementService()) {}
+
     public function start(Character $character, Monster $monster): Battle
     {
         $stats = $character->effectiveStats();
@@ -109,6 +111,10 @@ class CombatService
 
         $character->increment('gold', $goldGain);
         $character->increment('gems', $gemGain);
+        $character->increment('battles_won');
+        if ($monster->is_boss) {
+            $character->increment('bosses_slain');
+        }
 
         $leveledUp = $this->grantXp($character, $xpGain);
 
@@ -116,6 +122,7 @@ class CombatService
         $battle->update(['status' => 'won', 'log_json' => $log]);
 
         $this->progressQuests($character, 'battles_won', $monster);
+        $newAchievements = $this->achievements->check($character->fresh(), $monster->is_boss ? $monster : null);
 
         return [
             'battle' => $battle->fresh(),
@@ -126,6 +133,7 @@ class CombatService
                 'gems' => $gemGain,
                 'leveled_up' => $leveledUp,
                 'character' => $character->fresh('attributes_'),
+                'achievements' => $newAchievements,
             ],
         ];
     }

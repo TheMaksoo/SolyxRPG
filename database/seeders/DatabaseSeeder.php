@@ -36,6 +36,7 @@ class DatabaseSeeder extends Seeder
             EventSeeder::class,
             FeatureFlagSeeder::class,
             GameConfigSeeder::class,
+            AchievementSeeder::class,
         ]);
     }
 }

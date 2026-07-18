@@ -18,6 +18,8 @@ const PAGE_COMPONENT = {
   '/pets': 'PetsPage',
   '/crafting': 'CraftingPage',
   '/guild': 'GuildPage',
+  '/friends': 'FriendsPage',
+  '/pvp': 'PvpPage',
   '/leaderboard': 'LeaderboardPage',
   '/daily': 'DailyPage',
   '/gem-store': 'GemStorePage',
@@ -35,11 +37,18 @@ const gameChildren = NAV.map((n) => ({
 
 // GM console lives under GameLayout too, for now (its own layout can split
 // off once the real admin panel is built).
-gameChildren.push({
-  path: 'admin',
-  name: 'admin',
-  component: () => import('./pages/admin/GmConsole.vue'),
-});
+gameChildren.push(
+  {
+    path: 'admin',
+    name: 'admin',
+    component: () => import('./pages/admin/GmConsole.vue'),
+  },
+  {
+    path: 'inbox',
+    name: 'inbox',
+    component: pageImport('InboxPage'),
+  }
+);
 
 const routes = [
   { path: '/', redirect: '/dashboard' },

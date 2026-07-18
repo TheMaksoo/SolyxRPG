@@ -13,6 +13,8 @@ export const NAV = [
   { path: '/pets', name: 'pets', label: 'Companions', icon: '🐾' },
   { path: '/crafting', name: 'crafting', label: 'Crafting', icon: '🔨' },
   { path: '/guild', name: 'guild', label: 'Guild', icon: '🛡' },
+  { path: '/friends', name: 'friends', label: 'Friends', icon: '🧑‍🤝‍🧑' },
+  { path: '/pvp', name: 'pvp', label: 'PvP Arena', icon: '⚔' },
   { path: '/leaderboard', name: 'leaderboard', label: 'Leaderboard', icon: '🏆' },
   { path: '/daily', name: 'daily', label: 'Daily', icon: '🎁' },
   { path: '/gem-store', name: 'gem-store', label: 'Gem Store', icon: '💎' },
