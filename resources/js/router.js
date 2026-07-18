@@ -53,6 +53,8 @@ gameChildren.push(
 const routes = [
   { path: '/', redirect: '/dashboard' },
   { path: '/landing', name: 'landing', component: pageImport('LandingPage') },
+  { path: '/forgot-password', name: 'forgot-password', component: pageImport('ForgotPasswordPage') },
+  { path: '/reset-password', name: 'reset-password', component: pageImport('ResetPasswordPage') },
   {
     path: '/character/create',
     name: 'character-create',
@@ -79,7 +81,7 @@ router.beforeEach(async (to) => {
 
   const isLanding = to.path === '/landing';
   const isCreate = to.path === '/character/create';
-  const isPublic = isLanding || to.path === '/wiki';
+  const isPublic = isLanding || to.path === '/wiki' || to.path === '/forgot-password' || to.path === '/reset-password';
 
   if (!auth.isAuthenticated && !isPublic) {
     return '/landing';

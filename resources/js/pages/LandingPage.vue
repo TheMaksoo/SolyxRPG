@@ -102,5 +102,9 @@ async function submit() {
     >
       {{ mode === 'register' ? 'Already have an account? Log in' : "New here? Create an account" }}
     </button>
+
+    <router-link v-if="mode === 'login'" to="/forgot-password" style="font-size:12.5px;color:rgba(255,255,255,.4)">
+      Forgot your password?
+    </router-link>
   </div>
 </template>
