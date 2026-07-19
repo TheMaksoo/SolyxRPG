@@ -47,19 +47,22 @@ use Illuminate\Support\Facades\Route;
 Route::get('/wiki', [WikiController::class, 'index']);
 Route::get('/stats/public', [StatsController::class, 'public']);
 
-// Auth
-// Note: no explicit 'web' middleware group here — bootstrap/app.php's statefulApi() already runs
-// Sanctum's EnsureFrontendRequestsAreStateful for every route in this file, which internally applies
-// the same session/CSRF/cookie-encryption pipeline as the 'web' group. Wrapping these routes in an
-// additional Route::middleware('web') group ran that whole pipeline (StartSession, VerifyCsrfToken,
-// EncryptCookies) a second time, nested, per request — corrupting session/CSRF state unpredictably
-// and causing intermittent "Unauthenticated" errors on otherwise-valid, freshly-logged-in requests.
-Route::post('/auth/register', [AuthController::class, 'register']);
-Route::post('/auth/login', [AuthController::class, 'login']);
-Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
-Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
-Route::get('/auth/{provider}/redirect', [SocialiteController::class, 'redirect'])->whereIn('provider', ['discord', 'google', 'apple']);
-Route::get('/auth/{provider}/callback', [SocialiteController::class, 'callback'])->whereIn('provider', ['discord', 'google', 'apple']);
+// Auth — the login-family routes get an explicit 'web' middleware group because at the moment of
+// login there's no authenticated session yet for Sanctum's own EnsureFrontendRequestsAreStateful
+// pipeline to hang session bootstrapping off reliably. The rest of the app (below) deliberately does
+// NOT also wrap in 'web' — bootstrap/app.php's statefulApi() already runs that same session/CSRF/
+// cookie pipeline once per request for every route in this file via Sanctum. Nesting an explicit
+// 'web' group around the already-stateful game routes ran that pipeline a second time on every single
+// game action, corrupting session state during play (this was the actual "unauthenticated mid-game"
+// bug) — so it stays scoped to just these auth endpoints where it's actually needed.
+Route::middleware('web')->group(function () {
+    Route::post('/auth/register', [AuthController::class, 'register']);
+    Route::post('/auth/login', [AuthController::class, 'login']);
+    Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
+    Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+    Route::get('/auth/{provider}/redirect', [SocialiteController::class, 'redirect'])->whereIn('provider', ['discord', 'google', 'apple']);
+    Route::get('/auth/{provider}/callback', [SocialiteController::class, 'callback'])->whereIn('provider', ['discord', 'google', 'apple']);
+});
 
 // Stripe webhook — no auth, verified by signature instead
 Route::post('/store/webhook', [StoreController::class, 'webhook']);
