@@ -197,6 +197,11 @@ async function act(type, extra = {}) {
     }
   } catch (e) {
     error.value = e.response?.data?.message || 'Action failed.';
+    if (e.response?.status === 403 || e.response?.status === 404) {
+      battle.value = null;
+      result.value = null;
+      dungeonRun.value = null;
+    }
   } finally {
     loading.value = false;
   }

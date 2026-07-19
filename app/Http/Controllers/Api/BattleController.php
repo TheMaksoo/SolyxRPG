@@ -120,6 +120,6 @@ class BattleController extends Controller
 
     private function authorizeBattle(Request $request, Battle $battle): void
     {
-        abort_unless($battle->character_id === $request->user()->character?->id, 403);
+        abort_unless($battle->character_id === $request->user()->character?->id, 403, 'This battle belongs to a different character.');
     }
 }
