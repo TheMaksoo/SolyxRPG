@@ -79,6 +79,33 @@
   text-align: center;
 }
 
+.sidebar__nav-btn--locked {
+  color: v.$text-muted-40;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+}
+
+.sidebar__nav-lvl {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
+  color: v.$text-muted-40;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: v.$radius-pill;
+  padding: 2px 6px;
+}
+
+.sidebar__nav-hint {
+  margin: -2px 0 4px;
+  padding: 6px 10px 6px 30px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: v.$text-muted-55;
+}
+
 .sidebar__nav-badge {
   margin-left: auto;
   min-width: 17px;

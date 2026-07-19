@@ -51,6 +51,15 @@ function badgeFor(path) {
   return navBadges.value[path] ?? 0;
 }
 
+function isLocked(n) {
+  return !!n.unlockLevel && (characterStore.character?.level ?? 0) < n.unlockLevel;
+}
+
+const expandedLocked = ref(null);
+function toggleLockedHint(path) {
+  expandedLocked.value = expandedLocked.value === path ? null : path;
+}
+
 watch(() => route.path, loadNavBadges);
 
 onMounted(() => {
@@ -76,23 +85,31 @@ onUnmounted(() => {
         </div>
       </div>
       <nav class="sidebar__nav">
-        <router-link
-          v-for="n in NAV"
-          :key="n.path"
-          :to="n.path"
-          custom
-          v-slot="{ navigate, isActive }"
-        >
-          <button
-            @click="navigate"
-            class="sidebar__nav-btn"
-            :class="{ 'is-active': isActive }"
-          >
-            <span class="sidebar__nav-icon">{{ n.icon }}</span>
-            {{ n.label }}
-            <span v-if="badgeFor(n.path) > 0" class="sidebar__nav-badge">{{ badgeFor(n.path) }}</span>
-          </button>
-        </router-link>
+        <template v-for="n in NAV" :key="n.path">
+          <router-link v-if="!isLocked(n)" :to="n.path" custom v-slot="{ navigate, isActive }">
+            <button
+              @click="navigate"
+              class="sidebar__nav-btn"
+              :class="{ 'is-active': isActive }"
+            >
+              <span class="sidebar__nav-icon">{{ n.icon }}</span>
+              {{ n.label }}
+              <span v-if="badgeFor(n.path) > 0" class="sidebar__nav-badge">{{ badgeFor(n.path) }}</span>
+            </button>
+          </router-link>
+          <div v-else class="sidebar__nav-locked">
+            <button
+              class="sidebar__nav-btn sidebar__nav-btn--locked"
+              type="button"
+              @click="toggleLockedHint(n.path)"
+            >
+              <span class="sidebar__nav-icon">🔒</span>
+              {{ n.label }}
+              <span class="sidebar__nav-lvl">Lv.{{ n.unlockLevel }}</span>
+            </button>
+            <p v-if="expandedLocked === n.path" class="sidebar__nav-hint">{{ n.unlockHint }}</p>
+          </div>
+        </template>
       </nav>
       <div class="sidebar__footer">
         <router-link
