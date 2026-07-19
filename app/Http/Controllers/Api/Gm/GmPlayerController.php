@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Gm;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\GemLedger;
 use App\Models\Mail;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -43,6 +44,7 @@ class GmPlayerController extends Controller
         }
         if (! empty($data['gems'])) {
             $character->increment('gems', $data['gems']);
+            GemLedger::log($character, $data['gems'], 'gm_grant');
         }
 
         AuditLog::record($request->user()->id, 'gm.player.grant', 'users', $user->id, $data);
@@ -73,6 +75,9 @@ class GmPlayerController extends Controller
     /** Toggles a persisted ban: sets/clears banned_at and, when banning, revokes active sessions/tokens. */
     public function ban(Request $request, User $user)
     {
+        abort_if($user->id === $request->user()->id, 422, 'You cannot ban your own account.');
+        abort_if($user->isGm(), 422, 'Cannot ban another GM/Owner.');
+
         if ($user->isBanned()) {
             $user->banned_at = null;
             $user->save();

@@ -15,6 +15,7 @@ export const NAV = [
   { path: '/crafting', name: 'crafting', label: 'Crafting', icon: '🔨' },
   { path: '/guild', name: 'guild', label: 'Guild', icon: '🛡' },
   { path: '/friends', name: 'friends', label: 'Friends', icon: '🧑‍🤝‍🧑' },
+  { path: '/party', name: 'party', label: 'Party', icon: '🧑‍🧑‍🧒' },
   { path: '/pvp', name: 'pvp', label: 'PvP Arena', icon: '⚔' },
   { path: '/leaderboard', name: 'leaderboard', label: 'Leaderboard', icon: '🏆' },
   { path: '/daily', name: 'daily', label: 'Daily', icon: '🎁' },

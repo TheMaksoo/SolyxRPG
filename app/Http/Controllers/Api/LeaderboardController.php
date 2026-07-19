@@ -9,7 +9,7 @@ class LeaderboardController extends Controller
 {
     public function index()
     {
-        $ranked = Character::with(['attributes_', 'inventory.item'])
+        $ranked = Character::with(['attributes_', 'inventory.item', 'user', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon'])
             ->get()
             ->map(fn (Character $c) => [
                 'character_id' => $c->id,
@@ -17,6 +17,11 @@ class LeaderboardController extends Controller
                 'level' => $c->level,
                 'base_class' => $c->base_class,
                 'power' => $c->effectiveStats()['power'],
+                'vip_tier' => $c->user?->hasActiveVip() ? $c->user->vip_tier : 'none',
+                'title' => $c->activeTitle?->value,
+                'name_color' => $c->activeColor?->value,
+                'banner' => $c->activeBanner?->value,
+                'icon' => $c->activeIcon?->value,
             ])
             ->sortByDesc('power')
             ->take(100)

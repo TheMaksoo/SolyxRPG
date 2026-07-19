@@ -46,31 +46,37 @@ onMounted(load);
     <AdBanner variant="inline" />
 
     <div class="dungeon-list">
-      <div v-for="row in dungeons" :key="row.dungeon.id" class="dungeon-card">
+      <div v-for="row in dungeons" :key="row.dungeon.id" class="dungeon-card" :class="{ 'dungeon-card--locked': !row.unlocked }">
         <div class="dungeon-card__art">
-          {{ row.dungeon.glyph }}
+          {{ row.unlocked ? row.dungeon.glyph : '🔒' }}
         </div>
         <div class="dungeon-card__body">
           <div class="dungeon-card__title-row">
-            <div class="ox dungeon-card__name">{{ row.dungeon.name }}</div>
+            <div class="ox dungeon-card__name">{{ row.unlocked ? row.dungeon.name : '???' }}</div>
             <span
+              v-if="row.unlocked"
               class="dungeon-card__difficulty"
               :style="{ background: DIFF[row.dungeon.difficulty]?.bg, color: DIFF[row.dungeon.difficulty]?.color }"
               >{{ row.dungeon.difficulty }}</span
             >
           </div>
-          <div class="dungeon-card__meta">
-            Boss: {{ row.dungeon.boss_monster?.name ?? 'Unknown' }}
-            <span v-if="row.dungeon.party_size > 1"> · Party of {{ row.dungeon.party_size }}</span>
-          </div>
-          <div v-if="row.dungeon.drops_json" class="dungeon-card__drops">
-            Drops:
-            <span v-if="row.dungeon.drops_json.gold">{{ row.dungeon.drops_json.gold }}g</span>
-            <span v-if="row.dungeon.drops_json.gems"> · {{ row.dungeon.drops_json.gems }}◆</span>
+          <template v-if="row.unlocked">
+            <div class="dungeon-card__meta">
+              Boss: {{ row.dungeon.boss_monster?.name ?? 'Unknown' }}
+              <span v-if="row.dungeon.party_size > 1"> · Party of {{ row.dungeon.party_size }}</span>
+            </div>
+            <div v-if="row.dungeon.drops_json" class="dungeon-card__drops">
+              Drops:
+              <span v-if="row.dungeon.drops_json.gold">{{ row.dungeon.drops_json.gold }}g</span>
+              <span v-if="row.dungeon.drops_json.gems"> · {{ row.dungeon.drops_json.gems }}◆</span>
+            </div>
+          </template>
+          <div v-else class="dungeon-card__meta dungeon-card__meta--locked">
+            🔒 Unlocks at level {{ row.dungeon.min_level }}
           </div>
         </div>
         <button @click="enter(row)" :disabled="!row.unlocked" class="dungeon-card__enter">
-          {{ row.active_run ? `Resume (Stage ${row.active_run.stage}/${row.active_run.total_stages})` : row.unlocked ? 'Enter' : `Requires Lv.${row.dungeon.min_level}` }}
+          {{ row.active_run ? `Resume (Stage ${row.active_run.stage}/${row.active_run.total_stages})` : row.unlocked ? 'Enter' : `Lv.${row.dungeon.min_level}` }}
         </button>
       </div>
     </div>

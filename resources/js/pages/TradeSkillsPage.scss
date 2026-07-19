@@ -5,6 +5,49 @@
   @include m.page-header;
 }
 
+// ---- "While you were away" claim summary ----
+.claim-summary {
+  background: linear-gradient(160deg, rgba(74, 222, 128, 0.12), v.$bg-card);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: v.$radius-lg;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+}
+
+.claim-summary__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.claim-summary__title {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: v.$success;
+}
+
+.claim-summary__close {
+  @include m.btn-reset;
+  color: v.$text-muted-45;
+  font-size: 13px;
+}
+
+.claim-summary__rows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.claim-summary__chip {
+  font-size: 12.5px;
+  font-weight: 700;
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.25);
+  border-radius: v.$radius-pill;
+  padding: 5px 12px;
+}
+
 .trade-header__icon {
   font-size: 28px;
 }
@@ -21,10 +64,110 @@
   margin-bottom: 14px;
 }
 
-.trade-message {
+// ---- Energy bar ----
+.energy-bar {
+  margin-bottom: 16px;
+}
+
+.energy-bar__track {
+  height: 8px;
+  background: v.$bg-input;
+  border-radius: v.$radius-pill;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.energy-bar__fill {
+  height: 100%;
+  background: v.$purple;
+  transition: width 0.3s ease;
+}
+
+.energy-bar__label {
+  font-size: 12px;
+  color: v.$text-muted-45;
+}
+
+// ---- Auto-Gather card ----
+.auto-gather-card {
+  @include m.card(14px 18px);
+  margin-bottom: 16px;
+}
+
+.auto-gather-card__status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid v.$border-subtle;
+}
+
+.auto-gather-card__buy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.auto-gather-card__label {
   font-size: 13px;
-  color: v.$success;
-  margin-bottom: 14px;
+  font-weight: 600;
+}
+
+.auto-gather-card__timer {
+  font-size: 13px;
+  font-weight: 700;
+  color: v.$accent-soft;
+  font-variant-numeric: tabular-nums;
+}
+
+.auto-gather-card__picker {
+  display: flex;
+  gap: 8px;
+}
+
+.auto-gather-card__select {
+  padding: 7px 10px;
+  border-radius: v.$radius-sm;
+  background: v.$bg-input;
+  border: 1px solid v.$border-subtle;
+  color: #fff;
+  font-size: 12.5px;
+
+  &:disabled {
+    opacity: 0.5;
+  }
+}
+
+.auto-gather-card__options {
+  display: flex;
+  gap: 8px;
+}
+
+.auto-gather-card__option {
+  @include m.btn-reset;
+  padding: 8px 14px;
+  border-radius: v.$radius-sm;
+  background: v.$bg-input;
+  border: 1px solid v.$border-subtle;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12.5px;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+}
+
+.trade-skill-card__note {
+  font-size: 12px;
+  color: v.$text-muted-40;
+  margin: 0;
 }
 
 .trade-skills-grid {
@@ -99,17 +242,26 @@
   border: 1px solid v.$border-subtle;
   border-radius: v.$radius-sm;
   padding: 9px 12px;
+
+  &--locked {
+    opacity: 0.55;
+    border-style: dashed;
+  }
 }
 
 .trade-target__name {
   font-weight: 600;
   font-size: 13px;
+
+  &--mystery {
+    letter-spacing: 2px;
+    color: v.$text-muted-45;
+  }
 }
 
-.trade-target__locked {
-  font-size: 10px;
-  color: v.$text-muted-40;
-  margin-left: 4px;
+.trade-target__locked-badge {
+  font-size: 16px;
+  flex: none;
 }
 
 .trade-target__meta {
@@ -117,6 +269,11 @@
   color: v.$text-muted-45;
   margin-top: 2px;
   text-transform: capitalize;
+}
+
+.trade-target__input--missing {
+  color: v.$danger;
+  font-weight: 600;
 }
 
 .trade-target__btn {
@@ -135,4 +292,44 @@
     color: v.$text-muted-40;
     cursor: default;
   }
+}
+
+// ---- Recent activity log ----
+.trade-log-eyebrow {
+  @include m.section-eyebrow;
+  margin: 24px 0 12px;
+}
+
+.trade-log {
+  @include m.card(6px 16px);
+}
+
+.trade-log__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid v.$border-subtle;
+  font-size: 12.5px;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.trade-log__text {
+  color: v.$text-body;
+}
+
+.trade-log__time {
+  flex: none;
+  color: v.$text-muted-40;
+  font-size: 11px;
+}
+
+.trade-log__empty {
+  padding: 12px 0;
+  font-size: 12.5px;
+  color: v.$text-muted-35;
 }

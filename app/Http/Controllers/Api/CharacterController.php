@@ -3,21 +3,28 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Achievement;
 use App\Models\Battle;
 use App\Models\Character;
 use App\Models\CharacterAttribute;
 use App\Models\ClassProgression;
+use App\Models\Cosmetic;
+use App\Models\GemLedger;
 use App\Models\User;
 use App\Services\AttributeService;
+use App\Services\QuestService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class CharacterController extends Controller
 {
-    public function __construct(private AttributeService $attributeService) {}
+    public function __construct(
+        private AttributeService $attributeService,
+        private QuestService $quests = new QuestService(),
+    ) {}
 
     /** gems required to unlock gem-slot tiers 1-3 (slot 1 is the free starter slot). */
-    private const GEM_SLOT_COSTS = [1 => 750, 2 => 1500, 3 => 4000];
+    public const GEM_SLOT_COSTS = [1 => 750, 2 => 1500, 3 => 4000];
 
     /** fixed identity of every slot 1-8: gems-first, then subscription slots. */
     private const SLOT_DEFS = [
@@ -35,7 +42,7 @@ class CharacterController extends Controller
     {
         $user = $request->user();
         $characters = $user->characters()
-            ->with(['attributes_', 'skills.skill'])
+            ->with(['attributes_', 'skills.skill', 'inventory.item', 'pets.pet', 'user'])
             ->orderBy('id')
             ->get();
         $vipSlotsUnlocked = $user->vipCharacterSlots();
@@ -59,16 +66,18 @@ class CharacterController extends Controller
                     ->firstWhere('skill', '!=', null)
                     ?->skill;
 
+                $stats = $character->effectiveStats();
+
                 $characterData = [
                     'id' => $character->id,
                     'name' => $character->name,
                     'base_class' => $character->base_class,
                     'level' => $character->level,
-                    'hp_max' => $character->hp_max,
-                    'base_atk' => $character->base_atk,
-                    'base_def' => $character->base_def,
-                    'mana_max' => $character->mana_max,
-                    'luck' => $character->attributes_?->luck ?? 0,
+                    'eff_hp_max' => $stats['eff_hp_max'],
+                    'eff_atk' => $stats['eff_atk'],
+                    'eff_def' => $stats['eff_def'],
+                    'eff_mp_max' => $stats['eff_mp_max'],
+                    'luck' => $stats['luck'] ?? 0,
                     'first_skill' => $firstSkill ? [
                         'name' => $firstSkill->name,
                         'glyph' => $firstSkill->glyph,
@@ -157,6 +166,7 @@ class CharacterController extends Controller
         }
 
         $payer->decrement('gems', $cost);
+        GemLedger::log($payer, -$cost, "character_slot_unlock:tier{$tier}");
         $user->increment('bonus_character_slots');
 
         return response()->json([
@@ -169,7 +179,7 @@ class CharacterController extends Controller
     public function show(Request $request)
     {
         $character = $request->user()->character()
-            ->with(['attributes_', 'zone', 'inventory.item', 'skills.skill'])
+            ->with(['attributes_', 'zone', 'inventory.item', 'skills.skill', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon'])
             ->first();
 
         if (! $character) {
@@ -177,14 +187,89 @@ class CharacterController extends Controller
         }
 
         $character->applyPassiveRegen();
+        $vipGemsGranted = $request->user()->grantMonthlyVipGemsIfDue($character);
 
         return response()->json([
-            'character' => $character,
+            'character' => $vipGemsGranted > 0 ? $character->fresh(['attributes_', 'zone', 'inventory.item', 'skills.skill', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon']) : $character,
             'stats' => $character->effectiveStats() + ['xp_max' => Character::xpForLevel($character->level)],
             'regen_per_tick' => $character->regenPerTick(),
             'mana_regen_per_tick' => $character->manaRegenPerTick(),
+            'energy_regen_per_tick' => $character->energyRegenPerTick(),
             'attribute_costs' => $this->attributeService->allCosts($character->attributes_ ?? new CharacterAttribute()),
             'in_combat' => Battle::where('character_id', $character->id)->where('status', 'active')->exists(),
+            'vip_gems_granted' => $vipGemsGranted,
+        ]);
+    }
+
+    /** Marks the new-character guided tour as seen so it never shows again for this character. Also grants
+     * the "Initiate" title the first time it's completed — a permanent record of finishing onboarding. */
+    public function dismissTutorial(Request $request)
+    {
+        $character = $request->user()->character;
+        abort_unless($character, 404);
+
+        $character->update(['tutorial_seen' => true]);
+
+        $title = Cosmetic::where('unlock_event', 'tutorial_complete')->where('enabled', true)->first();
+        if ($title && ! $character->cosmetics()->where('cosmetic_id', $title->id)->exists()) {
+            $character->cosmetics()->create(['cosmetic_id' => $title->id]);
+        }
+
+        return response()->json(['character' => $character->fresh()]);
+    }
+
+    /** Lets a player replay the guided tour on demand (e.g. from Settings) instead of only ever seeing it once. */
+    public function restartTutorial(Request $request)
+    {
+        $character = $request->user()->character;
+        abort_unless($character, 404);
+
+        $character->update(['tutorial_seen' => false]);
+
+        return response()->json(['character' => $character->fresh()]);
+    }
+
+    /** Public-safe view of another character's profile — no gold/gems/inventory/email, just what's shown off. */
+    public function publicProfile(Character $character)
+    {
+        $character->load(['user', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon', 'guildMembership.guild', 'pvpRecord']);
+
+        $earned = $character->achievements()->count();
+        $totalAchievements = Achievement::where('enabled', true)->count();
+
+        return response()->json([
+            'character' => [
+                'id' => $character->id,
+                'name' => $character->name,
+                'level' => $character->level,
+                'base_class' => $character->base_class,
+                'spec_class' => $character->spec_class,
+                'profession' => $character->profession,
+                'battles_won' => $character->battles_won,
+                'battles_lost' => $character->battles_lost,
+                'bosses_slain' => $character->bosses_slain,
+                'quests_completed' => $character->quests_completed,
+                'times_mined' => $character->times_mined,
+                'times_chopped' => $character->times_chopped,
+                'times_smelted' => $character->times_smelted,
+                'times_foraged' => $character->times_foraged,
+                'times_crafted' => $character->times_crafted,
+                'active_title' => $character->activeTitle,
+                'active_color' => $character->activeColor,
+                'active_banner' => $character->activeBanner,
+                'active_icon' => $character->activeIcon,
+                'vip_tier' => $character->user?->hasActiveVip() ? $character->user->vip_tier : 'none',
+                'guild' => $character->guildMembership?->guild ? [
+                    'name' => $character->guildMembership->guild->name,
+                    'tag' => $character->guildMembership->guild->tag,
+                ] : null,
+                'pvp_rank' => $character->pvpRecord?->percentileBracket(),
+                'pvp_rating' => $character->pvpRecord?->rating,
+                'created_at' => $character->created_at,
+            ],
+            'power' => $character->effectiveStats()['power'],
+            'achievements_earned' => $earned,
+            'achievements_total' => $totalAchievements,
         ]);
     }
 
@@ -238,7 +323,7 @@ class CharacterController extends Controller
         abort_unless($character, 404);
 
         $data = $request->validate([
-            'attr' => ['required', Rule::in(['damage', 'armor', 'hp_cap', 'hp_regen', 'mana_cap', 'mana_regen', 'crit', 'crit_damage', 'luck', 'dodge', 'energy_cap', 'energy_regen', 'trade_speed'])],
+            'attr' => ['required', Rule::in(['damage', 'armor', 'hp_cap', 'hp_regen', 'mana_cap', 'mana_regen', 'crit', 'crit_damage', 'luck', 'dodge', 'energy_cap', 'energy_regen', 'mining_speed', 'chopping_speed', 'smelting_speed', 'crafting_speed', 'foraging_speed'])],
         ]);
 
         $attributes = $character->attributes_ ?? $character->attributes_()->create([]);
@@ -278,12 +363,18 @@ class CharacterController extends Controller
             if ($existing->level >= $skill->max_level) {
                 return response()->json(['message' => 'Already at max rank.'], 422);
             }
+            $nextRank = $existing->level + 1;
+            $nextRankLevel = $skill->levelForRank($nextRank);
+            if ($character->level < $nextRankLevel) {
+                return response()->json(['message' => "Rank {$nextRank} requires level {$nextRankLevel}."], 422);
+            }
             $existing->increment('level');
         } else {
             if ($character->level < $skill->level_req) {
                 return response()->json(['message' => "Requires level {$skill->level_req}."], 422);
             }
             $character->skills()->create(['skill_id' => $skill->id, 'unlocked_at' => now(), 'level' => 1]);
+            $this->quests->progressSkillUnlock($character, $skill->key);
         }
 
         $character->decrement('skill_points');

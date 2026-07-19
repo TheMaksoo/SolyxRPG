@@ -11,7 +11,8 @@ class SkillController extends Controller
 {
     public function __construct(private SkillService $skillService) {}
 
-    /** Every class has its own 3-skill kit — only the active character's base_class skills are returned. */
+    /** Every class has its own skill kit (3 for most, plus Mage's standalone Healing Light) — only the
+     * active character's base_class skills are returned. */
     public function index(Request $request)
     {
         $character = $request->user()->character;

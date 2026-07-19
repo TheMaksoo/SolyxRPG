@@ -6,10 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Models\Character;
 use App\Models\PvpMatch;
 use App\Models\PvpRecord;
+use App\Services\AchievementService;
 use Illuminate\Http\Request;
 
 class PvpController extends Controller
 {
+    public function __construct(
+        private AchievementService $achievements = new AchievementService(),
+    ) {
+    }
+
     public function index(Request $request)
     {
         $character = $request->user()->character;
@@ -32,10 +38,12 @@ class PvpController extends Controller
             ->limit(10)
             ->get();
 
+        $allRatings = PvpRecord::pluck('rating')->all();
+
         return response()->json([
             'record' => $record,
-            'rank' => $record->rank(),
-            'opponents' => $opponents,
+            'rank' => PvpRecord::bracketFromRatings($record->rating, $allRatings),
+            'opponents' => $opponents->map(fn ($row) => [...$row, 'bracket' => PvpRecord::bracketFromRatings($row['rating'], $allRatings)]),
             'history' => $history,
         ]);
     }
@@ -91,6 +99,8 @@ class PvpController extends Controller
             'log_json' => $sim['log'],
             'created_at' => now(),
         ]);
+
+        $this->achievements->check($character->fresh());
 
         return response()->json([
             'result' => $won ? 'win' : 'loss',

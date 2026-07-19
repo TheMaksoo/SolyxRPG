@@ -1,0 +1,146 @@
+@use '../../scss/variables' as v;
+@use '../../scss/mixins' as m;
+
+.public-profile-back {
+  @include m.btn-secondary;
+  padding: 7px 16px;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+
+.public-profile-loading,
+.public-profile-empty {
+  color: v.$text-muted-45;
+  font-size: 13px;
+  padding: 20px 0;
+}
+
+.public-profile-hero {
+  background: linear-gradient(150deg, #1a1013, v.$bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: v.$radius-xl;
+  padding: 26px;
+  margin-bottom: v.$space-5;
+  display: flex;
+  gap: v.$space-5;
+  flex-wrap: wrap;
+  align-items: center;
+  transition: background 0.2s ease;
+}
+
+.public-profile-hero__avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 18px;
+  background: v.$accent;
+  display: grid;
+  place-items: center;
+  font-size: 30px;
+  font-weight: 800;
+
+  &--icon {
+    font-size: 40px;
+  }
+}
+
+.public-profile-hero__info {
+  flex: 1;
+  min-width: 200px;
+}
+
+.public-profile-hero__name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.public-profile-hero__name {
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.public-profile-hero__title-badge {
+  @include m.badge(v.$accent, rgba(255, 255, 255, 0.08));
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.public-profile-hero__class {
+  color: v.$accent;
+  font-weight: 600;
+  text-transform: capitalize;
+  margin-top: 4px;
+}
+
+.public-profile-hero__guild {
+  color: v.$text-muted-45;
+  font-weight: 500;
+  text-transform: none;
+}
+
+.public-profile-hero__meta {
+  font-size: 13px;
+  color: v.$text-muted-45;
+  margin-top: 4px;
+}
+
+.public-profile-hero__since {
+  font-size: 11.5px;
+  color: v.$text-muted-40;
+  margin-top: 6px;
+}
+
+.public-profile-hero__stats {
+  display: flex;
+  gap: v.$space-5;
+  flex-wrap: wrap;
+}
+
+.public-profile-stat {
+  text-align: center;
+}
+
+.public-profile-stat__value {
+  font-size: 20px;
+  font-weight: 800;
+
+  &--power {
+    color: v.$warning;
+  }
+}
+
+.public-profile-stat__label {
+  font-size: 11px;
+  color: v.$text-muted-40;
+}
+
+.public-profile-fun-eyebrow {
+  @include m.section-eyebrow;
+  margin-bottom: 12px;
+}
+
+.public-profile-fun-grid {
+  @include m.grid-auto-fill(120px, 10px);
+}
+
+.public-profile-fun-chip {
+  @include m.card(12px);
+  text-align: center;
+}
+
+.public-profile-fun-chip__glyph {
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+.public-profile-fun-chip__value {
+  font-weight: 800;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.public-profile-fun-chip__label {
+  font-size: 10.5px;
+  color: v.$text-muted-40;
+  margin-top: 2px;
+}

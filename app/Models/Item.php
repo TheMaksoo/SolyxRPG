@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Item extends Model
 {
     protected $fillable = [
-        'key', 'name', 'type', 'rarity', 'glyph', 'description', 'stat_json',
+        'key', 'name', 'type', 'weapon_category', 'class_key', 'rarity', 'glyph', 'description', 'stat_json',
         'price_gold', 'price_gems', 'enabled', 'tester_only',
     ];
 

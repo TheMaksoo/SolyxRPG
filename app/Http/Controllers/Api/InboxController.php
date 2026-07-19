@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
+use App\Models\GemLedger;
 use App\Models\Mail;
 use App\Models\Purchase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class InboxController extends Controller
 {
@@ -54,6 +56,18 @@ class InboxController extends Controller
         }
 
         if ($character) {
+            foreach (GemLedger::where('character_id', $character->id)->latest('created_at')->limit(50)->get() as $g) {
+                $items->push([
+                    'type' => 'gem_transaction',
+                    'icon' => $g->delta > 0 ? '💎' : '➖',
+                    'title' => ($g->delta > 0 ? '+' : '').$g->delta.' gems',
+                    'body' => Str::headline(explode(':', $g->reason)[0] ?? $g->reason)
+                        .(str_contains($g->reason, ':') ? ' — '.str_replace('_', ' ', explode(':', $g->reason, 2)[1]) : ''),
+                    'time' => $g->created_at,
+                    'invite' => false,
+                ]);
+            }
+
             foreach ($character->receivedFriendRequests()->where('status', 'pending')->with('requester')->get() as $f) {
                 $items->push([
                     'type' => 'friend_request',

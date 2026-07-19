@@ -405,6 +405,33 @@
   padding: 16px;
 }
 
+.gm-console-audit-row {
+  @extend %gm-tile-base;
+  padding: 12px 16px;
+}
+
+.gm-console-audit-row__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.gm-console-audit-row__action {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.gm-console-audit-row__meta {
+  font-size: 11px;
+  color: v.$text-muted-40;
+}
+
+.gm-console-audit-row__target {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 4px;
+}
+
 .gm-console-ticket-card__row {
   display: flex;
   justify-content: space-between;

@@ -19,6 +19,13 @@ const ATTRS = [
   { key: 'crit_damage', label: 'Crit Damage', desc: '+2% crit damage' },
   { key: 'luck', label: 'Luck', desc: 'Better rarity rolls & item value' },
   { key: 'dodge', label: 'Dodge', desc: '+1% dodge chance (max 50%)' },
+  { key: 'energy_cap', label: 'Energy Cap', desc: '+15 max Energy' },
+  { key: 'energy_regen', label: 'Energy Regen', desc: '+1 Energy/tick per 3 pts' },
+  { key: 'mining_speed', label: 'Mining Speed', desc: '-2% Mining time (max 40%)' },
+  { key: 'chopping_speed', label: 'Chopping Speed', desc: '-2% Woodchopping time (max 40%)' },
+  { key: 'smelting_speed', label: 'Smelting Speed', desc: '-2% Smelting time (max 40%)' },
+  { key: 'crafting_speed', label: 'Crafting Speed', desc: '-2% Crafting time (max 40%)' },
+  { key: 'foraging_speed', label: 'Foraging Speed', desc: '-2% Foraging time (max 40%)' },
 ];
 
 const TIER_CAPS = { t20: 20, t40: 40, t60: 60 };
@@ -53,8 +60,11 @@ const branches = computed(() => {
         const levelOk = (store.character?.level ?? 0) >= skill.level_req;
         const hasPoints = (store.character?.skill_points ?? 0) > 0;
         const maxed = unlocked && owned.level >= skill.max_level;
+        const nextRank = (owned?.level ?? 0) + 1;
+        const nextRankLevel = skill.rank_levels?.[nextRank - 1] ?? skill.level_req;
+        const nextRankLevelOk = (store.character?.level ?? 0) >= nextRankLevel;
         const canUnlock = !unlocked && prevUnlocked && levelOk && hasPoints;
-        const canUpgrade = unlocked && !maxed && hasPoints;
+        const canUpgrade = unlocked && !maxed && hasPoints && nextRankLevelOk;
 
         return {
           skill,
@@ -66,6 +76,8 @@ const branches = computed(() => {
           effectDescription: owned?.effect_description,
           nextEffectDescription: owned?.next_rank_effect_description,
           locked: !unlocked && (!prevUnlocked || !levelOk),
+          rankLocked: unlocked && !maxed && !nextRankLevelOk,
+          nextRankLevel,
           reqText: !prevUnlocked ? 'Unlock previous skill first' : `Requires level ${skill.level_req}`,
         };
       }),
@@ -220,7 +232,14 @@ onMounted(load);
                 class="skill-node-btn__status"
                 :class="{ 'is-unlocked': nd.unlocked, 'is-available': nd.canUnlock || nd.canUpgrade }"
               >
-                {{ nd.maxed ? 'Max rank' : nd.canUpgrade ? 'Click to upgrade (+12%/rank)' : nd.unlocked ? 'No skill points' : nd.canUnlock ? 'Click to unlock' : nd.reqText }}
+                {{
+                  nd.maxed ? 'Max rank'
+                  : nd.canUpgrade ? 'Click to upgrade (+12%/rank)'
+                  : nd.rankLocked ? `Rank ${nd.level + 1} requires level ${nd.nextRankLevel}`
+                  : nd.unlocked ? 'No skill points'
+                  : nd.canUnlock ? 'Click to unlock'
+                  : nd.reqText
+                }}
               </div>
             </button>
           </div>

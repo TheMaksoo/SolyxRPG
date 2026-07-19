@@ -19,22 +19,28 @@
   @include m.centered-column(360px);
 }
 
-.daily-card {
+.daily-summary {
   @include m.centered-column(360px);
   @include m.card(24px);
   text-align: center;
+  margin-bottom: 28px;
 }
 
-.daily-card__streak {
+.daily-summary__streak-num {
   font-size: 32px;
   font-weight: 800;
-  margin-bottom: 6px;
 }
 
-.daily-card__label {
+.daily-summary__streak-label {
   font-size: 12px;
   color: v.$text-muted-40;
-  margin-bottom: 18px;
+  margin-bottom: 8px;
+}
+
+.daily-summary__day {
+  font-size: 12.5px;
+  color: v.$text-muted-45;
+  margin-bottom: 14px;
 }
 
 .daily-message {
@@ -55,4 +61,72 @@
     background: rgba(255, 255, 255, 0.08);
     cursor: not-allowed;
   }
+}
+
+.daily-calendar-eyebrow {
+  @include m.section-eyebrow;
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+.daily-calendar {
+  @include m.grid-auto-fit(96px, 10px);
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.daily-cell {
+  position: relative;
+  @include m.card(10px 6px);
+  text-align: center;
+  border: 1px solid v.$border-subtle;
+}
+
+.daily-cell--claimed {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.daily-cell--today {
+  background: v.$accent-tint-15;
+  border-color: v.$accent;
+  box-shadow: 0 0 0 1px v.$accent-tint-30;
+}
+
+.daily-cell--locked {
+  opacity: 0.5;
+}
+
+.daily-cell__badge {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  color: v.$success;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.daily-cell__day {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: v.$text-muted-45;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.daily-cell__reward {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.daily-cell__gold {
+  color: v.$warning;
+}
+
+.daily-cell__gems {
+  color: v.$purple;
 }

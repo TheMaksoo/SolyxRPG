@@ -15,12 +15,6 @@
   margin: 0;
 }
 
-.crafting-message {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.6);
-  margin-bottom: 14px;
-}
-
 .crafting-subtitle {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.5);
@@ -103,12 +97,41 @@
   }
 }
 
+.crafting-queue-empty {
+  font-size: 12.5px;
+  color: v.$text-muted-35;
+  margin-bottom: 20px;
+}
+
+.recipe-section-eyebrow {
+  @include m.section-eyebrow;
+  margin: 24px 0 12px;
+}
+
 .recipe-grid {
-  @include m.grid-auto-fill(240px);
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+
+  @media (max-width: 1100px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .recipe-card {
   @include m.card(16px);
+  display: flex;
+  flex-direction: column;
+  transition: opacity 0.15s ease, filter 0.15s ease;
+
+  &--locked {
+    opacity: 0.55;
+    filter: grayscale(0.6);
+  }
 }
 
 .recipe-card__head {
@@ -125,6 +148,31 @@
 .recipe-card__name {
   font-weight: 700;
   font-size: 14.5px;
+}
+
+.recipe-card__qty {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: v.$accent-soft;
+  background: v.$accent-tint-15;
+  padding: 1px 7px;
+  border-radius: v.$radius-pill;
+}
+
+.recipe-card__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.recipe-card__stat {
+  font-size: 11px;
+  font-weight: 700;
+  color: v.$success;
+  background: rgba(34, 197, 94, 0.12);
+  border-radius: 5px;
+  padding: 2px 7px;
 }
 
 .recipe-card__label {
@@ -155,9 +203,17 @@
   margin-bottom: 12px;
 }
 
+.recipe-card__locked {
+  display: block;
+  margin-top: 4px;
+  color: v.$warning;
+  font-weight: 600;
+}
+
 .recipe-card__craft-btn {
   @include m.btn-reset;
   width: 100%;
+  margin-top: auto;
   padding: 9px;
   border-radius: v.$radius-sm;
   background: v.$accent;

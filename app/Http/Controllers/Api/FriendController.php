@@ -6,10 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Models\Character;
 use App\Models\CharacterFavorite;
 use App\Models\Friendship;
+use App\Services\AchievementService;
 use Illuminate\Http\Request;
 
 class FriendController extends Controller
 {
+    public function __construct(
+        private AchievementService $achievements = new AchievementService(),
+    ) {
+    }
+
     public function index(Request $request)
     {
         $character = $request->user()->character;
@@ -64,6 +70,12 @@ class FriendController extends Controller
         abort_unless($friendship->addressee_id === $character?->id, 403);
 
         $friendship->update(['status' => 'accepted']);
+
+        $this->achievements->check($character->fresh());
+        $requester = Character::find($friendship->requester_id);
+        if ($requester) {
+            $this->achievements->check($requester);
+        }
 
         return response()->json(['friendship' => $friendship->fresh()]);
     }

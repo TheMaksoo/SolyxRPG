@@ -50,11 +50,29 @@ class SkillService
         return (bool) ($skill->effect_json['revive_once'] ?? false);
     }
 
+    /** A heal spell restores HP instead of dealing damage when used in combat — see CombatService::act(). */
+    public function isHeal(Skill $skill): bool
+    {
+        return isset($skill->effect_json['heal_hp_pct']);
+    }
+
+    /** % of max HP restored on use, scaled by rank. 0 if the skill isn't a heal. */
+    public function healPct(Skill $skill, int $level): float
+    {
+        $pct = $skill->effect_json['heal_hp_pct'] ?? 0;
+
+        return $pct * $this->rankMultiplier($level);
+    }
+
     /** Exact, rank-scaled description of what this skill does right now — the same numbers combat actually uses. */
     public function describe(Skill $skill, int $level): string
     {
         if ($this->hasRevive($skill)) {
             return 'Survive 1 otherwise-fatal hit per battle';
+        }
+
+        if ($this->isHeal($skill)) {
+            return sprintf('Restores %s%% max HP on use', $this->trim($this->healPct($skill, $level)));
         }
 
         if ($this->isPassive($skill)) {

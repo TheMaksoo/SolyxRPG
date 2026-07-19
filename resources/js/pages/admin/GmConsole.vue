@@ -12,6 +12,7 @@ const TABS = [
   { key: 'economy', label: 'Economy' },
   { key: 'tickets', label: 'Tickets' },
   { key: 'broadcast', label: 'Broadcast' },
+  { key: 'audit', label: 'Audit Log' },
 ];
 
 // Overview
@@ -134,12 +135,21 @@ async function sendBroadcast() {
   broadcastMessage.value = 'Broadcast sent.';
 }
 
+// Audit Log
+const auditLogs = ref([]);
+
+async function loadAuditLog() {
+  const { data } = await api.get('/gm/audit-log');
+  auditLogs.value = data.logs;
+}
+
 function switchTab(key) {
   tab.value = key;
   if (key === 'overview') loadOverview();
   if (key === 'players') loadPlayers();
   if (key === 'economy') loadConfig();
   if (key === 'tickets') loadTickets();
+  if (key === 'audit') loadAuditLog();
 }
 
 onMounted(() => loadOverview());
@@ -289,6 +299,22 @@ onMounted(() => loadOverview());
           </div>
         </div>
         <div v-if="!tickets.length" class="gm-console-empty">No support tickets.</div>
+      </div>
+    </div>
+
+    <!-- AUDIT LOG -->
+    <div v-else-if="tab === 'audit'">
+      <div class="gm-console-list gm-console-list--wide">
+        <div v-for="log in auditLogs" :key="log.id" class="gm-console-audit-row">
+          <div class="gm-console-audit-row__head">
+            <span class="ox gm-console-audit-row__action">{{ log.action }}</span>
+            <span class="gm-console-audit-row__meta">{{ log.gm?.name ?? 'unknown' }} · {{ log.created_at }}</span>
+          </div>
+          <div v-if="log.target_type" class="gm-console-audit-row__target">
+            {{ log.target_type }}<span v-if="log.target_id"> #{{ log.target_id }}</span>
+          </div>
+        </div>
+        <div v-if="!auditLogs.length" class="gm-console-empty">No audit log entries yet.</div>
       </div>
     </div>
 

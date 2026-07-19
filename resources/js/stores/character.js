@@ -10,6 +10,7 @@ export const useCharacterStore = defineStore('character', {
         slots: null,
         regenPerTick: 0,
         manaRegenPerTick: 0,
+        energyRegenPerTick: 0,
         inCombat: false,
         attributeCosts: null,
     }),
@@ -23,6 +24,7 @@ export const useCharacterStore = defineStore('character', {
                 this.stats = data.stats;
                 this.regenPerTick = data.regen_per_tick ?? 0;
                 this.manaRegenPerTick = data.mana_regen_per_tick ?? 0;
+                this.energyRegenPerTick = data.energy_regen_per_tick ?? 0;
                 this.inCombat = data.in_combat ?? false;
                 this.attributeCosts = data.attribute_costs ?? null;
             } finally {

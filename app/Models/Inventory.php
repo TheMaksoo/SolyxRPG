@@ -9,7 +9,7 @@ class Inventory extends Model
 
 {
     protected $table = 'inventories';
-    protected $fillable = ['character_id', 'item_id', 'qty', 'equipped', 'slot'];
+    protected $fillable = ['character_id', 'item_id', 'qty', 'equipped', 'slot', 'durability', 'durability_max'];
     protected $casts = ['equipped' => 'boolean'];
 
     public function character(): BelongsTo

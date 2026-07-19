@@ -7,9 +7,13 @@ const message = ref('');
 
 const PERKS = {
   bronze: ['Ad-free experience', 'Bronze VIP name badge'],
-  gold: ['Everything in Bronze', '2 free gem-store rerolls a day', 'Gold VIP name badge'],
-  diamond: ['Everything in Gold', 'Daily bonus gem stipend', 'Diamond VIP name badge & aura'],
+  gold: ['Everything in Bronze', 'Gold VIP name badge'],
+  diamond: ['Everything in Gold', 'Diamond VIP name badge'],
 };
+
+function monthlyGemsPerk(tier) {
+  return `+${tier.monthly_gems} gems every month, free`;
+}
 
 function slotPerk(tier) {
   return `+${tier.slots} character slot${tier.slots > 1 ? 's' : ''} (up to ${1 + tier.slots} total with subscription)`;
@@ -29,6 +33,18 @@ function regenPerk(tier) {
 
 function craftSpeedPerk(tier) {
   return `${tier.craft_speed_pct_bonus}% faster crafting`;
+}
+
+function energyPerk(tier) {
+  return `+${tier.energy_flat_bonus} flat and +${tier.energy_pct_bonus}% Energy regen rate`;
+}
+
+function craftQueuePerk(tier) {
+  return `+${tier.craft_queue_bonus} crafting queue slot${tier.craft_queue_bonus > 1 ? 's' : ''}`;
+}
+
+function petSlotsPerk(tier) {
+  return `${tier.pet_slots} active companion pet slot${tier.pet_slots > 1 ? 's' : ''}`;
 }
 
 async function load() {
@@ -88,7 +104,19 @@ onMounted(load);
             <span class="vip-tier-card__perk-check">✔</span>{{ regenPerk(tier) }}
           </div>
           <div class="vip-tier-card__perk">
+            <span class="vip-tier-card__perk-check">✔</span>{{ craftQueuePerk(tier) }}
+          </div>
+          <div class="vip-tier-card__perk">
+            <span class="vip-tier-card__perk-check">✔</span>{{ petSlotsPerk(tier) }}
+          </div>
+          <div class="vip-tier-card__perk">
             <span class="vip-tier-card__perk-check">✔</span>{{ craftSpeedPerk(tier) }}
+          </div>
+          <div class="vip-tier-card__perk">
+            <span class="vip-tier-card__perk-check">✔</span>{{ energyPerk(tier) }}
+          </div>
+          <div class="vip-tier-card__perk">
+            <span class="vip-tier-card__perk-check">✔</span>{{ monthlyGemsPerk(tier) }}
           </div>
           <div v-for="perk in PERKS[key] || []" :key="perk" class="vip-tier-card__perk">
             <span class="vip-tier-card__perk-check">✔</span>{{ perk }}

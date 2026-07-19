@@ -15,6 +15,8 @@ use App\Models\WikiEntry;
  */
 class WikiSyncService
 {
+    public function __construct(private GradeService $grades = new GradeService()) {}
+
     private const ITEM_STAT_META = [
         'atk' => ['label' => 'ATK', 'color' => '#ff8163'],
         'def' => ['label' => 'DEF', 'color' => '#5cc7f5'],
@@ -41,18 +43,38 @@ class WikiSyncService
     {
         $monster->loadMissing('zone');
 
-        $stats = [
-            $this->chip("HP {$monster->hp}", '#4ade80'),
-            $this->chip("ATK {$monster->atk}", '#ff8163'),
-            $this->chip("{$monster->gold}g · {$monster->xp}xp", '#eab308', true),
-        ];
-        if ($monster->gems > 0) {
-            $stats[] = $this->chip("{$monster->gems}◆", '#a78bfa', true);
-        }
+        // Bosses always fight at fixed stats; trash/elite monsters roll a Grade (Common-Legendary) on
+        // every Walk encounter that scales HP/ATK/rewards, so their real stats are a range, not one number.
         if ($monster->is_boss) {
+            $stats = [
+                $this->chip("HP {$monster->hp}", '#4ade80'),
+                $this->chip("ATK {$monster->atk}", '#ff8163'),
+                $this->chip("{$monster->gold}g · {$monster->xp}xp", '#eab308', true),
+            ];
+            if ($monster->gems > 0) {
+                $stats[] = $this->chip("{$monster->gems}◆", '#a78bfa', true);
+            }
             $stats[] = $this->chip('BOSS', '#e8482f');
         } else {
-            $stats[] = $this->chip('Grade varies on Walk encounters', '#cbd5e1', true);
+            $tiers = $this->grades->all();
+            $hpMult = array_column($tiers, 'hp_mult');
+            $atkMult = array_column($tiers, 'atk_mult');
+            $rewardMult = array_column($tiers, 'reward_mult');
+
+            $stats = [
+                $this->chip('HP '.round($monster->hp * min($hpMult)).'–'.round($monster->hp * max($hpMult)), '#4ade80'),
+                $this->chip('ATK '.round($monster->atk * min($atkMult)).'–'.round($monster->atk * max($atkMult)), '#ff8163'),
+                $this->chip(
+                    round($monster->gold * min($rewardMult)).'–'.round($monster->gold * max($rewardMult)).'g · '.
+                    round($monster->xp * min($rewardMult)).'–'.round($monster->xp * max($rewardMult)).'xp',
+                    '#eab308',
+                    true
+                ),
+            ];
+            if ($monster->gems > 0) {
+                $stats[] = $this->chip(round($monster->gems * min($rewardMult)).'–'.round($monster->gems * max($rewardMult)).'◆', '#a78bfa', true);
+            }
+            $stats[] = $this->chip('Stats scale with rolled Grade (Common → Legendary)', '#cbd5e1', true);
         }
 
         WikiEntry::updateOrCreate(

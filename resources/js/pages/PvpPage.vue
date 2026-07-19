@@ -89,12 +89,12 @@ onMounted(load);
           <div v-for="row in opponents" :key="row.character.id" class="opponent-card">
             <div class="opponent-card__top">
               <div class="opponent-card__info">
-                <div class="opponent-card__name">{{ row.character.name }}</div>
+                <router-link :to="{ name: 'public-profile', params: { id: row.character.id } }" class="opponent-card__name opponent-card__name--link">{{ row.character.name }}</router-link>
                 <div class="opponent-card__meta">{{ row.character.base_class }} · Lv.{{ row.character.level }}</div>
               </div>
             </div>
             <div class="opponent-card__bottom">
-              <span class="opponent-card__rating">{{ row.rating }} rating</span>
+              <span class="opponent-card__rating">{{ row.rating }} rating <span class="opponent-card__bracket">· {{ row.bracket }}</span></span>
               <button
                 @click="challenge(row)"
                 :disabled="loading"

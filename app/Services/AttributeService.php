@@ -20,7 +20,11 @@ class AttributeService
         'dodge' => 1,
         'energy_cap' => 2,
         'energy_regen' => 2,
-        'trade_speed' => 1,
+        'mining_speed' => 1,
+        'chopping_speed' => 1,
+        'smelting_speed' => 1,
+        'crafting_speed' => 1,
+        'foraging_speed' => 1,
     ];
 
     /** Every this many points already invested, the cost for the next point rises by 1. */

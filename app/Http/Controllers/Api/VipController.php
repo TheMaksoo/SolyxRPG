@@ -30,6 +30,11 @@ class VipController extends Controller
                 'regen_pct_bonus' => User::VIP_TIER_REGEN_PCT[$key],
                 'gold_xp_pct_bonus' => User::VIP_TIER_GOLD_XP_PCT[$key],
                 'craft_speed_pct_bonus' => User::VIP_TIER_CRAFT_SPEED_PCT[$key],
+                'energy_flat_bonus' => User::VIP_TIER_ENERGY_FLAT[$key],
+                'energy_pct_bonus' => User::VIP_TIER_ENERGY_PCT[$key],
+                'craft_queue_bonus' => User::VIP_TIER_CRAFT_QUEUE_BONUS[$key],
+                'monthly_gems' => User::VIP_TIER_MONTHLY_GEMS[$key],
+                'pet_slots' => User::VIP_TIER_PET_SLOTS[$key],
             ])
             ->all();
 

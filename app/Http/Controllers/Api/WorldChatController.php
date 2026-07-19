@@ -10,7 +10,13 @@ class WorldChatController extends Controller
 {
     public function index(Request $request)
     {
-        $messages = WorldMessage::with('character')->latest('created_at')->limit(50)->get()->reverse()->values();
+        $messages = WorldMessage::with('character.user')
+            ->latest('created_at')
+            ->limit(50)
+            ->get()
+            ->reverse()
+            ->values()
+            ->map(fn (WorldMessage $m) => $this->withVipTier($m));
 
         return response()->json(['messages' => $messages]);
     }
@@ -28,6 +34,13 @@ class WorldChatController extends Controller
             'created_at' => now(),
         ]);
 
-        return response()->json(['message_sent' => $message->load('character')]);
+        return response()->json(['message_sent' => $this->withVipTier($message->load('character.user'))]);
+    }
+
+    private function withVipTier(WorldMessage $message): WorldMessage
+    {
+        $message->setAttribute('vip_tier', $message->character?->user?->hasActiveVip() ? $message->character->user->vip_tier : 'none');
+
+        return $message;
     }
 }

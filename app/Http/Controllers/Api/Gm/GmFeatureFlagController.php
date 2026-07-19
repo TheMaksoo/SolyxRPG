@@ -9,8 +9,22 @@ use Illuminate\Http\Request;
 
 class GmFeatureFlagController extends Controller
 {
+    /** Mirrors FeatureFlagSeeder — self-heals on load like GmConfigController does, so an unseeded install still shows something. */
+    private const DEFAULT_FLAGS = [
+        ['key' => 'global_tester_mode', 'name' => 'Global Tester Mode', 'enabled' => false, 'tester_only' => false],
+        ['key' => 'guilds', 'name' => 'Guilds', 'enabled' => true, 'tester_only' => false],
+        ['key' => 'battle_pass', 'name' => 'Battle Pass', 'enabled' => true, 'tester_only' => false],
+        ['key' => 'gem_store', 'name' => 'Gem Store', 'enabled' => true, 'tester_only' => false],
+        ['key' => 'dungeons', 'name' => 'Dungeons', 'enabled' => true, 'tester_only' => false],
+        ['key' => 'crafting', 'name' => 'Crafting', 'enabled' => true, 'tester_only' => false],
+    ];
+
     public function index()
     {
+        foreach (self::DEFAULT_FLAGS as $flag) {
+            FeatureFlag::firstOrCreate(['key' => $flag['key']], $flag);
+        }
+
         return response()->json(['flags' => FeatureFlag::orderBy('key')->get()]);
     }
 

@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import api from '../api/client';
 import { useAuthStore } from '../stores/auth';
 import AdBanner from '../components/AdBanner.vue';
+import { formatStats, RARITY_COLORS, RARITY_LABELS } from '../rarity';
 
 const auth = useAuthStore();
 const items = ref([]);
@@ -11,13 +12,25 @@ const message = ref('');
 const loading = ref(false);
 
 const tabs = [
-  { key: 'weapon', label: 'Weapons' },
-  { key: 'armor', label: 'Armor' },
-  { key: 'consumable', label: 'Consumables' },
-  { key: 'cosmetic', label: 'Cosmetics' },
+  { key: 'weapon', label: 'Weapons', glyph: '⚔' },
+  { key: 'armor', label: 'Armor', glyph: '🛡' },
+  { key: 'pickaxe', label: 'Pickaxes', glyph: '⛏' },
+  { key: 'axe', label: 'Axes', glyph: '🪓' },
+  { key: 'sickle', label: 'Sickles', glyph: '🔪' },
+  { key: 'hammer', label: 'Hammers', glyph: '🔨' },
+  { key: 'consumable', label: 'Consumables', glyph: '🧪' },
+  { key: 'repair_pack', label: 'Repair Packs', glyph: '🧰' },
+  { key: 'material', label: 'Materials', glyph: '🪨' },
+  { key: 'cosmetic', label: 'Cosmetics', glyph: '👑' },
 ];
 
 const filtered = computed(() => items.value.filter((i) => i.type === tab.value));
+
+function canAfford(item) {
+  const character = auth.user?.character;
+  if (!character) return true;
+  return item.price_gold ? character.gold >= item.price_gold : character.gems >= item.price_gems;
+}
 
 async function load() {
   const { data } = await api.get('/shop');
@@ -62,7 +75,7 @@ onMounted(load);
         class="shop-tab-btn"
         :class="{ 'is-active': tab === t.key }"
       >
-        {{ t.label }}
+        <span class="shop-tab-btn__glyph">{{ t.glyph }}</span> {{ t.label }}
       </button>
     </div>
 
@@ -79,16 +92,22 @@ onMounted(load);
         <div class="shop-item__header">
           <span class="shop-item__glyph">{{ item.glyph }}</span>
           <span class="ox shop-item__name">{{ item.name }}</span>
+          <span class="shop-item__rarity" :style="{ color: RARITY_COLORS[item.rarity] }">{{ RARITY_LABELS[item.rarity] }}</span>
+        </div>
+        <div v-if="formatStats(item.stat_json).length" class="shop-item__stats">
+          <span v-for="stat in formatStats(item.stat_json)" :key="stat" class="shop-item__stat">{{ stat }}</span>
         </div>
         <div class="shop-item__desc">{{ item.description }}</div>
         <button
           @click="buy(item)"
-          :disabled="loading"
+          :disabled="loading || !canAfford(item)"
           class="shop-buy-btn"
+          :class="{ 'shop-buy-btn--gems': !item.price_gold }"
         >
-          Buy — {{ item.price_gold ? `${item.price_gold}g` : `${item.price_gems}◆` }}
+          Buy — {{ item.price_gold ? `🪙 ${item.price_gold}` : `◆ ${item.price_gems}` }}
         </button>
       </div>
+      <div v-if="!filtered.length" class="shop-empty">Nothing here yet.</div>
     </div>
   </div>
 </template>

@@ -35,6 +35,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_tester' => 'boolean',
             'ads_removed' => 'boolean',
+            'vip_gems_granted_at' => 'datetime',
         ];
     }
 
@@ -60,6 +61,12 @@ class User extends Authenticatable
         return in_array($this->role, ['gm', 'owner'], true);
     }
 
+    /** Testers (and GMs/owners) get every title/color/banner unlocked and can freely switch between them. */
+    public function isTester(): bool
+    {
+        return $this->is_tester || $this->role === 'tester' || $this->isGm();
+    }
+
     public function isBanned(): bool
     {
         return $this->banned_at !== null;
@@ -74,10 +81,62 @@ class User extends Authenticatable
     public const VIP_TIER_CRAFT_SPEED_PCT = ['bronze' => 15, 'gold' => 30, 'diamond' => 50];
     public const VIP_TIER_ENERGY_FLAT = ['bronze' => 1, 'gold' => 2, 'diamond' => 4];
     public const VIP_TIER_ENERGY_PCT = ['bronze' => 10, 'gold' => 25, 'diamond' => 50];
+    public const VIP_TIER_CRAFT_QUEUE_BONUS = ['bronze' => 1, 'gold' => 2, 'diamond' => 3];
+
+    /** Free monthly gem stipend per tier — 25% of that tier's cash price, in gems (at the entry gem-pack's ~68/$ rate). */
+    public const VIP_TIER_MONTHLY_GEMS = ['bronze' => 50, 'gold' => 85, 'diamond' => 170];
+
+    /** Flat active-companion-pet cap per VIP tier — always applies regardless of character level. */
+    public const VIP_TIER_PET_SLOTS = ['bronze' => 3, 'gold' => 4, 'diamond' => 5];
+
+    /** Level milestones that raise the level-earned active pet cap (cumulative — highest reached wins). */
+    private const PET_LEVEL_SLOT_TIERS = [1 => 1, 50 => 2, 100 => 3];
+
+    /** How many companion pets this character may have active at once: the better of level progression
+     * and an active VIP subscription's flat grant (VIP never stacks on top of level, it's a floor/ceiling). */
+    public function maxActivePetSlots(Character $character): int
+    {
+        $levelSlots = 1;
+        foreach (self::PET_LEVEL_SLOT_TIERS as $level => $slots) {
+            if ($character->level >= $level) {
+                $levelSlots = max($levelSlots, $slots);
+            }
+        }
+
+        $vipSlots = $this->hasActiveVip() ? (self::VIP_TIER_PET_SLOTS[$this->vip_tier] ?? 0) : 0;
+
+        return max($levelSlots, $vipSlots);
+    }
 
     public function hasActiveVip(): bool
     {
         return $this->vip_tier !== 'none' && $this->vip_expires_at && $this->vip_expires_at->isFuture();
+    }
+
+    /** Grants this calendar month's free VIP gem stipend to the character if active VIP and not already claimed
+     * this month. Lazily checked wherever character data loads, like every other timed effect in this game.
+     * Returns the amount granted (0 if none). */
+    public function grantMonthlyVipGemsIfDue(Character $character): int
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        if ($this->vip_gems_granted_at && $this->vip_gems_granted_at->isSameMonth(now())) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_MONTHLY_GEMS[$this->vip_tier] ?? 0;
+        $gems = (int) round(GameConfig::number("vip_monthly_gems_{$this->vip_tier}", $fallback));
+
+        if ($gems > 0) {
+            $character->increment('gems', $gems);
+            GemLedger::log($character, $gems, "vip_monthly_stipend:{$this->vip_tier}");
+        }
+        $this->vip_gems_granted_at = now();
+        $this->save();
+
+        return $gems;
     }
 
     public function vipCharacterSlots(): int
@@ -166,6 +225,18 @@ class User extends Authenticatable
         $fallback = self::VIP_TIER_ENERGY_PCT[$this->vip_tier] ?? 0;
 
         return GameConfig::number("vip_energy_pct_{$this->vip_tier}", $fallback);
+    }
+
+    /** Extra concurrent crafting-queue slots from an active VIP subscription. */
+    public function vipCraftQueueBonus(): int
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_CRAFT_QUEUE_BONUS[$this->vip_tier] ?? 0;
+
+        return (int) round(GameConfig::number("vip_craft_queue_bonus_{$this->vip_tier}", $fallback));
     }
 
     /** up to 4 gem-side slots (1 starter + 3 bought) + up to 4 from an active VIP subscription tier. */

@@ -54,6 +54,9 @@ async function save() {
         message.value = `Invalid JSON in ${field.name}.`;
         return;
       }
+    } else if (field.type === 'number') {
+      const raw = form.value[field.name];
+      payload[field.name] = raw === '' || raw === null || raw === undefined ? null : Number(raw);
     } else {
       payload[field.name] = form.value[field.name];
     }

@@ -7,8 +7,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BattlePass extends Model
 {
-    protected $fillable = ['season', 'character_id', 'tier', 'xp', 'premium'];
-    protected $casts = ['premium' => 'boolean'];
+    protected $fillable = ['season', 'character_id', 'tier', 'xp', 'premium', 'claimed_free_tiers', 'claimed_premium_tiers'];
+    protected $casts = [
+        'premium' => 'boolean',
+        'claimed_free_tiers' => 'array',
+        'claimed_premium_tiers' => 'array',
+    ];
 
     public function character(): BelongsTo
     {

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import api from '../api/client';
+import VipBadge from './VipBadge.vue';
 
 const messages = ref([]);
 const body = ref('');
@@ -38,7 +39,9 @@ onUnmounted(() => {
     <div class="world-chat__header">World Chat</div>
     <div class="world-chat__messages">
       <div v-for="m in messages" :key="m.id" class="world-chat__line">
-        <strong>{{ m.character?.name }}:</strong> {{ m.body }}
+        <strong>{{ m.character?.name }}:</strong>
+        <VipBadge :tier="m.vip_tier" />
+        {{ m.body }}
       </div>
       <div v-if="!messages.length" class="world-chat__empty">No messages yet. Say hi!</div>
     </div>

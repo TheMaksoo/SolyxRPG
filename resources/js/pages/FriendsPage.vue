@@ -96,7 +96,11 @@ onMounted(() => {
             :class="{ 'is-active': activeFriend?.id === row.character.id }"
           >
             <div class="friend-row__info">
-              <div class="friend-row__name">{{ row.character.name }}</div>
+              <router-link
+                :to="{ name: 'public-profile', params: { id: row.character.id } }"
+                @click.stop
+                class="friend-row__name friend-row__name--link"
+              >{{ row.character.name }}</router-link>
               <div class="friend-row__meta">{{ row.character.base_class }} · Lv.{{ row.character.level }}</div>
             </div>
             <button @click.stop="toggleFavorite(row)" class="friend-row__favorite">{{ row.favorite ? '★' : '☆' }}</button>

@@ -21,6 +21,6 @@ class AchievementController extends Controller
             'earned_at' => $earned->get($a->id)?->earned_at,
         ]);
 
-        return response()->json(['achievements' => $achievements]);
+        return response()->json(['achievements' => $achievements, 'quests_completed' => $character->quests_completed]);
     }
 }

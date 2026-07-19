@@ -25,10 +25,25 @@
   color: v.$text-muted-40;
 }
 
+.battlepass-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .battlepass-header__premium-badge {
   color: v.$warning;
   font-weight: 700;
   font-size: 13.5px;
+}
+
+.battlepass-claim-all-btn {
+  @include m.btn-reset;
+  background: v.$success;
+  color: v.$bg-page;
+  border-radius: v.$radius-md;
+  padding: 10px 20px;
+  font-weight: 800;
 }
 
 .battlepass-unlock-btn {
@@ -38,6 +53,95 @@
   border-radius: v.$radius-md;
   padding: 12px 22px;
   font-weight: 700;
+
+  &--cash {
+    background: v.$bg-card;
+    border: 1px solid v.$border-medium;
+  }
+}
+
+.claim-summary {
+  background: linear-gradient(160deg, rgba(74, 222, 128, 0.12), v.$bg-card);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: v.$radius-lg;
+  padding: 14px 18px;
+  margin-bottom: 18px;
+}
+
+.claim-summary__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.claim-summary__title {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: v.$success;
+}
+
+.claim-summary__close {
+  @include m.btn-reset;
+  color: v.$text-muted-45;
+  font-size: 13px;
+}
+
+.claim-summary__rows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.claim-summary__chip {
+  font-size: 12.5px;
+  font-weight: 700;
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.25);
+  border-radius: v.$radius-pill;
+  padding: 5px 12px;
+}
+
+.battlepass-premium-pitch {
+  background: linear-gradient(160deg, rgba(232, 72, 47, 0.1), v.$bg-card);
+  border: 1px solid rgba(232, 72, 47, 0.25);
+  border-radius: v.$radius-lg;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+
+.battlepass-premium-pitch__title {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.battlepass-premium-pitch__subtitle {
+  font-size: 12px;
+  color: v.$text-muted-45;
+  margin-top: 2px;
+}
+
+.battlepass-premium-pitch__totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.battlepass-premium-pitch__total-chip {
+  font-size: 12px;
+  font-weight: 700;
+  color: v.$accent-soft;
+  background: v.$accent-tint-15;
+  border: 1px solid v.$accent-tint-30;
+  border-radius: v.$radius-pill;
+  padding: 4px 12px;
+}
+
+.battlepass-premium-pitch__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .battlepass-message {
@@ -81,7 +185,7 @@
 }
 
 .tier-number-cell {
-  width: 64px;
+  width: 86px;
   flex: none;
   text-align: center;
 }
@@ -97,13 +201,19 @@
 }
 
 .tier-tile {
-  width: 64px;
+  width: 86px;
+  height: 104px;
   flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  padding: 8px 4px;
+  padding: 8px 6px;
   border-radius: v.$radius-sm;
   background: v.$bg-card;
   border: 1px solid rgba(255, 255, 255, 0.06);
+  box-sizing: border-box;
 
   &--reached {
     background: rgba(74, 222, 128, 0.1);
@@ -118,18 +228,51 @@
   &--dim {
     opacity: 0.5;
   }
+
+  &--claimed {
+    opacity: 0.7;
+  }
 }
 
 .tier-tile__glyph {
-  font-size: 20px;
+  font-size: 24px;
+  line-height: 1;
 }
 
 .tier-tile__reward {
-  font-size: 9px;
+  font-size: 9.5px;
   color: rgba(255, 255, 255, 0.5);
-  margin-top: 2px;
+  margin-top: 4px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 
   &--premium {
     color: v.$accent-soft;
   }
+}
+
+.tier-tile__claim-btn {
+  @include m.btn-reset;
+  margin-top: 6px;
+  width: 100%;
+  padding: 4px 0;
+  border-radius: 6px;
+  background: v.$success;
+  color: v.$bg-page;
+  font-size: 10px;
+  font-weight: 800;
+
+  &--premium {
+    background: v.$accent;
+    color: #fff;
+  }
+}
+
+.tier-tile__claimed-tag {
+  margin-top: 6px;
+  font-size: 12px;
+  color: v.$success;
+  font-weight: 800;
 }

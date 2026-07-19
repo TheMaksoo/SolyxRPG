@@ -1,6 +1,33 @@
 @use '../../scss/variables' as v;
 @use '../../scss/mixins' as m;
 
+.profile-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.profile-tab-btn {
+  padding: 8px 16px;
+  border-radius: v.$radius-pill;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: v.$bg-card;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &.is-active {
+    background: v.$accent;
+  }
+}
+
+.profile-message {
+  font-size: 13px;
+  color: v.$danger;
+  margin-bottom: 14px;
+}
+
 .profile-hero {
   background: linear-gradient(150deg, #1a1013, v.$bg-card);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -11,6 +38,19 @@
   gap: v.$space-5;
   flex-wrap: wrap;
   align-items: center;
+  transition: background 0.2s ease;
+}
+
+.profile-hero__name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.profile-hero__title-badge {
+  @include m.badge(v.$accent, rgba(255, 255, 255, 0.08));
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .profile-hero__avatar {
@@ -22,6 +62,10 @@
   place-items: center;
   font-size: 30px;
   font-weight: 800;
+
+  &--icon {
+    font-size: 40px;
+  }
 }
 
 .profile-hero__info {
@@ -186,6 +230,85 @@
   font-size: 14px;
 }
 
+.fun-stats-eyebrow {
+  @include m.section-eyebrow;
+  margin: 20px 0 12px;
+}
+
+.fun-stats-panel {
+  @include m.card(22px);
+  margin-bottom: v.$space-5;
+}
+
+.fun-stats-favorite {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: v.$bg-input;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: v.$radius-sm;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+
+.fun-stats-favorite__label {
+  font-size: 12px;
+  color: v.$text-muted-45;
+}
+
+.fun-stats-favorite__value {
+  font-weight: 700;
+  font-size: 14px;
+  color: v.$accent;
+}
+
+.fun-stats-grid {
+  @include m.grid-auto-fill(120px, 10px);
+}
+
+.fun-stat-chip {
+  background: v.$bg-input;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-sm;
+  padding: 12px;
+  text-align: center;
+}
+
+.fun-stat-chip__glyph {
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+.fun-stat-chip__value {
+  font-weight: 800;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.fun-stat-chip__label {
+  font-size: 10.5px;
+  color: v.$text-muted-40;
+  margin-top: 2px;
+}
+
+.quests-completed-banner {
+  @include m.card(22px);
+  text-align: center;
+  margin-bottom: v.$space-5;
+}
+
+.quests-completed-banner__value {
+  font-size: 44px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: v.$success;
+}
+
+.quests-completed-banner__label {
+  @include m.section-eyebrow;
+  margin-top: 4px;
+}
+
 .achievements-eyebrow {
   @include m.section-eyebrow;
   margin-bottom: 12px;
@@ -223,4 +346,99 @@
   font-size: 11px;
   color: v.$text-muted-45;
   margin-top: 3px;
+}
+
+// ---- Customize (titles / colors / banners) ----
+.customize-tester-note {
+  @include m.card(14px);
+  font-size: 13px;
+  color: v.$success;
+  border-color: rgba(16, 185, 129, 0.35);
+  margin-bottom: v.$space-5;
+}
+
+.customize-section {
+  margin-bottom: v.$space-5;
+}
+
+.customize-eyebrow {
+  @include m.section-eyebrow;
+  margin-bottom: 12px;
+}
+
+.customize-grid {
+  @include m.grid-auto-fill(160px, 12px);
+}
+
+.cosmetic-card {
+  background: v.$bg-card;
+  border: 1px solid v.$border-subtle;
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+
+  &--active {
+    border-color: v.$accent;
+  }
+}
+
+.cosmetic-card__swatch {
+  width: 100%;
+  height: 36px;
+  border-radius: v.$radius-sm;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cosmetic-card__title-preview {
+  width: 100%;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: v.$radius-sm;
+  background: v.$bg-input;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.cosmetic-card__icon-preview {
+  width: 100%;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: v.$radius-sm;
+  background: v.$bg-input;
+  font-size: 22px;
+}
+
+.cosmetic-card__name {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.cosmetic-card__cost {
+  font-size: 11px;
+  color: v.$text-muted-45;
+
+  &--quest {
+    color: v.$success;
+    text-align: center;
+  }
+}
+
+.cosmetic-card__btn {
+  @include m.btn-secondary;
+  padding: 7px 16px;
+  font-size: 12px;
+  width: 100%;
+
+  &--active {
+    @include m.btn-primary;
+    padding: 7px 16px;
+    font-size: 12px;
+    width: 100%;
+  }
 }

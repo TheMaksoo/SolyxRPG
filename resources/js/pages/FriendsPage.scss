@@ -131,6 +131,16 @@
   font-weight: 600;
 }
 
+.friend-row__name--link {
+  display: inline-block;
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 .friend-row__meta {
   font-size: 11px;
   color: v.$text-muted-40;

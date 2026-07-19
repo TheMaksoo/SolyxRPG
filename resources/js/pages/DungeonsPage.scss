@@ -39,6 +39,11 @@
   gap: 18px;
   flex-wrap: wrap;
   align-items: center;
+
+  &--locked {
+    opacity: 0.6;
+    border-style: dashed;
+  }
 }
 
 .dungeon-card__art {
@@ -80,6 +85,10 @@
   font-size: 13px;
   color: rgba(255, 255, 255, 0.5);
   margin: 5px 0 8px;
+
+  &--locked {
+    letter-spacing: 0.3px;
+  }
 }
 
 .dungeon-card__drops {

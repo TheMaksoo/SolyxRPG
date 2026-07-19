@@ -20,7 +20,7 @@ const STAT_META = [
   { key: 'def', label: 'DEF' },
   { key: 'mp', label: 'MP' },
 ];
-const STAT_FIELD = { hp: 'hp_max', atk: 'base_atk', def: 'base_def', mp: 'mana_max' };
+const STAT_FIELD = { hp: 'eff_hp_max', atk: 'eff_atk', def: 'eff_def', mp: 'eff_mp_max' };
 
 // Bars are scaled relative to the highest value among your own characters,
 // so they're meaningful even as stats grow with level/gear.

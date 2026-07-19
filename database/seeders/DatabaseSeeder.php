@@ -36,6 +36,7 @@ class DatabaseSeeder extends Seeder
             FeatureFlagSeeder::class,
             GameConfigSeeder::class,
             AchievementSeeder::class,
+            CosmeticSeeder::class,
             // Runs last: derives the monsters/items/pets wiki categories from the rows the seeders above just created.
             WikiEntrySeeder::class,
         ]);

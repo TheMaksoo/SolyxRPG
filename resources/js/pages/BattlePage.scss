@@ -32,6 +32,117 @@
   font-size: 13px;
 }
 
+// ---- "While you were away" claim summary ----
+.claim-summary {
+  background: linear-gradient(160deg, rgba(74, 222, 128, 0.12), v.$bg-card);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: v.$radius-lg;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+}
+
+.claim-summary__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.claim-summary__title {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: v.$success;
+}
+
+.claim-summary__close {
+  @include m.btn-reset;
+  color: v.$text-muted-45;
+  font-size: 13px;
+}
+
+.claim-summary__rows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.claim-summary__chip {
+  font-size: 12.5px;
+  font-weight: 700;
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.25);
+  border-radius: v.$radius-pill;
+  padding: 5px 12px;
+}
+
+// ---- Auto-Attack card ----
+.auto-battle-card {
+  @include m.card(14px 18px);
+  margin-bottom: 16px;
+}
+
+.auto-battle-card__summary {
+  font-size: 12.5px;
+  color: v.$success;
+  margin: 0 0 10px;
+}
+
+.auto-battle-card__status,
+.auto-battle-card__buy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.auto-battle-card__status--paused {
+  opacity: 0.7;
+
+  .auto-battle-card__label {
+    color: #f5a623;
+  }
+}
+
+.auto-battle-card__label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.auto-battle-card__timer {
+  font-size: 13px;
+  font-weight: 700;
+  color: v.$accent-soft;
+  font-variant-numeric: tabular-nums;
+}
+
+.auto-battle-card__options {
+  display: flex;
+  gap: 8px;
+}
+
+.auto-battle-card__option {
+  @include m.btn-reset;
+  padding: 8px 14px;
+  border-radius: v.$radius-sm;
+  background: v.$bg-input;
+  border: 1px solid v.$border-subtle;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12.5px;
+
+  &--cash {
+    background: v.$accent-tint-15;
+    border-color: v.$accent;
+    color: v.$accent-soft;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+}
+
 // ---- Layout: main content + world chat sidebar ----
 .battle-layout {
   display: flex;
@@ -121,6 +232,63 @@
 }
 
 .monster-panel {
+  text-align: center;
+
+  &--targetable {
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+
+  &--selected {
+    border-color: v.$accent;
+  }
+}
+
+.adds-panel {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: -8px 0 16px;
+}
+
+.add-card {
+  @include m.card(12px);
+  flex: 1;
+  min-width: 140px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  text-align: center;
+  transition: opacity 0.15s ease, border-color 0.15s ease;
+
+  &--selected {
+    border-color: v.$accent;
+  }
+
+  &--dead {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+.add-card__name {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.add-card__bar {
+  margin-bottom: 4px;
+}
+
+.add-card__hp {
+  font-size: 11px;
+  color: v.$text-muted-45;
+}
+
+.target-hint {
+  font-size: 12px;
+  color: v.$text-muted-45;
+  margin-bottom: 8px;
   text-align: center;
 }
 
@@ -340,4 +508,12 @@
   @include m.btn-secondary;
   display: inline-flex;
   align-items: center;
+}
+
+.btn-skill-tree-link {
+  @include m.btn-secondary;
+  display: inline-flex;
+  align-items: center;
+  border-color: v.$accent;
+  color: v.$accent-soft;
 }

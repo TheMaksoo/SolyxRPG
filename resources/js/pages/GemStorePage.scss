@@ -144,3 +144,214 @@
   font-weight: 700;
   font-size: 13px;
 }
+
+.gem-store-section-eyebrow {
+  @include m.section-eyebrow;
+  margin: 28px 0 12px;
+}
+
+.auto-battle-store-card {
+  @include m.card(16px 18px);
+  max-width: 1000px;
+}
+
+.auto-battle-store-card__info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.auto-battle-store-card__icon {
+  font-size: 24px;
+}
+
+.auto-battle-store-card__title {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.auto-battle-store-card__desc {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.auto-battle-store-card__message {
+  font-size: 12.5px;
+  color: v.$success;
+  margin: 0 0 10px;
+}
+
+.auto-battle-store-card__status {
+  font-size: 13px;
+  font-weight: 700;
+  color: v.$accent-soft;
+  font-variant-numeric: tabular-nums;
+}
+
+.auto-battle-store-card__options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.auto-battle-store-card__option {
+  @include m.btn-reset;
+  padding: 8px 14px;
+  border-radius: v.$radius-sm;
+  background: v.$bg-input;
+  border: 1px solid v.$border-subtle;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12.5px;
+
+  &--cash {
+    background: v.$accent-tint-15;
+    border-color: v.$accent;
+    color: v.$accent-soft;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+}
+
+.auto-gather-store-card {
+  @include m.card(16px 18px);
+  max-width: 1000px;
+  margin-top: 14px;
+}
+
+.auto-gather-store-card__info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.auto-gather-store-card__icon {
+  font-size: 24px;
+}
+
+.auto-gather-store-card__title {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.auto-gather-store-card__desc {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.auto-gather-store-card__message {
+  font-size: 12.5px;
+  color: v.$success;
+  margin: 0 0 10px;
+}
+
+.auto-gather-store-card__status {
+  font-size: 13px;
+  font-weight: 700;
+  color: v.$accent-soft;
+  font-variant-numeric: tabular-nums;
+}
+
+.auto-gather-store-card__picker {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.auto-gather-store-card__select {
+  padding: 7px 10px;
+  border-radius: v.$radius-sm;
+  background: v.$bg-input;
+  border: 1px solid v.$border-subtle;
+  color: #fff;
+  font-size: 12.5px;
+}
+
+.auto-gather-store-card__options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.auto-gather-store-card__option {
+  @include m.btn-reset;
+  padding: 8px 14px;
+  border-radius: v.$radius-sm;
+  background: v.$bg-input;
+  border: 1px solid v.$border-subtle;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12.5px;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+}
+
+.gem-sink-grid {
+  @include m.grid-auto-fill(260px, 14px);
+  max-width: 1000px;
+}
+
+.gem-sink-card {
+  @include m.card(16px 18px);
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+
+  &:hover {
+    border-color: v.$accent;
+  }
+}
+
+.gem-sink-card__header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 6px;
+}
+
+.gem-sink-card__glyph {
+  font-size: 19px;
+}
+
+.gem-sink-card__label {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.gem-sink-card__desc {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 0 12px;
+}
+
+.gem-sink-card__items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gem-sink-card__item {
+  font-size: 12.5px;
+  color: v.$text-muted-70;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+
+  &--owned {
+    color: v.$success;
+  }
+
+  &--empty {
+    color: v.$text-muted-35;
+    font-style: italic;
+  }
+}

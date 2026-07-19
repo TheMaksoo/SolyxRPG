@@ -27,7 +27,7 @@ class BattleController extends Controller
         $character = $request->user()->character;
         abort_unless($character, 404);
 
-        $battle = Battle::where('character_id', $character->id)->where('status', 'active')->with('monster')->first();
+        $battle = Battle::where('character_id', $character->id)->where('status', 'active')->with(['monster', 'battleMonsters.monster'])->first();
         $dungeonRun = null;
         if ($battle) {
             $this->combat->regenInBattle($battle, $character);
@@ -67,7 +67,7 @@ class BattleController extends Controller
         $grade = $this->grades->roll($character->level);
         $battle = $this->combat->start($character, $monster, $grade);
 
-        return response()->json(['battle' => $battle->load('monster'), 'grade' => $this->grades->meta($grade)]);
+        return response()->json(['battle' => $battle->load(['monster', 'battleMonsters.monster']), 'grade' => $this->grades->meta($grade)]);
     }
 
     public function show(Request $request, Battle $battle)
@@ -76,7 +76,7 @@ class BattleController extends Controller
 
         $this->combat->regenInBattle($battle, $request->user()->character);
 
-        return response()->json(['battle' => $battle->load('monster')]);
+        return response()->json(['battle' => $battle->load(['monster', 'battleMonsters.monster'])]);
     }
 
     public function action(Request $request, Battle $battle)
@@ -87,6 +87,7 @@ class BattleController extends Controller
             'type' => ['required', Rule::in(['attack', 'skill', 'item', 'flee'])],
             'skill_id' => ['nullable', 'exists:skills,id'],
             'item_id' => ['nullable', 'exists:items,id'],
+            'target_monster_id' => ['nullable', 'exists:battle_monsters,id'],
         ]);
 
         $character = $request->user()->character;
@@ -106,6 +107,7 @@ class BattleController extends Controller
             $data['type'],
             $data['skill_id'] ?? null,
             $data['item_id'] ?? null,
+            $data['target_monster_id'] ?? null,
         );
 
         $outcome = $result['result']['outcome'] ?? null;

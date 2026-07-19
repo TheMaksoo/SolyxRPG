@@ -17,6 +17,48 @@
   min-width: 320px;
 }
 
+.claim-summary {
+  background: linear-gradient(160deg, rgba(74, 222, 128, 0.12), v.$bg-card);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: v.$radius-lg;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+}
+
+.claim-summary__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.claim-summary__title {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: v.$success;
+}
+
+.claim-summary__close {
+  @include m.btn-reset;
+  color: v.$text-muted-45;
+  font-size: 13px;
+}
+
+.claim-summary__rows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.claim-summary__chip {
+  font-size: 12.5px;
+  font-weight: 700;
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.25);
+  border-radius: v.$radius-pill;
+  padding: 5px 12px;
+}
+
 .dashboard__rail {
   width: 290px;
   flex: none;
@@ -57,6 +99,10 @@
 .daily-banner__subtitle {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.5);
+}
+
+.daily-banner__link {
+  color: v.$accent-soft;
 }
 
 .daily-banner__claim {
@@ -182,6 +228,11 @@
     font-size: 22px;
     color: v.$info-strong;
   }
+
+  &--energy {
+    font-size: 22px;
+    color: v.$purple;
+  }
 }
 
 .stat-tile__label {
@@ -193,6 +244,111 @@
   margin-top: 4px;
   font-size: 10.5px;
   color: v.$success;
+}
+
+// ---- Alerts ----
+.dashboard-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.dashboard-alert {
+  display: block;
+  border-radius: 9px;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+
+  &--idle {
+    background: v.$accent-tint-15;
+    color: v.$accent-soft;
+    border: 1px solid v.$accent-tint-30;
+  }
+
+  &--danger {
+    background: rgba(255, 106, 77, 0.12);
+    color: v.$danger;
+    border: 1px solid rgba(255, 106, 77, 0.3);
+  }
+
+  &--broken {
+    background: #5c1414;
+    color: #ffdede;
+    border: 1px solid rgba(255, 45, 45, 0.5);
+  }
+
+  &--reward {
+    background: #241a04;
+    color: #ffc13d;
+    border: 1px solid rgba(255, 193, 61, 0.35);
+  }
+
+  &--auto-battle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #123d2a;
+    color: #baf5d3;
+    border: 1px solid rgba(56, 217, 137, 0.3);
+  }
+
+  &--auto-battle-paused {
+    background: v.$accent-tint-15;
+    color: v.$accent-soft;
+    border: 1px solid v.$accent-tint-30;
+  }
+}
+
+.auto-battle-pulse {
+  position: relative;
+  width: 12px;
+  height: 12px;
+  flex: none;
+  display: inline-block;
+}
+
+.auto-battle-pulse__dot {
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: #38d989;
+}
+
+.auto-battle-pulse__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #38d989;
+  animation: auto-battle-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+.auto-battle-pulse--paused {
+  .auto-battle-pulse__dot {
+    background: v.$accent-soft;
+  }
+
+  .auto-battle-pulse__ring {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+@keyframes auto-battle-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
 }
 
 // ---- Quick actions ----
@@ -213,6 +369,7 @@
 }
 
 .quick-actions__secondary {
+  position: relative;
   background: v.$bg-card;
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -221,6 +378,38 @@
   font-size: 15px;
   font-weight: 600;
   text-align: center;
+}
+
+.quick-actions__alert-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: v.$danger;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 0 2px v.$bg-page, 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.quick-actions__ready-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: v.$success;
+  color: v.$bg-page;
+  font-size: 12px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 0 2px v.$bg-page, 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 // ---- Equipped ----
@@ -236,6 +425,16 @@
 
 .equipped-item {
   @include m.card(15px 16px);
+  position: relative;
+
+  &--broken {
+    border-color: rgba(255, 45, 45, 0.6);
+    background: rgba(255, 45, 45, 0.08);
+  }
+
+  &--low {
+    border-color: rgba(255, 176, 32, 0.5);
+  }
 }
 
 .equipped-item__name {
@@ -250,6 +449,26 @@
   text-transform: capitalize;
 }
 
+.equipped-item__durability-tag {
+  margin-top: 8px;
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 2px 8px;
+  border-radius: v.$radius-pill;
+
+  &--broken {
+    background: #c62828;
+    color: #fff;
+  }
+
+  &--low {
+    background: #ffb020;
+    color: #241a00;
+  }
+}
+
 .equipped-empty {
   color: v.$text-muted-35;
   font-size: 13px;
@@ -260,6 +479,28 @@
 }
 
 // ---- Right rail ----
+.vip-time-card {
+  display: block;
+  background: linear-gradient(160deg, #241a04, v.$bg-card);
+  border: 1px solid rgba(255, 193, 61, 0.3);
+  border-radius: v.$radius-lg;
+  padding: 14px 16px;
+  text-decoration: none;
+}
+
+.vip-time-card__tier {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffc13d;
+  text-transform: capitalize;
+}
+
+.vip-time-card__value {
+  font-size: 12px;
+  color: v.$text-muted-45;
+  margin-top: 4px;
+}
+
 .battlepass-card {
   background: linear-gradient(160deg, #1a1013, v.$bg-card);
   border: 1px solid rgba(232, 72, 47, 0.2);
@@ -302,6 +543,34 @@
   @include m.card(16px);
 }
 
+.rail-card--link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+
+  &:hover {
+    border-color: v.$accent-tint-30;
+  }
+}
+
+.trade-skill-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 12.5px;
+}
+
+.trade-skill-row__name {
+  color: v.$text-body;
+}
+
+.trade-skill-row__level {
+  color: v.$text-muted-40;
+  font-weight: 700;
+}
+
 .rail-eyebrow {
   font-size: 11px;
   letter-spacing: 0.15em;
@@ -319,13 +588,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 7px 0;
+  padding: 7px 8px;
+  border-radius: v.$radius-sm;
+  transition: background 0.2s ease;
 }
 
 .leaderboard-row__left {
   display: flex;
   align-items: center;
   gap: 11px;
+  min-width: 0;
 }
 
 .leaderboard-row__rank {
@@ -336,6 +608,16 @@
 
 .leaderboard-row__name {
   font-size: 13px;
+}
+
+.leaderboard-row__icon {
+  font-size: 14px;
+}
+
+.leaderboard-row__title-badge {
+  @include m.badge(v.$accent, rgba(255, 255, 255, 0.08));
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 9px;
 }
 
 .leaderboard-row__level {

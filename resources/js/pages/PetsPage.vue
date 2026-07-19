@@ -4,10 +4,14 @@ import api from '../api/client';
 
 const pets = ref([]);
 const message = ref('');
+const maxActiveSlots = ref(1);
+const activeCount = ref(0);
 
 async function load() {
   const { data } = await api.get('/pets');
   pets.value = data.pets;
+  maxActiveSlots.value = data.max_active_slots;
+  activeCount.value = data.active_count;
 }
 
 async function unlock(row) {
@@ -21,8 +25,13 @@ async function unlock(row) {
 }
 
 async function activate(row) {
-  await api.post(`/pets/${row.pet.id}/activate`);
-  await load();
+  message.value = '';
+  try {
+    await api.post(`/pets/${row.pet.id}/activate`);
+    await load();
+  } catch (e) {
+    message.value = e.response?.data?.message || 'Could not toggle that companion.';
+  }
 }
 
 onMounted(load);
@@ -33,6 +42,7 @@ onMounted(load);
     <div class="pets-header">
       <div class="pets-header__icon">🐾</div>
       <h1 class="ox pets-title">Companions</h1>
+      <span class="pets-header__slots">{{ activeCount }} / {{ maxActiveSlots }} active</span>
     </div>
 
     <p v-if="message" class="pets-message">{{ message }}</p>
@@ -77,7 +87,9 @@ onMounted(load);
         >
           Activate
         </button>
-        <span v-else class="pet-card__status--active">Active</span>
+        <button v-else @click="activate(row)" class="pet-card__status--active">
+          ✔ Active — click to bench
+        </button>
       </div>
     </div>
   </div>

@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class CraftingJob extends Model
 {
     protected $fillable = [
-        'character_id', 'recipe_id', 'result_item_id', 'rarity', 'roll_pct',
+        'character_id', 'recipe_id', 'result_item_id', 'result_qty', 'rarity', 'roll_pct',
         'started_at', 'completes_at', 'collected_at',
     ];
 

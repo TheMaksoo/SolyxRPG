@@ -166,6 +166,16 @@
   font-size: 14px;
 }
 
+.opponent-card__name--link {
+  display: inline-block;
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 .opponent-card__meta {
   font-size: 11px;
   color: v.$text-muted-45;
@@ -181,6 +191,11 @@
 .opponent-card__rating {
   font-size: 12px;
   color: v.$warning;
+}
+
+.opponent-card__bracket {
+  color: v.$text-muted-40;
+  font-weight: 500;
 }
 
 .btn-challenge {

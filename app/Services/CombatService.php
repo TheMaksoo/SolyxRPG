@@ -3,31 +3,47 @@
 namespace App\Services;
 
 use App\Models\Battle;
+use App\Models\BattleMonster;
 use App\Models\Character;
 use App\Models\CharacterPet;
-use App\Models\CharacterQuest;
 use App\Models\GameConfig;
+use App\Models\GemLedger;
 use App\Models\Inventory;
 use App\Models\Monster;
-use App\Models\Quest;
 use App\Models\Skill;
 
 class CombatService
 {
+    /** Flavor verb for the plain-attack log line, keyed by the equipped weapon's weapon_category. */
+    private const ATTACK_VERBS = [
+        'sword' => 'slash',
+        'dagger' => 'stab',
+        'bow' => 'fire an arrow into',
+        'staff' => 'blast',
+        'axe' => 'chop down on',
+        'blunt' => 'crush',
+    ];
+
     public function __construct(
         private AchievementService $achievements = new AchievementService(),
         private BattlePassService $battlePass = new BattlePassService(),
         private GradeService $grades = new GradeService(),
         private SkillService $skills = new SkillService(),
+        private DurabilityService $durability = new DurabilityService(),
+        private MonsterAiService $monsterAi = new MonsterAiService(),
+        private QuestService $quests = new QuestService(),
     ) {}
 
-    public function start(Character $character, Monster $monster, string $grade = 'common'): Battle
+    /** $extraMonsters spawns additional "adds" fighting alongside $monster — a multi-enemy boss encounter
+     * instead of the usual 1v1 (see DungeonService). Adds only ever basic-attack; $monster keeps the full
+     * ability/cooldown AI regardless of how many adds are alongside it. */
+    public function start(Character $character, Monster $monster, string $grade = 'common', array $extraMonsters = []): Battle
     {
         $stats = $character->effectiveStats();
         $startingHp = (int) min($stats['eff_hp_max'], max(1, $character->hp));
         $monsterHp = (int) round($monster->hp * $this->grades->hpMult($grade));
 
-        return Battle::create([
+        $battle = Battle::create([
             'character_id' => $character->id,
             'monster_id' => $monster->id,
             'grade' => $grade,
@@ -37,6 +53,19 @@ class CombatService
             'status' => 'active',
             'log_json' => [],
         ]);
+
+        foreach (array_values($extraMonsters) as $i => $extra) {
+            $hp = (int) round($extra->hp * $this->grades->hpMult($grade));
+            BattleMonster::create([
+                'battle_id' => $battle->id,
+                'monster_id' => $extra->id,
+                'hp' => $hp,
+                'hp_max' => $hp,
+                'slot' => $i + 1,
+            ]);
+        }
+
+        return $battle;
     }
 
     /** Trickles HP (into the battle's own HP counter) and mana (on the character) for time spent between turns. */
@@ -68,9 +97,11 @@ class CombatService
     }
 
     /**
-     * Resolve one turn. $type is attack|skill|item. Returns the battle result payload.
+     * Resolve one turn. $type is attack|skill|item. $targetMonsterId picks which "add" (a BattleMonster id)
+     * a single-target action hits — null (the default) targets the primary monster. AOE skills ignore it
+     * and hit the primary plus every living add. Returns the battle result payload.
      */
-    public function act(Battle $battle, Character $character, string $type, ?int $skillId = null, ?int $itemId = null): array
+    public function act(Battle $battle, Character $character, string $type, ?int $skillId = null, ?int $itemId = null, ?int $targetMonsterId = null): array
     {
         abort_if($battle->status !== 'active', 422, 'Battle already finished.');
 
@@ -79,9 +110,12 @@ class CombatService
         $stats = $character->effectiveStats();
         $log = $battle->log_json ?? [];
         $monster = $battle->monster;
+        $weaponRow = $this->equippedGear($character, 'weapon');
+        $armorRow = $this->equippedGear($character, 'armor');
 
         $playerDmg = 0;
         $healed = 0;
+        $isAoe = false;
 
         if ($type === 'attack') {
             $playerDmg = (int) round($stats['eff_atk'] * $this->rand(0.8, 1.2));
@@ -93,12 +127,25 @@ class CombatService
             $skill = Skill::findOrFail($skillId);
             $characterSkill = $character->skills()->where('skill_id', $skill->id)->first();
             abort_unless($characterSkill, 422, 'Skill not unlocked.');
+            abort_if($characterSkill->cooldown_remaining > 0, 422, "{$skill->name} is on cooldown for {$characterSkill->cooldown_remaining}s.");
             abort_if($character->mana < $skill->mp_cost, 422, 'Not enough mana.');
 
             $character->decrement('mana', $skill->mp_cost);
-            $mult = $this->skills->damageMultiplier($skill, $characterSkill->level);
-            $playerDmg = (int) round($stats['eff_atk'] * $mult * $this->rand(0.85, 1.15));
-            $log[] = "Used {$skill->name} (rank {$characterSkill->level}).";
+            if ($skill->cooldown_seconds > 0) {
+                $characterSkill->update(['cooldown_expires_at' => now()->addSeconds($skill->cooldown_seconds)]);
+            }
+
+            if ($this->skills->isHeal($skill)) {
+                $healPct = $this->skills->healPct($skill, $characterSkill->level);
+                $healed = (int) round($stats['eff_hp_max'] * $healPct / 100);
+                $battle->character_hp = min($stats['eff_hp_max'], $battle->character_hp + $healed);
+                $log[] = "Used {$skill->name} (rank {$characterSkill->level}), restored {$healed} HP.";
+            } else {
+                $mult = $this->skills->damageMultiplier($skill, $characterSkill->level);
+                $playerDmg = (int) round($stats['eff_atk'] * $mult * $this->rand(0.85, 1.15));
+                $isAoe = (bool) ($skill->effect_json['aoe'] ?? false);
+                $log[] = "Used {$skill->name} (rank {$characterSkill->level}).";
+            }
         } elseif ($type === 'item') {
             $inventory = Inventory::where('character_id', $character->id)->where('item_id', $itemId)->firstOrFail();
             abort_if($inventory->qty < 1, 422, 'Out of that item.');
@@ -125,32 +172,31 @@ class CombatService
         }
 
         if ($playerDmg > 0) {
-            $battle->monster_hp = max(0, $battle->monster_hp - $playerDmg);
-            $log[] = "You hit {$monster->name} for {$playerDmg}.";
+            $log = $this->applyPlayerDamage($battle, $playerDmg, $isAoe, $type, $weaponRow, $targetMonsterId, $log);
+            $this->decayGear($weaponRow);
         }
 
-        if ($battle->monster_hp <= 0) {
+        if ($this->allEnemiesDefeated($battle)) {
             return $this->resolveWin($battle, $character, $log);
         }
 
+        $hasAdds = $battle->battleMonsters->isNotEmpty();
         if ($this->rollPercent($stats['dodge_chance'] ?? 0)) {
-            $log[] = "You dodge {$monster->name}'s attack!";
+            $log[] = $hasAdds ? 'You dodge the incoming attacks!' : "You dodge {$monster->name}'s attack!";
             $battle->log_json = $log;
             $battle->save();
 
             $freshCharacter = $character->fresh(['attributes_', 'inventory.item', 'skills.skill']);
 
             return [
-                'battle' => $battle->fresh('monster'),
+                'battle' => $battle->fresh(['monster', 'battleMonsters.monster']),
                 'result' => null,
                 'character' => $freshCharacter,
                 'stats' => $freshCharacter->effectiveStats(),
             ];
         }
 
-        $enemyDmg = max(8, (int) round($monster->atk * $this->grades->atkMult($battle->grade) * $this->rand(0.7, 1.3) - $stats['eff_def'] * 0.25));
-        $battle->character_hp = max(0, $battle->character_hp - $enemyDmg);
-        $log[] = "{$monster->name} hits you for {$enemyDmg}.";
+        $log = $this->resolveEnemyTurn($battle, $stats, $armorRow, $log);
 
         if ($battle->character_hp <= 0) {
             if (! empty($stats['has_undying']) && ! $battle->revived_with_skill) {
@@ -168,11 +214,119 @@ class CombatService
         $freshCharacter = $character->fresh(['attributes_', 'inventory.item', 'skills.skill']);
 
         return [
-            'battle' => $battle->fresh('monster'),
+            'battle' => $battle->fresh(['monster', 'battleMonsters.monster']),
             'result' => null,
             'character' => $freshCharacter,
             'stats' => $freshCharacter->effectiveStats(),
         ];
+    }
+
+    /** Applies the player's already-rolled damage to the right target(s) and appends the matching log line(s).
+     * AOE hits the primary plus every living add for the same amount; single-target hits $targetMonsterId's
+     * add if it's alive, else falls back to the primary — a stale/invalid target never errors, it just
+     * redirects to the boss. Returns the updated log array. */
+    private function applyPlayerDamage(Battle $battle, int $dmg, bool $isAoe, string $type, ?Inventory $weaponRow, ?int $targetMonsterId, array $log): array
+    {
+        $monster = $battle->monster;
+
+        if ($isAoe) {
+            $hitNames = [$monster->name];
+            $battle->monster_hp = max(0, $battle->monster_hp - $dmg);
+            foreach ($battle->battleMonsters as $extra) {
+                if ($extra->hp <= 0) {
+                    continue;
+                }
+                $extra->hp = max(0, $extra->hp - $dmg);
+                $extra->save();
+                $hitNames[] = $extra->monster->name;
+            }
+            $log[] = 'You hit '.implode(', ', $hitNames)." for {$dmg} each.";
+
+            return $log;
+        }
+
+        $target = $targetMonsterId ? $battle->battleMonsters->firstWhere('id', $targetMonsterId) : null;
+        if ($target && $target->hp > 0) {
+            $target->hp = max(0, $target->hp - $dmg);
+            $target->save();
+            $hitName = $target->monster->name;
+        } else {
+            $battle->monster_hp = max(0, $battle->monster_hp - $dmg);
+            $hitName = $monster->name;
+        }
+
+        if ($type === 'attack') {
+            $verb = self::ATTACK_VERBS[$weaponRow?->item->weapon_category] ?? 'hit';
+            $log[] = "You {$verb} {$hitName} for {$dmg}.";
+        } else {
+            $log[] = "You hit {$hitName} for {$dmg}.";
+        }
+
+        return $log;
+    }
+
+    /** Runs the primary monster's full ability/cooldown AI turn (if it's still alive), then has every living
+     * "add" basic-attack once each. Returns the updated log array. */
+    private function resolveEnemyTurn(Battle $battle, array $stats, ?Inventory $armorRow, array $log): array
+    {
+        $monster = $battle->monster;
+
+        if ($battle->monster_hp > 0) {
+            [$ability, $cooldowns] = $this->monsterAi->choose($monster, $battle->monster_cooldowns_json ?? []);
+            $battle->monster_cooldowns_json = $cooldowns;
+
+            if ($ability['type'] === 'regen') {
+                $maxHp = $battle->monster_hp_max ?? $monster->hp;
+                $healed = min($maxHp - $battle->monster_hp, (int) round($maxHp * ($ability['heal_pct'] ?? 0) / 100));
+                $battle->monster_hp += $healed;
+                $log[] = "{$monster->name} uses {$ability['name']} and regenerates {$healed} HP!";
+            } else {
+                $hits = max(1, $ability['hits'] ?? 1);
+                $gradeAtkMult = $this->grades->atkMult($battle->grade);
+                $enemyDmg = 0;
+                for ($i = 0; $i < $hits; $i++) {
+                    $enemyDmg += max(2, (int) round($monster->atk * $gradeAtkMult * ($ability['dmg_mult'] ?? 1.0) * $this->rand(0.7, 1.3) - $stats['eff_def'] * 0.25));
+                }
+                $battle->character_hp = max(0, $battle->character_hp - $enemyDmg);
+                if (($ability['key'] ?? null) === 'basic_attack') {
+                    $log[] = "{$monster->name} hits you for {$enemyDmg}.";
+                } else {
+                    $hitNote = $hits > 1 ? " ({$hits} hits)" : '';
+                    $log[] = "{$monster->name} uses {$ability['name']} for {$enemyDmg}{$hitNote}.";
+                }
+                $this->decayGear($armorRow);
+            }
+        }
+
+        // Adds only ever basic-attack — no ability/cooldown AI of their own, keeping the primary monster
+        // as the one mechanically-interesting fighter in a multi-enemy encounter.
+        foreach ($battle->battleMonsters as $extra) {
+            if ($extra->hp <= 0) {
+                continue;
+            }
+            $gradeAtkMult = $this->grades->atkMult($battle->grade);
+            $addDmg = max(2, (int) round($extra->monster->atk * $gradeAtkMult * $this->rand(0.7, 1.3) - $stats['eff_def'] * 0.25));
+            $battle->character_hp = max(0, $battle->character_hp - $addDmg);
+            $log[] = "{$extra->monster->name} hits you for {$addDmg}.";
+        }
+
+        return $log;
+    }
+
+    /** True once the primary monster and every "add" (if any) are at 0 HP. */
+    private function allEnemiesDefeated(Battle $battle): bool
+    {
+        if ($battle->monster_hp > 0) {
+            return false;
+        }
+
+        foreach ($battle->battleMonsters as $extra) {
+            if ($extra->hp > 0) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function flee(Battle $battle, Character $character): array
@@ -193,7 +347,7 @@ class CombatService
         $freshCharacter = $character->fresh(['attributes_', 'inventory.item', 'skills.skill']);
 
         return [
-            'battle' => $battle->fresh('monster'),
+            'battle' => $battle->fresh(['monster', 'battleMonsters.monster']),
             'result' => ['outcome' => 'fled', 'hp_lost' => $fleeDmg],
             'character' => $freshCharacter,
             'stats' => $freshCharacter->effectiveStats(),
@@ -203,6 +357,9 @@ class CombatService
     private function resolveWin(Battle $battle, Character $character, array $log): array
     {
         $monster = $battle->monster;
+        $extraMonsters = $battle->battleMonsters->map(fn (BattleMonster $bm) => $bm->monster);
+        $allMonsters = collect([$monster])->concat($extraMonsters);
+
         $stats = $character->effectiveStats();
         $luck = max(0, (int) ($stats['luck'] ?? 0));
         $luckPerPoint = GameConfig::number('luck_combat_bonus_per_point', 0.01);
@@ -219,43 +376,49 @@ class CombatService
         $petXpBonus = max(0, (float) ($stats['pet_xp_bonus_pct'] ?? 0)) / 100;
         $gradeRewardMult = $this->grades->rewardMult($battle->grade);
 
-        $goldGain = (int) round($monster->gold * $goldMult * $gradeRewardMult * (1 + $luckBonus + $vipGoldXpBonus));
-        $xpGain = (int) round($monster->xp * $xpMult * $gradeRewardMult * (1 + ($luckBonus * $xpFactor) + $petXpBonus + $vipGoldXpBonus));
-        $gemGain = (int) round($monster->gems * $gemMult * $gradeRewardMult * (1 + ($luckBonus * $gemFactor)));
+        $goldGain = (int) round($allMonsters->sum('gold') * $goldMult * $gradeRewardMult * (1 + $luckBonus + $vipGoldXpBonus));
+        $xpGain = (int) round($allMonsters->sum('xp') * $xpMult * $gradeRewardMult * (1 + ($luckBonus * $xpFactor) + $petXpBonus + $vipGoldXpBonus));
+        $gemGain = (int) round($allMonsters->sum('gems') * $gemMult * $gradeRewardMult * (1 + ($luckBonus * $gemFactor)));
 
         $character->increment('gold', $goldGain);
         $character->increment('gems', $gemGain);
+        if ($gemGain > 0) {
+            GemLedger::log($character, $gemGain, "battle_win:{$monster->key}");
+        }
         $character->increment('battles_won');
         $character->hp = max(1, (int) $battle->character_hp);
         $character->save();
-        if ($monster->is_boss) {
+        $isBoss = $allMonsters->contains(fn (Monster $m) => $m->is_boss);
+        if ($isBoss) {
             $character->increment('bosses_slain');
         }
 
         $leveledUp = $this->grantXp($character, $xpGain);
-        $petResult = $this->grantPetXp($character, (int) round($xpGain * 0.2));
+        $petResults = $this->grantPetXp($character, (int) round($xpGain * 0.2));
         $this->battlePass->addXp($character, (int) round($xpGain * 0.3));
+        $this->grantPartyShare($character, $goldGain, $xpGain, $gemGain);
 
         $gradeLabel = $battle->grade !== 'common' ? $this->grades->meta($battle->grade)['label'].' ' : '';
-        $log[] = "Defeated {$gradeLabel}{$monster->name}! +{$goldGain}g +{$xpGain}xp".($gemGain ? " +{$gemGain} gems" : '').($luck > 0 ? " (Luck +".(int) round($luckBonus * 100)."%)" : '');
-        if ($petResult) {
+        $defeatedNames = $allMonsters->pluck('name')->implode(', ');
+        $log[] = "Defeated {$gradeLabel}{$defeatedNames}! +{$goldGain}g +{$xpGain}xp".($gemGain ? " +{$gemGain} gems" : '').($luck > 0 ? " (Luck +".(int) round($luckBonus * 100)."%)" : '');
+        foreach ($petResults as $petResult) {
             $log[] = "{$petResult['name']} gained companion XP.".($petResult['leveled_up'] ? " Now level {$petResult['level']}!" : '');
         }
         $battle->update(['status' => 'won', 'log_json' => $log]);
 
-        $this->progressQuests($character, 'battles_won', $monster);
+        $this->quests->progress($character, 'battles_won', $monster);
         $freshCharacter = $character->fresh(['attributes_', 'inventory.item', 'skills.skill']);
         $newAchievements = $this->achievements->check($freshCharacter, $monster->is_boss ? $monster : null);
 
         return [
-            'battle' => $battle->fresh('monster'),
+            'battle' => $battle->fresh(['monster', 'battleMonsters.monster']),
             'result' => [
                 'outcome' => 'won',
                 'gold' => $goldGain,
                 'xp' => $xpGain,
                 'gems' => $gemGain,
                 'leveled_up' => $leveledUp,
-                'pet' => $petResult,
+                'pets' => $petResults,
                 'character' => $freshCharacter,
                 'stats' => $freshCharacter->effectiveStats(),
                 'achievements' => $newAchievements,
@@ -263,32 +426,80 @@ class CombatService
         ];
     }
 
-    /** Grants XP to the character's active pet, if any, handling level-ups up to the pet level cap. */
-    private function grantPetXp(Character $character, int $xpGain): ?array
+    /** Grants XP to every one of the character's active pets, handling level-ups up to the pet level cap. */
+    private function grantPetXp(Character $character, int $xpGain): array
     {
-        $pet = $character->activePet();
-        if (! $pet || $xpGain <= 0 || $pet->level >= CharacterPet::MAX_LEVEL) {
-            return null;
-        }
+        $results = [];
 
-        $xp = $pet->xp + $xpGain;
-        $level = $pet->level;
-        $leveledUp = false;
+        foreach ($character->activePets() as $pet) {
+            if ($xpGain <= 0 || $pet->level >= CharacterPet::MAX_LEVEL) {
+                continue;
+            }
 
-        $xpMax = CharacterPet::xpForLevel($level);
-        while ($level < CharacterPet::MAX_LEVEL && $xp >= $xpMax) {
-            $xp -= $xpMax;
-            $level++;
-            $leveledUp = true;
+            $xp = $pet->xp + $xpGain;
+            $level = $pet->level;
+            $leveledUp = false;
+
             $xpMax = CharacterPet::xpForLevel($level);
-        }
-        if ($level >= CharacterPet::MAX_LEVEL) {
-            $xp = 0;
+            while ($level < CharacterPet::MAX_LEVEL && $xp >= $xpMax) {
+                $xp -= $xpMax;
+                $level++;
+                $leveledUp = true;
+                $xpMax = CharacterPet::xpForLevel($level);
+            }
+            if ($level >= CharacterPet::MAX_LEVEL) {
+                $xp = 0;
+            }
+
+            $pet->update(['xp' => $xp, 'level' => $level]);
+
+            $results[] = ['name' => $pet->pet->name, 'level' => $level, 'leveled_up' => $leveledUp];
         }
 
-        $pet->update(['xp' => $xp, 'level' => $level]);
+        return $results;
+    }
 
-        return ['name' => $pet->pet->name, 'level' => $level, 'leveled_up' => $leveledUp];
+    /** Party members currently in the same zone get a smaller cut of these rewards too — the winner
+     * always keeps their own full amount, this is purely an added incentive to actually adventure
+     * together rather than solo-grind side by side for no benefit. "Same zone" is a light proxy for
+     * "actively playing together" (an idle character's zone never changes), on top of which we also
+     * require the partner to have touched the server recently, so a parked alt account can't pull a
+     * passive income by sitting in the same zone forever. */
+    private function grantPartyShare(Character $character, int $goldGain, int $xpGain, int $gemGain): void
+    {
+        $party = $character->partyMembership?->party;
+        if (! $party) {
+            return;
+        }
+
+        $sharePct = 0.2;
+        $recentlyActiveSince = now()->subMinutes(10);
+
+        $partners = $party->members()
+            ->where('character_id', '!=', $character->id)
+            ->with('character')
+            ->get()
+            ->pluck('character')
+            ->filter(fn (?Character $c) => $c
+                && $c->current_zone_id === $character->current_zone_id
+                && $c->updated_at?->greaterThan($recentlyActiveSince));
+
+        foreach ($partners as $partner) {
+            $goldShare = (int) round($goldGain * $sharePct);
+            $xpShare = (int) round($xpGain * $sharePct);
+            $gemShare = (int) round($gemGain * $sharePct);
+
+            if ($goldShare > 0) {
+                $partner->increment('gold', $goldShare);
+            }
+            if ($gemShare > 0) {
+                $partner->increment('gems', $gemShare);
+                GemLedger::log($partner, $gemShare, "party_share:{$character->name}");
+            }
+            if ($xpShare > 0) {
+                $this->grantXp($partner, $xpShare);
+            }
+        }
     }
 
     private function resolveLoss(Battle $battle, Character $character, array $log, array $stats): array
@@ -312,7 +523,7 @@ class CombatService
         $freshCharacter = $character->fresh(['attributes_', 'inventory.item', 'skills.skill']);
 
         return [
-            'battle' => $battle->fresh('monster'),
+            'battle' => $battle->fresh(['monster', 'battleMonsters.monster']),
             'result' => [
                 'outcome' => 'lost',
                 'gold_lost' => $penalty['gold_lost'],
@@ -388,30 +599,6 @@ class CombatService
         return $levelsGained;
     }
 
-    private function progressQuests(Character $character, string $kind, Monster $monster): void
-    {
-        $quests = Quest::where('enabled', true)->get()->filter(
-            fn (Quest $q) => ($q->goal_json['kind'] ?? null) === $kind
-                || (($q->goal_json['kind'] ?? null) === 'boss_kill' && ($q->goal_json['monster_key'] ?? null) === $monster->key)
-        );
-
-        foreach ($quests as $quest) {
-            $progress = CharacterQuest::firstOrCreate(
-                ['character_id' => $character->id, 'quest_id' => $quest->id],
-                ['progress' => 0]
-            );
-            if ($progress->completed) {
-                continue;
-            }
-
-            $target = $quest->goal_json['target'] ?? 1;
-            $progress->increment('progress');
-            if ($progress->fresh()->progress >= $target) {
-                $progress->update(['completed' => true]);
-            }
-        }
-    }
-
     private function rand(float $min, float $max): float
     {
         return $min + mt_rand() / mt_getrandmax() * ($max - $min);
@@ -420,5 +607,23 @@ class CombatService
     private function rollPercent(float $percentChance): bool
     {
         return (mt_rand() / mt_getrandmax() * 100) < $percentChance;
+    }
+
+    /** The character's currently-equipped weapon or armor Inventory row (with item loaded), or null if nothing's equipped there. */
+    private function equippedGear(Character $character, string $type): ?Inventory
+    {
+        return Inventory::where('character_id', $character->id)
+            ->where('equipped', true)
+            ->whereHas('item', fn ($q) => $q->where('type', $type))
+            ->with('item')
+            ->first();
+    }
+
+    /** Wears the given equipped gear row down by one use. No-ops if nothing's equipped there or it predates durability tracking. */
+    private function decayGear(?Inventory $row): void
+    {
+        if ($row && $row->durability_max !== null) {
+            $row->update(['durability' => max(0, $row->durability - DurabilityService::DECAY_PER_ACTION)]);
+        }
     }
 }

@@ -16,4 +16,16 @@ class GemLedger extends Model
     {
         return $this->belongsTo(Character::class);
     }
+
+    /** Records a gem change if it's non-zero — the single entry point every gem-affecting action should go
+     * through, so the Inbox's transaction history is a complete picture rather than whatever a few call
+     * sites happened to log. */
+    public static function log(Character $character, int $delta, string $reason): void
+    {
+        if ($delta === 0) {
+            return;
+        }
+
+        self::create(['character_id' => $character->id, 'delta' => $delta, 'reason' => $reason, 'created_at' => now()]);
+    }
 }

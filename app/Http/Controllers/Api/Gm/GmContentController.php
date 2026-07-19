@@ -14,6 +14,7 @@ use App\Models\Recipe;
 use App\Models\Skill;
 use App\Models\Zone;
 use App\Services\WikiSyncService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 
 class GmContentController extends Controller
@@ -28,6 +29,19 @@ class GmContentController extends Controller
         'recipes' => Recipe::class,
         'pets' => Pet::class,
         'events' => Event::class,
+    ];
+
+    /** Minimal required-field guard per resource — catches the most common blank-required-column 500s before they hit the DB. */
+    private const REQUIRED_FIELDS = [
+        'items' => ['key', 'name', 'type', 'rarity'],
+        'monsters' => ['key', 'name'],
+        'zones' => ['key', 'name', 'danger'],
+        'dungeons' => ['key', 'name', 'difficulty'],
+        'quests' => ['name', 'type'],
+        'skills' => ['branch', 'key', 'name'],
+        'recipes' => ['name', 'result_item_id'],
+        'pets' => ['key', 'name'],
+        'events' => ['name', 'type'],
     ];
 
     /** resource key => [WikiSyncService sync method, wiki source_type] */
@@ -49,7 +63,13 @@ class GmContentController extends Controller
     public function store(Request $request, string $resource)
     {
         $model = $this->resolve($resource);
-        $row = $model::create($request->all());
+        $this->validateRequired($request, $resource);
+
+        try {
+            $row = $model::create($request->all());
+        } catch (QueryException $e) {
+            return response()->json(['message' => $this->friendlyDbError($e, $resource)], 422);
+        }
 
         AuditLog::record($request->user()->id, 'gm.content.create', $resource, $row->id, $request->all());
         $this->syncWiki($resource, $row);
@@ -60,8 +80,14 @@ class GmContentController extends Controller
     public function update(Request $request, string $resource, int $id)
     {
         $model = $this->resolve($resource);
+        $this->validateRequired($request, $resource);
         $row = $model::findOrFail($id);
-        $row->update($request->all());
+
+        try {
+            $row->update($request->all());
+        } catch (QueryException $e) {
+            return response()->json(['message' => $this->friendlyDbError($e, $resource)], 422);
+        }
 
         AuditLog::record($request->user()->id, 'gm.content.update', $resource, $row->id, $request->all());
         $this->syncWiki($resource, $row->fresh());
@@ -88,6 +114,27 @@ class GmContentController extends Controller
         abort_unless(isset(self::RESOURCES[$resource]), 404, 'Unknown content resource.');
 
         return self::RESOURCES[$resource];
+    }
+
+    private function validateRequired(Request $request, string $resource): void
+    {
+        $rules = array_fill_keys(self::REQUIRED_FIELDS[$resource] ?? [], ['required']);
+        if ($rules) {
+            $request->validate($rules);
+        }
+    }
+
+    /** Turns a raw DB exception into an actionable message instead of leaking SQL/a bare 500. */
+    private function friendlyDbError(QueryException $e, string $resource): string
+    {
+        if (str_contains($e->getMessage(), 'Duplicate entry')) {
+            return "A {$resource} record with that key/name already exists — choose a unique key.";
+        }
+        if (str_contains($e->getMessage(), 'Data truncated') || str_contains($e->getMessage(), "doesn't have a default value")) {
+            return 'One of the dropdown fields (e.g. type/rarity/difficulty) is blank or not a valid option.';
+        }
+
+        return 'Could not save — check that referenced IDs (item/monster/zone) exist and required fields are filled in.';
     }
 
     private function syncWiki(string $resource, $row): void

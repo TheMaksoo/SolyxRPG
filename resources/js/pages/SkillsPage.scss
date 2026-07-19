@@ -216,9 +216,6 @@
 
 .skill-branches-grid {
   @include m.centered-column(820px);
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
 }
 
 .skill-branch__heading {
@@ -230,9 +227,7 @@
 }
 
 .skill-branch__nodes {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  @include m.grid-auto-fit(220px, 12px);
 }
 
 .skill-node-btn {

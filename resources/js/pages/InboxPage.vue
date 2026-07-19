@@ -39,7 +39,7 @@ onMounted(load);
       <h1 class="ox inbox-title">Inbox</h1>
     </div>
 
-    <p class="inbox-subtitle">Friend requests, purchase receipts, and announcements.</p>
+    <p class="inbox-subtitle">Friend requests, purchase receipts, gem transactions, and announcements.</p>
 
     <div class="inbox-list">
       <div
@@ -51,7 +51,15 @@ onMounted(load);
         <div class="inbox-item__icon">{{ item.icon }}</div>
         <div class="inbox-item__content">
           <div class="inbox-item__title-row">
-            <div class="ox inbox-item__title">{{ item.title }}</div>
+            <div
+              class="ox inbox-item__title"
+              :class="{
+                'inbox-item__title--positive': item.type === 'gem_transaction' && item.title.startsWith('+'),
+                'inbox-item__title--negative': item.type === 'gem_transaction' && item.title.startsWith('-'),
+              }"
+            >
+              {{ item.title }}
+            </div>
           </div>
           <div class="inbox-item__body">{{ item.body }}</div>
           <div v-if="item.invite" class="inbox-item__actions">

@@ -3,15 +3,19 @@
 use App\Http\Controllers\Api\AchievementController;
 use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AutoBattleController;
+use App\Http\Controllers\Api\AutoGatherController;
 use App\Http\Controllers\Api\BattleController;
 use App\Http\Controllers\Api\BattlePassController;
 use App\Http\Controllers\Api\CharacterController;
 use App\Http\Controllers\Api\ClassProgressionController;
+use App\Http\Controllers\Api\CosmeticController;
 use App\Http\Controllers\Api\CraftingController;
 use App\Http\Controllers\Api\DailyController;
 use App\Http\Controllers\Api\DirectMessageController;
 use App\Http\Controllers\Api\DungeonController;
 use App\Http\Controllers\Api\FriendController;
+use App\Http\Controllers\Api\Gm\GmAuditLogController;
 use App\Http\Controllers\Api\Gm\GmBroadcastController;
 use App\Http\Controllers\Api\Gm\GmConfigController;
 use App\Http\Controllers\Api\Gm\GmContentController;
@@ -22,12 +26,16 @@ use App\Http\Controllers\Api\GuildController;
 use App\Http\Controllers\Api\InboxController;
 use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\LeaderboardController;
+use App\Http\Controllers\Api\NavBadgeController;
+use App\Http\Controllers\Api\PartyController;
 use App\Http\Controllers\Api\PetController;
 use App\Http\Controllers\Api\PvpController;
 use App\Http\Controllers\Api\QuestController;
 use App\Http\Controllers\Api\ShopController;
 use App\Http\Controllers\Api\SkillController;
 use App\Http\Controllers\Api\SocialiteController;
+use App\Http\Controllers\Api\StatsController;
+use App\Http\Controllers\Api\SupportTicketController;
 use App\Http\Controllers\Api\StoreController;
 use App\Http\Controllers\Api\TradeSkillController;
 use App\Http\Controllers\Api\VipController;
@@ -37,6 +45,7 @@ use App\Http\Controllers\Api\ZoneController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/wiki', [WikiController::class, 'index']);
+Route::get('/stats/public', [StatsController::class, 'public']);
 
 // Auth
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -53,17 +62,21 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::get('/announcements', [AnnouncementController::class, 'index']);
+    Route::get('/nav-badges', [NavBadgeController::class, 'index']);
 
     Route::get('/character', [CharacterController::class, 'show']);
     Route::post('/character', [CharacterController::class, 'store']);
     Route::post('/character/attributes', [CharacterController::class, 'spendAttribute']);
     Route::post('/character/skills/{skill}', [CharacterController::class, 'unlockSkill']);
     Route::post('/character/profession', [CharacterController::class, 'chooseProfession']);
+    Route::post('/character/tutorial/dismiss', [CharacterController::class, 'dismissTutorial']);
+    Route::post('/character/tutorial/restart', [CharacterController::class, 'restartTutorial']);
 
     Route::get('/characters', [CharacterController::class, 'index']);
     Route::post('/characters/{character}/select', [CharacterController::class, 'select']);
     Route::delete('/characters/{character}', [CharacterController::class, 'destroy']);
     Route::post('/characters/slots/unlock', [CharacterController::class, 'unlockSlot']);
+    Route::get('/characters/{character}/profile', [CharacterController::class, 'publicProfile']);
 
     Route::get('/skills', [SkillController::class, 'index']);
     Route::get('/class-progressions', [ClassProgressionController::class, 'index']);
@@ -79,6 +92,12 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::get('/battle/{battle}', [BattleController::class, 'show']);
     Route::post('/battle/{battle}/action', [BattleController::class, 'action']);
 
+    Route::get('/auto-battle', [AutoBattleController::class, 'show']);
+    Route::post('/auto-battle/purchase', [AutoBattleController::class, 'purchase']);
+
+    Route::get('/auto-gather', [AutoGatherController::class, 'show']);
+    Route::post('/auto-gather/purchase', [AutoGatherController::class, 'purchase']);
+
     Route::get('/dungeons', [DungeonController::class, 'index']);
     Route::post('/dungeons/{dungeon}/enter', [DungeonController::class, 'enter']);
 
@@ -87,7 +106,10 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
 
     Route::get('/inventory', [InventoryController::class, 'index']);
     Route::post('/inventory/equip', [InventoryController::class, 'equip']);
+    Route::post('/inventory/unequip', [InventoryController::class, 'unequip']);
+    Route::post('/inventory/scrap', [InventoryController::class, 'scrap']);
     Route::post('/inventory/use', [InventoryController::class, 'use']);
+    Route::post('/inventory/repair', [InventoryController::class, 'repair']);
 
     Route::get('/quests', [QuestController::class, 'index']);
     Route::post('/quests/{quest}/claim', [QuestController::class, 'claim']);
@@ -121,6 +143,10 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
 
     Route::get('/achievements', [AchievementController::class, 'index']);
 
+    Route::get('/cosmetics', [CosmeticController::class, 'index']);
+    Route::post('/cosmetics/{cosmetic}/unlock', [CosmeticController::class, 'unlock']);
+    Route::post('/cosmetics/{cosmetic}/equip', [CosmeticController::class, 'equip']);
+
     Route::get('/friends', [FriendController::class, 'index']);
     Route::post('/friends/{target}/request', [FriendController::class, 'request']);
     Route::post('/friends/requests/{friendship}/accept', [FriendController::class, 'accept']);
@@ -130,6 +156,14 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::get('/friends/{target}/messages', [DirectMessageController::class, 'thread']);
     Route::post('/friends/{target}/messages', [DirectMessageController::class, 'send']);
 
+    Route::get('/party', [PartyController::class, 'index']);
+    Route::post('/party', [PartyController::class, 'store']);
+    Route::post('/party/invite/{target}', [PartyController::class, 'invite']);
+    Route::post('/party/invites/{invite}/accept', [PartyController::class, 'acceptInvite']);
+    Route::post('/party/invites/{invite}/decline', [PartyController::class, 'declineInvite']);
+    Route::post('/party/leave', [PartyController::class, 'leave']);
+    Route::post('/party/kick/{target}', [PartyController::class, 'kick']);
+
     Route::get('/pvp', [PvpController::class, 'index']);
     Route::post('/pvp/find-match', [PvpController::class, 'findMatch']);
     Route::post('/pvp/challenge/{opponent}', [PvpController::class, 'challenge']);
@@ -138,11 +172,17 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::post('/inbox/{mail}/read', [InboxController::class, 'read']);
     Route::post('/inbox/{mail}/dismiss', [InboxController::class, 'dismiss']);
 
+    Route::get('/support-tickets', [SupportTicketController::class, 'index']);
+    Route::post('/support-tickets', [SupportTicketController::class, 'store']);
+
     // Monetization
     Route::get('/store/gems', [StoreController::class, 'gems']);
+    Route::get('/store/gem-sinks', [StoreController::class, 'gemSinks']);
     Route::post('/store/checkout', [StoreController::class, 'checkout']);
     Route::get('/battlepass', [BattlePassController::class, 'index']);
     Route::post('/battlepass/unlock', [BattlePassController::class, 'unlock']);
+    Route::post('/battlepass/claim', [BattlePassController::class, 'claim']);
+    Route::post('/battlepass/claim-all', [BattlePassController::class, 'claimAll']);
     Route::get('/vip', [VipController::class, 'index']);
     Route::post('/vip/subscribe', [VipController::class, 'subscribe']);
 
@@ -168,5 +208,7 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
         Route::post('/tickets/{ticket}/resolve', [GmTicketController::class, 'resolve']);
 
         Route::post('/broadcast', [GmBroadcastController::class, 'store']);
+
+        Route::get('/audit-log', [GmAuditLogController::class, 'index']);
     });
 });

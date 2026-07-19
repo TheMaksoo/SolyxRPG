@@ -68,6 +68,14 @@
 .inbox-item__title {
   font-weight: 700;
   font-size: 14px;
+
+  &--positive {
+    color: v.$success;
+  }
+
+  &--negative {
+    color: v.$danger;
+  }
 }
 
 .inbox-item__body {

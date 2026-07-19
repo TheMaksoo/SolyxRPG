@@ -5,11 +5,17 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Character;
 use App\Models\Guild;
+use App\Services\AchievementService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class GuildController extends Controller
 {
+    public function __construct(
+        private AchievementService $achievements = new AchievementService(),
+    ) {
+    }
+
     private const ROLE_RANK = ['member' => 0, 'officer' => 1, 'master' => 2];
     /** Returns the character's own guild (roster + recent chat), or a browse list if not in one. */
     public function index(Request $request)
@@ -41,6 +47,7 @@ class GuildController extends Controller
 
         $guild = Guild::create([...$data, 'owner_id' => $character->id]);
         $guild->members()->create(['character_id' => $character->id, 'role' => 'master']);
+        $this->achievements->check($character->fresh());
 
         return response()->json(['guild' => $guild->fresh('members')], 201);
     }
@@ -56,6 +63,7 @@ class GuildController extends Controller
         }
 
         $guild->members()->create(['character_id' => $character->id, 'role' => 'member']);
+        $this->achievements->check($character->fresh());
 
         return response()->json(['guild' => $guild->fresh('members.character')]);
     }

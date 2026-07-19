@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Zone;
+use App\Services\QuestService;
 use Illuminate\Http\Request;
 
 class ZoneController extends Controller
 {
+    public function __construct(private QuestService $quests = new QuestService()) {}
+
     public function index(Request $request)
     {
         $character = $request->user()->character;
@@ -37,6 +40,7 @@ class ZoneController extends Controller
         }
 
         $character->update(['current_zone_id' => $zone->id]);
+        $this->quests->progress($character, 'zones_visited');
 
         return response()->json(['character' => $character->fresh('zone')]);
     }

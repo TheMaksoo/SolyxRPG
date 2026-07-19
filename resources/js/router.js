@@ -20,6 +20,7 @@ const PAGE_COMPONENT = {
   '/crafting': 'CraftingPage',
   '/guild': 'GuildPage',
   '/friends': 'FriendsPage',
+  '/party': 'PartyPage',
   '/pvp': 'PvpPage',
   '/leaderboard': 'LeaderboardPage',
   '/daily': 'DailyPage',
@@ -43,11 +44,17 @@ gameChildren.push(
     path: 'admin',
     name: 'admin',
     component: () => import('./pages/admin/GmConsole.vue'),
+    meta: { requiresGm: true },
   },
   {
     path: 'inbox',
     name: 'inbox',
     component: pageImport('InboxPage'),
+  },
+  {
+    path: 'characters/:id/profile',
+    name: 'public-profile',
+    component: pageImport('PublicProfilePage'),
   }
 );
 
@@ -97,7 +104,10 @@ router.beforeEach(async (to) => {
     const hasAnyCharacters = (auth.user?.characters?.length ?? 0) > 0;
     return hasAnyCharacters ? '/characters' : '/character/create';
   }
-  if (auth.isAuthenticated && auth.hasCharacter && (isCreate || isLanding)) {
+  if (auth.isAuthenticated && auth.hasCharacter && isLanding) {
+    return '/dashboard';
+  }
+  if (to.meta.requiresGm && !['gm', 'owner'].includes(auth.user?.role)) {
     return '/dashboard';
   }
 });
