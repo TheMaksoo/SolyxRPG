@@ -46,6 +46,10 @@ class ShopController extends Controller
             return response()->json(['message' => 'That item is not usable by your class.'], 422);
         }
 
+        if ($character->level < $item->min_level) {
+            return response()->json(['message' => "Requires level {$item->min_level}."], 422);
+        }
+
         if ($item->price_gold === null && $item->price_gems === null) {
             return response()->json(['message' => 'This item is not purchasable.'], 422);
         }

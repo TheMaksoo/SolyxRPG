@@ -42,6 +42,11 @@
   &--active {
     border-color: v.$accent;
   }
+
+  &--mystery {
+    border-style: dashed;
+    opacity: 0.65;
+  }
 }
 
 .pet-card__glyph {

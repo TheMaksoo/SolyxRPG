@@ -10,6 +10,7 @@ const invites = ref([]);
 const friends = ref([]);
 const message = ref('');
 const busy = ref(false);
+const chatBody = ref('');
 
 const BONUS_LABELS = {
   atk_pct: (v) => `+${v}% ATK`,
@@ -88,6 +89,13 @@ async function leaveParty() {
   } finally {
     busy.value = false;
   }
+}
+
+async function sendChat() {
+  if (!chatBody.value.trim()) return;
+  await api.post('/party/message', { body: chatBody.value.trim() });
+  chatBody.value = '';
+  await load();
 }
 
 async function kick(character) {
@@ -173,6 +181,22 @@ onMounted(() => {
         <button class="party-leave-btn" @click="leaveParty" :disabled="busy">
           {{ isLeader ? 'Disband Party' : 'Leave Party' }}
         </button>
+
+        <div class="party-chat">
+          <div v-for="m in [...(party.messages || [])].reverse()" :key="m.id" class="party-chat__line">
+            <strong>{{ m.character?.name }}:</strong> {{ m.body }}
+          </div>
+          <div v-if="!party.messages?.length" class="party-chat__empty">No messages yet.</div>
+        </div>
+        <div class="party-chat-input-row">
+          <input
+            v-model="chatBody"
+            @keyup.enter="sendChat"
+            placeholder="Message the party…"
+            class="party-chat-input"
+          />
+          <button @click="sendChat" class="party-chat-send">Send</button>
+        </div>
       </div>
 
       <div v-if="isLeader" class="party-invite-panel">

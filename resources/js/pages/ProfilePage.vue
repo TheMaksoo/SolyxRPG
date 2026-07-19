@@ -22,6 +22,40 @@ async function loadAchievements() {
   questsCompletedTarget.value = data.quests_completed;
 }
 
+// Achievements come in numeric tiers (e.g. battles_won: 1 → 50 → 300 → 1000 → 5000). Listing every
+// tier up front is a wall of text and spoils the ceiling before you're anywhere near it — instead we
+// show earned tiers plus just the next unearned one per family, and fold the rest into a "+N more"
+// teaser so there's always something further out to work toward.
+function achievementFamily(req) {
+  return req?.kind === 'trade_skill_level' ? `trade_skill_level:${req.skill_key}` : req?.kind;
+}
+
+const achievementView = computed(() => {
+  const groups = {};
+  for (const row of achievements.value) {
+    (groups[achievementFamily(row.achievement.requirement_json)] ??= []).push(row);
+  }
+
+  const visible = [];
+  let hiddenCount = 0;
+  for (const key in groups) {
+    const rows = [...groups[key]].sort(
+      (a, b) => (a.achievement.requirement_json?.target ?? 0) - (b.achievement.requirement_json?.target ?? 0)
+    );
+    let shownNextTier = false;
+    for (const row of rows) {
+      if (row.earned || !shownNextTier) {
+        visible.push(row);
+        if (!row.earned) shownNextTier = true;
+      } else {
+        hiddenCount++;
+      }
+    }
+  }
+
+  return { visible, hiddenCount };
+});
+
 async function loadCosmetics() {
   const { data } = await api.get('/cosmetics');
   cosmetics.value = data.cosmetics;
@@ -59,8 +93,13 @@ const COSMETIC_TYPES = [
   { key: 'icon', label: 'Profile Icons' },
 ];
 
+// Quest/event-earned cosmetics stay a mystery until unlocked — there's no purchase decision to
+// inform, so revealing the exact color/icon/title just spoils it. Gem-purchasable ones stay fully
+// visible since you need to see what you're buying.
 function cosmeticsOfType(type) {
-  return cosmetics.value.filter((row) => row.cosmetic.type === type);
+  return cosmetics.value
+    .filter((row) => row.cosmetic.type === type)
+    .map((row) => ({ ...row, mystery: !row.owned && !!(row.quest || row.event) }));
 }
 
 async function unlock(row) {
@@ -318,7 +357,7 @@ onMounted(() => {
       <div class="achievements-eyebrow">ACHIEVEMENTS</div>
       <div class="achievements-grid">
         <div
-          v-for="row in achievements"
+          v-for="row in achievementView.visible"
           :key="row.achievement.id"
           class="achievement-card"
           :class="{ 'achievement-card--earned': row.earned }"
@@ -326,6 +365,11 @@ onMounted(() => {
           <div class="achievement-card__glyph">{{ row.achievement.glyph }}</div>
           <div class="achievement-card__name">{{ row.achievement.name }}</div>
           <div class="achievement-card__desc">{{ row.achievement.description }}</div>
+        </div>
+        <div v-if="achievementView.hiddenCount > 0" class="achievement-card achievement-card--more">
+          <div class="achievement-card__glyph">❔</div>
+          <div class="achievement-card__name">+{{ achievementView.hiddenCount }} more</div>
+          <div class="achievement-card__desc">Higher tiers reveal themselves as you close in on them.</div>
         </div>
       </div>
     </template>
@@ -340,30 +384,37 @@ onMounted(() => {
             v-for="row in cosmeticsOfType(ct.key)"
             :key="row.cosmetic.id"
             class="cosmetic-card"
-            :class="{ 'cosmetic-card--active': row.active }"
+            :class="{ 'cosmetic-card--active': row.active, 'cosmetic-card--mystery': row.mystery }"
           >
-            <div
-              v-if="ct.key === 'color'"
-              class="cosmetic-card__swatch"
-              :style="{ background: row.cosmetic.value }"
-            ></div>
-            <div
-              v-else-if="ct.key === 'banner'"
-              class="cosmetic-card__swatch"
-              :style="{ background: row.cosmetic.value }"
-            ></div>
-            <div v-else-if="ct.key === 'icon'" class="cosmetic-card__icon-preview">{{ row.cosmetic.value }}</div>
-            <div v-else class="cosmetic-card__title-preview">{{ row.cosmetic.value }}</div>
+            <template v-if="row.mystery">
+              <div class="cosmetic-card__icon-preview">❔</div>
+              <div class="cosmetic-card__name">???</div>
+              <div class="cosmetic-card__cost cosmetic-card__cost--quest">🔒 Quest: {{ row.quest || 'complete the tutorial' }}</div>
+              <button class="cosmetic-card__btn" disabled>Complete quest to earn</button>
+            </template>
+            <template v-else>
+              <div
+                v-if="ct.key === 'color'"
+                class="cosmetic-card__swatch"
+                :style="{ background: row.cosmetic.value }"
+              ></div>
+              <div
+                v-else-if="ct.key === 'banner'"
+                class="cosmetic-card__swatch"
+                :style="{ background: row.cosmetic.value }"
+              ></div>
+              <div v-else-if="ct.key === 'icon'" class="cosmetic-card__icon-preview">{{ row.cosmetic.value }}</div>
+              <div v-else class="cosmetic-card__title-preview">{{ row.cosmetic.value }}</div>
 
-            <div class="cosmetic-card__name">{{ row.cosmetic.name }}</div>
-            <div v-if="row.quest" class="cosmetic-card__cost cosmetic-card__cost--quest">Quest: {{ row.quest }}</div>
-            <div v-else-if="row.cosmetic.cost_gems > 0" class="cosmetic-card__cost">💎 {{ row.cosmetic.cost_gems }}</div>
-            <div v-else class="cosmetic-card__cost">Free</div>
+              <div class="cosmetic-card__name">{{ row.cosmetic.name }}</div>
+              <div v-if="row.quest" class="cosmetic-card__cost cosmetic-card__cost--quest">Quest: {{ row.quest }}</div>
+              <div v-else-if="row.cosmetic.cost_gems > 0" class="cosmetic-card__cost">💎 {{ row.cosmetic.cost_gems }}</div>
+              <div v-else class="cosmetic-card__cost">Free</div>
 
-            <button v-if="row.active" class="cosmetic-card__btn cosmetic-card__btn--active" disabled>Equipped</button>
-            <button v-else-if="row.owned" class="cosmetic-card__btn" @click="equip(row)">Equip</button>
-            <button v-else-if="row.quest" class="cosmetic-card__btn" disabled>Complete quest to earn</button>
-            <button v-else class="cosmetic-card__btn" @click="unlock(row)">Unlock</button>
+              <button v-if="row.active" class="cosmetic-card__btn cosmetic-card__btn--active" disabled>Equipped</button>
+              <button v-else-if="row.owned" class="cosmetic-card__btn" @click="equip(row)">Equip</button>
+              <button v-else class="cosmetic-card__btn" @click="unlock(row)">Unlock</button>
+            </template>
           </div>
         </div>
       </div>

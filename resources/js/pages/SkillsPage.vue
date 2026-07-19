@@ -76,9 +76,13 @@ const branches = computed(() => {
           effectDescription: owned?.effect_description,
           nextEffectDescription: owned?.next_rank_effect_description,
           locked: !unlocked && (!prevUnlocked || !levelOk),
+          // A skill you've already unlocked the prerequisite for just needs more levels — worth
+          // teasing with its real name/effect. One buried behind an un-unlocked prior skill stays
+          // a full mystery so the branch doesn't spoil itself top to bottom.
+          mystery: !unlocked && !prevUnlocked,
           rankLocked: unlocked && !maxed && !nextRankLevelOk,
           nextRankLevel,
-          reqText: !prevUnlocked ? 'Unlock previous skill first' : `Requires level ${skill.level_req}`,
+          reqText: !prevUnlocked ? '🔒 Unlock previous skill first' : `🔒 Requires level ${skill.level_req}`,
         };
       }),
   }));
@@ -213,21 +217,23 @@ onMounted(load);
               @click="(nd.canUnlock || nd.canUpgrade) && unlockSkill(nd)"
               :disabled="!nd.canUnlock && !nd.canUpgrade"
               class="skill-node-btn"
-              :class="{ 'is-unlocked': nd.unlocked }"
+              :class="{ 'is-unlocked': nd.unlocked, 'is-mystery': nd.mystery }"
             >
-              <div class="skill-node-btn__glyph">{{ nd.skill.glyph }}</div>
+              <div class="skill-node-btn__glyph">{{ nd.mystery ? '❔' : nd.skill.glyph }}</div>
               <div class="skill-node-btn__name">
-                {{ nd.skill.name }}
+                {{ nd.mystery ? '???' : nd.skill.name }}
                 <span v-if="nd.unlocked" class="skill-node-btn__rank">Rank {{ nd.level }}/{{ nd.skill.max_level }}</span>
               </div>
-              <div class="skill-node-btn__desc">{{ nd.skill.description }}</div>
-              <div class="skill-node-btn__cost">{{ nd.skill.mp_cost > 0 ? `${nd.skill.mp_cost} MP` : 'Passive' }}</div>
-              <div class="skill-node-btn__exact">
-                {{ nd.unlocked ? nd.effectDescription : nd.skill.preview_effect }}
-              </div>
-              <div v-if="nd.unlocked && nd.nextEffectDescription" class="skill-node-btn__next">
-                Next rank: {{ nd.nextEffectDescription }}
-              </div>
+              <template v-if="!nd.mystery">
+                <div class="skill-node-btn__desc">{{ nd.skill.description }}</div>
+                <div class="skill-node-btn__cost">{{ nd.skill.mp_cost > 0 ? `${nd.skill.mp_cost} MP` : 'Passive' }}</div>
+                <div class="skill-node-btn__exact">
+                  {{ nd.unlocked ? nd.effectDescription : nd.skill.preview_effect }}
+                </div>
+                <div v-if="nd.unlocked && nd.nextEffectDescription" class="skill-node-btn__next">
+                  Next rank: {{ nd.nextEffectDescription }}
+                </div>
+              </template>
               <div
                 class="skill-node-btn__status"
                 :class="{ 'is-unlocked': nd.unlocked, 'is-available': nd.canUnlock || nd.canUpgrade }"

@@ -71,6 +71,11 @@
   @include m.card(16px);
   display: flex;
   flex-direction: column;
+
+  &--mystery {
+    border-style: dashed;
+    opacity: 0.6;
+  }
 }
 
 .shop-item__header {

@@ -48,169 +48,174 @@ Route::get('/wiki', [WikiController::class, 'index']);
 Route::get('/stats/public', [StatsController::class, 'public']);
 
 // Auth
-Route::middleware('web')->group(function () {
-    Route::post('/auth/register', [AuthController::class, 'register']);
-    Route::post('/auth/login', [AuthController::class, 'login']);
-    Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
-    Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
-    Route::get('/auth/{provider}/redirect', [SocialiteController::class, 'redirect'])->whereIn('provider', ['discord', 'google', 'apple']);
-    Route::get('/auth/{provider}/callback', [SocialiteController::class, 'callback'])->whereIn('provider', ['discord', 'google', 'apple']);
-    
-    // Stripe webhook — no auth, verified by signature instead
-    Route::post('/store/webhook', [StoreController::class, 'webhook']);
-    
-    Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
-        Route::post('/auth/logout', [AuthController::class, 'logout']);
-        Route::get('/me', [AuthController::class, 'me']);
-        Route::get('/announcements', [AnnouncementController::class, 'index']);
-        Route::get('/nav-badges', [NavBadgeController::class, 'index']);
-    
-        Route::get('/character', [CharacterController::class, 'show']);
-        Route::post('/character', [CharacterController::class, 'store']);
-        Route::post('/character/attributes', [CharacterController::class, 'spendAttribute']);
-        Route::post('/character/skills/{skill}', [CharacterController::class, 'unlockSkill']);
-        Route::post('/character/profession', [CharacterController::class, 'chooseProfession']);
-        Route::post('/character/tutorial/dismiss', [CharacterController::class, 'dismissTutorial']);
-        Route::post('/character/tutorial/restart', [CharacterController::class, 'restartTutorial']);
-    
-        Route::get('/characters', [CharacterController::class, 'index']);
-        Route::post('/characters/{character}/select', [CharacterController::class, 'select']);
-        Route::delete('/characters/{character}', [CharacterController::class, 'destroy']);
-        Route::post('/characters/slots/unlock', [CharacterController::class, 'unlockSlot']);
-        Route::get('/characters/{character}/profile', [CharacterController::class, 'publicProfile']);
-    
-        Route::get('/skills', [SkillController::class, 'index']);
-        Route::get('/class-progressions', [ClassProgressionController::class, 'index']);
-    
-        Route::get('/zones', [ZoneController::class, 'index']);
-        Route::post('/zones/{zone}/travel', [ZoneController::class, 'travel']);
-    
-        Route::get('/chat/world', [WorldChatController::class, 'index']);
-        Route::post('/chat/world', [WorldChatController::class, 'send'])->middleware('throttle:20,1');
-    
-        Route::get('/battle/active', [BattleController::class, 'active']);
-        Route::post('/battle/walk', [BattleController::class, 'walk']);
-        Route::get('/battle/{battle}', [BattleController::class, 'show']);
-        Route::post('/battle/{battle}/action', [BattleController::class, 'action']);
-    
-        Route::get('/auto-battle', [AutoBattleController::class, 'show']);
-        Route::post('/auto-battle/purchase', [AutoBattleController::class, 'purchase']);
-    
-        Route::get('/auto-gather', [AutoGatherController::class, 'show']);
-        Route::post('/auto-gather/purchase', [AutoGatherController::class, 'purchase']);
-    
-        Route::get('/dungeons', [DungeonController::class, 'index']);
-        Route::post('/dungeons/{dungeon}/enter', [DungeonController::class, 'enter']);
-    
-        Route::get('/shop', [ShopController::class, 'index']);
-        Route::post('/shop/buy', [ShopController::class, 'buy']);
-    
-        Route::get('/inventory', [InventoryController::class, 'index']);
-        Route::post('/inventory/equip', [InventoryController::class, 'equip']);
-        Route::post('/inventory/unequip', [InventoryController::class, 'unequip']);
-        Route::post('/inventory/scrap', [InventoryController::class, 'scrap']);
-        Route::post('/inventory/use', [InventoryController::class, 'use']);
-        Route::post('/inventory/repair', [InventoryController::class, 'repair']);
-    
-        Route::get('/quests', [QuestController::class, 'index']);
-        Route::post('/quests/{quest}/claim', [QuestController::class, 'claim']);
-    
-        Route::get('/crafting/recipes', [CraftingController::class, 'index']);
-        Route::post('/crafting/{recipe}/craft', [CraftingController::class, 'craft']);
-        Route::get('/crafting/queue', [CraftingController::class, 'queue']);
-        Route::post('/crafting/jobs/{job}/collect', [CraftingController::class, 'collect']);
-    
-        Route::get('/trade-skills', [TradeSkillController::class, 'index']);
-        Route::post('/trade-skills/{skillKey}/gather', [TradeSkillController::class, 'gather']);
-    
-        Route::get('/pets', [PetController::class, 'index']);
-        Route::post('/pets/{pet}/unlock', [PetController::class, 'unlock']);
-        Route::post('/pets/{pet}/activate', [PetController::class, 'activate']);
-    
-        Route::get('/guild', [GuildController::class, 'index']);
-        Route::post('/guild', [GuildController::class, 'store']);
-        Route::post('/guild/{guild}/join', [GuildController::class, 'join']);
-        Route::post('/guild/{guild}/message', [GuildController::class, 'message']);
-        Route::post('/guild/{guild}/deposit', [GuildController::class, 'deposit']);
-        Route::post('/guild/{guild}/withdraw', [GuildController::class, 'withdraw']);
-        Route::post('/guild/{guild}/members/{target}/promote', [GuildController::class, 'promote']);
-        Route::post('/guild/{guild}/members/{target}/kick', [GuildController::class, 'kick']);
-        Route::post('/guild/{guild}/leave', [GuildController::class, 'leave']);
-    
-        Route::get('/leaderboard', [LeaderboardController::class, 'index']);
-    
-        Route::get('/daily', [DailyController::class, 'index']);
-        Route::post('/daily/claim', [DailyController::class, 'claim']);
-    
-        Route::get('/achievements', [AchievementController::class, 'index']);
-    
-        Route::get('/cosmetics', [CosmeticController::class, 'index']);
-        Route::post('/cosmetics/{cosmetic}/unlock', [CosmeticController::class, 'unlock']);
-        Route::post('/cosmetics/{cosmetic}/equip', [CosmeticController::class, 'equip']);
-    
-        Route::get('/friends', [FriendController::class, 'index']);
-        Route::post('/friends/{target}/request', [FriendController::class, 'request']);
-        Route::post('/friends/requests/{friendship}/accept', [FriendController::class, 'accept']);
-        Route::post('/friends/requests/{friendship}/decline', [FriendController::class, 'decline']);
-        Route::delete('/friends/{target}', [FriendController::class, 'remove']);
-        Route::post('/friends/{target}/favorite', [FriendController::class, 'toggleFavorite']);
-        Route::get('/friends/{target}/messages', [DirectMessageController::class, 'thread']);
-        Route::post('/friends/{target}/messages', [DirectMessageController::class, 'send']);
-    
-        Route::get('/party', [PartyController::class, 'index']);
-        Route::post('/party', [PartyController::class, 'store']);
-        Route::post('/party/invite/{target}', [PartyController::class, 'invite']);
-        Route::post('/party/invites/{invite}/accept', [PartyController::class, 'acceptInvite']);
-        Route::post('/party/invites/{invite}/decline', [PartyController::class, 'declineInvite']);
-        Route::post('/party/leave', [PartyController::class, 'leave']);
-        Route::post('/party/kick/{target}', [PartyController::class, 'kick']);
-    
-        Route::get('/pvp', [PvpController::class, 'index']);
-        Route::post('/pvp/find-match', [PvpController::class, 'findMatch']);
-        Route::post('/pvp/challenge/{opponent}', [PvpController::class, 'challenge']);
-    
-        Route::get('/inbox', [InboxController::class, 'index']);
-        Route::post('/inbox/{mail}/read', [InboxController::class, 'read']);
-        Route::post('/inbox/{mail}/dismiss', [InboxController::class, 'dismiss']);
-    
-        Route::get('/support-tickets', [SupportTicketController::class, 'index']);
-        Route::post('/support-tickets', [SupportTicketController::class, 'store']);
-    
-        // Monetization
-        Route::get('/store/gems', [StoreController::class, 'gems']);
-        Route::get('/store/gem-sinks', [StoreController::class, 'gemSinks']);
-        Route::post('/store/checkout', [StoreController::class, 'checkout']);
-        Route::get('/battlepass', [BattlePassController::class, 'index']);
-        Route::post('/battlepass/unlock', [BattlePassController::class, 'unlock']);
-        Route::post('/battlepass/claim', [BattlePassController::class, 'claim']);
-        Route::post('/battlepass/claim-all', [BattlePassController::class, 'claimAll']);
-        Route::get('/vip', [VipController::class, 'index']);
-        Route::post('/vip/subscribe', [VipController::class, 'subscribe']);
+// Note: no explicit 'web' middleware group here — bootstrap/app.php's statefulApi() already runs
+// Sanctum's EnsureFrontendRequestsAreStateful for every route in this file, which internally applies
+// the same session/CSRF/cookie-encryption pipeline as the 'web' group. Wrapping these routes in an
+// additional Route::middleware('web') group ran that whole pipeline (StartSession, VerifyCsrfToken,
+// EncryptCookies) a second time, nested, per request — corrupting session/CSRF state unpredictably
+// and causing intermittent "Unauthenticated" errors on otherwise-valid, freshly-logged-in requests.
+Route::post('/auth/register', [AuthController::class, 'register']);
+Route::post('/auth/login', [AuthController::class, 'login']);
+Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+Route::get('/auth/{provider}/redirect', [SocialiteController::class, 'redirect'])->whereIn('provider', ['discord', 'google', 'apple']);
+Route::get('/auth/{provider}/callback', [SocialiteController::class, 'callback'])->whereIn('provider', ['discord', 'google', 'apple']);
 
-        // GM console
-        Route::middleware('gm')->prefix('gm')->group(function () {
-            Route::get('/{resource}', [GmContentController::class, 'index'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events');
-            Route::post('/{resource}', [GmContentController::class, 'store'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events');
-            Route::put('/{resource}/{id}', [GmContentController::class, 'update'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events');
-            Route::delete('/{resource}/{id}', [GmContentController::class, 'destroy'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events');
-    
-            Route::get('/feature-flags', [GmFeatureFlagController::class, 'index']);
-            Route::put('/feature-flags/{flag}', [GmFeatureFlagController::class, 'update']);
-    
-            Route::get('/config', [GmConfigController::class, 'index']);
-            Route::put('/config/{key}', [GmConfigController::class, 'update']);
-    
-            Route::get('/players', [GmPlayerController::class, 'index']);
-            Route::post('/players/{user}/grant', [GmPlayerController::class, 'grant']);
-            Route::post('/players/{user}/ban', [GmPlayerController::class, 'ban']);
-            Route::post('/players/{user}/mail', [GmPlayerController::class, 'mail']);
-    
-            Route::get('/tickets', [GmTicketController::class, 'index']);
-            Route::post('/tickets/{ticket}/resolve', [GmTicketController::class, 'resolve']);
-    
-            Route::post('/broadcast', [GmBroadcastController::class, 'store']);
-    
-            Route::get('/audit-log', [GmAuditLogController::class, 'index']);
-        });
+// Stripe webhook — no auth, verified by signature instead
+Route::post('/store/webhook', [StoreController::class, 'webhook']);
+
+Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
+    Route::post('/auth/logout', [AuthController::class, 'logout']);
+    Route::get('/me', [AuthController::class, 'me']);
+    Route::get('/announcements', [AnnouncementController::class, 'index']);
+    Route::get('/nav-badges', [NavBadgeController::class, 'index']);
+
+    Route::get('/character', [CharacterController::class, 'show']);
+    Route::post('/character', [CharacterController::class, 'store']);
+    Route::post('/character/attributes', [CharacterController::class, 'spendAttribute']);
+    Route::post('/character/skills/{skill}', [CharacterController::class, 'unlockSkill']);
+    Route::post('/character/profession', [CharacterController::class, 'chooseProfession']);
+    Route::post('/character/tutorial/dismiss', [CharacterController::class, 'dismissTutorial']);
+    Route::post('/character/tutorial/restart', [CharacterController::class, 'restartTutorial']);
+
+    Route::get('/characters', [CharacterController::class, 'index']);
+    Route::post('/characters/{character}/select', [CharacterController::class, 'select']);
+    Route::delete('/characters/{character}', [CharacterController::class, 'destroy']);
+    Route::post('/characters/slots/unlock', [CharacterController::class, 'unlockSlot']);
+    Route::get('/characters/{character}/profile', [CharacterController::class, 'publicProfile']);
+
+    Route::get('/skills', [SkillController::class, 'index']);
+    Route::get('/class-progressions', [ClassProgressionController::class, 'index']);
+
+    Route::get('/zones', [ZoneController::class, 'index']);
+    Route::post('/zones/{zone}/travel', [ZoneController::class, 'travel']);
+
+    Route::get('/chat/world', [WorldChatController::class, 'index']);
+    Route::post('/chat/world', [WorldChatController::class, 'send'])->middleware('throttle:20,1');
+
+    Route::get('/battle/active', [BattleController::class, 'active']);
+    Route::post('/battle/walk', [BattleController::class, 'walk']);
+    Route::get('/battle/{battle}', [BattleController::class, 'show']);
+    Route::post('/battle/{battle}/action', [BattleController::class, 'action']);
+
+    Route::get('/auto-battle', [AutoBattleController::class, 'show']);
+    Route::post('/auto-battle/purchase', [AutoBattleController::class, 'purchase']);
+
+    Route::get('/auto-gather', [AutoGatherController::class, 'show']);
+    Route::post('/auto-gather/purchase', [AutoGatherController::class, 'purchase']);
+
+    Route::get('/dungeons', [DungeonController::class, 'index']);
+    Route::post('/dungeons/{dungeon}/enter', [DungeonController::class, 'enter']);
+
+    Route::get('/shop', [ShopController::class, 'index']);
+    Route::post('/shop/buy', [ShopController::class, 'buy']);
+
+    Route::get('/inventory', [InventoryController::class, 'index']);
+    Route::post('/inventory/equip', [InventoryController::class, 'equip']);
+    Route::post('/inventory/unequip', [InventoryController::class, 'unequip']);
+    Route::post('/inventory/scrap', [InventoryController::class, 'scrap']);
+    Route::post('/inventory/use', [InventoryController::class, 'use']);
+    Route::post('/inventory/repair', [InventoryController::class, 'repair']);
+
+    Route::get('/quests', [QuestController::class, 'index']);
+    Route::post('/quests/{quest}/claim', [QuestController::class, 'claim']);
+
+    Route::get('/crafting/recipes', [CraftingController::class, 'index']);
+    Route::post('/crafting/{recipe}/craft', [CraftingController::class, 'craft']);
+    Route::get('/crafting/queue', [CraftingController::class, 'queue']);
+    Route::post('/crafting/jobs/{job}/collect', [CraftingController::class, 'collect']);
+
+    Route::get('/trade-skills', [TradeSkillController::class, 'index']);
+    Route::post('/trade-skills/{skillKey}/gather', [TradeSkillController::class, 'gather']);
+
+    Route::get('/pets', [PetController::class, 'index']);
+    Route::post('/pets/{pet}/unlock', [PetController::class, 'unlock']);
+    Route::post('/pets/{pet}/activate', [PetController::class, 'activate']);
+
+    Route::get('/guild', [GuildController::class, 'index']);
+    Route::post('/guild', [GuildController::class, 'store']);
+    Route::post('/guild/{guild}/join', [GuildController::class, 'join']);
+    Route::post('/guild/{guild}/message', [GuildController::class, 'message']);
+    Route::post('/guild/{guild}/deposit', [GuildController::class, 'deposit']);
+    Route::post('/guild/{guild}/withdraw', [GuildController::class, 'withdraw']);
+    Route::post('/guild/{guild}/members/{target}/promote', [GuildController::class, 'promote']);
+    Route::post('/guild/{guild}/members/{target}/kick', [GuildController::class, 'kick']);
+    Route::post('/guild/{guild}/leave', [GuildController::class, 'leave']);
+
+    Route::get('/leaderboard', [LeaderboardController::class, 'index']);
+
+    Route::get('/daily', [DailyController::class, 'index']);
+    Route::post('/daily/claim', [DailyController::class, 'claim']);
+
+    Route::get('/achievements', [AchievementController::class, 'index']);
+
+    Route::get('/cosmetics', [CosmeticController::class, 'index']);
+    Route::post('/cosmetics/{cosmetic}/unlock', [CosmeticController::class, 'unlock']);
+    Route::post('/cosmetics/{cosmetic}/equip', [CosmeticController::class, 'equip']);
+
+    Route::get('/friends', [FriendController::class, 'index']);
+    Route::post('/friends/{target}/request', [FriendController::class, 'request']);
+    Route::post('/friends/requests/{friendship}/accept', [FriendController::class, 'accept']);
+    Route::post('/friends/requests/{friendship}/decline', [FriendController::class, 'decline']);
+    Route::delete('/friends/{target}', [FriendController::class, 'remove']);
+    Route::post('/friends/{target}/favorite', [FriendController::class, 'toggleFavorite']);
+    Route::get('/friends/{target}/messages', [DirectMessageController::class, 'thread']);
+    Route::post('/friends/{target}/messages', [DirectMessageController::class, 'send']);
+
+    Route::get('/party', [PartyController::class, 'index']);
+    Route::post('/party', [PartyController::class, 'store']);
+    Route::post('/party/invite/{target}', [PartyController::class, 'invite']);
+    Route::post('/party/invites/{invite}/accept', [PartyController::class, 'acceptInvite']);
+    Route::post('/party/invites/{invite}/decline', [PartyController::class, 'declineInvite']);
+    Route::post('/party/message', [PartyController::class, 'message']);
+    Route::post('/party/leave', [PartyController::class, 'leave']);
+    Route::post('/party/kick/{target}', [PartyController::class, 'kick']);
+
+    Route::get('/pvp', [PvpController::class, 'index']);
+    Route::post('/pvp/find-match', [PvpController::class, 'findMatch']);
+    Route::post('/pvp/challenge/{opponent}', [PvpController::class, 'challenge']);
+
+    Route::get('/inbox', [InboxController::class, 'index']);
+    Route::post('/inbox/{mail}/read', [InboxController::class, 'read']);
+    Route::post('/inbox/{mail}/dismiss', [InboxController::class, 'dismiss']);
+
+    Route::get('/support-tickets', [SupportTicketController::class, 'index']);
+    Route::post('/support-tickets', [SupportTicketController::class, 'store']);
+
+    // Monetization
+    Route::get('/store/gems', [StoreController::class, 'gems']);
+    Route::get('/store/gem-sinks', [StoreController::class, 'gemSinks']);
+    Route::post('/store/checkout', [StoreController::class, 'checkout']);
+    Route::get('/battlepass', [BattlePassController::class, 'index']);
+    Route::post('/battlepass/unlock', [BattlePassController::class, 'unlock']);
+    Route::post('/battlepass/claim', [BattlePassController::class, 'claim']);
+    Route::post('/battlepass/claim-all', [BattlePassController::class, 'claimAll']);
+    Route::get('/vip', [VipController::class, 'index']);
+    Route::post('/vip/subscribe', [VipController::class, 'subscribe']);
+
+    // GM console
+    Route::middleware('gm')->prefix('gm')->group(function () {
+        Route::get('/{resource}', [GmContentController::class, 'index'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events');
+        Route::post('/{resource}', [GmContentController::class, 'store'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events');
+        Route::put('/{resource}/{id}', [GmContentController::class, 'update'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events');
+        Route::delete('/{resource}/{id}', [GmContentController::class, 'destroy'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events');
+
+        Route::get('/feature-flags', [GmFeatureFlagController::class, 'index']);
+        Route::put('/feature-flags/{flag}', [GmFeatureFlagController::class, 'update']);
+
+        Route::get('/config', [GmConfigController::class, 'index']);
+        Route::put('/config/{key}', [GmConfigController::class, 'update']);
+
+        Route::get('/players', [GmPlayerController::class, 'index']);
+        Route::post('/players/{user}/grant', [GmPlayerController::class, 'grant']);
+        Route::post('/players/{user}/ban', [GmPlayerController::class, 'ban']);
+        Route::post('/players/{user}/mail', [GmPlayerController::class, 'mail']);
+
+        Route::get('/tickets', [GmTicketController::class, 'index']);
+        Route::post('/tickets/{ticket}/resolve', [GmTicketController::class, 'resolve']);
+
+        Route::post('/broadcast', [GmBroadcastController::class, 'store']);
+
+        Route::get('/audit-log', [GmAuditLogController::class, 'index']);
     });
 });

@@ -24,7 +24,14 @@ const tabs = [
   { key: 'cosmetic', label: 'Cosmetics', glyph: '👑' },
 ];
 
-const filtered = computed(() => items.value.filter((i) => i.type === tab.value));
+// Higher rarities are gated by level (see items.min_level) — below that level the item is a mystery
+// rather than a fully-revealed thing you simply can't afford yet, so the rarer tiers stay something to
+// look forward to instead of a wall of unaffordable-but-fully-spoiled gear.
+const filtered = computed(() =>
+  items.value
+    .filter((i) => i.type === tab.value)
+    .map((i) => ({ ...i, mystery: (auth.user?.character?.level ?? 0) < i.min_level }))
+);
 
 function canAfford(item) {
   const character = auth.user?.character;
@@ -88,24 +95,35 @@ onMounted(load);
         v-for="item in filtered"
         :key="item.id"
         class="shop-item-card"
+        :class="{ 'shop-item-card--mystery': item.mystery }"
       >
-        <div class="shop-item__header">
-          <span class="shop-item__glyph">{{ item.glyph }}</span>
-          <span class="ox shop-item__name">{{ item.name }}</span>
-          <span class="shop-item__rarity" :style="{ color: RARITY_COLORS[item.rarity] }">{{ RARITY_LABELS[item.rarity] }}</span>
-        </div>
-        <div v-if="formatStats(item.stat_json).length" class="shop-item__stats">
-          <span v-for="stat in formatStats(item.stat_json)" :key="stat" class="shop-item__stat">{{ stat }}</span>
-        </div>
-        <div class="shop-item__desc">{{ item.description }}</div>
-        <button
-          @click="buy(item)"
-          :disabled="loading || !canAfford(item)"
-          class="shop-buy-btn"
-          :class="{ 'shop-buy-btn--gems': !item.price_gold }"
-        >
-          Buy — {{ item.price_gold ? `🪙 ${item.price_gold}` : `◆ ${item.price_gems}` }}
-        </button>
+        <template v-if="item.mystery">
+          <div class="shop-item__header">
+            <span class="shop-item__glyph">❔</span>
+            <span class="ox shop-item__name">???</span>
+            <span class="shop-item__rarity" :style="{ color: RARITY_COLORS[item.rarity] }">{{ RARITY_LABELS[item.rarity] }}</span>
+          </div>
+          <div class="shop-item__desc">🔒 Unlocks at level {{ item.min_level }}</div>
+        </template>
+        <template v-else>
+          <div class="shop-item__header">
+            <span class="shop-item__glyph">{{ item.glyph }}</span>
+            <span class="ox shop-item__name">{{ item.name }}</span>
+            <span class="shop-item__rarity" :style="{ color: RARITY_COLORS[item.rarity] }">{{ RARITY_LABELS[item.rarity] }}</span>
+          </div>
+          <div v-if="formatStats(item.stat_json).length" class="shop-item__stats">
+            <span v-for="stat in formatStats(item.stat_json)" :key="stat" class="shop-item__stat">{{ stat }}</span>
+          </div>
+          <div class="shop-item__desc">{{ item.description }}</div>
+          <button
+            @click="buy(item)"
+            :disabled="loading || !canAfford(item)"
+            class="shop-buy-btn"
+            :class="{ 'shop-buy-btn--gems': !item.price_gold }"
+          >
+            Buy — {{ item.price_gold ? `🪙 ${item.price_gold}` : `◆ ${item.price_gems}` }}
+          </button>
+        </template>
       </div>
       <div v-if="!filtered.length" class="shop-empty">Nothing here yet.</div>
     </div>

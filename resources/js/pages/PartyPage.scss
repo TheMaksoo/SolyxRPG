@@ -230,3 +230,47 @@
   font-size: 12px;
   font-weight: 700;
 }
+
+.party-chat {
+  background: v.$bg-input;
+  border-radius: v.$radius-md;
+  padding: 14px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 14px 0 12px;
+}
+
+.party-chat__line {
+  font-size: 12.5px;
+  margin-bottom: 6px;
+}
+
+.party-chat__empty {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 12.5px;
+}
+
+.party-chat-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.party-chat-input {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: v.$radius-md;
+  border: 1px solid v.$border-medium;
+  background: v.$bg-card;
+  color: #fff;
+  font-size: 13.5px;
+}
+
+.party-chat-send {
+  padding: 10px 18px;
+  border-radius: v.$radius-md;
+  border: none;
+  background: v.$accent;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}

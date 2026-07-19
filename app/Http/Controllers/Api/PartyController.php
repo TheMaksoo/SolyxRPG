@@ -20,7 +20,7 @@ class PartyController extends Controller
         $character = $request->user()->character;
         abort_unless($character, 404);
 
-        $party = $character->partyMembership?->party?->load(['members.character.activeTitle', 'leader']);
+        $party = $character->partyMembership?->party?->load(['members.character.activeTitle', 'leader', 'messages' => fn ($q) => $q->limit(50)->with('character')]);
         $invites = PartyInvite::where('character_id', $character->id)->with(['party.leader', 'inviter'])->get();
 
         return response()->json([
@@ -112,6 +112,25 @@ class PartyController extends Controller
         }
 
         return response()->json(['message' => 'Left the party.']);
+    }
+
+    public function message(Request $request)
+    {
+        $character = $request->user()->character;
+        abort_unless($character, 404);
+
+        $party = $character->partyMembership?->party;
+        abort_unless($party, 422, 'You are not in a party.');
+
+        $data = $request->validate(['body' => ['required', 'string', 'max:500']]);
+
+        $message = $party->messages()->create([
+            'character_id' => $character->id,
+            'body' => $data['body'],
+            'created_at' => now(),
+        ]);
+
+        return response()->json(['message_sent' => $message->load('character')]);
     }
 
     public function kick(Request $request, Character $target)
