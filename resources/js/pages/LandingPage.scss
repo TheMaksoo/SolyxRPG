@@ -191,12 +191,12 @@
     background: #fff;
     color: #1a1a1a;
   }
+}
 
-  &--apple {
-    background: #000;
-    color: #fff;
-    border: 1px solid v.$border-strong;
-  }
+.landing-oauth-btn__icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 .landing-auth-card__divider {

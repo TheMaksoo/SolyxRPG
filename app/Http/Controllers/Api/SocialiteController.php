@@ -58,9 +58,13 @@ class SocialiteController extends Controller
     private function loginOrRegister(string $provider, $oauthUser, ?SocialAccount $social)
     {
         $user = $social?->user ?: DB::transaction(function () use ($provider, $oauthUser) {
-            $user = User::create([
+            // No SocialAccount row yet for this provider+ID — but if this email already has a
+            // regular (or other-provider) account, attach this identity to it rather than trying
+            // to INSERT a second user with the same email, which fails on the unique constraint.
+            $email = $oauthUser->getEmail();
+            $user = ($email ? User::where('email', $email)->first() : null) ?: User::create([
                 'name' => $oauthUser->getName() ?: $oauthUser->getNickname() ?: 'Player',
-                'email' => $oauthUser->getEmail() ?: Str::uuid().'@solyx.local',
+                'email' => $email ?: Str::uuid().'@solyx.local',
                 'password' => null,
             ]);
 
