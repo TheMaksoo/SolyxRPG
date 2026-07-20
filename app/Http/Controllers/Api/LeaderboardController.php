@@ -4,11 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Models\Character;
 use App\Http\Controllers\Controller;
+use App\Models\FeatureFlag;
+use Illuminate\Http\Request;
 
 class LeaderboardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        abort_unless(FeatureFlag::gate('leaderboard', $request->user()), 403, 'The Leaderboard is not currently available.');
+
         $ranked = Character::with(['attributes_', 'inventory.item', 'user', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon'])
             ->get()
             ->map(fn (Character $c) => [

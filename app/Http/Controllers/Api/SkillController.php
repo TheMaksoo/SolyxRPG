@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\FeatureFlag;
 use App\Models\Skill;
 use App\Services\SkillService;
 use Illuminate\Http\Request;
@@ -15,6 +16,8 @@ class SkillController extends Controller
      * active character's base_class skills are returned. */
     public function index(Request $request)
     {
+        abort_unless(FeatureFlag::gate('skills', $request->user()), 403, 'Skills are not currently available.');
+
         $character = $request->user()->character;
 
         $skills = Skill::where('class_scope', $character?->base_class)->orderBy('tier')->get();

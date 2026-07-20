@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\CharacterPet;
+use App\Models\FeatureFlag;
 use App\Models\GemLedger;
 use App\Models\Pet;
 use App\Services\AchievementService;
@@ -27,6 +28,8 @@ class PetController extends Controller
 
     public function index(Request $request)
     {
+        abort_unless(FeatureFlag::gate('pets', $request->user()), 403, 'Companions are not currently available.');
+
         $character = $request->user()->character;
         abort_unless($character, 404);
 

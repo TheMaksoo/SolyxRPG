@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\FeatureFlag;
 use App\Models\Zone;
 use App\Services\QuestService;
 use Illuminate\Http\Request;
@@ -13,6 +14,8 @@ class ZoneController extends Controller
 
     public function index(Request $request)
     {
+        abort_unless(FeatureFlag::gate('world_map', $request->user()), 403, 'The World Map is not currently available.');
+
         $character = $request->user()->character;
 
         $zones = Zone::where('enabled', true)->orderBy('sort_order')->get()->map(function (Zone $zone) use ($character) {

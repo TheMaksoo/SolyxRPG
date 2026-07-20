@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Character;
 use App\Models\CharacterTradeSkill;
+use App\Models\FeatureFlag;
 use App\Models\GameConfig;
 use App\Models\Inventory;
 use App\Models\Item;
@@ -39,6 +40,8 @@ class TradeSkillController extends Controller
 
     public function index(Request $request)
     {
+        abort_unless(FeatureFlag::gate('trade_skills', $request->user()), 403, 'Gathering is not currently available.');
+
         $character = $request->user()->character;
         abort_unless($character, 404);
 

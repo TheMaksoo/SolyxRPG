@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\FeatureFlag;
 use App\Models\GemLedger;
 use App\Models\Inventory;
 use App\Models\Item;
@@ -18,6 +19,8 @@ class ShopController extends Controller
 
     public function index(Request $request)
     {
+        abort_unless(FeatureFlag::gate('shop', $request->user()), 403, 'The Shop is not currently available.');
+
         $tab = $request->query('tab');
         $character = $request->user()->character;
 

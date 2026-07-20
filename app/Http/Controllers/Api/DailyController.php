@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\DailyClaim;
+use App\Models\FeatureFlag;
 use App\Models\GemLedger;
 use App\Services\AchievementService;
 use App\Services\BattlePassService;
@@ -26,6 +27,8 @@ class DailyController extends Controller
 
     public function index(Request $request)
     {
+        abort_unless(FeatureFlag::gate('daily', $request->user()), 403, 'Daily rewards are not currently available.');
+
         $character = $request->user()->character;
         abort_unless($character, 404);
 

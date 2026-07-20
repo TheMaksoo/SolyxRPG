@@ -12,7 +12,7 @@ class WorldChatController extends Controller
     {
         $messages = WorldMessage::with('character.user')
             ->latest('created_at')
-            ->limit(50)
+            ->limit(10)
             ->get()
             ->reverse()
             ->values()
@@ -20,6 +20,9 @@ class WorldChatController extends Controller
 
         return response()->json(['messages' => $messages]);
     }
+
+    /** How many world messages to retain — old ones are pruned on every send so the table never grows unbounded. */
+    private const RETAIN = 100;
 
     public function send(Request $request)
     {
@@ -34,7 +37,17 @@ class WorldChatController extends Controller
             'created_at' => now(),
         ]);
 
+        $this->prune();
+
         return response()->json(['message_sent' => $this->withVipTier($message->load('character.user'))]);
+    }
+
+    private function prune(): void
+    {
+        $cutoffId = WorldMessage::orderByDesc('id')->skip(self::RETAIN)->take(1)->value('id');
+        if ($cutoffId) {
+            WorldMessage::where('id', '<=', $cutoffId)->delete();
+        }
     }
 
     private function withVipTier(WorldMessage $message): WorldMessage

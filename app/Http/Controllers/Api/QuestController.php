@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Character;
 use App\Models\CharacterQuest;
 use App\Models\Cosmetic;
+use App\Models\FeatureFlag;
 use App\Models\GemLedger;
 use App\Models\Quest;
 use App\Services\AchievementService;
@@ -23,6 +24,8 @@ class QuestController extends Controller
 
     public function index(Request $request)
     {
+        abort_unless(FeatureFlag::gate('quests', $request->user()), 403, 'Quests are not currently available.');
+
         $character = $request->user()->character;
         abort_unless($character, 404);
 

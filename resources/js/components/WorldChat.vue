@@ -1,16 +1,26 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, nextTick, onMounted, onUnmounted } from 'vue';
 import api from '../api/client';
 import VipBadge from './VipBadge.vue';
 
 const messages = ref([]);
 const body = ref('');
+const messagesEl = ref(null);
 let interval = null;
+
+function scrollToBottom() {
+  nextTick(() => {
+    if (messagesEl.value) messagesEl.value.scrollTop = messagesEl.value.scrollHeight;
+  });
+}
 
 async function load() {
   try {
     const { data } = await api.get('/chat/world');
-    messages.value = data.messages;
+    // Server already caps this at the last 10 messages — keep it capped client-side too in case
+    // that ever changes, and always pin the view to the newest message.
+    messages.value = data.messages.slice(-10);
+    scrollToBottom();
   } catch {
     // silent — chat is a non-critical side panel
   }
@@ -37,7 +47,7 @@ onUnmounted(() => {
 <template>
   <div class="world-chat">
     <div class="world-chat__header">World Chat</div>
-    <div class="world-chat__messages">
+    <div class="world-chat__messages" ref="messagesEl">
       <div v-for="m in messages" :key="m.id" class="world-chat__line">
         <strong>{{ m.character?.name }}:</strong>
         <VipBadge :tier="m.vip_tier" />

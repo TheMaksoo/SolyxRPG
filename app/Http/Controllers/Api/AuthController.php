@@ -69,7 +69,11 @@ class AuthController extends Controller
     /** Nav-gated feature keys — mirrors what each controller checks via FeatureFlag::gate(). Surfaced here
      * so the sidebar can hide a tab entirely (not just 403 on click) when LIVE is off and the player isn't
      * a tester, or when both LIVE and TESTERS are off for everyone. */
-    private const NAV_FLAG_KEYS = ['guilds', 'battle_pass', 'gem_store', 'dungeons', 'crafting', 'vip', 'cosmetics'];
+    private const NAV_FLAG_KEYS = [
+        'guilds', 'battle_pass', 'gem_store', 'dungeons', 'crafting', 'vip', 'cosmetics',
+        'shop', 'skills', 'trade_skills', 'pets', 'pvp', 'party', 'friends', 'leaderboard',
+        'daily', 'battle', 'quests', 'world_map', 'inventory',
+    ];
 
     public function me(Request $request)
     {

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Character;
+use App\Models\FeatureFlag;
 use App\Models\Inventory;
 use App\Models\Item;
 use App\Models\Recipe;
@@ -20,6 +21,8 @@ class InventoryController extends Controller
 
     public function index(Request $request)
     {
+        abort_unless(FeatureFlag::gate('inventory', $request->user()), 403, 'Inventory is not currently available.');
+
         $character = $request->user()->character;
         abort_unless($character, 404);
 

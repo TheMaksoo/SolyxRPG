@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Character;
+use App\Models\FeatureFlag;
 use App\Models\PvpMatch;
 use App\Models\PvpRecord;
 use App\Services\AchievementService;
@@ -18,6 +19,8 @@ class PvpController extends Controller
 
     public function index(Request $request)
     {
+        abort_unless(FeatureFlag::gate('pvp', $request->user()), 403, 'PvP Arena is not currently available.');
+
         $character = $request->user()->character;
         abort_unless($character, 404);
 

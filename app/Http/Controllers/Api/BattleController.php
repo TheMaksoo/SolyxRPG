@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Battle;
 use App\Models\DungeonRun;
+use App\Models\FeatureFlag;
 use App\Models\Monster;
 use App\Services\CombatService;
 use App\Services\DungeonService;
@@ -43,6 +44,10 @@ class BattleController extends Controller
     /** Walks into a fresh, randomly-graded encounter in the character's current zone — the only way to start a fight. */
     public function walk(Request $request)
     {
+        // Gated on starting a new fight only — resuming/acting on an already-active battle (active/show/action)
+        // stays reachable even if a GM flips this off, so nobody gets soft-locked mid-combat.
+        abort_unless(FeatureFlag::gate('battle', $request->user()), 403, 'Battle is not currently available.');
+
         $character = $request->user()->character;
         abort_unless($character, 404);
 

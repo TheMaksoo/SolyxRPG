@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Character;
 use App\Models\CharacterFavorite;
+use App\Models\FeatureFlag;
 use App\Models\Friendship;
 use App\Services\AchievementService;
 use Illuminate\Http\Request;
@@ -18,6 +19,8 @@ class FriendController extends Controller
 
     public function index(Request $request)
     {
+        abort_unless(FeatureFlag::gate('friends', $request->user()), 403, 'Friends are not currently available.');
+
         $character = $request->user()->character;
         abort_unless($character, 404);
 

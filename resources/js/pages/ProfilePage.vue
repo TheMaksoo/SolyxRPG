@@ -432,7 +432,8 @@ onMounted(() => {
               <div v-else-if="row.cosmetic.cost_gems > 0" class="cosmetic-card__cost">💎 {{ row.cosmetic.cost_gems }}</div>
               <div v-else class="cosmetic-card__cost">Free</div>
 
-              <button v-if="row.active" class="cosmetic-card__btn cosmetic-card__btn--active" disabled>Equipped</button>
+              <button v-if="auth.featureAccess.cosmetics === false" class="cosmetic-card__btn" disabled>Unavailable</button>
+              <button v-else-if="row.active" class="cosmetic-card__btn cosmetic-card__btn--active" disabled>Equipped</button>
               <button v-else-if="row.owned" class="cosmetic-card__btn" @click="equip(row)">Equip</button>
               <button v-else class="cosmetic-card__btn" @click="unlock(row)">Unlock</button>
             </template>
