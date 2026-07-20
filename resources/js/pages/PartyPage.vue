@@ -2,6 +2,8 @@
 import { ref, computed, onMounted } from 'vue';
 import api from '../api/client';
 import { useCharacterStore } from '../stores/character';
+import MentionInput from '../components/MentionInput.vue';
+import { renderChatBody, mentionsMe } from '../chatMentions';
 
 const characterStore = useCharacterStore();
 const party = ref(null);
@@ -11,6 +13,10 @@ const friends = ref([]);
 const message = ref('');
 const busy = ref(false);
 const chatBody = ref('');
+
+const mentionCandidates = computed(
+  () => party.value?.members?.map((m) => ({ id: m.character.id, name: m.character.name })) ?? []
+);
 
 const BONUS_LABELS = {
   atk_pct: (v) => `+${v}% ATK`,
@@ -157,7 +163,7 @@ onMounted(() => {
         <div class="party-roster">
           <div v-for="m in party.members" :key="m.id" class="party-member">
             <div class="party-member__info">
-              <span class="ox party-member__name">{{ m.character?.name }}</span>
+              <span class="ox party-member__name" :style="{ color: m.character?.active_color?.value }">{{ m.character?.name }}</span>
               <span v-if="m.character_id === party.leader_character_id" class="party-member__leader-badge">LEADER</span>
               <span class="party-member__meta">{{ m.character?.base_class }} · Lv.{{ m.character?.level }}</span>
             </div>
@@ -183,17 +189,24 @@ onMounted(() => {
         </button>
 
         <div class="party-chat">
-          <div v-for="m in [...(party.messages || [])].reverse()" :key="m.id" class="party-chat__line">
-            <strong>{{ m.character?.name }}:</strong> {{ m.body }}
+          <div
+            v-for="m in [...(party.messages || [])].reverse()"
+            :key="m.id"
+            class="party-chat__line"
+            :class="{ 'is-mention-me': mentionsMe(m.body, characterStore.character?.name) }"
+          >
+            <strong :style="{ color: m.character?.active_color?.value }">{{ m.character?.name }}:</strong>
+            <span v-html="renderChatBody(m.body, characterStore.character?.name)"></span>
           </div>
           <div v-if="!party.messages?.length" class="party-chat__empty">No messages yet.</div>
         </div>
         <div class="party-chat-input-row">
-          <input
+          <MentionInput
             v-model="chatBody"
-            @keyup.enter="sendChat"
+            :candidates="mentionCandidates"
             placeholder="Message the party…"
             class="party-chat-input"
+            @enter="sendChat"
           />
           <button @click="sendChat" class="party-chat-send">Send</button>
         </div>

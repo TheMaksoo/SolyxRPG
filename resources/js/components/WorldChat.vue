@@ -1,12 +1,26 @@
 <script setup>
-import { ref, nextTick, onMounted, onUnmounted } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import api from '../api/client';
 import VipBadge from './VipBadge.vue';
+import MentionInput from './MentionInput.vue';
+import { useCharacterStore } from '../stores/character';
+import { renderChatBody, mentionsMe } from '../chatMentions';
 
+const characterStore = useCharacterStore();
 const messages = ref([]);
 const body = ref('');
 const messagesEl = ref(null);
 let interval = null;
+
+// World chat has no fixed roster to draw @mention suggestions from — best effort using whoever's
+// visible in the last few messages.
+const mentionCandidates = computed(() => {
+  const seen = new Map();
+  for (const m of messages.value) {
+    if (m.character) seen.set(m.character.id, m.character.name);
+  }
+  return [...seen].map(([id, name]) => ({ id, name }));
+});
 
 function scrollToBottom() {
   nextTick(() => {
@@ -48,15 +62,27 @@ onUnmounted(() => {
   <div class="world-chat">
     <div class="world-chat__header">World Chat</div>
     <div class="world-chat__messages" ref="messagesEl">
-      <div v-for="m in messages" :key="m.id" class="world-chat__line">
-        <strong>{{ m.character?.name }}:</strong>
+      <div
+        v-for="m in messages"
+        :key="m.id"
+        class="world-chat__line"
+        :class="{ 'is-mention-me': mentionsMe(m.body, characterStore.character?.name) }"
+      >
+        <strong :style="{ color: m.character?.active_color?.value }">{{ m.character?.name }}:</strong>
         <VipBadge :tier="m.vip_tier" />
-        {{ m.body }}
+        <span v-html="renderChatBody(m.body, characterStore.character?.name)"></span>
       </div>
       <div v-if="!messages.length" class="world-chat__empty">No messages yet. Say hi!</div>
     </div>
     <div class="world-chat__input-row">
-      <input v-model="body" @keyup.enter="send" maxlength="300" placeholder="Say something…" class="world-chat__input" />
+      <MentionInput
+        v-model="body"
+        :candidates="mentionCandidates"
+        maxlength="300"
+        placeholder="Say something…"
+        class="world-chat__input"
+        @enter="send"
+      />
       <button @click="send" class="world-chat__send">Send</button>
     </div>
   </div>

@@ -38,3 +38,23 @@ a {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+// Global (unscoped) on purpose — chat messages render mentions via v-html, so scoped component
+// styles (which rely on a data-v-* attribute Vue never attaches to v-html content) can't reach them.
+.chat-mention {
+  background: #1b3a4a;
+  color: #8fdcfb;
+  border-radius: 4px;
+  padding: 0 3px;
+  font-weight: 600;
+
+  &--me {
+    background: #4a3a0e;
+    color: #ffd75e;
+  }
+}
+
+.is-mention-me {
+  background: rgba(234, 179, 8, 0.08);
+  border-radius: v.$radius-sm;
+}

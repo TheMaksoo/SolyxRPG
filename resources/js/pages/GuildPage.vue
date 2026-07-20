@@ -2,6 +2,8 @@
 import { ref, computed, onMounted } from 'vue';
 import api from '../api/client';
 import { useCharacterStore } from '../stores/character';
+import MentionInput from '../components/MentionInput.vue';
+import { renderChatBody, mentionsMe } from '../chatMentions';
 
 const characterStore = useCharacterStore();
 const guild = ref(null);
@@ -11,6 +13,10 @@ const message = ref('');
 const chatBody = ref('');
 const createForm = ref({ name: '', tag: '' });
 const bankForm = ref({ currency: 'gold', amount: '' });
+
+const mentionCandidates = computed(
+  () => guild.value?.members?.map((m) => ({ id: m.character.id, name: m.character.name })) ?? []
+);
 
 const myCharacterId = computed(() => characterStore.character?.id);
 const canWithdraw = computed(() => myRole.value === 'officer' || myRole.value === 'master');
@@ -142,7 +148,8 @@ onMounted(load);
           class="guild-member-row"
         >
           <span class="guild-member-chip">
-            {{ m.character?.name }} <span class="guild-member-chip__role">· {{ m.role }}</span>
+            <span :style="{ color: m.character?.active_color?.value }">{{ m.character?.name }}</span>
+            <span class="guild-member-chip__role">· {{ m.role }}</span>
           </span>
           <span v-if="canManage && m.character_id !== myCharacterId" class="guild-member-actions">
             <button
@@ -168,17 +175,24 @@ onMounted(load);
       <button @click="leave" class="guild-leave-btn">Leave guild</button>
 
       <div class="guild-chat">
-        <div v-for="m in [...(guild.messages || [])].reverse()" :key="m.id" class="guild-chat__line">
-          <strong>{{ m.character?.name }}:</strong> {{ m.body }}
+        <div
+          v-for="m in [...(guild.messages || [])].reverse()"
+          :key="m.id"
+          class="guild-chat__line"
+          :class="{ 'is-mention-me': mentionsMe(m.body, characterStore.character?.name) }"
+        >
+          <strong :style="{ color: m.character?.active_color?.value }">{{ m.character?.name }}:</strong>
+          <span v-html="renderChatBody(m.body, characterStore.character?.name)"></span>
         </div>
         <div v-if="!guild.messages?.length" class="guild-chat__empty">No messages yet.</div>
       </div>
       <div class="guild-chat-input-row">
-        <input
+        <MentionInput
           v-model="chatBody"
-          @keyup.enter="send"
+          :candidates="mentionCandidates"
           placeholder="Message the guild…"
           class="guild-chat-input"
+          @enter="send"
         />
         <button @click="send" class="guild-chat-send">Send</button>
       </div>

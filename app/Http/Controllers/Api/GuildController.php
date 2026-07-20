@@ -32,7 +32,11 @@ class GuildController extends Controller
             return response()->json(['guild' => null, 'browse' => Guild::withCount('members')->get()]);
         }
 
-        $guild = $membership->guild()->with(['members.character', 'messages' => fn ($q) => $q->latest('created_at')->limit(50)])->first();
+        $guild = $membership->guild()->with([
+            'members.character.activeColor',
+            'messages' => fn ($q) => $q->latest('created_at')->limit(50),
+            'messages.character.activeColor',
+        ])->first();
 
         return response()->json(['guild' => $guild, 'my_role' => $membership->role]);
     }
@@ -85,7 +89,7 @@ class GuildController extends Controller
             'created_at' => now(),
         ]);
 
-        return response()->json(['message_sent' => $message->load('character')]);
+        return response()->json(['message_sent' => $message->load('character.activeColor')]);
     }
 
     public function deposit(Request $request, Guild $guild)

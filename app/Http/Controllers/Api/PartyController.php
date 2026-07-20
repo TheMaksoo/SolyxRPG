@@ -23,7 +23,12 @@ class PartyController extends Controller
         $character = $request->user()->character;
         abort_unless($character, 404);
 
-        $party = $character->partyMembership?->party?->load(['members.character.activeTitle', 'leader', 'messages' => fn ($q) => $q->limit(50)->with('character')]);
+        $party = $character->partyMembership?->party?->load([
+            'members.character.activeTitle',
+            'members.character.activeColor',
+            'leader',
+            'messages' => fn ($q) => $q->limit(50)->with('character.activeColor'),
+        ]);
         $invites = PartyInvite::where('character_id', $character->id)->with(['party.leader', 'inviter'])->get();
 
         return response()->json([
@@ -133,7 +138,7 @@ class PartyController extends Controller
             'created_at' => now(),
         ]);
 
-        return response()->json(['message_sent' => $message->load('character')]);
+        return response()->json(['message_sent' => $message->load('character.activeColor')]);
     }
 
     public function kick(Request $request, Character $target)

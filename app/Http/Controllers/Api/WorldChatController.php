@@ -10,7 +10,7 @@ class WorldChatController extends Controller
 {
     public function index(Request $request)
     {
-        $messages = WorldMessage::with('character.user')
+        $messages = WorldMessage::with(['character.user', 'character.activeColor'])
             ->latest('created_at')
             ->limit(10)
             ->get()
@@ -39,7 +39,7 @@ class WorldChatController extends Controller
 
         $this->prune();
 
-        return response()->json(['message_sent' => $this->withVipTier($message->load('character.user'))]);
+        return response()->json(['message_sent' => $this->withVipTier($message->load(['character.user', 'character.activeColor']))]);
     }
 
     private function prune(): void
