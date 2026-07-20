@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import api from '../api/client';
+import { formatCents } from '../currency';
 
 const info = ref(null);
 const message = ref('');
@@ -107,7 +108,7 @@ onMounted(load);
         <div v-if="key === 'gold'" class="vip-tier-card__badge">MOST POPULAR</div>
         <div class="ox vip-tier-card__label">{{ tier.label }}</div>
         <div class="vip-tier-card__price">
-          <span class="ox vip-tier-card__price-amount">${{ (tier.price_cents / 100).toFixed(2) }}</span>
+          <span class="ox vip-tier-card__price-amount">{{ formatCents(tier.price_cents) }}</span>
           <span class="vip-tier-card__price-period">/mo</span>
         </div>
         <div class="vip-tier-card__perks">

@@ -144,7 +144,7 @@ class StoreController extends Controller
             'payment_method_types' => ['card'],
             'line_items' => [[
                 'price_data' => [
-                    'currency' => 'usd',
+                    'currency' => 'eur',
                     'product_data' => ['name' => $catalogEntry['label']],
                     'unit_amount' => $catalogEntry['price_cents'],
                 ],
@@ -152,6 +152,7 @@ class StoreController extends Controller
             ]],
             'client_reference_id' => (string) $request->user()->id,
             'metadata' => ['sku' => $sku, 'user_id' => $request->user()->id],
+            'automatic_tax' => ['enabled' => true],
             'success_url' => config('app.url').'/gem-store?checkout=success',
             'cancel_url' => config('app.url').'/gem-store?checkout=cancelled',
         ]);

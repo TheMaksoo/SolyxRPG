@@ -3,6 +3,7 @@ import { ref, onMounted, computed, watch } from 'vue';
 import api from '../api/client';
 import { useAuthStore } from '../stores/auth';
 import { useCharacterStore } from '../stores/character';
+import { formatCents } from '../currency';
 
 const auth = useAuthStore();
 const characterStore = useCharacterStore();
@@ -151,7 +152,7 @@ onMounted(async () => {
         <div class="gem-pack__icon">◆</div>
         <div class="ox gem-pack__label">{{ pack.gems }} Gems</div>
         <button @click="checkout(sku)" class="gem-pack__buy">
-          ${{ (pack.price_cents / 100).toFixed(2) }}
+          {{ formatCents(pack.price_cents) }}
         </button>
       </div>
     </div>
@@ -165,7 +166,7 @@ onMounted(async () => {
         </div>
       </div>
       <button @click="checkout('remove_ads')" class="remove-ads-card__buy">
-        ${{ (removeAds.price_cents / 100).toFixed(2) }}
+        {{ formatCents(removeAds.price_cents) }}
       </button>
     </div>
 
@@ -206,7 +207,7 @@ onMounted(async () => {
           {{ minutes }}m · 💎{{ autoBattle.costs[minutes] ?? '—' }}
         </button>
         <button class="auto-battle-store-card__option auto-battle-store-card__option--cash" @click="checkout('auto_battle_60')">
-          60m · $1.00
+          60m · {{ formatCents(100) }}
         </button>
       </div>
     </div>

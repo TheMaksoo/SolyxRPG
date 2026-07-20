@@ -73,7 +73,10 @@ class VipController extends Controller
                     'items' => [[
                         'id' => $subscription->items->data[0]->id,
                         'price_data' => [
-                            'currency' => 'usd',
+                            // Stripe locks a subscription's currency at creation — reusing whatever it
+                            // already bills in here (not the user's *current* currency setting) avoids
+                            // a rejected update if they changed their preference after subscribing.
+                            'currency' => $subscription->currency,
                             'product_data' => ['name' => $tier['label']],
                             'unit_amount' => $tier['price_cents'],
                             'recurring' => ['interval' => 'month'],
@@ -97,7 +100,7 @@ class VipController extends Controller
             'payment_method_types' => ['card'],
             'line_items' => [[
                 'price_data' => [
-                    'currency' => 'usd',
+                    'currency' => 'eur',
                     'product_data' => ['name' => $tier['label']],
                     'unit_amount' => $tier['price_cents'],
                     'recurring' => ['interval' => 'month'],
@@ -112,6 +115,7 @@ class VipController extends Controller
             'subscription_data' => [
                 'metadata' => ['vip_tier' => $data['tier'], 'user_id' => $request->user()->id],
             ],
+            'automatic_tax' => ['enabled' => true],
             'success_url' => config('app.url').'/vip?checkout=success',
             'cancel_url' => config('app.url').'/vip?checkout=cancelled',
         ]);

@@ -9,6 +9,7 @@ use App\Models\Character;
 use App\Models\CharacterAttribute;
 use App\Models\ClassProgression;
 use App\Models\Cosmetic;
+use App\Models\FeatureFlag;
 use App\Models\GemLedger;
 use App\Models\User;
 use App\Services\AttributeService;
@@ -347,15 +348,13 @@ class CharacterController extends Controller
         ]);
     }
 
-    /** Unlocks a skill at rank 1, or — if already unlocked — spends a skill point to upgrade its rank (up to the skill's max_level). */
+    /** Unlocks a skill at rank 1 (cost 1), or — if already unlocked — spends skill points to upgrade its
+     * rank (up to the skill's max_level). Each rank costs more than the last (rank N costs N points) so
+     * maxing a skill out is a real investment, not just N cheap clicks. */
     public function unlockSkill(Request $request, \App\Models\Skill $skill)
     {
         $character = $request->user()->character;
         abort_unless($character, 404);
-
-        if ($character->skill_points < 1) {
-            return response()->json(['message' => 'No skill points available.'], 422);
-        }
 
         if ($skill->class_scope !== $character->base_class) {
             return response()->json(['message' => 'That skill is not part of your class.'], 422);
@@ -372,16 +371,23 @@ class CharacterController extends Controller
             if ($character->level < $nextRankLevel) {
                 return response()->json(['message' => "Rank {$nextRank} requires level {$nextRankLevel}."], 422);
             }
+            $cost = $nextRank;
+            if ($character->skill_points < $cost) {
+                return response()->json(['message' => "Rank {$nextRank} costs {$cost} skill points."], 422);
+            }
             $existing->increment('level');
+            $character->decrement('skill_points', $cost);
         } else {
             if ($character->level < $skill->level_req) {
                 return response()->json(['message' => "Requires level {$skill->level_req}."], 422);
             }
+            if ($character->skill_points < 1) {
+                return response()->json(['message' => 'No skill points available.'], 422);
+            }
             $character->skills()->create(['skill_id' => $skill->id, 'unlocked_at' => now(), 'level' => 1]);
             $this->quests->progressSkillUnlock($character, $skill->key);
+            $character->decrement('skill_points');
         }
-
-        $character->decrement('skill_points');
 
         return response()->json(['character' => $character->fresh('skills.skill')]);
     }

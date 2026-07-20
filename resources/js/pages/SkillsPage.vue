@@ -58,11 +58,13 @@ const branches = computed(() => {
         const unlocked = !!owned;
         const prevUnlocked = i === 0 || unlockedById.value.has(arr[i - 1].id);
         const levelOk = (store.character?.level ?? 0) >= skill.level_req;
-        const hasPoints = (store.character?.skill_points ?? 0) > 0;
         const maxed = unlocked && owned.level >= skill.max_level;
         const nextRank = (owned?.level ?? 0) + 1;
         const nextRankLevel = skill.rank_levels?.[nextRank - 1] ?? skill.level_req;
         const nextRankLevelOk = (store.character?.level ?? 0) >= nextRankLevel;
+        // Rank N costs N skill points — unlocking (rank 1) is always 1 point.
+        const cost = unlocked ? nextRank : 1;
+        const hasPoints = (store.character?.skill_points ?? 0) >= cost;
         const canUnlock = !unlocked && prevUnlocked && levelOk && hasPoints;
         const canUpgrade = unlocked && !maxed && hasPoints && nextRankLevelOk;
 
@@ -71,6 +73,7 @@ const branches = computed(() => {
           unlocked,
           level: owned?.level ?? 0,
           maxed,
+          cost,
           canUnlock,
           canUpgrade,
           effectDescription: owned?.effect_description,
@@ -240,9 +243,9 @@ onMounted(load);
               >
                 {{
                   nd.maxed ? 'Max rank'
-                  : nd.canUpgrade ? 'Click to upgrade (+12%/rank)'
+                  : nd.canUpgrade ? `Click to upgrade — ${nd.cost} pts (+12%/rank)`
                   : nd.rankLocked ? `Rank ${nd.level + 1} requires level ${nd.nextRankLevel}`
-                  : nd.unlocked ? 'No skill points'
+                  : nd.unlocked ? `Need ${nd.cost} skill points`
                   : nd.canUnlock ? 'Click to unlock'
                   : nd.reqText
                 }}

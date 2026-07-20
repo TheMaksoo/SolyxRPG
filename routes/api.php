@@ -56,10 +56,10 @@ Route::get('/stats/public', [StatsController::class, 'public']);
 // game action, corrupting session state during play (this was the actual "unauthenticated mid-game"
 // bug) — so it stays scoped to just these auth endpoints where it's actually needed.
 Route::middleware('web')->group(function () {
-    Route::post('/auth/register', [AuthController::class, 'register']);
-    Route::post('/auth/login', [AuthController::class, 'login']);
-    Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
-    Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+    Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
+    Route::post('/auth/login', [AuthController::class, 'login'])->middleware(['throttle:login', 'throttle:20,1']);
+    Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:6,1');
+    Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:6,1');
     Route::get('/auth/{provider}/redirect', [SocialiteController::class, 'redirect'])->whereIn('provider', ['discord', 'google', 'apple']);
     Route::get('/auth/{provider}/callback', [SocialiteController::class, 'callback'])->whereIn('provider', ['discord', 'google', 'apple']);
 });
