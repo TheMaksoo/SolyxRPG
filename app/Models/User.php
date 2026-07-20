@@ -30,6 +30,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'tos_accepted_at' => 'datetime',
             'vip_expires_at' => 'datetime',
             'banned_at' => 'datetime',
             'password' => 'hashed',

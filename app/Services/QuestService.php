@@ -29,21 +29,24 @@ class QuestService
             && ($q->goal_json['skill_key'] ?? null) === $skillKey);
     }
 
-    /** Daily/weekly quests are meant to be repeatable — reset progress/completed/claimed once the row's
-     * last update falls outside the current day (daily) or ISO week (weekly). `level`-kind quests are
-     * computed live from the character elsewhere and never stored, so they never pass through here. */
+    /** Daily/weekly/monthly quests are meant to be repeatable — reset progress/completed/claimed once the
+     * row's last update falls outside the current day (daily), ISO week (weekly), or calendar month
+     * (monthly). `level`-kind quests are computed live from the character elsewhere and never stored, so
+     * they never pass through here. */
     public function resetIfStale(CharacterQuest $progress, Quest $quest): CharacterQuest
     {
-        if (! in_array($quest->type, ['daily', 'weekly'], true)) {
+        if (! in_array($quest->type, ['daily', 'weekly', 'monthly'], true)) {
             return $progress;
         }
         if ($progress->progress <= 0 && ! $progress->completed && ! $progress->claimed) {
             return $progress;
         }
 
-        $stale = $quest->type === 'daily'
-            ? ! $progress->updated_at->isToday()
-            : $progress->updated_at->lt(now()->startOfWeek());
+        $stale = match ($quest->type) {
+            'daily' => ! $progress->updated_at->isToday(),
+            'weekly' => $progress->updated_at->lt(now()->startOfWeek()),
+            'monthly' => $progress->updated_at->lt(now()->startOfMonth()),
+        };
 
         if (! $stale) {
             return $progress;

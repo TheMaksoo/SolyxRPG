@@ -4,6 +4,7 @@ import api from '../api/client';
 import { useCharacterStore } from '../stores/character';
 import { useAuthStore } from '../stores/auth';
 import MentionInput from '../components/MentionInput.vue';
+import AdBanner from '../components/AdBanner.vue';
 import { renderChatBody, mentionsMe } from '../chatMentions';
 
 const characterStore = useCharacterStore();
@@ -134,6 +135,8 @@ onMounted(() => {
       Team up with up to 4 friends — every distinct class present buffs the whole party, and fighting in the
       same zone shares a cut of gold, XP, and gems with whoever's online alongside you.
     </p>
+
+    <AdBanner variant="inline" />
 
     <p v-if="message" class="party-message">{{ message }}</p>
 

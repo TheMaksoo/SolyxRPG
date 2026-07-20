@@ -274,3 +274,71 @@
   font-weight: 700;
   cursor: pointer;
 }
+
+@media (max-width: 768px) {
+  .party-title {
+    font-size: 22px;
+  }
+
+  .party-card,
+  .party-invite-panel {
+    padding: 16px;
+  }
+
+  .party-invite-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .party-invite-row__actions {
+    justify-content: stretch;
+  }
+
+  .party-invite-row__accept,
+  .party-invite-row__decline {
+    flex: 1;
+    min-height: 36px;
+  }
+
+  .party-member {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .party-member__kick {
+    min-height: 34px;
+  }
+
+  .party-invite-candidate {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .party-invite-candidate__btn {
+    min-height: 34px;
+    padding: 6px 14px;
+  }
+
+  .party-chat {
+    max-height: 180px;
+  }
+
+  .party-chat-input-row {
+    gap: 6px;
+  }
+
+  .party-chat-send {
+    flex: none;
+    min-height: 40px;
+    padding: 0 16px;
+  }
+
+  .party-leave-btn {
+    min-height: 40px;
+  }
+
+  .party-create-btn {
+    width: 100%;
+    min-height: 44px;
+  }
+}

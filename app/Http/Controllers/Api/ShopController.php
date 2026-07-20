@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
 class ShopController extends Controller
 {
     /** Gear is never qty-stacked — each copy needs its own durability, so it always gets its own row. */
-    private const GEAR_TYPES = ['weapon', 'armor', 'pickaxe', 'axe', 'sickle', 'hammer'];
+    private const GEAR_TYPES = ['weapon', 'armor', 'quiver', 'pickaxe', 'axe', 'sickle', 'hammer'];
 
     public function __construct(private DurabilityService $durability) {}
 

@@ -251,3 +251,57 @@
   color: v.$text-muted-45;
   text-transform: capitalize;
 }
+
+@media (max-width: 768px) {
+  .settings-header__icon {
+    font-size: 24px;
+  }
+
+  .settings-title {
+    font-size: 22px;
+  }
+
+  .settings-content {
+    max-width: 100%;
+  }
+
+  .linked-accounts-card,
+  .support-card,
+  .preferences-card {
+    padding: 16px;
+  }
+
+  .customize-tester-toggle {
+    padding: 14px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .settings-actions {
+    flex-direction: column;
+  }
+
+  .settings-action-btn {
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    padding: 11px 20px;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ticket-thread__reply {
+    flex-direction: column;
+  }
+
+  .ticket-thread__reply .settings-action-btn {
+    width: 100%;
+  }
+
+  .support-ticket-row {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+}

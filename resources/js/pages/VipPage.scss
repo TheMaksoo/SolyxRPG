@@ -142,3 +142,35 @@
 .vip-footer__link {
   color: v.$accent-hover;
 }
+
+@media (max-width: 768px) {
+  .vip-header {
+    margin-bottom: 20px;
+  }
+
+  .vip-header__title {
+    font-size: 22px;
+  }
+
+  .vip-tiers-grid {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+  }
+
+  .vip-tier-card {
+    padding: 16px;
+  }
+
+  .vip-tier-card__price-amount {
+    font-size: 26px;
+  }
+
+  .vip-subscribe-btn {
+    padding: 12px;
+    min-height: 36px;
+  }
+
+  .vip-message {
+    max-width: 100%;
+  }
+}

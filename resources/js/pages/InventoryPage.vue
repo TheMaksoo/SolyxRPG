@@ -12,10 +12,13 @@ const selectedPack = reactive({});
 const scrapTarget = ref(null);
 const scrapResult = ref(null);
 
-const EQUIPPABLE_TYPES = ['weapon', 'armor', 'pickaxe', 'axe', 'sickle', 'hammer'];
+// 'quiver' is the ranger's second, simultaneously-equippable slot alongside their bow (weapon) — see
+// ItemSeeder/CraftingController. Equipping by type means it never conflicts with the weapon slot.
+const EQUIPPABLE_TYPES = ['weapon', 'armor', 'quiver', 'pickaxe', 'axe', 'sickle', 'hammer'];
 const SLOT_DEFS = [
   { type: 'weapon', label: 'Weapon', glyph: '⚔' },
   { type: 'armor', label: 'Armor', glyph: '🛡' },
+  { type: 'quiver', label: 'Quiver', glyph: '🎯' },
   { type: 'pickaxe', label: 'Pickaxe', glyph: '⛏' },
   { type: 'axe', label: 'Axe', glyph: '🪓' },
   { type: 'sickle', label: 'Sickle', glyph: '🔪' },
@@ -32,6 +35,7 @@ const BAG_TYPE_PRIORITY = {
   repair_pack: 0,
   weapon: 1,
   armor: 1,
+  quiver: 1,
   pickaxe: 1,
   axe: 1,
   sickle: 1,
@@ -56,7 +60,7 @@ const slots = computed(() =>
 
 const SLOT_GROUPS = [
   { key: 'armor', label: 'Armor', types: ['armor'] },
-  { key: 'weapons', label: 'Weapons', types: ['weapon'] },
+  { key: 'weapons', label: 'Weapons', types: ['weapon', 'quiver'] },
   { key: 'tools', label: 'Tools', types: ['pickaxe', 'axe', 'sickle', 'hammer'] },
 ];
 

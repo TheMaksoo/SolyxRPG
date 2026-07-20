@@ -879,3 +879,139 @@
   font-weight: 700;
   font-size: 12px;
 }
+
+// ---- Mobile (<=768px) ----
+// GM-only admin tool — this pass just keeps things from being squished or
+// causing horizontal scroll; not a full redesign.
+@media (max-width: 768px) {
+  .gm-console-banner {
+    padding: 14px 16px;
+  }
+
+  .gm-console-identity {
+    width: 100%;
+  }
+
+  .gm-console-tab-btn,
+  .gm-console-resource-tab-btn {
+    min-height: 36px;
+  }
+
+  // Collapse multi-column grids to a single column.
+  .gm-console-stats-grid,
+  .gm-console-revenue-grid,
+  .gm-console-config-grid,
+  .edit-user-modal__grid {
+    grid-template-columns: 1fr;
+  }
+
+  // The feature-flags table is a fixed 3-column grid — switch to a flex
+  // layout so the toggles don't get squeezed against the label.
+  .gm-console-flags-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 14px;
+
+    &--header {
+      display: none;
+    }
+  }
+
+  .gm-console-flags-row__cell--center {
+    text-align: left;
+  }
+
+  .gm-console-search-row {
+    flex-direction: column;
+    max-width: 100%;
+  }
+
+  .gm-console-search-input,
+  .gm-console-search-btn {
+    min-height: 40px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .gm-console-player-card__row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .gm-console-edit-btn,
+  .gm-console-ban-btn {
+    width: 100%;
+    min-height: 36px;
+  }
+
+  .gm-console-grant-row,
+  .gm-console-mail-row {
+    flex-direction: column;
+  }
+
+  .gm-console-grant-input,
+  .gm-console-mail-input,
+  .gm-console-grant-btn,
+  .gm-console-mail-btn {
+    width: 100%;
+    min-height: 36px;
+    box-sizing: border-box;
+  }
+
+  .gm-console-config-tile__row {
+    flex-wrap: wrap;
+  }
+
+  .gm-console-config-save-btn {
+    min-height: 36px;
+  }
+
+  .gm-console-ticket-card__row,
+  .gm-console-audit-row__head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .gm-console-resolve-btn,
+  .gm-console-close-btn,
+  .gm-console-archive-toggle {
+    min-height: 36px;
+  }
+
+  .gm-console-ticket-thread__reply {
+    flex-direction: column;
+
+    .gm-console-config-input {
+      min-height: 36px;
+    }
+  }
+
+  .gm-console-broadcast-btn {
+    width: 100%;
+    min-height: 40px;
+  }
+
+  .edit-user-modal-overlay {
+    padding: 10px;
+  }
+
+  .edit-user-modal {
+    width: 100%;
+    padding: 16px;
+  }
+
+  .edit-user-modal__actions {
+    flex-direction: column-reverse;
+  }
+
+  .edit-user-modal__cancel-btn,
+  .edit-user-modal__save-btn,
+  .edit-user-modal__stuck-btn {
+    width: 100%;
+    min-height: 40px;
+  }
+}

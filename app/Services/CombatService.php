@@ -144,7 +144,12 @@ class CombatService
 
             $character->decrement('mana', $skill->mp_cost);
             if ($skill->cooldown_rounds > 0) {
-                $skillCooldowns[$skill->id] = $skill->cooldown_rounds;
+                // Ranger identity: high-DPS, low-cooldown skirmisher (see Character::classPassiveBonuses()
+                // for the matching flat-ATK/dodge half of this). Applies class-wide rather than only to
+                // ranger-branch skills, but since a ranger can only ever unlock ranger-scoped skills
+                // (class_scope in SkillSeeder), it only ever actually fires for ranger-usable skills.
+                $roundsSet = $character->base_class === 'ranger' ? max(1, $skill->cooldown_rounds - 1) : $skill->cooldown_rounds;
+                $skillCooldowns[$skill->id] = $roundsSet;
                 $battle->skill_cooldowns_json = $skillCooldowns;
             }
 

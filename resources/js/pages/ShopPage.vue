@@ -14,6 +14,7 @@ const loading = ref(false);
 const tabs = [
   { key: 'weapon', label: 'Weapons', glyph: '⚔' },
   { key: 'armor', label: 'Armor', glyph: '🛡' },
+  { key: 'quiver', label: 'Quivers', glyph: '🎯' },
   { key: 'pickaxe', label: 'Pickaxes', glyph: '⛏' },
   { key: 'axe', label: 'Axes', glyph: '🪓' },
   { key: 'sickle', label: 'Sickles', glyph: '🔪' },

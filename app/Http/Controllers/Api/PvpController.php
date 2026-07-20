@@ -9,6 +9,7 @@ use App\Models\GemLedger;
 use App\Models\PvpMatch;
 use App\Models\PvpRecord;
 use App\Services\AchievementService;
+use App\Services\QuestService;
 use App\Services\SkillService;
 use Illuminate\Http\Request;
 
@@ -16,6 +17,7 @@ class PvpController extends Controller
 {
     public function __construct(
         private AchievementService $achievements = new AchievementService(),
+        private QuestService $quests = new QuestService(),
     ) {
     }
 
@@ -150,6 +152,9 @@ class PvpController extends Controller
         ]);
 
         $this->achievements->check($character->fresh());
+        if ($won) {
+            $this->quests->progress($character, 'pvp_wins');
+        }
 
         // Daily reward gold/gems land on the character row here, but nothing below this point re-fetched
         // $character — the JSON response used to omit the character entirely, so PvpPage.vue had nothing

@@ -23,6 +23,7 @@ class AuthController extends Controller
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
             'password' => ['required', 'string', PasswordRule::min(8)->letters()->numbers()->uncompromised()],
             'cf_turnstile_response' => ['nullable', 'string'],
+            'tos_accepted' => ['accepted'],
         ])->validate();
 
         if (! Turnstile::verify($data['cf_turnstile_response'] ?? null, $request->ip())) {
@@ -34,6 +35,10 @@ class AuthController extends Controller
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
         ]);
+
+        // tos_accepted_at isn't in User's #[Fillable] allow-list — set it directly rather than via create()/update().
+        $user->tos_accepted_at = now();
+        $user->save();
 
         Auth::login($user);
         $request->session()->regenerate();

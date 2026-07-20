@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import api from '../api/client';
 import { useCharacterStore } from '../stores/character';
+import AdBanner from '../components/AdBanner.vue';
 
 const characterStore = useCharacterStore();
 
@@ -85,6 +86,8 @@ onMounted(load);
       <div class="pvp-header__icon">⚔</div>
       <h1 class="ox pvp-title">PvP Arena</h1>
     </div>
+
+    <AdBanner variant="inline" />
 
     <div class="pvp-layout">
       <div class="pvp-main">

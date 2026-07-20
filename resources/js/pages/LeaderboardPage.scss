@@ -112,3 +112,50 @@
   color: v.$text-muted-35;
   font-size: 13px;
 }
+
+@media (max-width: 768px) {
+  .leaderboard-title {
+    font-size: 22px;
+  }
+
+  .leaderboard-tab-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+    min-height: 36px;
+  }
+
+  // Rank + name + class/level + rarity meta + score all fought for one line at desktop widths —
+  // wrap it onto two lines instead of squeezing everything down to illegible text.
+  .leaderboard-row {
+    flex-wrap: wrap;
+    row-gap: 4px;
+    padding: 12px 14px;
+  }
+
+  .leaderboard-row__name-wrap {
+    flex: 1 1 auto;
+  }
+
+  .leaderboard-row__meta {
+    flex: 1 1 auto;
+    order: 3;
+    padding-left: 42px;
+  }
+
+  .leaderboard-row__power {
+    order: 4;
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .leaderboard-row {
+    gap: 10px;
+    padding: 11px 12px;
+  }
+
+  .leaderboard-row__meta {
+    padding-left: 0;
+    flex: 1 1 100%;
+  }
+}

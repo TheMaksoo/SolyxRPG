@@ -484,3 +484,96 @@
   font-weight: 700;
   font-size: 12px;
 }
+
+// ---- Mobile ----
+@media (max-width: 768px) {
+  .inventory-header__icon {
+    font-size: 24px;
+  }
+
+  .inventory-title {
+    font-size: 22px;
+  }
+
+  .inventory-char-summary {
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .inventory-char-stat {
+    padding: 7px 14px;
+  }
+
+  .equipment-groups {
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .equipment-group__grid {
+    gap: 8px;
+  }
+
+  .equipment-slot-row {
+    padding: 9px 10px;
+  }
+
+  .equipment-slot__actions {
+    gap: 8px;
+  }
+
+  .equipment-slot__action-btn {
+    padding: 10px 6px;
+    min-height: 36px;
+    font-size: 12px;
+  }
+
+  .repair-row {
+    flex-direction: column;
+  }
+
+  .repair-row__select {
+    padding: 8px;
+    min-height: 36px;
+  }
+
+  .repair-row__btn {
+    padding: 10px 12px;
+    min-height: 36px;
+  }
+
+  .inventory-bag-grid {
+    gap: 10px;
+  }
+
+  .inventory-bag-card {
+    padding: 12px;
+  }
+
+  .inventory-bag-card__footer {
+    padding-right: 34px;
+  }
+
+  .inventory-bag-card__equip-btn {
+    padding: 9px;
+    min-height: 36px;
+    font-size: 12px;
+  }
+
+  .inventory-bag-card__scrap-btn {
+    width: 26px;
+    height: 26px;
+    bottom: 12px;
+    right: 12px;
+  }
+
+  .scrap-modal {
+    padding: 16px 14px;
+  }
+
+  .scrap-modal__cancel-btn,
+  .scrap-modal__scrap-btn {
+    padding: 10px 14px;
+    min-height: 36px;
+  }
+}

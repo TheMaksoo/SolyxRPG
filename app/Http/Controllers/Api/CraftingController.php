@@ -36,8 +36,11 @@ class CraftingController extends Controller
         'mythic' => ['min' => 25, 'max' => 100],
     ];
 
-    /** Gear is never qty-stacked — each copy needs its own durability, so it always gets its own inventory row. */
-    private const GEAR_TYPES = ['weapon', 'armor', 'pickaxe', 'axe', 'sickle', 'hammer'];
+    /** Gear is never qty-stacked — each copy needs its own durability, so it always gets its own inventory row.
+     * 'quiver' is the ranger's second, simultaneously-equippable slot alongside their bow (weapon) — see
+     * ItemSeeder for the quiver line and InventoryController::equip() for how the generic per-type equip
+     * logic makes that "just work" without any bow/quiver conflict handling needed. */
+    private const GEAR_TYPES = ['weapon', 'armor', 'pickaxe', 'axe', 'sickle', 'hammer', 'quiver'];
 
     public function __construct(
         private CraftingService $crafting,
@@ -53,9 +56,10 @@ class CraftingController extends Controller
         $character = $request->user()->character;
         abort_unless($character, 404);
 
-        $recipes = Recipe::where('enabled', true)->with('resultItem')->get()
-            ->filter(fn (Recipe $recipe) => $recipe->resultItem->class_key === null || $recipe->resultItem->class_key === $character->base_class)
-            ->values();
+        // Class-locked recipes are shown (greyed/locked in CraftingPage.vue) rather than hidden, so every
+        // class can see what the other three craft — only the ones matching your class (or unrestricted,
+        // class_key === null) are actually craftable.
+        $recipes = Recipe::where('enabled', true)->with('resultItem')->get()->values();
 
         $inventoryByItem = Inventory::query()
             ->where('character_id', $character->id)
@@ -96,6 +100,7 @@ class CraftingController extends Controller
             $isGear = in_array($recipe->resultItem->type, self::GEAR_TYPES, true);
             $levelUnlocked = $character->level >= $recipe->min_level;
             $canAffordGold = $recipe->gold_cost <= 0 || $character->gold >= $recipe->gold_cost;
+            $classLocked = $recipe->resultItem->class_key !== null && $recipe->resultItem->class_key !== $character->base_class;
 
             return [
                 'id' => $recipe->id,
@@ -109,7 +114,8 @@ class CraftingController extends Controller
                 'gold_cost' => $recipe->gold_cost,
                 'can_afford_gold' => $canAffordGold,
                 'level_unlocked' => $levelUnlocked,
-                'can_craft' => $levelUnlocked && $canAffordGold && ! $materialsDetailed->contains(fn (array $m) => ! $m['has_enough']),
+                'class_locked' => $classLocked,
+                'can_craft' => ! $classLocked && $levelUnlocked && $canAffordGold && ! $materialsDetailed->contains(fn (array $m) => ! $m['has_enough']),
                 'is_gear' => $isGear,
                 'craft_seconds' => $this->craftSeconds($recipe->craft_seconds, $craftSpeedPct, $craftSpeedAttr, $hammerSpeedPct),
             ];
@@ -134,7 +140,7 @@ class CraftingController extends Controller
 
         $itemClass = $recipe->resultItem->class_key;
         if ($itemClass !== null && $itemClass !== $character->base_class) {
-            return response()->json(['message' => 'That recipe is not usable by your class.'], 422);
+            return response()->json(['message' => "That recipe is locked to the {$itemClass} class."], 403);
         }
 
         $maxSlots = $this->maxQueueSlots($character, $request->user());

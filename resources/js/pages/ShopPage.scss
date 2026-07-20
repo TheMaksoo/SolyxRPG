@@ -167,3 +167,44 @@
   color: v.$text-muted-35;
   font-size: 13px;
 }
+
+// ---- Mobile ----
+@media (max-width: 768px) {
+  .shop-header {
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .shop-header__icon {
+    font-size: 24px;
+  }
+
+  .shop-title {
+    font-size: 22px;
+  }
+
+  .shop-tabs {
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .shop-tab-btn {
+    padding: 10px 14px;
+    min-height: 36px;
+    font-size: 12.5px;
+  }
+
+  .shop-grid {
+    gap: 12px;
+  }
+
+  .shop-item-card {
+    padding: 14px;
+  }
+
+  .shop-buy-btn,
+  .shop-item__craft-only {
+    padding: 10px;
+    min-height: 36px;
+  }
+}

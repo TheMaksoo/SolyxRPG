@@ -314,3 +314,80 @@
   color: v.$text-muted-35;
   font-size: 12.5px;
 }
+
+@media (max-width: 768px) {
+  .friends-title {
+    font-size: 22px;
+  }
+
+  .friend-request {
+    flex-wrap: wrap;
+  }
+
+  .friend-request__accept,
+  .friend-request__decline {
+    min-height: 36px;
+    flex: 1;
+  }
+
+  .friends-layout {
+    min-height: 0;
+  }
+
+  .friend-list-panel {
+    width: 100%;
+    max-height: 260px;
+  }
+
+  .chat-panel {
+    width: 100%;
+    min-width: 0;
+    min-height: 380px;
+  }
+
+  .friend-row {
+    padding: 12px 14px;
+  }
+
+  .friend-row__favorite {
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  .chat-panel__messages {
+    padding: 14px;
+  }
+
+  .chat-panel__composer {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .chat-panel__input {
+    font-size: 13px;
+    padding: 10px 12px;
+  }
+
+  .chat-panel__send {
+    flex: none;
+    min-height: 40px;
+    padding: 0 16px;
+  }
+
+  .friend-message__bubble {
+    max-width: 85%;
+  }
+
+  .add-friends {
+    padding: 14px;
+  }
+
+  .add-friends__row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .add-friends__add {
+    min-height: 34px;
+  }
+}

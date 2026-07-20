@@ -71,20 +71,30 @@ class VipController extends Controller
         if ($user->hasActiveVip() && $user->stripe_subscription_id) {
             try {
                 $subscription = $stripe->subscriptions->retrieve($user->stripe_subscription_id);
+
+                // Subscription item updates only accept an existing `price` id — unlike Checkout Sessions,
+                // `price_data.product_data` (inline product creation) isn't a valid param here. Price
+                // creation itself DOES support inline product_data, so create the Price first, then
+                // reference it by id.
+                $price = $stripe->prices->create([
+                    // Stripe locks a subscription's currency at creation — reusing whatever it already
+                    // bills in here (not the user's *current* currency setting) avoids a rejected update
+                    // if they changed their preference after subscribing.
+                    'currency' => $subscription->currency,
+                    'unit_amount' => $tier['price_cents'],
+                    'recurring' => ['interval' => 'month'],
+                    'product_data' => ['name' => $tier['label']],
+                ]);
+
                 $stripe->subscriptions->update($user->stripe_subscription_id, [
                     'items' => [[
                         'id' => $subscription->items->data[0]->id,
-                        'price_data' => [
-                            // Stripe locks a subscription's currency at creation — reusing whatever it
-                            // already bills in here (not the user's *current* currency setting) avoids
-                            // a rejected update if they changed their preference after subscribing.
-                            'currency' => $subscription->currency,
-                            'product_data' => ['name' => $tier['label']],
-                            'unit_amount' => $tier['price_cents'],
-                            'recurring' => ['interval' => 'month'],
-                        ],
+                        'price' => $price->id,
                     ]],
-                    'proration_behavior' => 'create_prorations',
+                    // 'always_invoice' bills the prorated difference immediately (charging the customer's
+                    // saved card right away) instead of just tacking a proration line onto next month's
+                    // invoice — an upgrade should cost the difference now, not be billed retroactively later.
+                    'proration_behavior' => 'always_invoice',
                     'metadata' => ['vip_tier' => $data['tier'], 'user_id' => (string) $user->id],
                 ]);
             } catch (\Exception $e) {
@@ -118,6 +128,12 @@ class VipController extends Controller
                 'metadata' => ['vip_tier' => $data['tier'], 'user_id' => $request->user()->id],
             ],
             'automatic_tax' => ['enabled' => true],
+            'consent_collection' => ['terms_of_service' => 'required'],
+            'custom_text' => [
+                'terms_of_service_acceptance' => [
+                    'message' => 'All Solyx purchases are final. Content, values, and benefits can change as the game develops, and no refunds are issued if that happens or if related data is lost.',
+                ],
+            ],
             'success_url' => config('app.url').'/vip?checkout=success',
             'cancel_url' => config('app.url').'/vip?checkout=cancelled',
         ]);

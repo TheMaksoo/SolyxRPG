@@ -316,3 +316,63 @@
     color: v.$warning;
   }
 }
+
+@media (max-width: 768px) {
+  .class-path-grid {
+    @include m.grid-auto-fit(150px, 10px);
+    margin-bottom: 20px;
+  }
+
+  .class-tier-card {
+    padding: 13px;
+  }
+
+  .class-tier-card__option-btn {
+    padding: 10px 12px;
+    min-height: 36px;
+  }
+
+  .attributes-grid {
+    @include m.grid-auto-fit(140px, 10px);
+    margin-bottom: 20px;
+  }
+
+  .attribute-card {
+    padding: 12px;
+  }
+
+  .attribute-card__btn {
+    width: 36px;
+    height: 36px;
+    flex: none;
+  }
+
+  .skill-points-badge,
+  .attribute-points-badge {
+    padding: 8px 13px;
+  }
+
+  .skill-branch__nodes {
+    @include m.grid-auto-fit(160px, 10px);
+  }
+
+  .skill-node-btn {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .attributes-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .skill-branch__nodes {
+    grid-template-columns: 1fr;
+  }
+
+  .class-tier-card__chosen-glyph {
+    width: 34px;
+    height: 34px;
+    font-size: 17px;
+  }
+}

@@ -144,3 +144,57 @@
   color: v.$text-muted-40;
   margin-top: 2px;
 }
+
+@media (max-width: 768px) {
+  .public-profile-back {
+    min-height: 36px;
+  }
+
+  .public-profile-hero {
+    padding: 18px;
+    gap: 14px;
+  }
+
+  .public-profile-hero__avatar {
+    width: 64px;
+    height: 64px;
+    font-size: 24px;
+
+    &--icon {
+      font-size: 32px;
+    }
+  }
+
+  .public-profile-hero__name {
+    font-size: 21px;
+  }
+
+  .public-profile-hero__meta {
+    font-size: 12px;
+  }
+
+  .public-profile-hero__stats {
+    width: 100%;
+    justify-content: space-between;
+    gap: v.$space-3;
+  }
+
+  .public-profile-stat__value {
+    font-size: 17px;
+  }
+
+  .public-profile-fun-grid {
+    @include m.grid-auto-fill(105px, 8px);
+  }
+}
+
+@media (max-width: 480px) {
+  .public-profile-hero__stats {
+    justify-content: flex-start;
+    gap: v.$space-4 v.$space-5;
+  }
+
+  .public-profile-fun-grid {
+    @include m.grid-auto-fill(90px, 8px);
+  }
+}

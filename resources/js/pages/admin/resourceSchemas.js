@@ -77,7 +77,7 @@ export const RESOURCE_SCHEMAS = {
       { name: 'key', type: 'text' },
       { name: 'name', type: 'text' },
       { name: 'description', type: 'textarea' },
-      { name: 'type', type: 'select', options: ['daily', 'weekly', 'main', 'raid'] },
+      { name: 'type', type: 'select', options: ['daily', 'weekly', 'monthly', 'main', 'raid'] },
       { name: 'goal_json', type: 'json' },
       { name: 'reward_json', type: 'json' },
       { name: 'enabled', type: 'checkbox' },

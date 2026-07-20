@@ -78,3 +78,33 @@
   font-size: 12px;
   font-weight: 700;
 }
+
+@media (max-width: 768px) {
+  .world-chat {
+    width: 100%;
+
+    &--full-height {
+      height: 45vh;
+    }
+  }
+
+  .world-chat__messages {
+    max-height: 260px;
+  }
+
+  .world-chat__input-row {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .world-chat__input {
+    padding: 9px 11px;
+    font-size: 13px;
+  }
+
+  .world-chat__send {
+    flex: none;
+    min-height: 36px;
+    padding: 0 14px;
+  }
+}

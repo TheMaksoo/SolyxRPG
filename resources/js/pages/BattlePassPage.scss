@@ -276,3 +276,63 @@
   color: v.$success;
   font-weight: 800;
 }
+
+@media (max-width: 768px) {
+  .battlepass-header {
+    margin-bottom: 16px;
+  }
+
+  .battlepass-header__title {
+    font-size: 19px;
+  }
+
+  .battlepass-claim-all-btn {
+    padding: 10px 16px;
+    min-height: 36px;
+  }
+
+  .battlepass-unlock-btn {
+    padding: 12px 18px;
+    min-height: 36px;
+    flex: 1 1 140px;
+  }
+
+  .claim-summary,
+  .battlepass-premium-pitch {
+    padding: 14px 16px;
+  }
+
+  .battlepass-premium-pitch__actions {
+    flex-direction: column;
+  }
+
+  .battlepass-premium-pitch__actions .battlepass-unlock-btn {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  // Track is already horizontally scrollable (overflow-x: auto above) so it never
+  // blows out the page width on narrow phones — tiles just shrink a touch here.
+  .battlepass-row__label {
+    width: 56px;
+    font-size: 10px;
+  }
+
+  .tier-number-cell {
+    width: 72px;
+  }
+
+  .tier-tile {
+    width: 72px;
+    height: 92px;
+    padding: 6px 4px;
+  }
+
+  .tier-tile__glyph {
+    font-size: 20px;
+  }
+
+  .tier-tile__reward {
+    font-size: 9px;
+  }
+}

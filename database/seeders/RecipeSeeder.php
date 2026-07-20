@@ -14,7 +14,7 @@ class RecipeSeeder extends Seeder
             'stone', 'iron_bar', 'wood', 'oak_wood', 'silver_bar', 'gold_bar', 'mythril_bar', 'ironwood', 'elderwood', 'moonwood',
             'stone_shiv', 'iron_sword', 'iron_dagger', 'wooden_bow', 'oak_staff',
             'iron_buckler', 'leather_vest', 'ranger_cloak', 'padded_robe',
-            'silvered_blade', 'gilded_saber', 'mythril_aegis',
+            'silvered_blade', 'gilded_saber', 'mythril_aegis', 'fletchers_quiver',
             'stone_pickaxe', 'iron_pickaxe', 'silver_pickaxe', 'gold_pickaxe', 'mythril_pickaxe',
             'wood_axe', 'oak_axe', 'ironwood_axe', 'elderwood_axe', 'moonwood_axe',
             'stone_sickle', 'iron_sickle', 'silver_sickle', 'gold_sickle', 'mythril_sickle',
@@ -25,22 +25,27 @@ class RecipeSeeder extends Seeder
 
         $recipes = [
             // Common tier — available from level 1, no smelting required.
-            ['name' => 'Craft Stone Shiv', 'result' => 'stone_shiv', 'materials' => [['item' => 'stone', 'qty' => 6]], 'craft_seconds' => 35, 'min_level' => 1, 'gold_cost' => 150],
+            // Weapon/armor/shield/quiver gold_cost bumped another ~1.75x this pass (crafting your own gear
+            // should sting) — tools/consumables below are untouched.
+            ['name' => 'Craft Stone Shiv', 'result' => 'stone_shiv', 'materials' => [['item' => 'stone', 'qty' => 6]], 'craft_seconds' => 35, 'min_level' => 1, 'gold_cost' => 260],
             // Class-specific common weapons — same iron_bar cost/timing as the old shared line, just re-flavored.
-            ['name' => 'Craft Iron Sword', 'result' => 'iron_sword', 'materials' => [['item' => 'iron_bar', 'qty' => 3]], 'craft_seconds' => 65, 'min_level' => 8, 'gold_cost' => 360],
-            ['name' => 'Craft Iron Dagger', 'result' => 'iron_dagger', 'materials' => [['item' => 'iron_bar', 'qty' => 3]], 'craft_seconds' => 65, 'min_level' => 8, 'gold_cost' => 360],
-            ['name' => 'Craft Wooden Bow', 'result' => 'wooden_bow', 'materials' => [['item' => 'wood', 'qty' => 8]], 'craft_seconds' => 60, 'min_level' => 8, 'gold_cost' => 360],
-            ['name' => 'Craft Oak Staff', 'result' => 'oak_staff', 'materials' => [['item' => 'oak_wood', 'qty' => 5], ['item' => 'iron_bar', 'qty' => 1]], 'craft_seconds' => 65, 'min_level' => 8, 'gold_cost' => 360],
+            ['name' => 'Craft Iron Sword', 'result' => 'iron_sword', 'materials' => [['item' => 'iron_bar', 'qty' => 3]], 'craft_seconds' => 65, 'min_level' => 8, 'gold_cost' => 630],
+            ['name' => 'Craft Iron Dagger', 'result' => 'iron_dagger', 'materials' => [['item' => 'iron_bar', 'qty' => 3]], 'craft_seconds' => 65, 'min_level' => 8, 'gold_cost' => 630],
+            ['name' => 'Craft Wooden Bow', 'result' => 'wooden_bow', 'materials' => [['item' => 'wood', 'qty' => 8]], 'craft_seconds' => 60, 'min_level' => 8, 'gold_cost' => 630],
+            ['name' => 'Craft Oak Staff', 'result' => 'oak_staff', 'materials' => [['item' => 'oak_wood', 'qty' => 5], ['item' => 'iron_bar', 'qty' => 1]], 'craft_seconds' => 65, 'min_level' => 8, 'gold_cost' => 630],
+            // Ranger's second, simultaneously-equippable slot (see ItemSeeder) — same tier/cost as the other
+            // classes' common weapon, since it's just as core to the ranger's kit as the bow itself.
+            ['name' => "Craft Fletcher's Quiver", 'result' => 'fletchers_quiver', 'materials' => [['item' => 'wood', 'qty' => 6], ['item' => 'iron_bar', 'qty' => 1]], 'craft_seconds' => 60, 'min_level' => 8, 'gold_cost' => 630],
             // Class-specific common armor.
-            ['name' => 'Craft Iron Buckler', 'result' => 'iron_buckler', 'materials' => [['item' => 'iron_bar', 'qty' => 4]], 'craft_seconds' => 100, 'min_level' => 8, 'gold_cost' => 360],
-            ['name' => 'Craft Leather Vest', 'result' => 'leather_vest', 'materials' => [['item' => 'iron_bar', 'qty' => 2], ['item' => 'wood', 'qty' => 6]], 'craft_seconds' => 100, 'min_level' => 8, 'gold_cost' => 360],
-            ['name' => "Craft Ranger's Cloak", 'result' => 'ranger_cloak', 'materials' => [['item' => 'oak_wood', 'qty' => 6], ['item' => 'iron_bar', 'qty' => 1]], 'craft_seconds' => 100, 'min_level' => 8, 'gold_cost' => 360],
-            ['name' => 'Craft Padded Robe', 'result' => 'padded_robe', 'materials' => [['item' => 'iron_bar', 'qty' => 2], ['item' => 'oak_wood', 'qty' => 4]], 'craft_seconds' => 100, 'min_level' => 8, 'gold_cost' => 360],
+            ['name' => 'Craft Iron Buckler', 'result' => 'iron_buckler', 'materials' => [['item' => 'iron_bar', 'qty' => 4]], 'craft_seconds' => 100, 'min_level' => 8, 'gold_cost' => 630],
+            ['name' => 'Craft Leather Vest', 'result' => 'leather_vest', 'materials' => [['item' => 'iron_bar', 'qty' => 2], ['item' => 'wood', 'qty' => 6]], 'craft_seconds' => 100, 'min_level' => 8, 'gold_cost' => 630],
+            ['name' => "Craft Ranger's Cloak", 'result' => 'ranger_cloak', 'materials' => [['item' => 'oak_wood', 'qty' => 6], ['item' => 'iron_bar', 'qty' => 1]], 'craft_seconds' => 100, 'min_level' => 8, 'gold_cost' => 630],
+            ['name' => 'Craft Padded Robe', 'result' => 'padded_robe', 'materials' => [['item' => 'iron_bar', 'qty' => 2], ['item' => 'oak_wood', 'qty' => 4]], 'craft_seconds' => 100, 'min_level' => 8, 'gold_cost' => 630],
             // Mid tier — needs Smelting rank for silver, min_level matches the materials' own unlock ranks.
-            ['name' => 'Craft Silvered Blade', 'result' => 'silvered_blade', 'materials' => [['item' => 'silver_bar', 'qty' => 3], ['item' => 'iron_bar', 'qty' => 2], ['item' => 'ironwood', 'qty' => 2]], 'craft_seconds' => 220, 'min_level' => 20, 'gold_cost' => 3500],
+            ['name' => 'Craft Silvered Blade', 'result' => 'silvered_blade', 'materials' => [['item' => 'silver_bar', 'qty' => 3], ['item' => 'iron_bar', 'qty' => 2], ['item' => 'ironwood', 'qty' => 2]], 'craft_seconds' => 220, 'min_level' => 20, 'gold_cost' => 6100],
             // High tier — gold/mythril only reachable at high Mining/Smelting rank, and cost far more materials.
-            ['name' => 'Craft Gilded Saber', 'result' => 'gilded_saber', 'materials' => [['item' => 'gold_bar', 'qty' => 4], ['item' => 'elderwood', 'qty' => 3]], 'craft_seconds' => 320, 'min_level' => 35, 'gold_cost' => 10350],
-            ['name' => 'Craft Mythril Aegis', 'result' => 'mythril_aegis', 'materials' => [['item' => 'mythril_bar', 'qty' => 5], ['item' => 'moonwood', 'qty' => 4]], 'craft_seconds' => 480, 'min_level' => 50, 'gold_cost' => 26400],
+            ['name' => 'Craft Gilded Saber', 'result' => 'gilded_saber', 'materials' => [['item' => 'gold_bar', 'qty' => 4], ['item' => 'elderwood', 'qty' => 3]], 'craft_seconds' => 320, 'min_level' => 35, 'gold_cost' => 18100],
+            ['name' => 'Craft Mythril Aegis', 'result' => 'mythril_aegis', 'materials' => [['item' => 'mythril_bar', 'qty' => 5], ['item' => 'moonwood', 'qty' => 4]], 'craft_seconds' => 480, 'min_level' => 50, 'gold_cost' => 46200],
             // Tools — one per ore/wood tier, each boosting its matching gathering skill's speed and yield.
             ['name' => 'Craft Stone Pickaxe', 'result' => 'stone_pickaxe', 'materials' => [['item' => 'stone', 'qty' => 8]], 'craft_seconds' => 40, 'min_level' => 1],
             ['name' => 'Craft Iron Pickaxe', 'result' => 'iron_pickaxe', 'materials' => [['item' => 'iron_bar', 'qty' => 5]], 'craft_seconds' => 75, 'min_level' => 8],

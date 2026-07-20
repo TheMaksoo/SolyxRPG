@@ -11,6 +11,7 @@ use App\Models\Inventory;
 use App\Models\Item;
 use App\Models\TradeSkillLog;
 use App\Services\DurabilityService;
+use App\Services\QuestService;
 use App\Services\TradeSkillService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -36,7 +37,10 @@ class TradeSkillController extends Controller
         'smelting' => 'times_smelted', 'foraging' => 'times_foraged',
     ];
 
-    public function __construct(private TradeSkillService $tradeSkills) {}
+    public function __construct(
+        private TradeSkillService $tradeSkills,
+        private QuestService $quests = new QuestService(),
+    ) {}
 
     public function index(Request $request)
     {
@@ -175,6 +179,7 @@ class TradeSkillController extends Controller
         $character->decrement('energy', $energyCost);
         $character->increment(self::STAT_COLUMN_BY_SKILL[$skillKey]);
         $this->decayEquippedTool($character, $skillKey);
+        $this->quests->progress($character, 'materials_gathered');
 
         $row->last_action_at = now();
         $row->last_action_target = $targetKey;

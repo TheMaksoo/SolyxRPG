@@ -347,3 +347,58 @@
   font-weight: 700;
   font-size: 12px;
 }
+
+@media (max-width: 768px) {
+  .character-select-page {
+    padding: 20px 16px;
+    gap: 18px;
+  }
+
+  .character-select-page__title {
+    font-size: 21px;
+  }
+
+  .character-select-page__subtitle {
+    font-size: 12.5px;
+  }
+
+  .character-grid {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+    gap: 12px;
+  }
+
+  .slot-card {
+    padding: 14px;
+    min-height: 0;
+  }
+
+  .slot-card__play-btn,
+  .slot-card__delete-btn,
+  .slot-card__secondary-btn {
+    min-height: 44px;
+    font-size: 13.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .delete-modal-overlay {
+    padding: 14px;
+  }
+
+  .delete-modal {
+    padding: 16px 14px;
+  }
+
+  .delete-modal__actions {
+    flex-direction: column-reverse;
+  }
+
+  .delete-modal__cancel-btn,
+  .delete-modal__delete-btn {
+    width: 100%;
+    min-height: 44px;
+    font-size: 13.5px;
+  }
+}

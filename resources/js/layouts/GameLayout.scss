@@ -18,6 +18,82 @@
   padding: 18px 12px;
   display: flex;
   flex-direction: column;
+  transition: transform 0.25s ease;
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
+.topbar__hamburger {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: min(280px, 82vw);
+    max-width: 82vw;
+    z-index: 41;
+    transform: translateX(-100%);
+    box-shadow: 0 0 24px rgba(0, 0, 0, 0.4);
+
+    &--open {
+      transform: translateX(0);
+    }
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 40;
+  }
+
+  .topbar__hamburger {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    width: 32px;
+    height: 32px;
+    flex: none;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+
+    span {
+      display: block;
+      width: 100%;
+      height: 2px;
+      background: v.$text-body;
+      border-radius: 2px;
+    }
+  }
+
+  .topbar {
+    padding: 0 14px;
+  }
+
+  .topbar__title {
+    font-size: 0;
+
+    .topbar__title-active {
+      font-size: 14px;
+    }
+  }
+
+  .topbar__title-sep {
+    display: none;
+  }
+
+  .layout-content {
+    padding: 16px 14px;
+  }
 }
 
 .sidebar__brand {

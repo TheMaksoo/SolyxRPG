@@ -176,7 +176,10 @@ onMounted(() => {
   <div v-if="store.loading && !store.character" class="dashboard-loading">Loading…</div>
 
   <div v-else-if="store.character" class="dashboard">
-    <WorldChat full-height />
+    <div class="dashboard__chat-col">
+      <WorldChat full-height />
+      <AdBanner variant="sidebar" />
+    </div>
 
     <div class="dashboard__main">
       <div v-if="autoBattleSummary" class="claim-summary">

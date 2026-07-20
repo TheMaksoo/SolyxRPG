@@ -517,3 +517,129 @@
   border-color: v.$accent;
   color: v.$accent-soft;
 }
+
+// ---- Mobile ----
+@media (max-width: 768px) {
+  .battle-title {
+    font-size: 22px;
+  }
+
+  .battle-header__icon {
+    font-size: 22px;
+  }
+
+  .auto-battle-card {
+    padding: 12px 14px;
+  }
+
+  .auto-battle-card__status,
+  .auto-battle-card__buy {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .auto-battle-card__options {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .auto-battle-card__option {
+    flex: 1 1 105px;
+    min-height: 36px;
+  }
+
+  // Battle content + world chat stack instead of sitting side by side.
+  .battle-layout {
+    flex-direction: column;
+  }
+
+  // Fight panel + ad sidebar stack instead of sitting side by side.
+  .fight-view {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .monster-panel,
+  .player-panel {
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+
+  .monster-art {
+    max-width: 100%;
+    height: 120px;
+    font-size: 44px;
+    margin-bottom: 12px;
+  }
+
+  .monster-name {
+    font-size: 18px;
+  }
+
+  .stat-block {
+    max-width: 100%;
+  }
+
+  .adds-panel {
+    gap: 8px;
+  }
+
+  .add-card {
+    min-width: 120px;
+  }
+
+  .actions-grid {
+    gap: 8px;
+  }
+
+  .btn-attack,
+  .btn-skill,
+  .btn-item {
+    padding: 12px 10px;
+    font-size: 13px;
+    min-height: 40px;
+  }
+
+  .battle-log {
+    padding: 12px 14px;
+    max-height: 150px;
+  }
+
+  .battle-log__line {
+    font-size: 12px;
+  }
+
+  .result-view {
+    padding: 20px;
+    margin-top: 24px;
+  }
+
+  .result-title {
+    font-size: 22px;
+  }
+
+  .result-actions {
+    flex-direction: column;
+  }
+
+  .btn-dashboard-link,
+  .btn-skill-tree-link,
+  .result-actions .btn-walk {
+    justify-content: center;
+    min-height: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .actions-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .adds-panel {
+    flex-direction: column;
+  }
+
+  .add-card {
+    min-width: 0;
+  }
+}

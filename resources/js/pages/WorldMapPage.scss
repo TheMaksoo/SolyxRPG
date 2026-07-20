@@ -123,3 +123,37 @@
     cursor: not-allowed;
   }
 }
+
+@media (max-width: 768px) {
+  .world-map-header__icon {
+    font-size: 24px;
+  }
+
+  .world-map-title {
+    font-size: 22px;
+  }
+
+  .zone-grid {
+    @include m.grid-auto-fill(220px, 12px);
+  }
+
+  .zone-card__art {
+    height: 96px;
+    font-size: 32px;
+  }
+
+  .zone-card__body {
+    padding: 13px;
+  }
+
+  .zone-card__travel-btn {
+    min-height: 36px;
+    padding: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .zone-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -15,6 +15,7 @@ const OAUTH_ERROR_MESSAGES = {
 
 const mode = ref('login'); // 'login' | 'register'
 const form = ref({ name: '', email: '', password: '' });
+const tosAccepted = ref(false);
 const error = ref('');
 const loading = ref(false);
 const stats = ref(null);
@@ -54,7 +55,16 @@ async function submit() {
   loading.value = true;
   try {
     if (mode.value === 'register') {
-      await auth.register({ ...form.value, cf_turnstile_response: turnstileToken.value });
+      if (!tosAccepted.value) {
+        error.value = 'Please accept the Terms of Service to continue.';
+        loading.value = false;
+        return;
+      }
+      await auth.register({
+        ...form.value,
+        cf_turnstile_response: turnstileToken.value,
+        tos_accepted: tosAccepted.value,
+      });
       router.push('/character/create');
     } else {
       await auth.login({ email: form.value.email, password: form.value.password });
@@ -199,6 +209,14 @@ onMounted(async () => {
             ref="turnstileEl"
             class="landing-turnstile"
           ></div>
+          <label v-if="mode === 'register'" class="landing-tos-check">
+            <input v-model="tosAccepted" type="checkbox" required />
+            <span>
+              I agree to the
+              <router-link to="/terms" target="_blank">Terms of Service &amp; Beta Disclaimer</router-link>
+              — I understand Solyx is still in development and that content, values, and data can change or be lost.
+            </span>
+          </label>
           <p v-if="error" class="landing-error">{{ error }}</p>
           <button
             type="submit"
@@ -222,7 +240,10 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div class="landing-footer">Solyx RPG · Built on the Solyx Discord bot</div>
+    <div class="landing-footer">
+      Solyx RPG · Built on the Solyx Discord bot ·
+      <router-link to="/terms">Terms of Service</router-link>
+    </div>
   </div>
 </template>
 

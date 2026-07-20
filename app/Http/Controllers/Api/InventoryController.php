@@ -41,7 +41,9 @@ class InventoryController extends Controller
             ->firstOrFail();
 
         $item = $inventory->item;
-        if (! in_array($item->type, ['weapon', 'armor', 'pickaxe', 'axe', 'sickle', 'hammer'], true)) {
+        // 'quiver' is the ranger's second slot (alongside their bow/weapon) — see ItemSeeder. Equipping one
+        // only unequips other quivers below, never the weapon slot, so bow + quiver stay on together.
+        if (! in_array($item->type, ['weapon', 'armor', 'pickaxe', 'axe', 'sickle', 'hammer', 'quiver'], true)) {
             return response()->json(['message' => 'Only weapons, armor, and tools can be equipped.'], 422);
         }
 

@@ -551,3 +551,105 @@
     width: 100%;
   }
 }
+
+@media (max-width: 768px) {
+  .profile-tabs {
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .profile-tab-btn {
+    padding: 8px 13px;
+    font-size: 12.5px;
+    min-height: 36px;
+  }
+
+  .profile-hero {
+    padding: 18px;
+    gap: 14px;
+  }
+
+  .profile-hero__avatar {
+    width: 64px;
+    height: 64px;
+    font-size: 24px;
+
+    &--icon {
+      font-size: 32px;
+    }
+  }
+
+  .profile-hero__name {
+    font-size: 21px;
+  }
+
+  .profile-hero__meta {
+    font-size: 12px;
+  }
+
+  .profile-hero__stats {
+    width: 100%;
+    justify-content: space-between;
+    gap: v.$space-3;
+  }
+
+  .profile-stat__value {
+    font-size: 18px;
+  }
+
+  .stats-panel,
+  .fun-stats-panel,
+  .quests-completed-banner {
+    padding: 16px;
+  }
+
+  // The 3-column breakdown table (label/base/total) is the one thing on this page that can still
+  // overflow at very narrow widths (long labels + tabular numbers) — scroll horizontally inside the
+  // card instead of letting it push the whole page wide.
+  .stats-panel {
+    overflow-x: auto;
+  }
+
+  .stats-table {
+    min-width: 300px;
+
+    td {
+      font-size: 13px;
+      padding: 6px 0;
+    }
+  }
+
+  .attribute-points-grid,
+  .fun-stats-grid {
+    @include m.grid-auto-fill(105px, 8px);
+  }
+
+  .achievements-grid {
+    @include m.grid-auto-fill(140px, 10px);
+  }
+
+  .customize-grid {
+    @include m.grid-auto-fill(130px, 10px);
+  }
+
+  .cosmetic-card__btn {
+    min-height: 36px;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-hero__stats {
+    justify-content: flex-start;
+    gap: v.$space-4 v.$space-5;
+  }
+
+  .attribute-points-grid,
+  .fun-stats-grid {
+    @include m.grid-auto-fill(90px, 8px);
+  }
+
+  .achievements-grid,
+  .customize-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

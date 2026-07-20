@@ -206,3 +206,45 @@
   @include m.btn-primary;
   width: 100%;
 }
+
+@media (max-width: 768px) {
+  .create-page {
+    padding: 20px 16px;
+    gap: 18px;
+  }
+
+  .create-page__title {
+    font-size: 21px;
+  }
+
+  .create-page__subtitle {
+    font-size: 12.5px;
+  }
+
+  .class-grid {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+    gap: 12px;
+  }
+
+  .class-card {
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .create-page__form {
+    width: 100%;
+  }
+
+  .create-name-input {
+    min-height: 44px;
+    padding: 12px 14px;
+    font-size: 15px;
+    box-sizing: border-box;
+  }
+
+  .create-submit-btn {
+    min-height: 44px;
+    font-size: 15px;
+  }
+}

@@ -130,3 +130,46 @@
 .daily-cell__gems {
   color: v.$purple;
 }
+
+@media (max-width: 768px) {
+  .daily-title {
+    font-size: 22px;
+  }
+
+  .daily-summary {
+    padding: 18px;
+    margin-bottom: 20px;
+  }
+
+  .daily-claim-btn {
+    width: 100%;
+    min-height: 40px;
+    padding: 11px 18px;
+  }
+
+  .daily-calendar {
+    max-width: 100%;
+  }
+
+  .daily-cell {
+    padding: 8px 4px;
+  }
+}
+
+// Cell min-width (96px) still leaves the calendar a bit cramped on the
+// narrowest phones once padding/gaps are counted, so tighten the grid track
+// further at 480px rather than letting cells overflow their row.
+@media (max-width: 480px) {
+  .daily-calendar {
+    grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
+    gap: 8px;
+  }
+
+  .daily-cell__day {
+    font-size: 9.5px;
+  }
+
+  .daily-cell__reward {
+    font-size: 10.5px;
+  }
+}

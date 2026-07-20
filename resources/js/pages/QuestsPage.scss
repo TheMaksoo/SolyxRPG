@@ -190,3 +190,59 @@
     color: rgba(255, 255, 255, 0.3);
   }
 }
+
+@media (max-width: 768px) {
+  .quests-header {
+    gap: v.$space-2;
+  }
+
+  .quests-header__completed {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+
+  .quests-title {
+    font-size: 22px;
+  }
+
+  // Tab bar can be tighter than the viewport on a phone, so let it scroll
+  // horizontally instead of wrapping the labels or shrinking them unreadably.
+  .quests-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+    flex-wrap: nowrap;
+  }
+
+  .quest-tab {
+    flex: none;
+    min-height: 36px;
+    padding: 8px 14px;
+  }
+
+  .claim-summary {
+    padding: 12px 14px;
+  }
+
+  .quests-list {
+    max-width: 100%;
+  }
+
+  .quest-row {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 14px;
+    gap: 10px;
+  }
+
+  .quest-row__claim-btn {
+    width: 100%;
+    min-height: 40px;
+    padding: 10px 16px;
+  }
+
+  .quest-row__status--claimed,
+  .quest-row__status--pending {
+    align-self: flex-start;
+  }
+}

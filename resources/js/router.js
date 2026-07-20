@@ -74,6 +74,7 @@ const routes = [
     component: pageImport('CharacterSelectPage'),
   },
   { path: '/wiki', name: 'wiki', component: pageImport('WikiPage') },
+  { path: '/terms', name: 'terms', component: pageImport('TermsPage') },
   {
     path: '/',
     component: GameLayout,
@@ -95,7 +96,12 @@ router.beforeEach(async (to) => {
   const isLanding = to.path === '/landing';
   const isCreate = to.path === '/character/create';
   const isSelect = to.path === '/characters';
-  const isPublic = isLanding || to.path === '/wiki' || to.path === '/forgot-password' || to.path === '/reset-password';
+  const isPublic =
+    isLanding ||
+    to.path === '/wiki' ||
+    to.path === '/terms' ||
+    to.path === '/forgot-password' ||
+    to.path === '/reset-password';
 
   if (!auth.isAuthenticated && !isPublic) {
     return '/landing';

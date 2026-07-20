@@ -4,6 +4,7 @@ import api from '../api/client';
 import { useCharacterStore } from '../stores/character';
 import { useAuthStore } from '../stores/auth';
 import MentionInput from '../components/MentionInput.vue';
+import AdBanner from '../components/AdBanner.vue';
 import { renderChatBody, mentionsMe } from '../chatMentions';
 
 const characterStore = useCharacterStore();
@@ -191,6 +192,8 @@ onMounted(load);
     </div>
 
     <p v-if="message" class="guild-message">{{ message }}</p>
+
+    <AdBanner variant="inline" />
 
     <div v-if="guild" class="guild-panel">
       <div class="guild-info-card">

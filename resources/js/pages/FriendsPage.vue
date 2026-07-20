@@ -2,6 +2,7 @@
 import { ref, watch, onMounted } from 'vue';
 import api from '../api/client';
 import { useCharacterStore } from '../stores/character';
+import AdBanner from '../components/AdBanner.vue';
 
 const characterStore = useCharacterStore();
 const friends = ref([]);
@@ -86,6 +87,8 @@ onMounted(() => {
     </div>
 
     <p v-if="message" class="friends-message">{{ message }}</p>
+
+    <AdBanner variant="inline" />
 
     <div v-if="incoming.length" class="friend-requests">
       <div class="friend-requests__eyebrow">FRIEND REQUESTS</div>

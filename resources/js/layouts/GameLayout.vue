@@ -52,6 +52,10 @@ const BADGE_PATH = {
   daily: '/daily',
   party_invites: '/party',
   friend_requests: '/friends',
+  mail: '/inbox',
+  crafting: '/crafting',
+  dungeons: '/dungeons',
+  pvp: '/pvp',
 };
 let badgePollTimer = null;
 
@@ -138,7 +142,12 @@ onUnmounted(() => {
 <template>
   <div class="game-layout">
     <Toast :message="levelUpMessage" type="success" />
-    <aside class="sidebar">
+    <div
+      v-if="mobileNavOpen"
+      class="sidebar-backdrop"
+      @click="mobileNavOpen = false"
+    ></div>
+    <aside class="sidebar" :class="{ 'sidebar--open': mobileNavOpen }">
       <div class="sidebar__brand">
         <img src="/images/solyx-icon.png" alt="" class="sidebar__logo" />
         <div>
@@ -194,6 +203,9 @@ onUnmounted(() => {
 
     <div class="layout-main-col">
       <header class="topbar">
+        <button class="topbar__hamburger" type="button" @click="toggleMobileNav" aria-label="Menu">
+          <span></span><span></span><span></span>
+        </button>
         <span class="ox topbar__title"
           >Solyx Web Game <span class="topbar__title-sep">—</span>
           <span class="topbar__title-active">{{ activeLabel }}</span></span

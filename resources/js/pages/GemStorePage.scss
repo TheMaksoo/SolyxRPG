@@ -392,3 +392,65 @@
 .gem-sink-card__arrow {
   transition: transform 0.15s ease;
 }
+
+@media (max-width: 768px) {
+  .gem-store-header__icon {
+    font-size: 24px;
+  }
+
+  .gem-store-title {
+    font-size: 22px;
+  }
+
+  .gem-store-intro {
+    max-width: 100%;
+  }
+
+  .gem-pack,
+  .remove-ads-card,
+  .ad-free-card,
+  .auto-battle-store-card,
+  .auto-gather-store-card,
+  .gem-sink-card {
+    padding: 14px 16px;
+  }
+
+  .remove-ads-card,
+  .ad-free-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .remove-ads-card__buy,
+  .ad-free-card__cta {
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .auto-battle-store-card__option,
+  .auto-gather-store-card__option {
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+  }
+
+  .auto-gather-store-card__picker {
+    flex-direction: column;
+  }
+
+  .auto-gather-store-card__select {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 36px;
+  }
+
+  .gem-pack__buy {
+    min-height: 36px;
+  }
+}

@@ -113,6 +113,16 @@ class StoreController extends Controller
             'client_reference_id' => (string) $request->user()->id,
             'metadata' => ['sku' => $sku, 'user_id' => $request->user()->id],
             'automatic_tax' => ['enabled' => true],
+            // Forces a Stripe-hosted "I agree to the Terms of Service" checkbox before the buyer can pay —
+            // Stripe links it to the Terms of service URL set in the Dashboard (Settings > Business,
+            // "Terms of service"), which must point at /terms. Purchases are final per that page's no-refund
+            // clause, so getting explicit acceptance at checkout backs up the in-app disclosure on disputes.
+            'consent_collection' => ['terms_of_service' => 'required'],
+            'custom_text' => [
+                'terms_of_service_acceptance' => [
+                    'message' => 'All Solyx purchases are final. Content, values, and benefits can change as the game develops, and no refunds are issued if that happens or if related data is lost.',
+                ],
+            ],
             'success_url' => config('app.url').'/gem-store?checkout=success',
             'cancel_url' => config('app.url').'/gem-store?checkout=cancelled',
         ]);

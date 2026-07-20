@@ -237,6 +237,29 @@
   margin: 0;
 }
 
+.landing-tos-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: v.$text-muted-55;
+  cursor: pointer;
+
+  input {
+    margin-top: 2px;
+    flex: none;
+  }
+
+  a {
+    color: v.$accent;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
 .landing-submit-btn {
   @include m.btn-reset;
   width: 100%;
@@ -276,4 +299,80 @@
   padding: 20px;
   font-size: 12px;
   color: v.$text-muted-35;
+}
+
+@media (max-width: 768px) {
+  .landing-topbar {
+    padding: 14px 16px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .landing-brand__tag:last-of-type {
+    display: none;
+  }
+
+  .landing-hero {
+    gap: 32px;
+    padding: 24px 16px 32px;
+  }
+
+  .landing-hero__pitch {
+    min-width: 0;
+    max-width: 100%;
+    text-align: center;
+  }
+
+  .landing-hero__logo {
+    width: 100px;
+    margin-bottom: 18px;
+  }
+
+  .landing-hero__title {
+    margin: 0 0 14px;
+  }
+
+  .landing-hero__tagline {
+    margin: 0 auto 26px;
+  }
+
+  .landing-stats {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 22px;
+  }
+
+  .landing-auth-card {
+    width: 100%;
+    padding: 22px 18px;
+  }
+
+  .landing-input,
+  .landing-submit-btn,
+  .landing-oauth-btn {
+    min-height: 44px;
+    font-size: 15px;
+  }
+
+  .landing-input {
+    padding: 12px 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .landing-hero__title {
+    font-size: clamp(30px, 9vw, 40px);
+  }
+
+  .landing-stats {
+    gap: 16px 20px;
+  }
+
+  .landing-stat__value {
+    font-size: 22px;
+  }
+
+  .landing-auth-card {
+    padding: 18px 14px;
+  }
 }

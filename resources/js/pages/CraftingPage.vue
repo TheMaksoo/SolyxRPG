@@ -28,6 +28,7 @@ function showMessage(text, type = 'success') {
 const SECTIONS = [
   { key: 'weapon', label: 'Weapons', glyph: '⚔' },
   { key: 'armor', label: 'Armor', glyph: '🛡' },
+  { key: 'quiver', label: 'Quivers', glyph: '🎯' },
   { key: 'pickaxe', label: 'Pickaxes', glyph: '⛏' },
   { key: 'axe', label: 'Axes', glyph: '🪓' },
   { key: 'sickle', label: 'Sickles', glyph: '🔪' },
@@ -68,6 +69,15 @@ async function craft(recipe) {
   } catch (e) {
     showMessage(e.response?.data?.message || 'Missing materials.', 'error');
   }
+}
+
+function craftButtonLabel(recipe) {
+  if (recipe.class_locked) return `🔒 ${recipe.result_item.class_key} only`;
+  if (!recipe.level_unlocked) return `Requires Lv.${recipe.min_level}`;
+  if (!recipe.can_afford_gold) return 'Not Enough Gold';
+  if (!recipe.can_craft) return 'Missing Materials';
+  if (queueFull()) return 'Queue full';
+  return 'Craft';
 }
 
 async function collect(job) {
@@ -148,11 +158,14 @@ onUnmounted(() => {
           v-for="recipe in section.recipes"
           :key="recipe.id"
           class="recipe-card"
-          :class="{ 'recipe-card--locked': !recipe.can_craft }"
+          :class="{ 'recipe-card--locked': !recipe.can_craft, 'recipe-card--class-locked': recipe.class_locked }"
         >
           <div class="recipe-card__head">
             <span class="recipe-card__glyph">{{ recipe.result_item.glyph }}</span>
             <span class="ox recipe-card__name">{{ recipe.name }}</span>
+            <span v-if="recipe.class_locked" class="recipe-card__class-lock" :title="`Only the ${recipe.result_item.class_key} class can craft this.`">
+              🔒 {{ recipe.result_item.class_key }}
+            </span>
             <span v-if="recipe.result_qty > 1" class="recipe-card__qty">×{{ recipe.result_qty }}</span>
           </div>
           <div v-if="formatStats(recipe.result_item.stat_json).length" class="recipe-card__stats">
@@ -187,7 +200,7 @@ onUnmounted(() => {
             :disabled="!recipe.can_craft || queueFull()"
             class="recipe-card__craft-btn"
           >
-            {{ !recipe.level_unlocked ? `Requires Lv.${recipe.min_level}` : !recipe.can_afford_gold ? 'Not Enough Gold' : !recipe.can_craft ? 'Missing Materials' : queueFull() ? 'Queue full' : 'Craft' }}
+            {{ craftButtonLabel(recipe) }}
           </button>
         </div>
       </div>

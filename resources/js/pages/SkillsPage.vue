@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useCharacterStore } from '../stores/character';
 import api from '../api/client';
+import AdBanner from '../components/AdBanner.vue';
 
 const store = useCharacterStore();
 const message = ref('');
@@ -151,6 +152,8 @@ onMounted(load);
 <template>
   <div v-if="store.character">
     <p v-if="message" class="skills-message">{{ message }}</p>
+
+    <AdBanner variant="inline" />
 
     <div class="skills-section-eyebrow">
       CLASS PATH — grow from your base class into a profession at each level cap

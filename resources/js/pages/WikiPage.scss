@@ -217,3 +217,91 @@
   padding: 60px 20px;
   color: v.$text-muted-40;
 }
+
+@media (max-width: 768px) {
+  .wiki-page {
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  // Sidebar collapses into a slim horizontal chip bar that scrolls instead of
+  // eating the full viewport height above the entries list.
+  .wiki-sidebar {
+    width: 100%;
+    height: auto;
+    position: static;
+    overflow-y: visible;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .wiki-sidebar__brand {
+    padding: 0;
+  }
+
+  .wiki-sidebar nav {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+  }
+
+  .wiki-nav-btn {
+    flex: none;
+    width: auto;
+    white-space: nowrap;
+    border-left: none;
+    border-radius: v.$radius-pill;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 9px 14px;
+    min-height: 36px;
+
+    &.is-active {
+      background: rgba(232, 72, 47, 0.13);
+    }
+  }
+
+  .wiki-nav-btn__count {
+    margin-left: 4px;
+  }
+
+  .wiki-sidebar__footer {
+    display: none;
+  }
+
+  .wiki-main {
+    padding: 18px 16px;
+  }
+
+  .wiki-main-header {
+    margin-bottom: 14px;
+  }
+
+  .wiki-main-header__title {
+    font-size: 22px;
+  }
+
+  .wiki-main-header__icon {
+    font-size: 22px;
+  }
+
+  .wiki-search-input {
+    width: 100%;
+    padding: 10px 12px;
+    min-height: 36px;
+  }
+
+  .wiki-entries-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .wiki-entry-card {
+    padding: 14px;
+  }
+}

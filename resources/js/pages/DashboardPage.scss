@@ -67,6 +67,13 @@
   gap: 18px;
 }
 
+.dashboard__chat-col {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 // ---- Daily reward banner ----
 .daily-banner {
   display: flex;
@@ -685,4 +692,84 @@
   font-size: 11px;
   color: v.$text-muted-45;
   margin-top: 1px;
+}
+
+@media (max-width: 768px) {
+  .dashboard {
+    gap: 16px;
+  }
+
+  .dashboard__main {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .dashboard__rail,
+  .dashboard__chat-col {
+    width: 100%;
+  }
+
+  .claim-summary,
+  .daily-banner,
+  .zone-card {
+    padding: 14px;
+  }
+
+  .daily-banner__claim {
+    min-height: 44px;
+    padding: 10px 16px;
+  }
+
+  .zone-card__art {
+    width: 60px;
+    height: 60px;
+    font-size: 24px;
+  }
+
+  .zone-card__name {
+    font-size: 17px;
+  }
+
+  .stat-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .stat-tile {
+    padding: 14px;
+  }
+
+  .quick-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .quick-actions__primary,
+  .quick-actions__secondary {
+    min-height: 44px;
+    padding: 13px;
+    font-size: 14px;
+  }
+
+  .equipped-item {
+    padding: 13px 14px;
+  }
+
+  .rail-card,
+  .battlepass-card {
+    padding: 14px;
+  }
+
+  .vip-time-card {
+    padding: 12px 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stat-tiles {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .quick-actions {
+    grid-template-columns: 1fr;
+  }
 }
