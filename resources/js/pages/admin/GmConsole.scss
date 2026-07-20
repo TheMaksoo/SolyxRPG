@@ -74,10 +74,27 @@
   background: v.$bg-card;
   color: #fff;
   font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 
   &.is-active {
     background: v.$accent;
   }
+}
+
+.gm-console-tab-badge {
+  min-width: 17px;
+  height: 17px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 // ---- Shared eyebrow / empty states ----

@@ -108,6 +108,7 @@ onUnmounted(() => {
 
 <template>
   <div class="game-layout">
+    <Toast :message="levelUpMessage" type="success" />
     <aside class="sidebar">
       <div class="sidebar__brand">
         <img src="/images/solyx-icon.png" alt="" class="sidebar__logo" />
@@ -122,10 +123,11 @@ onUnmounted(() => {
             <button
               @click="navigate"
               class="sidebar__nav-btn"
-              :class="{ 'is-active': isActive }"
+              :class="{ 'is-active': isActive, 'is-newly-unlocked': justUnlocked.has(n.path) }"
             >
               <span class="sidebar__nav-icon">{{ n.icon }}</span>
               {{ n.label }}
+              <span v-if="justUnlocked.has(n.path)" class="sidebar__nav-new">NEW</span>
               <span v-if="badgeFor(n.path) > 0" class="sidebar__nav-badge">{{ badgeFor(n.path) }}</span>
             </button>
           </router-link>

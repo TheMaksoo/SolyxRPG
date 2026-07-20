@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SupportTicket extends Model
 {
@@ -17,5 +18,10 @@ class SupportTicket extends Model
     public function assignedGm(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_gm_id');
+    }
+
+    public function messages(): HasMany
+    {
+        return $this->hasMany(SupportTicketMessage::class)->orderBy('created_at');
     }
 }

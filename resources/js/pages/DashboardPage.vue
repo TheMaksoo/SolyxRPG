@@ -18,6 +18,8 @@ const quests = ref([]);
 const announcements = ref([]);
 const tradeSkills = ref([]);
 const craftQueue = ref([]);
+const craftRecipes = ref([]);
+const craftMaxSlots = ref(0);
 const autoBattle = ref(null);
 const autoGather = ref(null);
 const autoBattleSummary = ref(null);
@@ -25,7 +27,7 @@ const autoGatherSummary = ref(null);
 const unclaimedQuestCount = ref(0);
 
 async function loadRail() {
-  const [dailyRes, passRes, lbRes, questRes, annRes, tradeRes, craftRes, autoBattleRes, autoGatherRes] = await Promise.all([
+  const [dailyRes, passRes, lbRes, questRes, annRes, tradeRes, craftRes, recipeRes, autoBattleRes, autoGatherRes] = await Promise.all([
     api.get('/daily'),
     api.get('/battlepass'),
     api.get('/leaderboard'),
@@ -33,6 +35,7 @@ async function loadRail() {
     api.get('/announcements'),
     api.get('/trade-skills'),
     api.get('/crafting/queue'),
+    api.get('/crafting/recipes'),
     api.get('/auto-battle'),
     api.get('/auto-gather'),
   ]);
@@ -44,6 +47,8 @@ async function loadRail() {
   announcements.value = annRes.data.announcements.slice(0, 3);
   tradeSkills.value = tradeRes.data.trade_skills;
   craftQueue.value = craftRes.data.jobs;
+  craftMaxSlots.value = craftRes.data.max_slots;
+  craftRecipes.value = recipeRes.data.recipes;
   autoBattle.value = autoBattleRes.data;
   autoGather.value = autoGatherRes.data;
   // The GET endpoints above already lazily tick Auto-Attack/Auto-Gather forward and apply any
@@ -68,6 +73,12 @@ function formatDuration(totalSeconds) {
 const isGathering = computed(() => tradeSkills.value.some((s) => s.cooldown_remaining > 0));
 const isCrafting = computed(() => craftQueue.value.length > 0);
 const hasReadyCraft = computed(() => craftQueue.value.some((job) => job.is_ready));
+
+/** True if the queue actually has a free slot and at least one recipe is both level-unlocked and
+ * affordable right now — nudging "queue something up" is pointless if nothing's actually craftable. */
+const hasActionableCraft = computed(
+  () => craftQueue.value.length < craftMaxSlots.value && craftRecipes.value.some((r) => r.can_craft)
+);
 
 /** True if at least one trade skill target is actually doable right now — unlocked, off cooldown, affordable,
  * and (for Smelting) backed by enough ore. Nudging the player to "go gather" is pointless if nothing's doable. */
@@ -266,7 +277,7 @@ onMounted(() => {
       <div
         v-if="
           showGatherAlert ||
-          !isCrafting ||
+          hasActionableCraft ||
           brokenGear.length ||
           nearBrokenGear.length ||
           unspentPoints > 0 ||
@@ -297,7 +308,7 @@ onMounted(() => {
         <router-link v-if="showGatherAlert" to="/trade-skills" class="dashboard-alert dashboard-alert--idle">
           ⛏ No gathering in progress — head to Gathering.
         </router-link>
-        <router-link v-if="!isCrafting" to="/crafting" class="dashboard-alert dashboard-alert--idle">
+        <router-link v-if="hasActionableCraft" to="/crafting" class="dashboard-alert dashboard-alert--idle">
           🔨 Crafting queue is empty — queue something up.
         </router-link>
         <router-link v-if="unspentPoints > 0" to="/skills" class="dashboard-alert dashboard-alert--idle">
@@ -340,7 +351,7 @@ onMounted(() => {
         </router-link>
         <router-link to="/crafting" class="quick-actions__secondary">
           🔨 Crafting
-          <span v-if="!isCrafting" class="quick-actions__alert-badge">!</span>
+          <span v-if="hasActionableCraft" class="quick-actions__alert-badge">!</span>
           <span v-else-if="hasReadyCraft" class="quick-actions__ready-badge">✓</span>
         </router-link>
       </div>

@@ -70,6 +70,7 @@ Route::post('/store/webhook', [StoreController::class, 'webhook']);
 Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    Route::post('/me/tester-mode', [AuthController::class, 'toggleTesterMode']);
     Route::get('/announcements', [AnnouncementController::class, 'index']);
     Route::get('/nav-badges', [NavBadgeController::class, 'index']);
 
@@ -184,6 +185,7 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
 
     Route::get('/support-tickets', [SupportTicketController::class, 'index']);
     Route::post('/support-tickets', [SupportTicketController::class, 'store']);
+    Route::post('/support-tickets/{ticket}/messages', [SupportTicketController::class, 'sendMessage']);
 
     // Monetization
     Route::get('/store/gems', [StoreController::class, 'gems']);
@@ -216,6 +218,7 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
 
         Route::get('/tickets', [GmTicketController::class, 'index']);
         Route::post('/tickets/{ticket}/resolve', [GmTicketController::class, 'resolve']);
+        Route::post('/tickets/{ticket}/messages', [GmTicketController::class, 'sendMessage']);
 
         Route::post('/broadcast', [GmBroadcastController::class, 'store']);
 

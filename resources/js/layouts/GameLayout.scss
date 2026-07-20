@@ -121,6 +121,36 @@
   justify-content: center;
 }
 
+.sidebar__nav-btn.is-newly-unlocked {
+  color: v.$text-primary;
+  animation: nav-unlock-glow 1.6s ease-in-out 3;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    background: v.$accent-tint-15;
+  }
+}
+
+.sidebar__nav-new {
+  margin-left: auto;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: v.$accent;
+  border-radius: v.$radius-pill;
+  padding: 2px 6px;
+}
+
+@keyframes nav-unlock-glow {
+  0%, 100% {
+    background: transparent;
+  }
+  50% {
+    background: v.$accent-tint-15;
+  }
+}
+
 .sidebar__footer {
   padding: 14px 8px 0;
   margin-top: 12px;

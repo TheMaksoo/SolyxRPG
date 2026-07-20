@@ -1,8 +1,10 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { useCharacterStore } from '../stores/character';
 import api from '../api/client';
 
+const router = useRouter();
 const store = useCharacterStore();
 const achievements = ref([]);
 const cosmetics = ref([]);
@@ -108,7 +110,13 @@ async function unlock(row) {
     await api.post(`/cosmetics/${row.cosmetic.id}/unlock`);
     await Promise.all([loadCosmetics(), store.fetch()]);
   } catch (e) {
-    message.value = e.response?.data?.message || 'Could not unlock.';
+    const msg = e.response?.data?.message || 'Could not unlock.';
+    if (msg === 'Not enough gems.') {
+      message.value = `Not enough gems for "${row.cosmetic.name}" — heading to the Gem Store...`;
+      setTimeout(() => router.push('/gem-store'), 1400);
+    } else {
+      message.value = msg;
+    }
   }
 }
 

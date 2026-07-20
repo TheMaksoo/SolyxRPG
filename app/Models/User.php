@@ -61,10 +61,21 @@ class User extends Authenticatable
         return in_array($this->role, ['gm', 'owner'], true);
     }
 
-    /** Testers (and GMs/owners) get every title/color/banner unlocked and can freely switch between them. */
+    /** Testers get every title/color/banner unlocked and can freely switch between them — but only while
+     * a GM has the "global_tester_mode" feature flag switched on; a designated tester's is_tester flag
+     * or role is otherwise inert. GMs/owners always get tester perks regardless, since they need them to
+     * QA the game whether or not the flag is on for everyone else. */
     public function isTester(): bool
     {
-        return $this->is_tester || $this->role === 'tester' || $this->isGm();
+        if ($this->isGm()) {
+            return true;
+        }
+
+        if (! ($this->is_tester || $this->role === 'tester')) {
+            return false;
+        }
+
+        return (bool) FeatureFlag::where('key', 'global_tester_mode')->value('enabled');
     }
 
     public function isBanned(): bool

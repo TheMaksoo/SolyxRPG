@@ -72,6 +72,20 @@ class AuthController extends Controller
         return response()->json(['user' => $user]);
     }
 
+    /** Lets an already-designated tester flip their own tester perks on/off, without needing a GM to
+     * do it — self-serve so they can preview the game as a regular player. Restricted to accounts that
+     * already carry the tester designation (is_tester or role=tester) so a plain player can't self-grant. */
+    public function toggleTesterMode(Request $request)
+    {
+        $user = $request->user();
+        abort_unless($user->is_tester || $user->role === 'tester', 403, 'Not a tester account.');
+
+        $user->is_tester = ! $user->is_tester;
+        $user->save();
+
+        return response()->json(['is_tester' => $user->is_tester]);
+    }
+
     public function forgotPassword(Request $request)
     {
         $request->validate(['email' => ['required', 'email']]);

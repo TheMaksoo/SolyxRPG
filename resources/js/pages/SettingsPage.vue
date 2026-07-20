@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useCharacterStore } from '../stores/character';
@@ -32,6 +32,21 @@ async function logout() {
   router.push('/landing');
 }
 
+// Self-serve tester toggle — lets an already-designated tester (granted via GM/DB) flip their own
+// perks on/off to preview the game as a regular player, without needing a GM to do it each time.
+const canToggleTester = computed(() => !!auth.user && (auth.user.is_tester || auth.user.role === 'tester'));
+const testerMessage = ref('');
+
+async function toggleTesterMode() {
+  testerMessage.value = '';
+  try {
+    const { data } = await api.post('/me/tester-mode');
+    auth.user.is_tester = data.is_tester;
+  } catch (e) {
+    testerMessage.value = e.response?.data?.message || 'Could not toggle tester mode.';
+  }
+}
+
 const tickets = ref([]);
 const ticketForm = ref({ subject: '', body: '' });
 const ticketMessage = ref('');
@@ -51,6 +66,28 @@ async function submitTicket() {
     await loadTickets();
   } catch (e) {
     ticketMessage.value = e.response?.data?.message || 'Could not submit ticket.';
+  }
+}
+
+const expandedTicket = ref(null);
+const replyBody = ref('');
+const replyMessage = ref('');
+
+function toggleTicket(ticket) {
+  expandedTicket.value = expandedTicket.value === ticket.id ? null : ticket.id;
+  replyBody.value = '';
+  replyMessage.value = '';
+}
+
+async function sendReply(ticket) {
+  replyMessage.value = '';
+  if (!replyBody.value.trim()) return;
+  try {
+    await api.post(`/support-tickets/${ticket.id}/messages`, { body: replyBody.value });
+    replyBody.value = '';
+    await loadTickets();
+  } catch (e) {
+    replyMessage.value = e.response?.data?.message || 'Could not send reply.';
   }
 }
 
@@ -100,6 +137,17 @@ onMounted(loadTickets);
       </div>
       <p v-if="tutorialMessage" class="support-card__message">{{ tutorialMessage }}</p>
 
+      <div v-if="canToggleTester" class="customize-tester-toggle">
+        <p class="customize-tester-note">
+          {{ auth.user.is_tester ? 'Tester perks are ON — every title, color and banner is unlocked; switch freely.' : 'Tester perks are OFF — previewing as a regular player.' }}
+          A GM must also have "Global Tester Mode" enabled in Feature Flags for this to take effect.
+        </p>
+        <button type="button" class="customize-tester-toggle__btn" @click="toggleTesterMode">
+          {{ auth.user.is_tester ? 'Turn off tester mode' : 'Turn on tester mode' }}
+        </button>
+      </div>
+      <p v-if="testerMessage" class="support-card__message">{{ testerMessage }}</p>
+
       <div class="support-card">
         <h3 class="ox support-card__title">Contact Support</h3>
         <p v-if="ticketMessage" class="support-card__message">{{ ticketMessage }}</p>
@@ -109,9 +157,39 @@ onMounted(loadTickets);
 
         <div v-if="tickets.length" class="support-card__history">
           <div class="support-card__history-label">YOUR TICKETS</div>
-          <div v-for="t in tickets" :key="t.id" class="support-ticket-row">
-            <span class="support-ticket-row__subject">{{ t.subject }}</span>
-            <span class="support-ticket-row__status">{{ t.status }}</span>
+          <div v-for="t in tickets" :key="t.id" class="ticket-thread">
+            <button type="button" class="support-ticket-row support-ticket-row--btn" @click="toggleTicket(t)">
+              <span class="support-ticket-row__subject">{{ t.subject }}</span>
+              <span class="support-ticket-row__status">{{ t.status }}</span>
+            </button>
+            <div v-if="expandedTicket === t.id" class="ticket-thread__body">
+              <div class="ticket-thread__messages">
+                <div class="ticket-thread__msg ticket-thread__msg--original">
+                  <span class="ticket-thread__msg-sender">You</span>
+                  <span class="ticket-thread__msg-body">{{ t.body }}</span>
+                </div>
+                <div
+                  v-for="m in t.messages"
+                  :key="m.id"
+                  class="ticket-thread__msg"
+                  :class="{ 'ticket-thread__msg--gm': m.sender && m.sender.role !== 'player' }"
+                >
+                  <span class="ticket-thread__msg-sender">{{ m.sender && ['gm', 'owner'].includes(m.sender.role) ? `${m.sender.name} (GM)` : 'You' }}</span>
+                  <span class="ticket-thread__msg-body">{{ m.body }}</span>
+                </div>
+              </div>
+              <p v-if="replyMessage" class="support-card__message">{{ replyMessage }}</p>
+              <div v-if="t.status !== 'closed'" class="ticket-thread__reply">
+                <input
+                  v-model="replyBody"
+                  placeholder="Write a reply…"
+                  class="support-card__input"
+                  @keyup.enter="sendReply(t)"
+                />
+                <button type="button" class="settings-action-btn" @click="sendReply(t)">Send</button>
+              </div>
+              <p v-else class="ticket-thread__closed-note">This ticket is closed.</p>
+            </div>
           </div>
         </div>
       </div>

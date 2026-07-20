@@ -1,10 +1,15 @@
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import api from '../../api/client';
 import GmContentEditor from './GmContentEditor.vue';
 import { RESOURCE_SCHEMAS } from './resourceSchemas';
 
-const tab = ref('overview');
+const route = useRoute();
+const TAB_KEYS = ['overview', 'content', 'players', 'economy', 'tickets', 'broadcast', 'audit'];
+// Supports deep-linking straight to a tab (e.g. /admin?tab=tickets from the Settings page's
+// "manage tickets" link) while still defaulting to the overview tab otherwise.
+const tab = ref(TAB_KEYS.includes(route.query.tab) ? route.query.tab : 'overview');
 const TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'content', label: 'Content' },
@@ -113,9 +118,12 @@ async function saveConfig(row) {
 // Tickets
 const tickets = ref([]);
 
+const openTicketCount = ref(0);
+
 async function loadTickets() {
   const { data } = await api.get('/gm/tickets');
   tickets.value = data.tickets;
+  openTicketCount.value = tickets.value.filter((t) => ['open', 'pending'].includes(t.status)).length;
 }
 
 async function resolveTicket(ticket, status) {
@@ -152,7 +160,10 @@ function switchTab(key) {
   if (key === 'audit') loadAuditLog();
 }
 
-onMounted(() => loadOverview());
+onMounted(() => {
+  switchTab(tab.value);
+  if (tab.value !== 'tickets') loadTickets();
+});
 </script>
 
 <template>
@@ -176,6 +187,7 @@ onMounted(() => loadOverview());
         :class="{ 'is-active': tab === t.key }"
       >
         {{ t.label }}
+        <span v-if="t.key === 'tickets' && openTicketCount > 0" class="gm-console-tab-badge">{{ openTicketCount }}</span>
       </button>
     </div>
 
