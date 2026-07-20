@@ -106,6 +106,7 @@ export const RESOURCE_SCHEMAS = {
       { name: 'name', type: 'text' },
       { name: 'result_item_id', type: 'number' },
       { name: 'materials_json', type: 'json' },
+      { name: 'gold_cost', type: 'number' },
       { name: 'enabled', type: 'checkbox' },
     ],
   },

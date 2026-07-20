@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\Gm\GmMetricsController;
 use App\Http\Controllers\Api\Gm\GmPlayerController;
 use App\Http\Controllers\Api\Gm\GmTicketController;
 use App\Http\Controllers\Api\GuildController;
+use App\Http\Controllers\Api\GuildWarController;
 use App\Http\Controllers\Api\InboxController;
 use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\LeaderboardController;
@@ -148,6 +149,10 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::post('/guild/{guild}/members/{target}/promote', [GuildController::class, 'promote']);
     Route::post('/guild/{guild}/members/{target}/kick', [GuildController::class, 'kick']);
     Route::post('/guild/{guild}/leave', [GuildController::class, 'leave']);
+
+    Route::get('/guild-war/status', [GuildWarController::class, 'status']);
+    Route::post('/guild-war/{guild}/enter', [GuildWarController::class, 'enter']);
+    Route::post('/guild-war/battles/{battle}/resolve', [GuildWarController::class, 'resolve']);
 
     Route::get('/leaderboard', [LeaderboardController::class, 'index']);
 

@@ -11,6 +11,9 @@ const opponents = ref([]);
 const history = ref([]);
 const lastResult = ref(null);
 const loading = ref(false);
+const attemptsUsed = ref(0);
+const attemptsMax = ref(10);
+const errorMessage = ref('');
 
 // Mirrors $success / $warning / $purple in resources/scss/_variables.scss.
 const difficultyColor = {
@@ -28,14 +31,19 @@ async function load() {
   tierLadder.value = data.tier_ladder;
   opponents.value = data.opponents;
   history.value = data.history;
+  attemptsUsed.value = data.pvp_attempts_used;
+  attemptsMax.value = data.pvp_attempts_max;
 }
 
 async function findMatch() {
   loading.value = true;
+  errorMessage.value = '';
   try {
     const { data } = await api.post('/pvp/find-match');
     lastResult.value = data;
     await load();
+  } catch (e) {
+    errorMessage.value = e?.response?.data?.message || 'Something went wrong.';
   } finally {
     loading.value = false;
   }
@@ -43,10 +51,13 @@ async function findMatch() {
 
 async function challenge(row) {
   loading.value = true;
+  errorMessage.value = '';
   try {
     const { data } = await api.post(`/pvp/challenge/${row.character.id}`);
     lastResult.value = data;
     await load();
+  } catch (e) {
+    errorMessage.value = e?.response?.data?.message || 'Something went wrong.';
   } finally {
     loading.value = false;
   }
@@ -78,14 +89,19 @@ onMounted(load);
               </div>
               <div v-if="record.win_streak > 0" class="rank-card__streak">🔥 {{ record.win_streak }} win streak</div>
             </div>
-            <button
-              @click="findMatch"
-              :disabled="loading"
-              class="btn-find-match"
-            >
-              Find ranked match
-            </button>
+            <div class="rank-card__attempts-wrap">
+              <button
+                @click="findMatch"
+                :disabled="loading || attemptsUsed >= attemptsMax"
+                class="btn-find-match"
+              >
+                Find ranked match
+              </button>
+              <div class="rank-card__attempts">{{ attemptsMax - attemptsUsed }} / {{ attemptsMax }} attempts left today</div>
+            </div>
           </div>
+
+          <div v-if="errorMessage" class="pvp-error-banner">{{ errorMessage }}</div>
 
           <div v-if="tierProgress" class="tier-progress">
             <div class="tier-progress__track">
@@ -124,6 +140,9 @@ onMounted(load);
             {{ lastResult.result === 'win' ? 'Victory' : 'Defeat' }} vs {{ lastResult.opponent.name }}
           </span>
           <span class="last-result-card__delta">{{ lastResult.rating_delta >= 0 ? '+' : '' }}{{ lastResult.rating_delta }} rating</span>
+          <div v-if="lastResult.daily_reward_granted" class="last-result-card__daily-reward">
+            🎁 Daily win reward: +{{ lastResult.daily_reward_gold }} gold, +{{ lastResult.daily_reward_gems }} gems
+          </div>
           <div v-if="lastResult.log?.length" class="last-result-card__log">
             <div v-for="(line, i) in lastResult.log" :key="i" class="last-result-card__log-line">{{ line }}</div>
           </div>

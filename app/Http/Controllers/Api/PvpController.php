@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Character;
 use App\Models\FeatureFlag;
+use App\Models\GemLedger;
 use App\Models\PvpMatch;
 use App\Models\PvpRecord;
 use App\Services\AchievementService;
@@ -43,11 +44,17 @@ class PvpController extends Controller
 
         $allRatings = PvpRecord::pluck('rating')->all();
         $tier = PvpRecord::tierFor($record->rating);
+        $maxAttempts = 10 + $request->user()->vipPvpBonusAttempts();
+        $attemptsUsed = ($character->pvp_attempts_reset_at && $character->pvp_attempts_reset_at->isFuture())
+            ? $character->pvp_attempts_used
+            : 0;
 
         return response()->json([
             'record' => $record,
             'rank' => PvpRecord::bracketFromRatings($record->rating, $allRatings),
             'tier' => $tier,
+            'pvp_attempts_used' => $attemptsUsed,
+            'pvp_attempts_max' => $maxAttempts,
             'tier_progress' => PvpRecord::tierProgress($record->rating),
             'tier_ladder' => array_map(fn ($t) => [
                 'name' => $t['name'],
@@ -72,6 +79,8 @@ class PvpController extends Controller
         $character = $request->user()->character;
         abort_unless($character, 404);
 
+        $this->consumePvpAttempt($character);
+
         $opponent = Character::where('id', '!=', $character->id)->inRandomOrder()->first();
         abort_if(! $opponent, 422, 'No opponents available yet.');
 
@@ -84,7 +93,25 @@ class PvpController extends Controller
         abort_unless($character, 404);
         abort_if($character->id === $opponent->id, 422, 'Cannot challenge yourself.');
 
+        $this->consumePvpAttempt($character);
+
         return $this->resolveMatch($character, $opponent);
+    }
+
+    /** Resets the daily attempt counter if the reset window has lapsed, enforces the VIP-scaled daily cap,
+     * then consumes one attempt. Aborts with a 422 if the player is out of attempts for today. */
+    private function consumePvpAttempt(Character $character): void
+    {
+        if (! $character->pvp_attempts_reset_at || $character->pvp_attempts_reset_at->isPast()) {
+            $character->pvp_attempts_used = 0;
+            $character->pvp_attempts_reset_at = now()->endOfDay();
+        }
+
+        $max = 10 + $character->user->vipPvpBonusAttempts();
+        abort_if($character->pvp_attempts_used >= $max, 422, 'No PvP attempts remaining today. Resets at midnight.');
+
+        $character->pvp_attempts_used++;
+        $character->save();
     }
 
     private function resolveMatch(Character $character, Character $opponent): \Illuminate\Http\JsonResponse
@@ -121,13 +148,42 @@ class PvpController extends Controller
 
         $this->achievements->check($character->fresh());
 
+        $dailyReward = $won ? $this->grantDailyPvpRewardIfDue($character) : ['granted' => false, 'gold' => 0, 'gems' => 0];
+
         return response()->json([
             'result' => $won ? 'win' : 'loss',
             'rating_delta' => $delta,
             'log' => $sim['log'],
             'record' => $myRecord->fresh(),
             'opponent' => $opponent->only(['id', 'name', 'base_class', 'level']),
+            'daily_reward_granted' => $dailyReward['granted'],
+            'daily_reward_gold' => $dailyReward['gold'],
+            'daily_reward_gems' => $dailyReward['gems'],
         ]);
+    }
+
+    /** Grants a once-per-calendar-day, tier-scaled gold/gem reward on a player's first PvP win of the day.
+     * Gold = 200 * tier index (Bronze=1..Master=6), gems = 5 * tier index. */
+    private function grantDailyPvpRewardIfDue(Character $character): array
+    {
+        if ($character->last_daily_reward_at && $character->last_daily_reward_at->isSameDay(now())) {
+            return ['granted' => false, 'gold' => 0, 'gems' => 0];
+        }
+
+        $record = $character->pvpRecord()->firstOrCreate([], ['rating' => 1000]);
+        $tier = PvpRecord::tierFor($record->rating);
+        $tierIndex = array_search($tier, PvpRecord::PVP_TIERS) + 1;
+
+        $gold = 200 * $tierIndex;
+        $gems = 5 * $tierIndex;
+
+        $character->last_daily_reward_at = now();
+        $character->gold += $gold;
+        $character->gems += $gems;
+        $character->save();
+        GemLedger::log($character, $gems, 'pvp_daily_win_reward');
+
+        return ['granted' => true, 'gold' => $gold, 'gems' => $gems];
     }
 
     /** Simulates a real multi-round fight (not a coin-flip) using both sides' effective combat stats. */
@@ -172,12 +228,12 @@ class PvpController extends Controller
 
     private function rollDamage(array $attacker, array $defender): array
     {
-        $dmg = (int) round($attacker['eff_atk'] * (0.8 + mt_rand() / mt_getrandmax() * 0.4));
+        $dmg = (int) round($attacker['eff_atk'] * (0.75 + mt_rand() / mt_getrandmax() * 0.3));
         $crit = (mt_rand() / mt_getrandmax() * 100) < ($attacker['crit_chance'] ?? 18);
         if ($crit) {
             $dmg = (int) round($dmg * 1.8);
         }
-        $dmg = max(5, $dmg - (int) round(($defender['eff_def'] ?? 0) * 0.4));
+        $dmg = max(5, $dmg - (int) round(($defender['eff_def'] ?? 0) * 0.55));
 
         return ['amount' => $dmg, 'crit' => $crit];
     }

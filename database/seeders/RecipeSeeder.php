@@ -25,22 +25,22 @@ class RecipeSeeder extends Seeder
 
         $recipes = [
             // Common tier — available from level 1, no smelting required.
-            ['name' => 'Craft Stone Shiv', 'result' => 'stone_shiv', 'materials' => [['item' => 'stone', 'qty' => 6]], 'craft_seconds' => 35, 'min_level' => 1],
+            ['name' => 'Craft Stone Shiv', 'result' => 'stone_shiv', 'materials' => [['item' => 'stone', 'qty' => 6]], 'craft_seconds' => 35, 'min_level' => 1, 'gold_cost' => 50],
             // Class-specific common weapons — same iron_bar cost/timing as the old shared line, just re-flavored.
-            ['name' => 'Craft Iron Sword', 'result' => 'iron_sword', 'materials' => [['item' => 'iron_bar', 'qty' => 3]], 'craft_seconds' => 65, 'min_level' => 8],
-            ['name' => 'Craft Iron Dagger', 'result' => 'iron_dagger', 'materials' => [['item' => 'iron_bar', 'qty' => 3]], 'craft_seconds' => 65, 'min_level' => 8],
-            ['name' => 'Craft Wooden Bow', 'result' => 'wooden_bow', 'materials' => [['item' => 'wood', 'qty' => 8]], 'craft_seconds' => 60, 'min_level' => 8],
-            ['name' => 'Craft Oak Staff', 'result' => 'oak_staff', 'materials' => [['item' => 'oak_wood', 'qty' => 5], ['item' => 'iron_bar', 'qty' => 1]], 'craft_seconds' => 65, 'min_level' => 8],
+            ['name' => 'Craft Iron Sword', 'result' => 'iron_sword', 'materials' => [['item' => 'iron_bar', 'qty' => 3]], 'craft_seconds' => 65, 'min_level' => 8, 'gold_cost' => 120],
+            ['name' => 'Craft Iron Dagger', 'result' => 'iron_dagger', 'materials' => [['item' => 'iron_bar', 'qty' => 3]], 'craft_seconds' => 65, 'min_level' => 8, 'gold_cost' => 120],
+            ['name' => 'Craft Wooden Bow', 'result' => 'wooden_bow', 'materials' => [['item' => 'wood', 'qty' => 8]], 'craft_seconds' => 60, 'min_level' => 8, 'gold_cost' => 120],
+            ['name' => 'Craft Oak Staff', 'result' => 'oak_staff', 'materials' => [['item' => 'oak_wood', 'qty' => 5], ['item' => 'iron_bar', 'qty' => 1]], 'craft_seconds' => 65, 'min_level' => 8, 'gold_cost' => 120],
             // Class-specific common armor.
-            ['name' => 'Craft Iron Buckler', 'result' => 'iron_buckler', 'materials' => [['item' => 'iron_bar', 'qty' => 4]], 'craft_seconds' => 100, 'min_level' => 8],
-            ['name' => 'Craft Leather Vest', 'result' => 'leather_vest', 'materials' => [['item' => 'iron_bar', 'qty' => 2], ['item' => 'wood', 'qty' => 6]], 'craft_seconds' => 100, 'min_level' => 8],
-            ['name' => "Craft Ranger's Cloak", 'result' => 'ranger_cloak', 'materials' => [['item' => 'oak_wood', 'qty' => 6], ['item' => 'iron_bar', 'qty' => 1]], 'craft_seconds' => 100, 'min_level' => 8],
-            ['name' => 'Craft Padded Robe', 'result' => 'padded_robe', 'materials' => [['item' => 'iron_bar', 'qty' => 2], ['item' => 'oak_wood', 'qty' => 4]], 'craft_seconds' => 100, 'min_level' => 8],
+            ['name' => 'Craft Iron Buckler', 'result' => 'iron_buckler', 'materials' => [['item' => 'iron_bar', 'qty' => 4]], 'craft_seconds' => 100, 'min_level' => 8, 'gold_cost' => 120],
+            ['name' => 'Craft Leather Vest', 'result' => 'leather_vest', 'materials' => [['item' => 'iron_bar', 'qty' => 2], ['item' => 'wood', 'qty' => 6]], 'craft_seconds' => 100, 'min_level' => 8, 'gold_cost' => 120],
+            ['name' => "Craft Ranger's Cloak", 'result' => 'ranger_cloak', 'materials' => [['item' => 'oak_wood', 'qty' => 6], ['item' => 'iron_bar', 'qty' => 1]], 'craft_seconds' => 100, 'min_level' => 8, 'gold_cost' => 120],
+            ['name' => 'Craft Padded Robe', 'result' => 'padded_robe', 'materials' => [['item' => 'iron_bar', 'qty' => 2], ['item' => 'oak_wood', 'qty' => 4]], 'craft_seconds' => 100, 'min_level' => 8, 'gold_cost' => 120],
             // Mid tier — needs Smelting rank for silver, min_level matches the materials' own unlock ranks.
-            ['name' => 'Craft Silvered Blade', 'result' => 'silvered_blade', 'materials' => [['item' => 'silver_bar', 'qty' => 3], ['item' => 'iron_bar', 'qty' => 2], ['item' => 'ironwood', 'qty' => 2]], 'craft_seconds' => 220, 'min_level' => 20],
+            ['name' => 'Craft Silvered Blade', 'result' => 'silvered_blade', 'materials' => [['item' => 'silver_bar', 'qty' => 3], ['item' => 'iron_bar', 'qty' => 2], ['item' => 'ironwood', 'qty' => 2]], 'craft_seconds' => 220, 'min_level' => 20, 'gold_cost' => 1400],
             // High tier — gold/mythril only reachable at high Mining/Smelting rank, and cost far more materials.
-            ['name' => 'Craft Gilded Saber', 'result' => 'gilded_saber', 'materials' => [['item' => 'gold_bar', 'qty' => 4], ['item' => 'elderwood', 'qty' => 3]], 'craft_seconds' => 320, 'min_level' => 35],
-            ['name' => 'Craft Mythril Aegis', 'result' => 'mythril_aegis', 'materials' => [['item' => 'mythril_bar', 'qty' => 5], ['item' => 'moonwood', 'qty' => 4]], 'craft_seconds' => 480, 'min_level' => 50],
+            ['name' => 'Craft Gilded Saber', 'result' => 'gilded_saber', 'materials' => [['item' => 'gold_bar', 'qty' => 4], ['item' => 'elderwood', 'qty' => 3]], 'craft_seconds' => 320, 'min_level' => 35, 'gold_cost' => 4500],
+            ['name' => 'Craft Mythril Aegis', 'result' => 'mythril_aegis', 'materials' => [['item' => 'mythril_bar', 'qty' => 5], ['item' => 'moonwood', 'qty' => 4]], 'craft_seconds' => 480, 'min_level' => 50, 'gold_cost' => 12000],
             // Tools — one per ore/wood tier, each boosting its matching gathering skill's speed and yield.
             ['name' => 'Craft Stone Pickaxe', 'result' => 'stone_pickaxe', 'materials' => [['item' => 'stone', 'qty' => 8]], 'craft_seconds' => 40, 'min_level' => 1],
             ['name' => 'Craft Iron Pickaxe', 'result' => 'iron_pickaxe', 'materials' => [['item' => 'iron_bar', 'qty' => 5]], 'craft_seconds' => 75, 'min_level' => 8],
@@ -84,6 +84,7 @@ class RecipeSeeder extends Seeder
                     'craft_seconds' => $recipe['craft_seconds'],
                     'result_qty' => $recipe['result_qty'] ?? 1,
                     'min_level' => $recipe['min_level'],
+                    'gold_cost' => $recipe['gold_cost'] ?? 0,
                     'enabled' => true,
                 ]
             );

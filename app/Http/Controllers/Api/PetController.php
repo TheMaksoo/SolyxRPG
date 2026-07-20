@@ -36,7 +36,7 @@ class PetController extends Controller
         $owned = $character->pets()->with('pet')->get()->keyBy('pet_id');
         $maxActiveSlots = $request->user()->maxActivePetSlots($character);
 
-        $pets = Pet::where('enabled', true)->get()->map(function (Pet $pet) use ($owned) {
+        $pets = Pet::where('enabled', true)->orderBy('sort_order')->get()->map(function (Pet $pet) use ($owned) {
             $ownedPet = $owned->get($pet->id);
             $levelMult = $ownedPet ? $ownedPet->levelMultiplier() : 1.0;
 
@@ -72,12 +72,22 @@ class PetController extends Controller
         if ($character->pets()->where('pet_id', $pet->id)->exists()) {
             return response()->json(['message' => 'Already unlocked.'], 422);
         }
-        if ($character->gems < $pet->unlock_gems) {
-            return response()->json(['message' => 'Not enough gems.'], 422);
+
+        if ($pet->unlock_gold !== null) {
+            if ($character->gold < $pet->unlock_gold) {
+                return response()->json(['message' => 'Not enough gold.'], 422);
+            }
+            $character->decrement('gold', $pet->unlock_gold);
+        } elseif ($pet->unlock_gems !== null) {
+            if ($character->gems < $pet->unlock_gems) {
+                return response()->json(['message' => 'Not enough gems.'], 422);
+            }
+            $character->decrement('gems', $pet->unlock_gems);
+            GemLedger::log($character, -$pet->unlock_gems, "pet_unlock:{$pet->key}");
+        } else {
+            return response()->json(['message' => 'This companion cannot be unlocked.'], 422);
         }
 
-        $character->decrement('gems', $pet->unlock_gems);
-        GemLedger::log($character, -$pet->unlock_gems, "pet_unlock:{$pet->key}");
         $character->pets()->create(['pet_id' => $pet->id]);
         $this->achievements->check($character->fresh());
 

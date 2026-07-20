@@ -95,6 +95,7 @@ class CraftingController extends Controller
 
             $isGear = in_array($recipe->resultItem->type, self::GEAR_TYPES, true);
             $levelUnlocked = $character->level >= $recipe->min_level;
+            $canAffordGold = $recipe->gold_cost <= 0 || $character->gold >= $recipe->gold_cost;
 
             return [
                 'id' => $recipe->id,
@@ -105,8 +106,10 @@ class CraftingController extends Controller
                 'materials_detailed' => $materialsDetailed,
                 'result_qty' => $recipe->result_qty,
                 'min_level' => $recipe->min_level,
+                'gold_cost' => $recipe->gold_cost,
+                'can_afford_gold' => $canAffordGold,
                 'level_unlocked' => $levelUnlocked,
-                'can_craft' => $levelUnlocked && ! $materialsDetailed->contains(fn (array $m) => ! $m['has_enough']),
+                'can_craft' => $levelUnlocked && $canAffordGold && ! $materialsDetailed->contains(fn (array $m) => ! $m['has_enough']),
                 'is_gear' => $isGear,
                 'craft_seconds' => $this->craftSeconds($recipe->craft_seconds, $craftSpeedPct, $craftSpeedAttr, $hammerSpeedPct),
             ];
@@ -147,6 +150,10 @@ class CraftingController extends Controller
             }
         }
 
+        if ($recipe->gold_cost > 0 && $character->gold < $recipe->gold_cost) {
+            return response()->json(['message' => 'Not enough gold to craft this.'], 422);
+        }
+
         $stats = $character->effectiveStats();
         $luck = (int) ($stats['luck'] ?? 0);
         $craftingLevel = $this->craftingLevel($character);
@@ -162,6 +169,10 @@ class CraftingController extends Controller
                 if ($owned->fresh()->qty <= 0) {
                     $owned->delete();
                 }
+            }
+
+            if ($recipe->gold_cost > 0) {
+                $character->decrement('gold', $recipe->gold_cost);
             }
 
             $resultItem = $recipe->resultItem;

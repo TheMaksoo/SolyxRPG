@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import api from '../api/client';
@@ -13,6 +13,31 @@ const error = ref('');
 const loading = ref(false);
 const stats = ref(null);
 
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
+const turnstileToken = ref('');
+const turnstileEl = ref(null);
+let turnstileWidgetId = null;
+
+function renderTurnstile() {
+  if (!TURNSTILE_SITE_KEY || !turnstileEl.value || turnstileWidgetId !== null) return;
+  if (!window.turnstile) {
+    setTimeout(renderTurnstile, 200);
+    return;
+  }
+  turnstileWidgetId = window.turnstile.render(turnstileEl.value, {
+    sitekey: TURNSTILE_SITE_KEY,
+    callback: (token) => { turnstileToken.value = token; },
+    'expired-callback': () => { turnstileToken.value = ''; },
+  });
+}
+
+function resetTurnstile() {
+  turnstileToken.value = '';
+  if (window.turnstile && turnstileWidgetId !== null) {
+    window.turnstile.reset(turnstileWidgetId);
+  }
+}
+
 const providers = [
   { key: 'discord', label: 'Continue with Discord', class: 'landing-oauth-btn--discord' },
   { key: 'google', label: 'Continue with Google', class: 'landing-oauth-btn--google' },
@@ -24,7 +49,7 @@ async function submit() {
   loading.value = true;
   try {
     if (mode.value === 'register') {
-      await auth.register(form.value);
+      await auth.register({ ...form.value, cf_turnstile_response: turnstileToken.value });
       router.push('/character/create');
     } else {
       await auth.login({ email: form.value.email, password: form.value.password });
@@ -32,12 +57,18 @@ async function submit() {
     }
   } catch (e) {
     error.value = e.response?.data?.message || Object.values(e.response?.data?.errors ?? {})[0]?.[0] || 'Something went wrong.';
+    if (mode.value === 'register') resetTurnstile();
   } finally {
     loading.value = false;
   }
 }
 
+watch(mode, (value) => {
+  if (value === 'register') nextTick(renderTurnstile);
+});
+
 onMounted(async () => {
+  if (mode.value === 'register') nextTick(renderTurnstile);
   try {
     const { data } = await api.get('/stats/public');
     stats.value = data;
@@ -134,6 +165,11 @@ onMounted(async () => {
             required
             class="landing-input"
           />
+          <div
+            v-if="mode === 'register' && TURNSTILE_SITE_KEY"
+            ref="turnstileEl"
+            class="landing-turnstile"
+          ></div>
           <p v-if="error" class="landing-error">{{ error }}</p>
           <button
             type="submit"

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\FeatureFlag;
 use App\Models\User;
+use App\Support\Turnstile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -21,7 +22,12 @@ class AuthController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
             'password' => ['required', 'string', PasswordRule::min(8)->letters()->numbers()->uncompromised()],
+            'cf_turnstile_response' => ['nullable', 'string'],
         ])->validate();
+
+        if (! Turnstile::verify($data['cf_turnstile_response'] ?? null, $request->ip())) {
+            return response()->json(['message' => 'Bot check failed. Please try again.'], 422);
+        }
 
         $user = User::create([
             'name' => $data['name'],

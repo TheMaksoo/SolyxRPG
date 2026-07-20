@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Models\Character;
 use App\Http\Controllers\Controller;
 use App\Models\FeatureFlag;
+use App\Models\PvpRecord;
 use Illuminate\Http\Request;
 
 class LeaderboardController extends Controller
@@ -21,7 +22,9 @@ class LeaderboardController extends Controller
             $category = 'power';
         }
 
-        $ranked = Character::with(['attributes_', 'inventory.item', 'user', 'pvpRecord', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon'])
+        $allRatings = $category === 'trophies' ? PvpRecord::pluck('rating')->all() : [];
+
+        $ranked = Character::with(['attributes_', 'inventory.item', 'user', 'pvpRecord', 'skills', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon'])
             ->get()
             ->map(fn (Character $c) => [
                 'character_id' => $c->id,
@@ -29,6 +32,7 @@ class LeaderboardController extends Controller
                 'level' => $c->level,
                 'base_class' => $c->base_class,
                 'value' => $this->valueFor($c, $category),
+                'percentile' => $category === 'trophies' ? PvpRecord::bracketFromRatings($c->pvpRecord->rating ?? 1000, $allRatings) : null,
                 'vip_tier' => $c->user?->hasActiveVip() ? $c->user->vip_tier : 'none',
                 'title' => $c->activeTitle?->value,
                 'name_color' => $c->activeColor?->value,

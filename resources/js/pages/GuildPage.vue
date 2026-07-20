@@ -20,6 +20,13 @@ const createForm = ref({ name: '', tag: '' });
 const bankForm = ref({ currency: 'gold', amount: '' });
 const upgrades = ref({});
 
+const warIsWeekend = ref(false);
+const warPoints = ref(0);
+const warLeaderboardRank = ref(null);
+const warBattle = ref(null);
+const warMessage = ref('');
+const warLoading = ref(false);
+
 const UPGRADE_LABELS = {
   gold_find: { title: 'Gold Find', unit: 'gold' },
   xp: { title: 'XP Boost', unit: 'XP' },
@@ -51,6 +58,35 @@ async function load() {
   warStatus.value = data.war_status || 'quiet';
   upgrades.value = data.upgrades || {};
   if (!characterStore.character) await characterStore.fetch();
+  if (guild.value) await loadWarStatus();
+}
+
+async function loadWarStatus() {
+  try {
+    const { data } = await api.get('/guild-war/status');
+    warIsWeekend.value = !!data.is_weekend;
+    warPoints.value = data.guild_war_points || 0;
+    warLeaderboardRank.value = data.leaderboard_rank ?? null;
+    warBattle.value = data.battle || null;
+  } catch (e) {
+    // Guild wars status is best-effort; don't block the rest of the page.
+  }
+}
+
+async function enterGuildWar() {
+  warMessage.value = '';
+  warLoading.value = true;
+  try {
+    const { data } = await api.post(`/guild-war/${guild.value.id}/enter`);
+    warBattle.value = data.battle || null;
+    warPoints.value = data.guild_war_points ?? warPoints.value;
+    if (data.message) warMessage.value = data.message;
+    await loadWarStatus();
+  } catch (e) {
+    warMessage.value = e.response?.data?.message || 'Could not enter guild war.';
+  } finally {
+    warLoading.value = false;
+  }
 }
 
 async function purchaseUpgrade(track) {
@@ -180,7 +216,60 @@ onMounted(load);
             <div class="guild-stat-chip__label">XP Perk</div>
             <div class="guild-stat-chip__value">+{{ guild.xp_perk }}%</div>
           </div>
+          <div class="guild-stat-chip">
+            <div class="guild-stat-chip__label">War Points</div>
+            <div class="guild-stat-chip__value">{{ warPoints }}</div>
+          </div>
         </div>
+      </div>
+
+      <div class="guild-wars">
+        <div class="guild-wars__header">
+          <div class="ox guild-wars__title">Guild Wars</div>
+          <span class="guild-wars__weekend-badge" :class="warIsWeekend ? 'is-live' : 'is-off'">
+            {{ warIsWeekend ? 'Live now' : 'Weekends only' }}
+          </span>
+        </div>
+
+        <p v-if="!warIsWeekend" class="guild-wars__hint">
+          Guild wars run Saturday &amp; Sunday only. Come back on the weekend to enter battle.
+        </p>
+
+        <p v-if="warMessage" class="guild-wars__message">{{ warMessage }}</p>
+
+        <div v-if="warBattle" class="guild-wars-battle">
+          <div class="guild-wars-battle__side">
+            <div class="guild-wars-battle__label">{{ guild.name }}</div>
+            <div class="guild-wars-battle__power">{{ warBattle.my_power }}</div>
+          </div>
+          <div class="guild-wars-battle__vs">VS</div>
+          <div class="guild-wars-battle__side">
+            <div class="guild-wars-battle__label">{{ warBattle.opponent ? `${warBattle.opponent.name} [${warBattle.opponent.tag}]` : 'Unknown' }}</div>
+            <div class="guild-wars-battle__power">{{ warBattle.opponent_power }}</div>
+          </div>
+          <span
+            class="guild-wars-battle__status"
+            :class="{
+              'is-won': warBattle.status === 'won',
+              'is-lost': warBattle.status === 'lost',
+              'is-pending': warBattle.status === 'pending',
+            }"
+          >
+            {{ warBattle.status === 'pending' ? 'Pending' : warBattle.status === 'won' ? 'Victory' : 'Defeat' }}
+          </span>
+        </div>
+        <div v-else class="guild-wars__empty">No battle scheduled for this weekend yet.</div>
+
+        <button
+          v-if="canManage"
+          :disabled="!warIsWeekend || warLoading"
+          @click="enterGuildWar"
+          class="guild-wars__enter-btn"
+          :title="!warIsWeekend ? 'Guild wars only run on Saturday and Sunday.' : ''"
+        >
+          {{ warBattle ? 'Refresh Battle' : 'Enter Guild War' }}
+        </button>
+        <div v-else class="guild-wars__officer-hint">Only officers and the guild master can enter guild wars.</div>
       </div>
 
       <div class="guild-bank">

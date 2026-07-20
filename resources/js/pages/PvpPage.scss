@@ -84,6 +84,28 @@
   padding: 14px 26px;
 }
 
+.rank-card__attempts-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.rank-card__attempts {
+  font-size: 11px;
+  color: v.$text-muted-45;
+}
+
+.pvp-error-banner {
+  margin-top: 14px;
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  border-radius: v.$radius-md;
+  padding: 10px 14px;
+  color: v.$danger;
+  font-size: 13px;
+}
+
 // ---- Tier progress ----
 .tier-progress {
   margin-top: 18px;
@@ -161,6 +183,13 @@
 .last-result-card__delta {
   color: rgba(255, 255, 255, 0.5);
   margin-left: 8px;
+}
+
+.last-result-card__daily-reward {
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: v.$warning;
 }
 
 .last-result-card__log {

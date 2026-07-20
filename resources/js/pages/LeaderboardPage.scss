@@ -95,6 +95,12 @@
   text-transform: capitalize;
 }
 
+.leaderboard-row__percentile {
+  color: v.$warning;
+  font-weight: 600;
+  text-transform: none;
+}
+
 .leaderboard-row__power {
   font-weight: 700;
   font-size: 13px;

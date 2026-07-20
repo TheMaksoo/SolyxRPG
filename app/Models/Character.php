@@ -19,6 +19,7 @@ class Character extends Model
         'avatar', 'level', 'xp', 'gold', 'gems', 'quests_completed', 'hp', 'hp_max', 'mana', 'mana_max',
         'energy', 'energy_max', 'base_atk', 'base_def', 'skill_points', 'attribute_points', 'current_zone_id',
         'active_title_id', 'active_color_id', 'active_banner_id', 'active_icon_id', 'tutorial_seen',
+        'pvp_attempts_used', 'pvp_attempts_reset_at', 'last_daily_reward_at',
     ];
 
     protected function casts(): array
@@ -26,6 +27,8 @@ class Character extends Model
         return [
             'user_id' => 'integer',
             'tutorial_seen' => 'boolean',
+            'pvp_attempts_reset_at' => 'datetime',
+            'last_daily_reward_at' => 'datetime',
             'last_regen_at' => 'datetime',
             'last_mana_regen_at' => 'datetime',
             'last_energy_regen_at' => 'datetime',
@@ -225,6 +228,11 @@ class Character extends Model
         $luck = (int) round((($attr->luck ?? 0) + $gearLuck + ($this->user?->vipLuckBonus() ?? 0) + $party['luck']) * (1 + $guildLuckBonusPct));
         $dodgeChance = (new AttributeService())->dodgeChance(($attr->dodge ?? 0), $gearDodge);
 
+        // Power is the sum of every progression axis: gear + attributes (both already baked into eff_atk/
+        // eff_def/luck above), plus combat skill investment (previously uncounted) weighted so a fully
+        // skilled-up character can meaningfully outrank a geared-but-unskilled one of similar level.
+        $skillLevelSum = ($this->relationLoaded('skills') ? $this->skills : $this->skills()->get())->sum('level');
+
         return [
             'eff_atk' => $effAtk,
             'eff_def' => $effDef,
@@ -240,7 +248,7 @@ class Character extends Model
             'pet_craft_speed_pct' => $petCraftSpeedPct,
             'has_undying' => $skillPassives['has_undying'],
             'party_bonuses' => $party,
-            'power' => $effAtk * 4 + $effDef * 3 + $effHpMax + $luck * 20,
+            'power' => $effAtk * 4 + $effDef * 3 + $effHpMax + $luck * 20 + $skillLevelSum * 25,
         ];
     }
 

@@ -52,6 +52,13 @@ class CosmeticSeeder extends Seeder
             ['key' => 'title_mythic', 'type' => 'title', 'name' => 'Living Legend', 'value' => 'Living Legend', 'rarity' => 'mythic', 'category' => 'leveling', 'cost_gems' => 0, 'unlock_quest_key' => 'main_reach_level_60'],
             ['key' => 'title_initiate', 'type' => 'title', 'name' => 'Initiate', 'value' => 'Initiate', 'rarity' => 'common', 'category' => 'event', 'cost_gems' => 0, 'unlock_event' => 'tutorial_complete'],
 
+            // PvP season-exclusive titles — granted by `php artisan pvp:season-reset` (App\Console\Commands\PvpSeasonReset)
+            // to whoever finishes Season 1 at Platinum/Diamond/Master. Keyed with the season number so a
+            // future season can add new "_s2" rows without touching these (re-running season-reset stays idempotent).
+            ['key' => 'title_pvp_platinum_s1', 'type' => 'title', 'name' => 'Platinum Gladiator (S1)', 'value' => 'Platinum Gladiator', 'rarity' => 'legendary', 'category' => 'event', 'cost_gems' => 0, 'unlock_event' => 'pvp_season_1_platinum'],
+            ['key' => 'title_pvp_diamond_s1', 'type' => 'title', 'name' => 'Diamond Gladiator (S1)', 'value' => 'Diamond Gladiator', 'rarity' => 'legendary', 'category' => 'event', 'cost_gems' => 0, 'unlock_event' => 'pvp_season_1_diamond'],
+            ['key' => 'title_pvp_master_s1', 'type' => 'title', 'name' => 'Master Gladiator (S1)', 'value' => 'Master Gladiator', 'rarity' => 'mythic', 'category' => 'event', 'cost_gems' => 0, 'unlock_event' => 'pvp_season_1_master'],
+
             // Colors — applied to the character's name.
             ['key' => 'color_silver', 'type' => 'color', 'name' => 'Silver', 'value' => '#c0c0c0', 'rarity' => 'common', 'cost_gems' => 25],
             ['key' => 'color_crimson', 'type' => 'color', 'name' => 'Crimson', 'value' => '#dc2626', 'rarity' => 'rare', 'cost_gems' => 150],

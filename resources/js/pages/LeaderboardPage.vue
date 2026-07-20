@@ -76,7 +76,10 @@ onMounted(load);
           <span v-if="row.title" class="leaderboard-row__title-badge">{{ row.title }}</span>
           <VipBadge :tier="row.vip_tier" />
         </span>
-        <span class="leaderboard-row__meta">{{ row.base_class }} · Lv.{{ row.level }}</span>
+        <span class="leaderboard-row__meta">
+          {{ row.base_class }} · Lv.{{ row.level }}
+          <span v-if="row.percentile" class="leaderboard-row__percentile">({{ row.percentile }})</span>
+        </span>
         <span class="ox leaderboard-row__power">{{ row.value }}{{ CATEGORIES.find((c) => c.key === category)?.suffix }}</span>
       </router-link>
       <div v-if="rows.length === 0 && !loading" class="leaderboard-empty">No ranked characters yet.</div>

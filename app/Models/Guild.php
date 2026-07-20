@@ -8,10 +8,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Guild extends Model
 {
-    protected $fillable = ['name', 'tag', 'level', 'xp_perk', 'war_status', 'owner_id', 'member_cap', 'bank_gold', 'bank_gems'];
+    protected $fillable = ['name', 'tag', 'level', 'xp_perk', 'war_status', 'owner_id', 'member_cap', 'bank_gold', 'bank_gems', 'guild_war_points', 'guild_war_points_reset_at'];
 
     protected $casts = [
         'last_activity_at' => 'datetime',
+        'guild_war_points_reset_at' => 'datetime',
     ];
 
     public const MAX_UPGRADE_TIER = 5;

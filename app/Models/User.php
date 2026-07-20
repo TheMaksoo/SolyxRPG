@@ -95,6 +95,9 @@ class User extends Authenticatable
     public const VIP_TIER_ENERGY_PCT = ['bronze' => 10, 'gold' => 25, 'diamond' => 50];
     public const VIP_TIER_CRAFT_QUEUE_BONUS = ['bronze' => 1, 'gold' => 2, 'diamond' => 3];
 
+    /** Extra daily PvP battle attempts (on top of the 10 base attempts) per VIP tier. */
+    public const VIP_TIER_PVP_ATTEMPTS = ['bronze' => 5, 'gold' => 10, 'diamond' => 15];
+
     /** Free monthly gem stipend per tier — 25% of that tier's cash price, in gems (at the entry gem-pack's ~68/$ rate). */
     public const VIP_TIER_MONTHLY_GEMS = ['bronze' => 50, 'gold' => 85, 'diamond' => 170];
 
@@ -249,6 +252,18 @@ class User extends Authenticatable
         $fallback = self::VIP_TIER_CRAFT_QUEUE_BONUS[$this->vip_tier] ?? 0;
 
         return (int) round(GameConfig::number("vip_craft_queue_bonus_{$this->vip_tier}", $fallback));
+    }
+
+    /** Extra daily PvP battle attempts from an active VIP subscription. */
+    public function vipPvpBonusAttempts(): int
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_PVP_ATTEMPTS[$this->vip_tier] ?? 0;
+
+        return (int) round(GameConfig::number("vip_pvp_attempts_{$this->vip_tier}", $fallback));
     }
 
     /** up to 4 gem-side slots (1 starter + 3 bought) + up to 4 from an active VIP subscription tier. */

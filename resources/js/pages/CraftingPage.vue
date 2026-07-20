@@ -171,6 +171,13 @@ onUnmounted(() => {
               {{ material.glyph }} {{ material.name }}: {{ material.owned_qty }}/{{ material.required_qty }}
             </div>
           </div>
+          <div
+            v-if="recipe.gold_cost > 0"
+            class="material-row"
+            :class="{ 'material-row--missing': !recipe.can_afford_gold }"
+          >
+            🪙 {{ recipe.gold_cost }} gold
+          </div>
           <div class="recipe-card__time">
             ⏱ {{ recipe.craft_seconds }}s to craft
             <span v-if="!recipe.level_unlocked" class="recipe-card__locked">🔒 Requires level {{ recipe.min_level }}</span>
@@ -180,7 +187,7 @@ onUnmounted(() => {
             :disabled="!recipe.can_craft || queueFull()"
             class="recipe-card__craft-btn"
           >
-            {{ !recipe.level_unlocked ? `Requires Lv.${recipe.min_level}` : !recipe.can_craft ? 'Missing Materials' : queueFull() ? 'Queue full' : 'Craft' }}
+            {{ !recipe.level_unlocked ? `Requires Lv.${recipe.min_level}` : !recipe.can_afford_gold ? 'Not Enough Gold' : !recipe.can_craft ? 'Missing Materials' : queueFull() ? 'Queue full' : 'Craft' }}
           </button>
         </div>
       </div>
