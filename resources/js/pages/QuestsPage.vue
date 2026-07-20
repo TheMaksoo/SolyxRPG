@@ -14,6 +14,7 @@ const claimSummary = ref(null);
 const tabs = [
   { key: 'daily', label: 'Daily' },
   { key: 'weekly', label: 'Weekly' },
+  { key: 'monthly', label: 'Monthly' },
   { key: 'main', label: 'Main' },
   { key: 'raid', label: 'Raid' },
 ];
@@ -109,7 +110,10 @@ onMounted(load);
         :class="{ 'quest-row--claimed': row.claimed }"
       >
         <div class="quest-row__info">
-          <div class="ox quest-row__name">{{ row.quest.name }}</div>
+          <div class="quest-row__name-line">
+            <span class="ox quest-row__name">{{ row.quest.name }}</span>
+            <span class="quest-row__type-badge" :class="`quest-row__type-badge--${row.quest.type}`">{{ row.quest.type }}</span>
+          </div>
           <div class="quest-row__desc">{{ row.quest.description }}</div>
 
           <div class="quest-row__bar-track">

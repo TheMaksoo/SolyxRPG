@@ -116,9 +116,40 @@
   flex: 1;
 }
 
+.quest-row__name-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .quest-row__name {
   font-weight: 700;
   font-size: 14px;
+}
+
+.quest-row__type-badge {
+  text-transform: uppercase;
+
+  &--daily {
+    @include m.badge(v.$info-strong, rgba(56, 189, 248, 0.14));
+  }
+
+  &--weekly {
+    @include m.badge(v.$purple, v.$purple-tint-12);
+  }
+
+  &--monthly {
+    @include m.badge(v.$warning, v.$warning-tint-12);
+  }
+
+  &--main {
+    @include m.badge(v.$accent-soft, v.$accent-tint-15);
+  }
+
+  &--raid {
+    @include m.badge(v.$danger, rgba(255, 106, 77, 0.14));
+  }
 }
 
 .quest-row__desc {
