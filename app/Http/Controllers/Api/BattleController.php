@@ -10,6 +10,7 @@ use App\Services\CombatService;
 use App\Services\DungeonService;
 use App\Services\GradeService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
@@ -120,6 +121,24 @@ class BattleController extends Controller
 
     private function authorizeBattle(Request $request, Battle $battle): void
     {
-        abort_unless($battle->character_id === $request->user()->character?->id, 403, 'This battle belongs to a different character.');
+        $user = $request->user();
+        $activeCharacter = $user->character;
+
+        if ($battle->character_id === $activeCharacter?->id) {
+            return;
+        }
+
+        Log::warning('Battle ownership mismatch', [
+            'session_id' => $request->session()->getId(),
+            'auth_user_id' => $user->id,
+            'auth_user_email' => $user->email,
+            'active_character_id' => $activeCharacter?->id,
+            'battle_id' => $battle->id,
+            'battle_character_id' => $battle->character_id,
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        abort(403, 'This battle belongs to a different character.');
     }
 }

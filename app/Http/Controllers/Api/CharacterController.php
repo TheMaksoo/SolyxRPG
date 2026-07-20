@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\AttributeService;
 use App\Services\QuestService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class CharacterController extends Controller
@@ -111,6 +112,7 @@ class CharacterController extends Controller
 
     public function select(Request $request, Character $character)
     {
+        $this->logIfOwnershipMismatch($request, $character, 'select');
         abort_unless($character->user_id === $request->user()->id, 403, 'That character does not belong to your account.');
 
         $user = $request->user();
@@ -129,6 +131,7 @@ class CharacterController extends Controller
     public function destroy(Request $request, Character $character)
     {
         $user = $request->user();
+        $this->logIfOwnershipMismatch($request, $character, 'destroy');
         abort_unless($character->user_id === $user->id, 403, 'That character does not belong to your account.');
 
         $deletedId = $character->id;
@@ -156,6 +159,7 @@ class CharacterController extends Controller
 
         $data = $request->validate(['character_id' => ['required', 'exists:characters,id']]);
         $payer = Character::findOrFail($data['character_id']);
+        $this->logIfOwnershipMismatch($request, $payer, 'unlockSlot');
         abort_unless($payer->user_id === $user->id, 403, 'That character does not belong to your account.');
 
         $tier = $user->bonus_character_slots + 1;
@@ -413,5 +417,26 @@ class CharacterController extends Controller
         $character->update([$column => $progression->key]);
 
         return response()->json(['character' => $character->fresh()]);
+    }
+
+    /** Logs hard evidence (session id, resolved auth user, character's real owner) whenever a character
+     * ownership check is about to fail — so a recurrence points at the exact session/user mismatch
+     * instead of requiring another round of guessing. No-op when ownership actually matches. */
+    private function logIfOwnershipMismatch(Request $request, Character $character, string $action): void
+    {
+        $user = $request->user();
+        if ($character->user_id === $user->id) {
+            return;
+        }
+
+        Log::warning("Character ownership mismatch on {$action}", [
+            'session_id' => $request->session()->getId(),
+            'auth_user_id' => $user->id,
+            'auth_user_email' => $user->email,
+            'character_id' => $character->id,
+            'character_owner_id' => $character->user_id,
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
     }
 }
