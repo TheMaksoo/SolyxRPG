@@ -54,6 +54,7 @@ onMounted(async () => {
         <img src="/images/solyx-icon.png" alt="" class="landing-brand__icon" />
         <span class="ox landing-brand__name">SOLYX</span>
         <span class="landing-brand__tag">RPG</span>
+        <span class="landing-brand__tag">Beta version!</span>
       </div>
       <div v-if="stats" class="landing-online">
         <span class="landing-online__dot"></span>
@@ -65,6 +66,7 @@ onMounted(async () => {
       <div class="landing-hero__pitch">
         <img src="/images/solyx-logo.png" alt="Solyx" class="landing-hero__logo" />
         <h1 class="ox landing-hero__title">Solyx <span class="landing-hero__title-accent">Web Game</span></h1>
+        <h6>Beta version!</h6>
         <p class="landing-hero__tagline">
           A browser RPG built on the Solyx Discord bot. Forge a class, battle monsters, raid dungeons with your
           guild, and climb the world leaderboard.

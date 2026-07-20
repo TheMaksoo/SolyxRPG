@@ -121,6 +121,7 @@ onUnmounted(() => {
         <div>
           <div class="ox sidebar__brand-name">SOLYX</div>
           <div class="sidebar__brand-tag">WEB GAME</div>
+          <div class="sidebar__brand-tag">Beta version!</div>
         </div>
       </div>
       <nav class="sidebar__nav">

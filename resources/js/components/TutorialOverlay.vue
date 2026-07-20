@@ -12,8 +12,8 @@ const dismissing = ref(false);
 const STEPS = [
   {
     glyph: '🗺',
-    title: 'Welcome to Solyx',
-    body: "You've created your character — now let's get you oriented. This is a quick tour of the core loop: fight, quest, gather, craft, and show off what you've earned. Takes about a minute.",
+    title: 'Welcome to Solyx beta!',
+    body: "You've created your character — The game is still in its beta phase so expect bugs! Now let's get you oriented. This is a quick tour of the core loop: fight, quest, gather, craft, and show off what you've earned. Takes about a minute.",
   },
   {
     glyph: '⚔',
