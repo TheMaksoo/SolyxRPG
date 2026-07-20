@@ -295,7 +295,7 @@ onMounted(() => {
           {{ nearBrokenGear.length > 1 ? 'are' : 'is' }} almost broken — repair soon.
         </router-link>
         <router-link v-if="showGatherAlert" to="/trade-skills" class="dashboard-alert dashboard-alert--idle">
-          ⛏ No gathering in progress — head to Trade Skills.
+          ⛏ No gathering in progress — head to Gathering.
         </router-link>
         <router-link v-if="!isCrafting" to="/crafting" class="dashboard-alert dashboard-alert--idle">
           🔨 Crafting queue is empty — queue something up.
@@ -335,7 +335,7 @@ onMounted(() => {
         <router-link to="/quests" class="quick-actions__secondary">❖ Quests</router-link>
         <router-link to="/shop" class="quick-actions__secondary">◉ Shop</router-link>
         <router-link to="/trade-skills" class="quick-actions__secondary">
-          ⛏ Trade Skills
+          ⛏ Gathering
           <span v-if="showGatherAlert" class="quick-actions__alert-badge">!</span>
         </router-link>
         <router-link to="/crafting" class="quick-actions__secondary">

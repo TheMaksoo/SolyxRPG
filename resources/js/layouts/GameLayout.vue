@@ -6,6 +6,7 @@ import { useCharacterStore } from '../stores/character';
 import { useAuthStore } from '../stores/auth';
 import api from '../api/client';
 import TutorialOverlay from '../components/TutorialOverlay.vue';
+import Toast from '../components/Toast.vue';
 
 const route = useRoute();
 const characterStore = useCharacterStore();
@@ -59,6 +60,37 @@ const expandedLocked = ref(null);
 function toggleLockedHint(path) {
   expandedLocked.value = expandedLocked.value === path ? null : path;
 }
+
+// Highlights sidebar entries that just crossed their level gate, cleared a few seconds after the
+// level-up toast so the glow reads as "new" rather than becoming a permanent decoration.
+const justUnlocked = ref(new Set());
+let unlockHighlightTimer = null;
+
+const levelUpMessage = ref('');
+let levelUpMessageTimer = null;
+
+watch(
+  () => characterStore.character?.level,
+  (newLevel, oldLevel) => {
+    if (!oldLevel || !newLevel || newLevel <= oldLevel) return;
+    const unlocked = NAV.filter((n) => n.unlockLevel > oldLevel && n.unlockLevel <= newLevel);
+    clearTimeout(levelUpMessageTimer);
+    if (unlocked.length) {
+      const names = unlocked.map((n) => n.label).join(', ');
+      levelUpMessage.value = `Level up! You reached Lv.${newLevel} — unlocked: ${names}`;
+      clearTimeout(unlockHighlightTimer);
+      justUnlocked.value = new Set(unlocked.map((n) => n.path));
+      unlockHighlightTimer = setTimeout(() => {
+        justUnlocked.value = new Set();
+      }, 10000);
+    } else {
+      levelUpMessage.value = `Level up! You reached Lv.${newLevel}`;
+    }
+    levelUpMessageTimer = setTimeout(() => {
+      levelUpMessage.value = '';
+    }, 4000);
+  }
+);
 
 watch(() => route.path, loadNavBadges);
 

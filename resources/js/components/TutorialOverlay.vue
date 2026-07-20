@@ -29,9 +29,9 @@ const STEPS = [
   },
   {
     glyph: '⛏',
-    title: 'Trade Skills & Crafting',
-    body: 'Mine ore, chop wood, forage herbs, then smelt and craft them into gear at the Crafting bench. Better tools speed up gathering — better recipes need higher trade-skill levels.',
-    cta: { label: 'Open Trade Skills', path: '/trade-skills' },
+    title: 'Gathering & Crafting',
+    body: 'Mine ore, chop wood, forage herbs, then smelt and craft them into gear at the Crafting bench. Better tools speed up gathering — better recipes need higher gathering levels.',
+    cta: { label: 'Open Gathering', path: '/trade-skills' },
   },
   {
     glyph: '◉',

@@ -167,7 +167,7 @@ onUnmounted(() => {
 
     <div class="trade-header">
       <div class="trade-header__icon">⛏</div>
-      <h1 class="ox trade-title">Trade Skills</h1>
+      <h1 class="ox trade-title">Gathering</h1>
     </div>
     <p class="trade-subtitle">Gather raw materials, smelt them into bars, then put them to work in Crafting.</p>
 
