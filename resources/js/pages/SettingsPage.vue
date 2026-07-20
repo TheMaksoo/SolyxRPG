@@ -31,14 +31,18 @@ function linkedTo(provider) {
 const linkMessage = ref('');
 
 async function handleLinkRedirect() {
-  const { linked, link_error: linkError } = route.query;
-  if (!linked && !linkError) return;
+  const { linked, link_error: linkError, oauth_error: oauthError } = route.query;
+  if (!linked && !linkError && !oauthError) return;
 
   if (linked) {
     await auth.fetchMe();
     linkMessage.value = `${linked} linked to your account.`;
   } else if (linkError === 'already_linked_elsewhere') {
     linkMessage.value = 'That account is already linked to a different Solyx login.';
+  } else if (oauthError === 'cancelled') {
+    linkMessage.value = 'Linking was cancelled.';
+  } else if (oauthError === 'failed') {
+    linkMessage.value = 'Could not link that account. Please try again.';
   }
 
   router.replace({ query: {} });

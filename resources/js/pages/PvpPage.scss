@@ -185,11 +185,43 @@
   margin-left: 8px;
 }
 
-.last-result-card__daily-reward {
-  margin-top: 10px;
+.daily-reward-banner {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.18), rgba(234, 179, 8, 0.06));
+  border: 1px solid rgba(234, 179, 8, 0.45);
+  border-radius: v.$radius-md;
+  padding: 10px 14px;
+  animation: daily-reward-pop 0.35s ease-out;
+}
+
+.daily-reward-banner__icon {
+  font-size: 22px;
+  flex: none;
+}
+
+.daily-reward-banner__text {
   font-size: 13px;
-  font-weight: 600;
   color: v.$warning;
+
+  strong {
+    display: block;
+    font-size: 14px;
+    font-weight: 800;
+  }
+}
+
+@keyframes daily-reward-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .last-result-card__log {

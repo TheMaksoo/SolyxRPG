@@ -201,6 +201,88 @@
   font-size: 11px;
 }
 
+.stats-table__row--clickable {
+  cursor: pointer;
+
+  &:hover td {
+    color: v.$text-primary;
+  }
+
+  .stats-table__label {
+    color: v.$text-muted-55;
+  }
+}
+
+.stats-table__row--expanded {
+  td {
+    border-top-color: v.$accent;
+  }
+
+  .stats-table__label,
+  .stats-table__eff {
+    color: v.$accent;
+  }
+}
+
+.stats-table__caret {
+  display: inline-block;
+  width: 12px;
+  color: v.$accent;
+  font-size: 10px;
+}
+
+.stats-table__breakdown-row td {
+  border-top: none;
+  padding: 0 0 12px;
+}
+
+// Expanded "what makes up this number" panel — reuses the card treatment used everywhere else in
+// this file (attribute chips, fun-stat chips) so it doesn't read as a one-off.
+.stat-breakdown {
+  @include m.card(14px);
+  background: v.$bg-input;
+  border-color: rgba(232, 72, 47, 0.25);
+  animation: fade-in 0.15s ease;
+}
+
+.stat-breakdown__line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 12px;
+
+  & + & {
+    border-top: 1px solid v.$border-subtle;
+  }
+}
+
+.stat-breakdown__label {
+  color: v.$text-muted-55;
+}
+
+.stat-breakdown__value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: v.$success;
+
+  &--neg {
+    color: v.$danger;
+  }
+}
+
+.stat-breakdown__total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid v.$border-medium;
+  font-size: 13px;
+  font-weight: 800;
+  color: v.$text-primary;
+}
+
 .attribute-points-eyebrow {
   @include m.section-eyebrow;
   margin: 20px 0 10px;

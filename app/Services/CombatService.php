@@ -113,6 +113,17 @@ class CombatService
         $weaponRow = $this->equippedGear($character, 'weapon');
         $armorRow = $this->equippedGear($character, 'armor');
 
+        // Turn-based skill cooldowns: "rounds remaining" per skill id, scoped to this battle (see
+        // Battle::skill_cooldowns_json) rather than real elapsed time — one act() call is one round, so
+        // every ability on the map ticks down by 1 every round regardless of what action was taken.
+        // Assigning it back onto $battle now means it rides along with whichever save()/update() call
+        // below ends up persisting this turn, on every return path.
+        $skillCooldowns = $battle->skill_cooldowns_json ?? [];
+        foreach ($skillCooldowns as $sid => $remaining) {
+            $skillCooldowns[$sid] = max(0, $remaining - 1);
+        }
+        $battle->skill_cooldowns_json = $skillCooldowns;
+
         $playerDmg = 0;
         $healed = 0;
         $isAoe = false;
@@ -127,12 +138,14 @@ class CombatService
             $skill = Skill::findOrFail($skillId);
             $characterSkill = $character->skills()->where('skill_id', $skill->id)->first();
             abort_unless($characterSkill, 422, 'Skill not unlocked.');
-            abort_if($characterSkill->cooldown_remaining > 0, 422, "{$skill->name} is on cooldown for {$characterSkill->cooldown_remaining}s.");
+            $roundsLeft = $skillCooldowns[$skill->id] ?? 0;
+            abort_if($roundsLeft > 0, 422, "{$skill->name} is on cooldown for {$roundsLeft} more round".($roundsLeft > 1 ? 's' : '').'.');
             abort_if($character->mana < $skill->mp_cost, 422, 'Not enough mana.');
 
             $character->decrement('mana', $skill->mp_cost);
-            if ($skill->cooldown_seconds > 0) {
-                $characterSkill->update(['cooldown_expires_at' => now()->addSeconds($skill->cooldown_seconds)]);
+            if ($skill->cooldown_rounds > 0) {
+                $skillCooldowns[$skill->id] = $skill->cooldown_rounds;
+                $battle->skill_cooldowns_json = $skillCooldowns;
             }
 
             if ($this->skills->isHeal($skill)) {
@@ -576,7 +589,7 @@ class CombatService
         return ['gold_lost' => $goldLost, 'xp_lost' => $xpLost, 'levels_lost' => $levelsLost];
     }
 
-    /** Applies xp, handling multi-level-ups; returns number of levels gained. */
+    /** Applies xp, handling multi-level-ups (capped at Character::MAX_LEVEL); returns number of levels gained. */
     private function grantXp(Character $character, int $xpGain): int
     {
         $xp = $character->xp + $xpGain;
@@ -586,13 +599,16 @@ class CombatService
         $skillPoints = $character->skill_points;
 
         $xpMax = Character::xpForLevel($level);
-        while ($xp >= $xpMax) {
+        while ($level < Character::MAX_LEVEL && $xp >= $xpMax) {
             $xp -= $xpMax;
             $level++;
             $attrPoints += 3;
             $skillPoints += 1;
             $levelsGained++;
             $xpMax = Character::xpForLevel($level);
+        }
+        if ($level >= Character::MAX_LEVEL) {
+            $xp = 0;
         }
 
         $character->update([

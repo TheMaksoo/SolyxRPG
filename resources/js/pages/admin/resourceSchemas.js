@@ -95,6 +95,7 @@ export const RESOURCE_SCHEMAS = {
       { name: 'tier', type: 'number' },
       { name: 'level_req', type: 'number' },
       { name: 'mp_cost', type: 'number' },
+      { name: 'cooldown_rounds', type: 'number' },
       { name: 'effect_json', type: 'json' },
       { name: 'class_scope', type: 'text' },
     ],

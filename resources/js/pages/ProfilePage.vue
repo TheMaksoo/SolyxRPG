@@ -190,13 +190,31 @@ const ATTR_ROWS = [
   { key: 'foraging_speed', label: 'Foraging Speed' },
 ];
 
-const CORE_ROWS = [
-  { label: 'Attack', base: 'base_atk', eff: 'eff_atk' },
-  { label: 'Defense', base: 'base_def', eff: 'eff_def' },
-  { label: 'HP', base: 'hp_max', eff: 'eff_hp_max' },
-  { label: 'Mana', base: 'mana_max', eff: 'eff_mp_max' },
-  { label: 'Energy', base: 'energy_max', eff: 'eff_energy_max' },
+// Every row here has a matching `store.stats.breakdown[key]` (see Character::effectiveStats()) so
+// clicking it can expand the exact labeled math behind the number — base + attributes + gear +
+// pet/skill/party percentages, etc. `suffix` just controls how the total renders (%, x, or nothing).
+const BREAKDOWN_ROWS = [
+  { label: 'Attack', base: 'base_atk', key: 'eff_atk' },
+  { label: 'Defense', base: 'base_def', key: 'eff_def' },
+  { label: 'HP', base: 'hp_max', key: 'eff_hp_max' },
+  { label: 'Mana', base: 'mana_max', key: 'eff_mp_max' },
+  { label: 'Energy', base: 'energy_max', key: 'eff_energy_max' },
+  { label: 'Crit Chance', key: 'crit_chance', suffix: '%' },
+  { label: 'Crit Damage', key: 'crit_damage_mult', suffix: 'x' },
+  { label: 'Dodge Chance', key: 'dodge_chance', suffix: '%' },
+  { label: 'Luck', key: 'luck' },
 ];
+
+const expandedStat = ref(null);
+
+function statBreakdown(key) {
+  return store.stats?.breakdown?.[key] ?? null;
+}
+
+function toggleStat(key) {
+  if (!statBreakdown(key)) return;
+  expandedStat.value = expandedStat.value === key ? null : key;
+}
 
 const battlesTotal = computed(() => (store.character?.battles_won ?? 0) + (store.character?.battles_lost ?? 0));
 const winRate = computed(() => (battlesTotal.value > 0 ? Math.round(((store.character?.battles_won ?? 0) / battlesTotal.value) * 100) : 0));
@@ -322,31 +340,36 @@ onMounted(() => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in CORE_ROWS" :key="row.label">
-              <td class="stats-table__label">{{ row.label }}</td>
-              <td class="stats-table__base">{{ store.character[row.base] }}</td>
-              <td class="stats-table__eff">{{ store.stats[row.eff] }}</td>
-            </tr>
-            <tr>
-              <td class="stats-table__label">Crit Chance</td>
-              <td class="stats-table__base">—</td>
-              <td class="stats-table__eff">{{ store.stats.crit_chance }}%</td>
-            </tr>
-            <tr>
-              <td class="stats-table__label">Crit Damage</td>
-              <td class="stats-table__base">—</td>
-              <td class="stats-table__eff">{{ store.stats.crit_damage_mult }}x</td>
-            </tr>
-            <tr>
-              <td class="stats-table__label">Dodge Chance</td>
-              <td class="stats-table__base">—</td>
-              <td class="stats-table__eff">{{ store.stats.dodge_chance ?? 0 }}%</td>
-            </tr>
-            <tr>
-              <td class="stats-table__label">Luck</td>
-              <td class="stats-table__base">—</td>
-              <td class="stats-table__eff">{{ store.stats.luck ?? 0 }}</td>
-            </tr>
+            <template v-for="row in BREAKDOWN_ROWS" :key="row.key">
+              <tr
+                class="stats-table__row"
+                :class="{ 'stats-table__row--clickable': statBreakdown(row.key), 'stats-table__row--expanded': expandedStat === row.key }"
+                @click="toggleStat(row.key)"
+              >
+                <td class="stats-table__label">
+                  <span v-if="statBreakdown(row.key)" class="stats-table__caret">{{ expandedStat === row.key ? '▾' : '▸' }}</span>
+                  {{ row.label }}
+                </td>
+                <td class="stats-table__base">{{ row.base ? store.character[row.base] : '—' }}</td>
+                <td class="stats-table__eff">{{ store.stats[row.key] ?? 0 }}{{ row.suffix || '' }}</td>
+              </tr>
+              <tr v-if="expandedStat === row.key && statBreakdown(row.key)" class="stats-table__breakdown-row">
+                <td colspan="3">
+                  <div class="stat-breakdown">
+                    <div v-for="src in statBreakdown(row.key).sources" :key="src.label" class="stat-breakdown__line">
+                      <span class="stat-breakdown__label">{{ src.label }}</span>
+                      <span class="stat-breakdown__value" :class="{ 'stat-breakdown__value--neg': src.value < 0 }">
+                        {{ src.value > 0 ? '+' : '' }}{{ src.value }}
+                      </span>
+                    </div>
+                    <div class="stat-breakdown__total">
+                      <span>Total</span>
+                      <span>{{ statBreakdown(row.key).total }}{{ row.suffix || '' }}</span>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </template>
             <tr>
               <td class="stats-table__label">HP Regen</td>
               <td class="stats-table__base">—</td>

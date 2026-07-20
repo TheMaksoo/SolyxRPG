@@ -24,6 +24,7 @@ const STAT_LABELS = {
   lifesteal_pct: 'Lifesteal',
   mp: 'Mana',
   gather_speed_pct: 'Gather Speed',
+  craft_speed_pct: 'Craft Speed',
   gather_yield_bonus: 'Gather Yield',
   heal_hp_pct: 'Heals HP',
   heal_mp_pct: 'Heals MP',

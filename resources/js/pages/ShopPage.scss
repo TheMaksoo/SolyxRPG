@@ -126,6 +126,18 @@
   line-height: 1.5;
 }
 
+.shop-item__craft-only {
+  width: 100%;
+  margin-top: auto;
+  padding: 9px;
+  border-radius: v.$radius-sm;
+  background: v.$bg-input;
+  color: v.$text-muted-40;
+  font-weight: 600;
+  font-size: 12.5px;
+  text-align: center;
+}
+
 .shop-buy-btn {
   @include m.btn-reset;
   width: 100%;

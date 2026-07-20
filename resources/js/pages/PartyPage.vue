@@ -198,7 +198,7 @@ onMounted(() => {
             :class="{ 'is-mention-me': auth.user?.preferences?.highlight_mentions !== false && mentionsMe(m.body, characterStore.character?.name) }"
           >
             <strong :style="{ color: m.character?.active_color?.value }">{{ m.character?.name }}:</strong>
-            <span v-html="renderChatBody(m.body, characterStore.character?.name)"></span>
+            <span v-html="renderChatBody(m.body, characterStore.character?.name, mentionCandidates.map((c) => c.name))"></span>
           </div>
           <div v-if="!party.messages?.length" class="party-chat__empty">No messages yet.</div>
         </div>

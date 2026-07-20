@@ -1,12 +1,14 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import api from '../api/client';
+import { useCharacterStore } from '../stores/character';
+
+const characterStore = useCharacterStore();
 
 const record = ref(null);
-const rank = ref('');
-const tier = ref(null);
-const tierProgress = ref(null);
-const tierLadder = ref([]);
+const rank = ref(null);
+const rankProgress = ref(null);
+const rankLadder = ref([]);
 const opponents = ref([]);
 const history = ref([]);
 const lastResult = ref(null);
@@ -26,13 +28,22 @@ async function load() {
   const { data } = await api.get('/pvp');
   record.value = data.record;
   rank.value = data.rank;
-  tier.value = data.tier;
-  tierProgress.value = data.tier_progress;
-  tierLadder.value = data.tier_ladder;
+  rankProgress.value = data.rank_progress;
+  rankLadder.value = data.rank_ladder;
   opponents.value = data.opponents;
   history.value = data.history;
   attemptsUsed.value = data.pvp_attempts_used;
   attemptsMax.value = data.pvp_attempts_max;
+}
+
+// Both match actions can grant gold/gems (the daily win reward) — syncing the returned character into the
+// shared store immediately updates the gold/gem pills in the top bar (see GameLayout.vue), the same way
+// BattlePage.vue does after a PvE action. Previously nothing here touched the store, so a granted reward
+// was easy to miss: it showed in the in-page callout below but the top bar kept the stale pre-reward total.
+function syncCharacter(data) {
+  if (data.character) {
+    characterStore.character = data.character;
+  }
 }
 
 async function findMatch() {
@@ -41,6 +52,7 @@ async function findMatch() {
   try {
     const { data } = await api.post('/pvp/find-match');
     lastResult.value = data;
+    syncCharacter(data);
     await load();
   } catch (e) {
     errorMessage.value = e?.response?.data?.message || 'Something went wrong.';
@@ -55,6 +67,7 @@ async function challenge(row) {
   try {
     const { data } = await api.post(`/pvp/challenge/${row.character.id}`);
     lastResult.value = data;
+    syncCharacter(data);
     await load();
   } catch (e) {
     errorMessage.value = e?.response?.data?.message || 'Something went wrong.';
@@ -79,12 +92,12 @@ onMounted(load);
           <div class="rank-card__top">
             <div
               class="rank-card__icon"
-              :style="tier ? { background: tier.color + '29', borderColor: tier.color + '55', boxShadow: '0 0 22px ' + tier.color + '3d' } : {}"
-            >⚔</div>
+              :style="rank ? { background: rank.color + '29', borderColor: rank.color + '55', boxShadow: '0 0 22px ' + rank.color + '3d' } : {}"
+            >{{ rank?.glyph || '⚔' }}</div>
             <div class="rank-card__info">
-              <div class="ox rank-card__rank" :style="tier ? { color: tier.color } : {}">{{ tier?.name || rank }}</div>
+              <div class="ox rank-card__rank" :style="rank ? { color: rank.color } : {}">{{ rank?.name }}</div>
               <div class="rank-card__meta">
-                {{ record.rating }} rating · {{ record.wins }}W / {{ record.losses }}L ·
+                {{ record.rating }} rating · {{ rank?.percentile_label }} · {{ record.wins }}W / {{ record.losses }}L ·
                 {{ (record.wins + record.losses) > 0 ? Math.round((record.wins / (record.wins + record.losses)) * 100) : 0 }}% winrate
               </div>
               <div v-if="record.win_streak > 0" class="rank-card__streak">🔥 {{ record.win_streak }} win streak</div>
@@ -103,20 +116,20 @@ onMounted(load);
 
           <div v-if="errorMessage" class="pvp-error-banner">{{ errorMessage }}</div>
 
-          <div v-if="tierProgress" class="tier-progress">
+          <div v-if="rankProgress" class="tier-progress">
             <div class="tier-progress__track">
               <div
                 class="tier-progress__fill"
-                :style="{ width: tierProgress.pct + '%', background: 'linear-gradient(90deg, ' + (tier?.color || '#e8482f') + ', #ffffff)' }"
+                :style="{ width: rankProgress.pct + '%', background: 'linear-gradient(90deg, ' + (rank?.color || '#e8482f') + ', #ffffff)' }"
               ></div>
             </div>
             <div class="tier-progress__label">
-              <span v-if="tierProgress.next">{{ tierProgress.pct }}% to {{ tierProgress.next.name }}</span>
-              <span v-else>Max tier reached</span>
+              <span v-if="rankProgress.next">{{ rankProgress.pct }}% to {{ rankProgress.next.name }}</span>
+              <span v-else>Highest rank reached</span>
             </div>
             <div class="tier-ladder">
               <span
-                v-for="t in tierLadder"
+                v-for="t in rankLadder"
                 :key="t.name"
                 class="tier-ladder__pill"
                 :class="{ 'tier-ladder__pill--current': t.is_current }"
@@ -140,8 +153,12 @@ onMounted(load);
             {{ lastResult.result === 'win' ? 'Victory' : 'Defeat' }} vs {{ lastResult.opponent.name }}
           </span>
           <span class="last-result-card__delta">{{ lastResult.rating_delta >= 0 ? '+' : '' }}{{ lastResult.rating_delta }} rating</span>
-          <div v-if="lastResult.daily_reward_granted" class="last-result-card__daily-reward">
-            🎁 Daily win reward: +{{ lastResult.daily_reward_gold }} gold, +{{ lastResult.daily_reward_gems }} gems
+          <div v-if="lastResult.daily_reward_granted" class="daily-reward-banner">
+            <span class="daily-reward-banner__icon">🎁</span>
+            <span class="daily-reward-banner__text">
+              <strong>First win of the day!</strong>
+              +{{ lastResult.daily_reward_gold }} gold, +{{ lastResult.daily_reward_gems }} gems added to your balance.
+            </span>
           </div>
           <div v-if="lastResult.log?.length" class="last-result-card__log">
             <div v-for="(line, i) in lastResult.log" :key="i" class="last-result-card__log-line">{{ line }}</div>
@@ -163,7 +180,7 @@ onMounted(load);
               >{{ row.difficulty }}</span>
             </div>
             <div class="opponent-card__bottom">
-              <span class="opponent-card__rating">{{ row.rating }} rating <span class="opponent-card__bracket">· {{ row.bracket }}</span></span>
+              <span class="opponent-card__rating">{{ row.rating }} rating <span class="opponent-card__bracket" :style="{ color: row.rank?.color }">· {{ row.rank?.name }}</span></span>
               <button
                 @click="challenge(row)"
                 :disabled="loading"

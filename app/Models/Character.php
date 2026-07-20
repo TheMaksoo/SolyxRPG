@@ -14,12 +14,20 @@ class Character extends Model
     /** Both HP and mana regen tick out-of-combat on this same interval. */
     private const REGEN_TICK_SECONDS = 5;
 
+    /** Hard level ceiling — previously there wasn't one (CombatService::grantXp() looped unbounded), even
+     * though AchievementSeeder already authors milestones up through level 150 ("Transcendent") that a
+     * character could never meaningfully be capped at. 150 formalizes that already-authored ceiling: with
+     * xpForLevel()'s linear curve, levels 61-150 are pure additional attribute/skill-point grind on top of
+     * the levels 1-60 profession/skill content, rather than a new curve or new systems. */
+    public const MAX_LEVEL = 150;
+
     protected $fillable = [
         'user_id', 'name', 'base_class', 'spec_class', 'profession', 'ascension',
         'avatar', 'level', 'xp', 'gold', 'gems', 'quests_completed', 'hp', 'hp_max', 'mana', 'mana_max',
         'energy', 'energy_max', 'base_atk', 'base_def', 'skill_points', 'attribute_points', 'current_zone_id',
         'active_title_id', 'active_color_id', 'active_banner_id', 'active_icon_id', 'tutorial_seen',
         'pvp_attempts_used', 'pvp_attempts_reset_at', 'last_daily_reward_at',
+        'dungeon_attempts_used', 'dungeon_attempts_reset_at',
     ];
 
     protected function casts(): array
@@ -29,6 +37,7 @@ class Character extends Model
             'tutorial_seen' => 'boolean',
             'pvp_attempts_reset_at' => 'datetime',
             'last_daily_reward_at' => 'datetime',
+            'dungeon_attempts_reset_at' => 'datetime',
             'last_regen_at' => 'datetime',
             'last_mana_regen_at' => 'datetime',
             'last_energy_regen_at' => 'datetime',
@@ -217,21 +226,97 @@ class Character extends Model
         $skillPassives = $this->passiveSkillBonuses();
         $party = $this->partyBonuses();
 
-        $effAtk = (int) round(($this->base_atk + $attr->damage * 5 + $gearAtk) * (1 + ($petAtkPct + $skillPassives['atk_pct'] + $party['atk_pct']) / 100));
-        $effDef = (int) round(($this->base_def + $attr->armor * 4 + $gearDef) * (1 + ($petDefPct + $skillPassives['def_pct'] + $party['def_pct']) / 100));
+        $atkSubtotal = $this->base_atk + $attr->damage * 5 + $gearAtk;
+        $effAtk = (int) round($atkSubtotal * (1 + ($petAtkPct + $skillPassives['atk_pct'] + $party['atk_pct']) / 100));
+
+        $defSubtotal = $this->base_def + $attr->armor * 4 + $gearDef;
+        $effDef = (int) round($defSubtotal * (1 + ($petDefPct + $skillPassives['def_pct'] + $party['def_pct']) / 100));
+
         $effHpMax = $this->hp_max + $attr->hp_cap * 30;
-        $effMpMax = (int) round(($this->mana_max + $attr->mana_cap * 20) * (1 + $party['mp_pct'] / 100));
+
+        $mpSubtotal = $this->mana_max + $attr->mana_cap * 20;
+        $effMpMax = (int) round($mpSubtotal * (1 + $party['mp_pct'] / 100));
+
         $effEnergyMax = $this->energy_max + ($attr->energy_cap ?? 0) * 15;
         $critChance = 18 + $attr->crit * 2 + $petCritPct + $party['crit_chance'];
         $critDamageMult = round(1.8 + ($attr->crit_damage ?? 0) * 0.02, 2);
         $guildLuckBonusPct = ($this->guildMembership?->guild?->upgradeBonusPct('luck') ?? 0) / 100;
-        $luck = (int) round((($attr->luck ?? 0) + $gearLuck + ($this->user?->vipLuckBonus() ?? 0) + $party['luck']) * (1 + $guildLuckBonusPct));
+        $luckSubtotal = ($attr->luck ?? 0) + $gearLuck + ($this->user?->vipLuckBonus() ?? 0) + $party['luck'];
+        $luck = (int) round($luckSubtotal * (1 + $guildLuckBonusPct));
         $dodgeChance = (new AttributeService())->dodgeChance(($attr->dodge ?? 0), $gearDodge);
 
         // Power is the sum of every progression axis: gear + attributes (both already baked into eff_atk/
         // eff_def/luck above), plus combat skill investment (previously uncounted) weighted so a fully
         // skilled-up character can meaningfully outrank a geared-but-unskilled one of similar level.
         $skillLevelSum = ($this->relationLoaded('skills') ? $this->skills : $this->skills()->get())->sum('level');
+        $power = $effAtk * 4 + $effDef * 3 + $effHpMax + $luck * 20 + $skillLevelSum * 25;
+
+        // Labeled breakdown mirrors the exact math above (same subtotals/percentages, not a second
+        // formula) so the Profile page can show players what each final number is made of without ever
+        // drifting out of sync with the totals used everywhere else (Battle, PvP, Leaderboard, ...).
+        $breakdown = [
+            'eff_atk' => $this->statSourceBreakdown($effAtk, [
+                ['label' => 'Base', 'value' => $this->base_atk, 'always' => true],
+                ['label' => 'Attributes (Damage x5)', 'value' => $attr->damage * 5],
+                ['label' => 'Gear', 'value' => $gearAtk],
+            ], $atkSubtotal, [
+                ['label' => 'Pet Bonus', 'value' => $petAtkPct],
+                ['label' => 'Skill Passives', 'value' => $skillPassives['atk_pct']],
+                ['label' => 'Party Bonus', 'value' => $party['atk_pct']],
+            ]),
+            'eff_def' => $this->statSourceBreakdown($effDef, [
+                ['label' => 'Base', 'value' => $this->base_def, 'always' => true],
+                ['label' => 'Attributes (Armor x4)', 'value' => $attr->armor * 4],
+                ['label' => 'Gear', 'value' => $gearDef],
+            ], $defSubtotal, [
+                ['label' => 'Pet Bonus', 'value' => $petDefPct],
+                ['label' => 'Skill Passives', 'value' => $skillPassives['def_pct']],
+                ['label' => 'Party Bonus', 'value' => $party['def_pct']],
+            ]),
+            'eff_hp_max' => $this->statSourceBreakdown($effHpMax, [
+                ['label' => 'Base', 'value' => $this->hp_max, 'always' => true],
+                ['label' => 'Attributes (HP Cap x30)', 'value' => $attr->hp_cap * 30],
+            ]),
+            'eff_mp_max' => $this->statSourceBreakdown($effMpMax, [
+                ['label' => 'Base', 'value' => $this->mana_max, 'always' => true],
+                ['label' => 'Attributes (Mana Cap x20)', 'value' => $attr->mana_cap * 20],
+            ], $mpSubtotal, [
+                ['label' => 'Party Bonus', 'value' => $party['mp_pct']],
+            ]),
+            'eff_energy_max' => $this->statSourceBreakdown($effEnergyMax, [
+                ['label' => 'Base', 'value' => $this->energy_max, 'always' => true],
+                ['label' => 'Attributes (Energy Cap x15)', 'value' => ($attr->energy_cap ?? 0) * 15],
+            ]),
+            'crit_chance' => $this->statSourceBreakdown($critChance, [
+                ['label' => 'Base', 'value' => 18, 'always' => true],
+                ['label' => 'Attributes (Crit x2)', 'value' => $attr->crit * 2],
+                ['label' => 'Pet Bonus', 'value' => $petCritPct],
+                ['label' => 'Party Bonus', 'value' => $party['crit_chance']],
+            ]),
+            'crit_damage_mult' => $this->statSourceBreakdown($critDamageMult, [
+                ['label' => 'Base', 'value' => 1.8, 'always' => true],
+                ['label' => 'Attributes (Crit Damage x0.02)', 'value' => ($attr->crit_damage ?? 0) * 0.02],
+            ]),
+            'luck' => $this->statSourceBreakdown($luck, [
+                ['label' => 'Attributes', 'value' => $attr->luck ?? 0, 'always' => true],
+                ['label' => 'Gear', 'value' => $gearLuck],
+                ['label' => 'VIP Bonus', 'value' => $this->user?->vipLuckBonus() ?? 0],
+                ['label' => 'Party Bonus', 'value' => $party['luck']],
+            ], $luckSubtotal, [
+                ['label' => 'Guild Upgrade', 'value' => $guildLuckBonusPct * 100],
+            ]),
+            'dodge_chance' => $this->statSourceBreakdown($dodgeChance, [
+                ['label' => 'Attributes', 'value' => $attr->dodge ?? 0, 'always' => true],
+                ['label' => 'Gear', 'value' => $gearDodge],
+            ]),
+            'power' => $this->statSourceBreakdown($power, [
+                ['label' => 'From Attack (x4)', 'value' => $effAtk * 4, 'always' => true],
+                ['label' => 'From Defense (x3)', 'value' => $effDef * 3],
+                ['label' => 'From HP Max', 'value' => $effHpMax],
+                ['label' => 'From Luck (x20)', 'value' => $luck * 20],
+                ['label' => 'From Skill Levels (x25)', 'value' => $skillLevelSum * 25],
+            ]),
+        ];
 
         return [
             'eff_atk' => $effAtk,
@@ -248,8 +333,57 @@ class Character extends Model
             'pet_craft_speed_pct' => $petCraftSpeedPct,
             'has_undying' => $skillPassives['has_undying'],
             'party_bonuses' => $party,
-            'power' => $effAtk * 4 + $effDef * 3 + $effHpMax + $luck * 20 + $skillLevelSum * 25,
+            'power' => $power,
+            'breakdown' => $breakdown,
         ];
+    }
+
+    /** Builds one stat's labeled contribution list from flat (additive) sources plus optional
+     * percentage-based sources applied against $subtotal (mirroring the multiplier step in
+     * effectiveStats()). Zero-value sources are omitted unless marked 'always'. Any gap between the
+     * displayed sources and the real $total (rounding, or a cap like dodge's hard ceiling) is surfaced
+     * as a final "Adjustment" line so the breakdown always sums exactly to the total shown elsewhere. */
+    private function statSourceBreakdown(int|float $total, array $flatSources, float $subtotal = 0, array $pctSources = []): array
+    {
+        $sources = [];
+        $shownSum = 0.0;
+
+        foreach ($flatSources as $source) {
+            $value = $source['value'];
+            if (! ($source['always'] ?? false) && abs($value) < 0.0001) {
+                continue;
+            }
+            $sources[] = ['label' => $source['label'], 'value' => $this->roundForDisplay($value)];
+            $shownSum += $value;
+        }
+
+        foreach ($pctSources as $source) {
+            $pct = $source['value'];
+            if (abs($pct) < 0.0001) {
+                continue;
+            }
+            $contribution = $subtotal * $pct / 100;
+            $sources[] = [
+                'label' => "{$source['label']} ({$this->roundForDisplay($pct)}%)",
+                'value' => $this->roundForDisplay($contribution),
+            ];
+            $shownSum += $contribution;
+        }
+
+        $diff = $total - $shownSum;
+        if (abs($diff) >= 0.05) {
+            $sources[] = ['label' => 'Adjustment', 'value' => $this->roundForDisplay($diff)];
+        }
+
+        return ['total' => $this->roundForDisplay($total), 'sources' => $sources];
+    }
+
+    /** Rounds to 2 decimals for display, then collapses to an int when that loses nothing (e.g. 85.0 -> 85). */
+    private function roundForDisplay(int|float $value): int|float
+    {
+        $rounded = round($value, 2);
+
+        return (floor($rounded) === $rounded) ? (int) $rounded : $rounded;
     }
 
     /** One stat bonus per distinct class present in the character's party (not per member — two warriors
@@ -383,10 +517,17 @@ class Character extends Model
         return true;
     }
 
-    /** Quadratic curve (matches the level-1 cost of the old 1.3x-per-level exponential curve, but stays
-     * sane at high level — the old curve needed ~640M cumulative XP to reach level 50; this needs ~6M. */
+    /** Linear per-level curve — level 1 still costs 500 XP for continuity, then a flat +800 XP per
+     * level after that (level 50 costs 39,700 XP for that one level; ~1.0M cumulative to reach 50).
+     * The previous quadratic curve (150*level²+350) baked the level² term into the PER-LEVEL cost
+     * (not just the cumulative total), so the jump between consecutive high levels felt absurd —
+     * level 49→50 cost ~750x what level 1→2 did, despite a "only" ~6M cumulative total. This grows
+     * the per-level cost linearly instead (so cumulative is the quadratic curve, matching how these
+     * curves are normally built), keeping early-level pacing close to before — d=800 is chosen so
+     * cumulative XP through level 6 lands close to the old curve's ~15.7k — while the top-to-bottom
+     * per-level ratio drops to ~80x. */
     public static function xpForLevel(int $level): int
     {
-        return 150 * $level * $level + 350;
+        return 500 + 800 * ($level - 1);
     }
 }

@@ -7,6 +7,8 @@ import AdBanner from '../components/AdBanner.vue';
 const router = useRouter();
 const dungeons = ref([]);
 const error = ref('');
+const attemptsUsed = ref(0);
+const attemptsMax = ref(3);
 
 const DIFF = {
   normal: { color: '#4ade80', bg: 'rgba(74,222,128,.13)' },
@@ -18,6 +20,8 @@ const DIFF = {
 async function load() {
   const { data } = await api.get('/dungeons');
   dungeons.value = data.dungeons;
+  attemptsUsed.value = data.dungeon_attempts_used;
+  attemptsMax.value = data.dungeon_attempts_max;
 }
 
 async function enter(row) {
@@ -27,6 +31,8 @@ async function enter(row) {
     router.push('/battle');
   } catch (e) {
     error.value = e.response?.data?.message || 'Cannot enter yet.';
+  } finally {
+    await load();
   }
 }
 
@@ -41,6 +47,7 @@ onMounted(load);
     </div>
 
     <p class="dungeons-intro">Boss raids with dedicated drop tables. Higher difficulty, better rewards.</p>
+    <div class="dungeons-attempts">{{ attemptsMax - attemptsUsed }} / {{ attemptsMax }} raids left today</div>
     <p v-if="error" class="dungeons-error">{{ error }}</p>
 
     <AdBanner variant="inline" />
@@ -75,7 +82,11 @@ onMounted(load);
             🔒 Unlocks at level {{ row.dungeon.min_level }}
           </div>
         </div>
-        <button @click="enter(row)" :disabled="!row.unlocked" class="dungeon-card__enter">
+        <button
+          @click="enter(row)"
+          :disabled="!row.unlocked || (!row.active_run && attemptsUsed >= attemptsMax)"
+          class="dungeon-card__enter"
+        >
           {{ row.active_run ? `Resume (Stage ${row.active_run.stage}/${row.active_run.total_stages})` : row.unlocked ? 'Enter' : `Lv.${row.dungeon.min_level}` }}
         </button>
       </div>

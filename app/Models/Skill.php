@@ -8,7 +8,7 @@ class Skill extends Model
 {
     protected $fillable = [
         'branch', 'key', 'name', 'glyph', 'description', 'tier', 'level_req',
-        'mp_cost', 'cooldown_seconds', 'max_level', 'rank_levels', 'effect_json', 'class_scope',
+        'mp_cost', 'cooldown_seconds', 'cooldown_rounds', 'max_level', 'rank_levels', 'effect_json', 'class_scope',
     ];
 
     protected $casts = ['effect_json' => 'array', 'rank_levels' => 'array'];

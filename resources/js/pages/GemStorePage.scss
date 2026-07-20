@@ -12,14 +12,18 @@
 .gem-store-title {
   font-size: 28px;
   font-weight: 800;
-  margin: 0;
+  margin: 0 0 4px;
+}
+
+.gem-store-header__badge {
+  @include m.badge(v.$success, v.$success-tint-12);
 }
 
 .gem-store-intro {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.5);
   max-width: 560px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .gem-store-error {
@@ -37,11 +41,18 @@
 .gem-pack {
   @include m.card(18px);
   text-align: center;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    border-color: v.$accent-tint-30;
+    transform: translateY(-2px);
+  }
 }
 
 .gem-pack__icon {
   font-size: 26px;
   margin-bottom: 8px;
+  color: v.$accent-soft;
 }
 
 .gem-pack__label {
@@ -59,6 +70,11 @@
   color: #fff;
   font-weight: 700;
   font-size: 13px;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background: v.$accent-hover;
+  }
 }
 
 .remove-ads-card {
@@ -204,6 +220,11 @@
   color: #fff;
   font-weight: 700;
   font-size: 12.5px;
+  transition: border-color 0.15s ease;
+
+  &:not(:disabled):hover {
+    border-color: v.$border-medium;
+  }
 
   &--cash {
     background: v.$accent-tint-15;
@@ -287,6 +308,11 @@
   color: #fff;
   font-weight: 700;
   font-size: 12.5px;
+  transition: border-color 0.15s ease;
+
+  &:not(:disabled):hover {
+    border-color: v.$border-medium;
+  }
 
   &:disabled {
     opacity: 0.45;
@@ -295,63 +321,74 @@
 }
 
 .gem-sink-grid {
-  @include m.grid-auto-fill(260px, 14px);
+  @include m.grid-auto-fill(280px, 12px);
   max-width: 1000px;
 }
 
 .gem-sink-card {
-  @include m.card(16px 18px);
-  display: block;
+  @include m.card(14px 16px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
   color: inherit;
   text-decoration: none;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 
   &:hover {
-    border-color: v.$accent;
+    border-color: v.$accent-tint-30;
+    background: v.$accent-tint-12;
+
+    .gem-sink-card__cta {
+      color: v.$accent-soft;
+    }
+
+    .gem-sink-card__arrow {
+      transform: translateX(2px);
+    }
   }
 }
 
-.gem-sink-card__header {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  margin-bottom: 6px;
+.gem-sink-card__glyph {
+  flex: none;
+  font-size: 20px;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: v.$radius-md;
+  background: v.$bg-input;
 }
 
-.gem-sink-card__glyph {
-  font-size: 19px;
+.gem-sink-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .gem-sink-card__label {
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13.5px;
 }
 
 .gem-sink-card__desc {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: v.$text-muted-45;
+}
+
+.gem-sink-card__cta {
+  flex: none;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
-  margin: 0 0 12px;
+  font-weight: 700;
+  color: v.$text-muted-45;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  transition: color 0.15s ease;
 }
 
-.gem-sink-card__items {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.gem-sink-card__item {
-  font-size: 12.5px;
-  color: v.$text-muted-70;
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-
-  &--owned {
-    color: v.$success;
-  }
-
-  &--empty {
-    color: v.$text-muted-35;
-    font-style: italic;
-  }
+.gem-sink-card__arrow {
+  transition: transform 0.15s ease;
 }

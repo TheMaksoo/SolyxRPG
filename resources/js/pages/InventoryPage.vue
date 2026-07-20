@@ -23,7 +23,28 @@ const SLOT_DEFS = [
 ];
 
 const equipped = computed(() => inventory.value.filter((i) => i.equipped));
-const bag = computed(() => inventory.value.filter((i) => !i.equipped));
+
+// Consumables/repair packs are what you reach for constantly mid-session, so they surface first;
+// raw gathering materials are the least time-sensitive (you're not about to "use" a stack of Stone),
+// so they sink to the bottom.
+const BAG_TYPE_PRIORITY = {
+  consumable: 0,
+  repair_pack: 0,
+  weapon: 1,
+  armor: 1,
+  pickaxe: 1,
+  axe: 1,
+  sickle: 1,
+  hammer: 1,
+  cosmetic: 2,
+  material: 3,
+};
+const bag = computed(() =>
+  inventory.value
+    .filter((i) => !i.equipped)
+    .slice()
+    .sort((a, b) => (BAG_TYPE_PRIORITY[a.item.type] ?? 4) - (BAG_TYPE_PRIORITY[b.item.type] ?? 4))
+);
 const repairPacks = computed(() => inventory.value.filter((i) => i.item.type === 'repair_pack'));
 
 const slots = computed(() =>
@@ -301,24 +322,6 @@ onMounted(load);
           <div class="durability__label">{{ row.durability }} / {{ row.durability_max }} durability</div>
         </div>
         <div class="inventory-bag-card__footer">
-          <div class="inventory-bag-card__actions-row">
-            <button
-              v-if="EQUIPPABLE_TYPES.includes(row.item.type)"
-              @click="equip(row)"
-              :disabled="loading"
-              class="inventory-bag-card__equip-btn"
-            >
-              Equip
-            </button>
-            <button
-              v-if="hasDurability(row) && row.durability < row.durability_max"
-              @click="repair(row)"
-              :disabled="loading || !repairPacks.length"
-              class="inventory-bag-card__equip-btn inventory-bag-card__equip-btn--repair"
-            >
-              Repair
-            </button>
-          </div>
           <select
             v-if="hasDurability(row) && row.durability < row.durability_max"
             v-model="selectedPack[row.id]"
@@ -330,6 +333,14 @@ onMounted(load);
             </option>
           </select>
           <button
+            v-if="hasDurability(row) && row.durability < row.durability_max"
+            @click="repair(row)"
+            :disabled="loading || !repairPacks.length"
+            class="inventory-bag-card__equip-btn inventory-bag-card__equip-btn--repair"
+          >
+            Repair
+          </button>
+          <button
             v-if="isUsable(row.item)"
             @click="use(row)"
             :disabled="loading"
@@ -338,13 +349,22 @@ onMounted(load);
             Use
           </button>
           <button
-            @click="askScrap(row)"
+            v-if="EQUIPPABLE_TYPES.includes(row.item.type)"
+            @click="equip(row)"
             :disabled="loading"
-            class="inventory-bag-card__scrap-btn"
+            class="inventory-bag-card__equip-btn"
           >
-            Scrap
+            Equip
           </button>
         </div>
+        <button
+          @click="askScrap(row)"
+          :disabled="loading"
+          class="inventory-bag-card__scrap-btn"
+          title="Scrap"
+        >
+          <span class="inventory-bag-card__scrap-icon">♻</span>
+        </button>
       </div>
     </div>
 

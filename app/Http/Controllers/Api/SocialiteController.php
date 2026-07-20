@@ -7,8 +7,10 @@ use App\Models\SocialAccount;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
+use Throwable;
 
 class SocialiteController extends Controller
 {
@@ -19,7 +21,23 @@ class SocialiteController extends Controller
 
     public function callback(string $provider)
     {
-        $oauthUser = Socialite::driver($provider)->stateless()->user();
+        $back = Auth::check() ? '/settings' : '/landing';
+
+        // The user hit "Cancel"/"Deny" on the provider's consent screen — it redirects back with
+        // no `code` param at all (often an `error=access_denied` instead). Calling Socialite
+        // anyway would try to exchange a nonexistent code for a token and blow up with a raw
+        // Guzzle 400, so bail out gracefully here instead.
+        if (request()->filled('error') || ! request()->filled('code')) {
+            return redirect("{$back}?oauth_error=cancelled");
+        }
+
+        try {
+            $oauthUser = Socialite::driver($provider)->stateless()->user();
+        } catch (Throwable $e) {
+            Log::warning("Socialite {$provider} callback failed", ['error' => $e->getMessage()]);
+
+            return redirect("{$back}?oauth_error=failed");
+        }
 
         $social = SocialAccount::where('provider', $provider)
             ->where('provider_user_id', $oauthUser->getId())

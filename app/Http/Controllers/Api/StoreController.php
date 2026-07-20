@@ -3,14 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Cosmetic;
 use App\Models\FeatureFlag;
 use App\Models\GemLedger;
-use App\Models\Item;
-use App\Models\Pet;
 use App\Models\Purchase;
 use App\Services\AutoBattleService;
-use App\Services\AutoGatherService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Stripe\StripeClient;
@@ -40,41 +36,19 @@ class StoreController extends Controller
         return response()->json(['packs' => self::GEM_PACKS, 'remove_ads' => self::OTHER_SKUS['remove_ads']]);
     }
 
-    /** Everywhere in the game gems can be spent, gathered into one browsable catalog — purely informational,
-     * each category's actual purchase still happens on its own page (linked via `route`). */
+    /** Everywhere else in the game gems can be spent — purely a signpost catalog, pointing each
+     * category to the page that actually owns its purchase flow (via `route`). Auto-Attack and
+     * Auto-Gather aren't listed here since the Gem Store already has its own interactive cards
+     * for those two further up the page. */
     public function gemSinks(Request $request)
     {
-        $character = $request->user()->character;
-        $ownedPetIds = $character ? $character->pets()->pluck('pet_id')->all() : [];
-        $ownedCosmeticIds = $character ? $character->cosmetics()->pluck('cosmetic_id')->all() : [];
-
-        $autoBattle = new AutoBattleService();
-        $autoGather = new AutoGatherService();
-
         return response()->json(['categories' => [
-            [
-                'key' => 'auto_battle',
-                'label' => 'Auto-Attack Passes',
-                'glyph' => '⚔',
-                'desc' => "Fight monsters unattended while you're away.",
-                'route' => '/battle',
-                'items' => collect($autoBattle->costs())->map(fn ($cost, $min) => ['label' => "{$min} min", 'cost' => $cost])->values(),
-            ],
-            [
-                'key' => 'auto_gather',
-                'label' => 'Auto-Gather Passes',
-                'glyph' => '⛏',
-                'desc' => 'Gather resources unattended — same price as Auto-Attack, double the duration.',
-                'route' => '/trade-skills',
-                'items' => collect($autoGather->costs())->map(fn ($cost, $min) => ['label' => "{$min} min", 'cost' => $cost])->values(),
-            ],
             [
                 'key' => 'character_slots',
                 'label' => 'Character Slots',
                 'glyph' => '➕',
                 'desc' => 'Unlock extra character slots on your account.',
                 'route' => '/characters',
-                'items' => collect(CharacterController::GEM_SLOT_COSTS)->map(fn ($cost, $tier) => ['label' => 'Slot '.($tier + 1), 'cost' => $cost])->values(),
             ],
             [
                 'key' => 'pets',
@@ -82,20 +56,13 @@ class StoreController extends Controller
                 'glyph' => '🐾',
                 'desc' => 'Unlock companion pets with passive combat, gathering, or crafting bonuses.',
                 'route' => '/pets',
-                'items' => Pet::where('enabled', true)->orderBy('unlock_gems')->get()->map(fn (Pet $pet) => [
-                    'label' => "{$pet->glyph} {$pet->name}",
-                    'cost' => $pet->unlock_gems,
-                    'owned' => in_array($pet->id, $ownedPetIds, true),
-                ]),
             ],
             [
                 'key' => 'shop_items',
                 'label' => 'Shop Gear & Consumables',
                 'glyph' => '🛒',
-                'desc' => 'Premium gear, consumables, and cosmetics bought directly with gems.',
+                'desc' => 'Premium gear and consumables bought directly with gems.',
                 'route' => '/shop',
-                'items' => Item::where('enabled', true)->whereNotNull('price_gems')->orderBy('price_gems')->get()
-                    ->map(fn (Item $item) => ['label' => "{$item->glyph} {$item->name}", 'cost' => $item->price_gems]),
             ],
             [
                 'key' => 'battle_pass',
@@ -103,20 +70,13 @@ class StoreController extends Controller
                 'glyph' => '🎖',
                 'desc' => 'Unlock the premium reward track for the current season.',
                 'route' => '/battle-pass',
-                'items' => [['label' => 'Premium Track', 'cost' => BattlePassController::PREMIUM_GEM_COST]],
             ],
             [
                 'key' => 'cosmetics',
                 'label' => 'Titles, Colors, Banners & Icons',
                 'glyph' => '✨',
-                'desc' => 'Prestige titles, name colors, profile banners, and icons — gem-purchase only (most other titles are earned free by completing their matching quest).',
+                'desc' => 'Prestige titles, name colors, profile banners, and icons.',
                 'route' => '/profile',
-                'items' => Cosmetic::where('enabled', true)->where('cost_gems', '>', 0)->whereNull('unlock_quest_key')->orderBy('type')->orderBy('cost_gems')->get()
-                    ->map(fn (Cosmetic $c) => [
-                        'label' => "{$c->name} (".ucfirst($c->type).')',
-                        'cost' => $c->cost_gems,
-                        'owned' => in_array($c->id, $ownedCosmeticIds, true),
-                    ]),
             ],
         ]]);
     }

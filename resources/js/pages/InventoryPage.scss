@@ -122,9 +122,10 @@
 }
 
 .equipment-group__grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 8px;
+  align-items: start;
 }
 
 .equipment-slot-row {
@@ -333,6 +334,7 @@
 }
 
 .inventory-bag-card {
+  position: relative;
   background: v.$bg-card;
   border: 1px solid v.$border-subtle;
   border-radius: 11px;
@@ -344,48 +346,39 @@
 .inventory-bag-card__footer {
   margin-top: auto;
   padding-top: 10px;
+  padding-right: 32px; // room for the corner scrap button
 }
 
 .inventory-bag-card__header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 8px;
 }
 
 .inventory-bag-card__icon {
-  font-size: 20px;
+  font-size: 26px;
 }
 
 .inventory-bag-card__name {
   font-weight: 700;
-  font-size: 13.5px;
+  font-size: 15.5px;
 }
 
 .inventory-bag-card__qty {
   margin-left: auto;
-  font-size: 12px;
+  font-size: 13px;
   color: v.$text-muted-40;
-}
-
-.inventory-bag-card__actions-row {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 6px;
-
-  .inventory-bag-card__equip-btn {
-    margin-bottom: 0;
-  }
 }
 
 .inventory-bag-card__equip-btn {
   width: 100%;
-  padding: 7px;
-  border-radius: 7px;
+  padding: 5px;
+  border-radius: 6px;
   border: 1px solid v.$border-medium;
   background: transparent;
   color: #fff;
-  font-size: 12px;
+  font-size: 10.5px;
   cursor: pointer;
   margin-bottom: 6px;
 
@@ -401,14 +394,31 @@
 }
 
 .inventory-bag-card__scrap-btn {
-  width: 100%;
-  padding: 7px;
-  border-radius: 7px;
-  border: 1px solid v.$danger;
-  background: transparent;
-  color: v.$danger;
-  font-size: 12px;
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid v.$border-medium;
+  background: v.$bg-input;
+  color: v.$text-muted-40;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+
+  &:hover:not(:disabled) {
+    border-color: v.$danger;
+    color: v.$danger;
+    background: rgba(v.$danger, 0.1);
+  }
   cursor: pointer;
+}
+
+.inventory-bag-card__scrap-icon {
+  font-size: 13px;
 }
 
 // ---- Scrap confirmation modal (same treatment as CharacterSelectPage's delete-modal) ----

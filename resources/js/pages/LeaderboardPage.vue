@@ -78,7 +78,11 @@ onMounted(load);
         </span>
         <span class="leaderboard-row__meta">
           {{ row.base_class }} · Lv.{{ row.level }}
-          <span v-if="row.percentile" class="leaderboard-row__percentile">({{ row.percentile }})</span>
+          <span
+            v-if="row.trophy_rank"
+            class="leaderboard-row__percentile"
+            :style="{ color: row.trophy_rank.color }"
+          >({{ row.trophy_rank.name }})</span>
         </span>
         <span class="ox leaderboard-row__power">{{ row.value }}{{ CATEGORIES.find((c) => c.key === category)?.suffix }}</span>
       </router-link>

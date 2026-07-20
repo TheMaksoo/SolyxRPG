@@ -23,6 +23,16 @@ const visibleNavFooter = computed(() =>
 const visibleNav = computed(() => NAV.filter((n) => !n.flagKey || auth.featureAccess[n.flagKey] !== false));
 
 const unreadCount = ref(0);
+const activePlayersHour = ref(null);
+
+async function loadActivePlayers() {
+  try {
+    const { data } = await api.get('/stats/public');
+    activePlayersHour.value = data.players_active_hour;
+  } catch {
+    // Sidebar stat is a nice-to-have — silently skip if it fails.
+  }
+}
 
 async function loadUnread() {
   const { data } = await api.get('/inbox');
@@ -100,10 +110,23 @@ watch(
 
 watch(() => route.path, loadNavBadges);
 
+// Mobile drawer: sidebar becomes an off-canvas panel below the phone breakpoint (see
+// GameLayout.scss), toggled by the hamburger button in the topbar. Closing on every route
+// change means tapping a nav link (or the backdrop) always returns to the page, never leaves
+// the drawer stuck open over the new screen.
+const mobileNavOpen = ref(false);
+function toggleMobileNav() {
+  mobileNavOpen.value = !mobileNavOpen.value;
+}
+watch(() => route.path, () => {
+  mobileNavOpen.value = false;
+});
+
 onMounted(() => {
   if (!characterStore.character) characterStore.fetch();
   loadUnread();
   loadNavBadges();
+  loadActivePlayers();
   badgePollTimer = setInterval(loadNavBadges, 30000);
 });
 
@@ -123,6 +146,10 @@ onUnmounted(() => {
           <div class="sidebar__brand-tag">WEB GAME</div>
           <div class="sidebar__brand-tag">Beta version!</div>
         </div>
+      </div>
+      <div v-if="activePlayersHour !== null" class="sidebar__online">
+        <span class="sidebar__online-dot"></span>
+        {{ activePlayersHour }} active this hour
       </div>
       <nav class="sidebar__nav">
         <template v-for="n in visibleNav" :key="n.path">

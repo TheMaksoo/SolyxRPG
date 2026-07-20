@@ -58,7 +58,9 @@ async function buyAutoBattle(minutes) {
 
 const monster = computed(() => battle.value?.monster ?? null);
 const playerHpMax = computed(() => characterStore.stats?.eff_hp_max ?? battle.value?.character_hp ?? 1);
-const playerMpMax = computed(() => characterStore.character?.mana_max ?? 1);
+// eff_mp_max (attribute-scaled) rather than the raw mana_max column — otherwise the bar under-reports
+// capacity for any character who's put attribute points into Mana Cap.
+const playerMpMax = computed(() => characterStore.stats?.eff_mp_max ?? characterStore.character?.mana_max ?? 1);
 const hpPct = (hp, max) => (max > 0 ? Math.max(0, Math.min(100, Math.round((hp / max) * 100))) : 0);
 
 const currentZoneName = computed(() => characterStore.character?.zone?.name ?? 'the wilds');
@@ -87,17 +89,10 @@ watch(extraMonsters, (rows) => {
 // Strike) are always-on stat boosts folded into effectiveStats(), not something you "cast" in battle.
 const activeSkillRows = computed(() => (characterStore.character?.skills || []).filter((row) => (row.skill?.mp_cost ?? 0) > 0));
 
-// Per-skill ticking cooldown copies keyed by skill id — the server value is a snapshot from the last
-// fetch/action, this keeps each button's countdown live between requests. Carries across battles because
-// it's re-synced from each skill row's own cooldown_remaining, stamped on the character's skill row rather
-// than on any one Battle.
-const skillCooldowns = ref({});
-let skillCooldownTimer = null;
-watch(activeSkillRows, (rows) => {
-  const next = {};
-  for (const row of rows) next[row.skill.id] = row.cooldown_remaining ?? 0;
-  skillCooldowns.value = next;
-}, { immediate: true });
+// Rounds remaining per skill id, scoped to the current battle (Battle::skill_cooldowns_json) — turn-based,
+// not a wall-clock timer, so it only ever changes when the server sends back an updated `battle` after an
+// action (no local ticking needed, unlike the old seconds-based version).
+const skillCooldowns = computed(() => battle.value?.skill_cooldowns_json ?? {});
 const potion = computed(() => {
   const inv = characterStore.character?.inventory ?? [];
   return inv.find((i) => i.item?.type === 'consumable' && i.item?.stat_json?.heal_hp_pct && i.qty > 0) ?? null;
@@ -253,17 +248,11 @@ onMounted(() => {
     if (autoBattle.value.seconds_remaining > 0) autoBattle.value.seconds_remaining -= 1;
   }, 1000);
   autoBattlePollTimer = setInterval(loadAutoBattle, 20000);
-  skillCooldownTimer = setInterval(() => {
-    for (const key in skillCooldowns.value) {
-      if (skillCooldowns.value[key] > 0) skillCooldowns.value[key] -= 1;
-    }
-  }, 1000);
 });
 
 onUnmounted(() => {
   clearInterval(autoBattleTimer);
   clearInterval(autoBattlePollTimer);
-  clearInterval(skillCooldownTimer);
 });
 </script>
 
@@ -423,7 +412,7 @@ onUnmounted(() => {
             @click="act('skill', { skill_id: row.skill.id, target_monster_id: selectedTargetId })"
             :disabled="loading || characterStore.character?.mana < row.skill.mp_cost || (skillCooldowns[row.skill.id] ?? 0) > 0"
           >
-            <template v-if="(skillCooldowns[row.skill.id] ?? 0) > 0">{{ row.skill.glyph }} {{ row.skill.name }} — {{ skillCooldowns[row.skill.id] }}s</template>
+            <template v-if="(skillCooldowns[row.skill.id] ?? 0) > 0">{{ row.skill.glyph }} {{ row.skill.name }} — {{ skillCooldowns[row.skill.id] }} round{{ skillCooldowns[row.skill.id] > 1 ? 's' : '' }}</template>
             <template v-else>
               {{ row.skill.glyph }} {{ row.skill.name }} ({{ row.skill.mp_cost }} MP){{ row.skill.effect_json?.aoe ? ' · AOE' : '' }}{{ row.skill.effect_json?.heal_hp_pct ? ' · Heal' : '' }}
             </template>

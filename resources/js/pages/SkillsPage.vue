@@ -62,8 +62,9 @@ const branches = computed(() => {
         const nextRank = (owned?.level ?? 0) + 1;
         const nextRankLevel = skill.rank_levels?.[nextRank - 1] ?? skill.level_req;
         const nextRankLevelOk = (store.character?.level ?? 0) >= nextRankLevel;
-        // Rank N costs N skill points — unlocking (rank 1) is always 1 point.
-        const cost = unlocked ? nextRank : 1;
+        // Rank N costs N² skill points — unlocking (rank 1) is always 1 point. Matches
+        // CharacterController::unlockSkill()'s cost curve.
+        const cost = unlocked ? nextRank * nextRank : 1;
         const hasPoints = (store.character?.skill_points ?? 0) >= cost;
         const canUnlock = !unlocked && prevUnlocked && levelOk && hasPoints;
         const canUpgrade = unlocked && !maxed && hasPoints && nextRankLevelOk;

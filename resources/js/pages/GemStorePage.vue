@@ -24,8 +24,6 @@ const autoGatherTarget = ref('');
 const GATHER_SKILLS = ['mining', 'woodchopping', 'foraging', 'smelting'];
 
 const adsVisible = computed(() => !auth.user?.ads_removed && (auth.user?.vip_tier ?? 'none') === 'none');
-// Auto-Attack and Auto-Gather already have their own interactive purchase cards above — skip them here to avoid showing them twice.
-const catalogSinks = computed(() => gemSinks.value.filter((cat) => !['auto_battle', 'auto_gather'].includes(cat.key)));
 
 function formatDuration(totalSeconds) {
   const m = Math.floor(totalSeconds / 60);
@@ -138,15 +136,19 @@ onMounted(async () => {
   <div>
     <div class="gem-store-header">
       <div class="gem-store-header__icon">💎</div>
-      <h1 class="ox gem-store-title">Gem Store</h1>
+      <div>
+        <h1 class="ox gem-store-title">Gem Store</h1>
+        <span class="gem-store-header__badge">NO PAY-TO-WIN</span>
+      </div>
     </div>
 
     <p class="gem-store-intro">
-      Premium currency for cosmetics, revives, and Battle Pass tiers. Gems never affect combat stats — no pay-to-win.
+      Premium currency for cosmetics, convenience, and Battle Pass tiers. Gems never affect combat stats.
     </p>
 
     <p v-if="message" class="gem-store-error">{{ message }}</p>
 
+    <div class="gem-store-section-eyebrow">GEM PACKAGES</div>
     <div class="gem-packs">
       <div v-for="(pack, sku) in packs" :key="sku" class="gem-pack">
         <div class="gem-pack__icon">◆</div>
@@ -181,7 +183,7 @@ onMounted(async () => {
       <router-link to="/vip" class="ad-free-card__cta">Go ad-free with VIP</router-link>
     </div>
 
-    <div class="gem-store-section-eyebrow">SPEND GEMS</div>
+    <div class="gem-store-section-eyebrow">TIME BOOSTS</div>
     <div class="auto-battle-store-card">
       <div class="auto-battle-store-card__info">
         <div class="auto-battle-store-card__icon">🤖</div>
@@ -249,30 +251,20 @@ onMounted(async () => {
       </template>
     </div>
 
-    <div class="gem-store-section-eyebrow">EVERYWHERE YOU CAN SPEND GEMS</div>
+    <div class="gem-store-section-eyebrow">ALSO SPEND GEMS ON</div>
     <div class="gem-sink-grid">
       <router-link
-        v-for="cat in catalogSinks"
+        v-for="cat in gemSinks"
         :key="cat.key"
         :to="cat.route"
         class="gem-sink-card"
       >
-        <div class="gem-sink-card__header">
-          <span class="gem-sink-card__glyph">{{ cat.glyph }}</span>
+        <span class="gem-sink-card__glyph">{{ cat.glyph }}</span>
+        <span class="gem-sink-card__body">
           <span class="ox gem-sink-card__label">{{ cat.label }}</span>
-        </div>
-        <p class="gem-sink-card__desc">{{ cat.desc }}</p>
-        <div class="gem-sink-card__items">
-          <span
-            v-for="(item, i) in cat.items"
-            :key="i"
-            class="gem-sink-card__item"
-            :class="{ 'gem-sink-card__item--owned': item.owned }"
-          >
-            {{ item.label }} <template v-if="item.owned">✔ owned</template><template v-else>· 💎{{ item.cost }}</template>
-          </span>
-          <span v-if="!cat.items.length" class="gem-sink-card__item gem-sink-card__item--empty">Nothing available right now</span>
-        </div>
+          <span class="gem-sink-card__desc">{{ cat.desc }}</span>
+        </span>
+        <span class="gem-sink-card__cta">View <span class="gem-sink-card__arrow">→</span></span>
       </router-link>
     </div>
   </div>

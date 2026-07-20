@@ -349,8 +349,9 @@ class CharacterController extends Controller
     }
 
     /** Unlocks a skill at rank 1 (cost 1), or — if already unlocked — spends skill points to upgrade its
-     * rank (up to the skill's max_level). Each rank costs more than the last (rank N costs N points) so
-     * maxing a skill out is a real investment, not just N cheap clicks. */
+     * rank (up to the skill's max_level). Each rank costs quadratically more than the last (rank N costs
+     * N² points — 1/4/9/16/25 for a 5-rank skill, 1/4/9 for a 3-rank ultimate) so maxing a skill out is a
+     * real high-level skill-point sink, not just a handful of cheap clicks. */
     public function unlockSkill(Request $request, \App\Models\Skill $skill)
     {
         $character = $request->user()->character;
@@ -371,7 +372,7 @@ class CharacterController extends Controller
             if ($character->level < $nextRankLevel) {
                 return response()->json(['message' => "Rank {$nextRank} requires level {$nextRankLevel}."], 422);
             }
-            $cost = $nextRank;
+            $cost = $nextRank ** 2;
             if ($character->skill_points < $cost) {
                 return response()->json(['message' => "Rank {$nextRank} costs {$cost} skill points."], 422);
             }
@@ -380,6 +381,18 @@ class CharacterController extends Controller
         } else {
             if ($character->level < $skill->level_req) {
                 return response()->json(['message' => "Requires level {$skill->level_req}."], 422);
+            }
+            // Same branch, one tier below — matches SkillsPage.vue's `prevUnlocked` gating on the frontend.
+            // That frontend check was purely cosmetic until now: nothing server-side stopped a client from
+            // unlocking a tier-2/3 skill directly (skipping tier-1) as long as level_req + skill_points
+            // were met, since only those two conditions were enforced here.
+            $prevSkill = \App\Models\Skill::where('branch', $skill->branch)
+                ->where('class_scope', $skill->class_scope)
+                ->where('tier', '<', $skill->tier)
+                ->orderByDesc('tier')
+                ->first();
+            if ($prevSkill && ! $character->skills()->where('skill_id', $prevSkill->id)->exists()) {
+                return response()->json(['message' => "Unlock {$prevSkill->name} first."], 422);
             }
             if ($character->skill_points < 1) {
                 return response()->json(['message' => 'No skill points available.'], 422);

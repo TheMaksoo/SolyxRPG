@@ -9,10 +9,22 @@ function escapeHtml(str) {
 
 /** Renders a chat message body as safe HTML, wrapping @Name mentions in a highlighted span — like
  * Discord, anyone can @ a name and it's highlighted; it's brighter when it matches your own
- * character name so a ping is obvious at a glance. */
-export function renderChatBody(body, myName) {
+ * character name so a ping is obvious at a glance.
+ *
+ * `candidateNames` (the same roster used for the @ autocomplete) lets multi-word names — character
+ * names allow spaces, up to 30 chars — get matched as one mention instead of just the first word.
+ * Any name not in the roster still falls back to the plain single-word match, so @-ing someone
+ * outside the currently known list (e.g. in world chat) still highlights. */
+export function renderChatBody(body, myName, candidateNames = []) {
   const escaped = escapeHtml(body ?? '');
-  return escaped.replace(/@([A-Za-z0-9_]{2,20})/g, (match, name) => {
+
+  const known = [...new Set([myName, ...candidateNames].filter(Boolean))]
+    .sort((a, b) => b.length - a.length)
+    .map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+
+  const pattern = new RegExp(`@(${[...known, '[A-Za-z0-9_]{2,20}'].join('|')})`, 'g');
+
+  return escaped.replace(pattern, (match, name) => {
     const isMe = !!myName && name.toLowerCase() === myName.toLowerCase();
     return `<span class="chat-mention${isMe ? ' chat-mention--me' : ''}">@${name}</span>`;
   });

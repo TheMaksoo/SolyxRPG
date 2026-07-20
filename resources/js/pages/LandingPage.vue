@@ -1,11 +1,17 @@
 <script setup>
 import { ref, onMounted, nextTick, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import api from '../api/client';
 
 const auth = useAuthStore();
 const router = useRouter();
+const route = useRoute();
+
+const OAUTH_ERROR_MESSAGES = {
+  cancelled: 'Sign-in was cancelled.',
+  failed: 'Could not sign in with that provider. Please try again.',
+};
 
 const mode = ref('login'); // 'login' | 'register'
 const form = ref({ name: '', email: '', password: '' });
@@ -68,6 +74,12 @@ watch(mode, (value) => {
 
 onMounted(async () => {
   if (mode.value === 'register') nextTick(renderTurnstile);
+
+  if (route.query.oauth_error) {
+    error.value = OAUTH_ERROR_MESSAGES[route.query.oauth_error] || 'Sign-in failed.';
+    router.replace({ query: {} });
+  }
+
   try {
     const { data } = await api.get('/stats/public');
     stats.value = data;

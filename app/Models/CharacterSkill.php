@@ -39,8 +39,9 @@ class CharacterSkill extends Model
         return (new SkillService())->describe($this->skill, $this->level + 1);
     }
 
-    /** Seconds left before this skill can be used again — persists across battles since it's stamped on
-     * the character's own skill row rather than on any one Battle. Zero when off cooldown or never used. */
+    /** Legacy wall-clock cooldown readout — kept for schema/API compatibility, but combat no longer writes
+     * to cooldown_expires_at (skill cooldowns are now turn/round-based and tracked per-battle on
+     * Battle::skill_cooldowns_json instead, see CombatService::act()), so this reads 0 in practice. */
     public function getCooldownRemainingAttribute(): int
     {
         if (! $this->cooldown_expires_at || $this->cooldown_expires_at->isPast()) {

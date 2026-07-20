@@ -74,7 +74,7 @@ onUnmounted(() => {
       >
         <strong :style="{ color: m.character?.active_color?.value }">{{ m.character?.name }}:</strong>
         <VipBadge :tier="m.vip_tier" />
-        <span v-html="renderChatBody(m.body, characterStore.character?.name)"></span>
+        <span v-html="renderChatBody(m.body, characterStore.character?.name, mentionCandidates.map((c) => c.name))"></span>
       </div>
       <div v-if="!messages.length" class="world-chat__empty">No messages yet. Say hi!</div>
     </div>

@@ -32,7 +32,12 @@ class LeaderboardController extends Controller
                 'level' => $c->level,
                 'base_class' => $c->base_class,
                 'value' => $this->valueFor($c, $category),
-                'percentile' => $category === 'trophies' ? PvpRecord::bracketFromRatings($c->pvpRecord->rating ?? 1000, $allRatings) : null,
+                // Same hybrid tier-name+percentile rank shown on the PvP Arena page (PvpRecord::hybridRank),
+                // so "Diamond" on the Trophies leaderboard means the same thing as "Diamond" in the arena
+                // instead of the two screens using unrelated percentile-only vs tier-only labels. Named
+                // trophy_rank (not "rank") because the final ->map() below already uses 'rank' for this
+                // row's 1-100 leaderboard position — reusing that key would silently clobber this one.
+                'trophy_rank' => $category === 'trophies' ? PvpRecord::hybridRank($c->pvpRecord->rating ?? 1000, $allRatings) : null,
                 'vip_tier' => $c->user?->hasActiveVip() ? $c->user->vip_tier : 'none',
                 'title' => $c->activeTitle?->value,
                 'name_color' => $c->activeColor?->value,

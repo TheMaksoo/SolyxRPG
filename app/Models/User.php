@@ -98,6 +98,11 @@ class User extends Authenticatable
     /** Extra daily PvP battle attempts (on top of the 10 base attempts) per VIP tier. */
     public const VIP_TIER_PVP_ATTEMPTS = ['bronze' => 5, 'gold' => 10, 'diamond' => 15];
 
+    /** Extra daily dungeon raid attempts (on top of the 3 base attempts) per VIP tier. Dungeon raids are
+     * multi-stage (up to 4 stages for Mythic, with boss adds) and take much longer per attempt than a
+     * single PvP match, so both the base allowance and VIP bonuses are scaled well below PvP's. */
+    public const VIP_TIER_DUNGEON_ATTEMPTS = ['bronze' => 1, 'gold' => 3, 'diamond' => 5];
+
     /** Free monthly gem stipend per tier — 25% of that tier's cash price, in gems (at the entry gem-pack's ~68/$ rate). */
     public const VIP_TIER_MONTHLY_GEMS = ['bronze' => 50, 'gold' => 85, 'diamond' => 170];
 
@@ -264,6 +269,18 @@ class User extends Authenticatable
         $fallback = self::VIP_TIER_PVP_ATTEMPTS[$this->vip_tier] ?? 0;
 
         return (int) round(GameConfig::number("vip_pvp_attempts_{$this->vip_tier}", $fallback));
+    }
+
+    /** Extra daily dungeon raid attempts from an active VIP subscription. */
+    public function vipDungeonBonusAttempts(): int
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_DUNGEON_ATTEMPTS[$this->vip_tier] ?? 0;
+
+        return (int) round(GameConfig::number("vip_dungeon_attempts_{$this->vip_tier}", $fallback));
     }
 
     /** up to 4 gem-side slots (1 starter + 3 bought) + up to 4 from an active VIP subscription tier. */

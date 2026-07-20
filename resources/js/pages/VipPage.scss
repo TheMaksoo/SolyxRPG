@@ -84,8 +84,24 @@
 .vip-tier-card__perks {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 14px;
   margin-bottom: 18px;
+}
+
+.vip-perk-section {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+
+  & + & {
+    padding-top: 12px;
+    border-top: 1px solid v.$border-subtle;
+  }
+}
+
+.vip-perk-section__title {
+  @include m.section-eyebrow;
+  font-size: 10.5px;
 }
 
 .vip-tier-card__perk {

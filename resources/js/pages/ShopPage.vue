@@ -36,7 +36,9 @@ const filtered = computed(() =>
 function canAfford(item) {
   const character = auth.user?.character;
   if (!character) return true;
-  return item.price_gold ? character.gold >= item.price_gold : character.gems >= item.price_gems;
+  if (item.price_gold) return character.gold >= item.price_gold;
+  if (item.price_gems) return character.gems >= item.price_gems;
+  return false;
 }
 
 async function load() {
@@ -116,6 +118,7 @@ onMounted(load);
           </div>
           <div class="shop-item__desc">{{ item.description }}</div>
           <button
+            v-if="item.price_gold || item.price_gems"
             @click="buy(item)"
             :disabled="loading || !canAfford(item)"
             class="shop-buy-btn"
@@ -123,6 +126,7 @@ onMounted(load);
           >
             Buy — {{ item.price_gold ? `🪙 ${item.price_gold}` : `◆ ${item.price_gems}` }}
           </button>
+          <div v-else class="shop-item__craft-only">🔨 Crafting only</div>
         </template>
       </div>
       <div v-if="!filtered.length" class="shop-empty">Nothing here yet.</div>
