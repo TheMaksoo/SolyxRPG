@@ -63,7 +63,7 @@ const queueFull = () => queue.value.length >= maxSlots.value;
 async function craft(recipe) {
   try {
     await api.post(`/crafting/${recipe.id}/craft`);
-    showMessage(`Queued ${recipe.result_item.name} — check the queue below.`, 'success');
+    showMessage(`Queued ${recipe.result_item.name}.`, 'success');
     await load();
   } catch (e) {
     showMessage(e.response?.data?.message || 'Missing materials.', 'error');

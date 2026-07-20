@@ -2,11 +2,14 @@
 import { ref, onMounted, computed } from 'vue';
 import api from '../api/client';
 import AdBanner from '../components/AdBanner.vue';
+import { useCharacterStore } from '../stores/character';
 
+const characterStore = useCharacterStore();
 const rows = ref([]);
 const questsCompleted = ref(0);
 const tab = ref('daily');
 const message = ref('');
+const claimSummary = ref(null);
 
 const tabs = [
   { key: 'daily', label: 'Daily' },
@@ -45,6 +48,15 @@ async function claim(row) {
   try {
     const { data } = await api.post(`/quests/${row.quest.id}/claim`);
     applyPayload(data);
+    // Gold/gems land immediately in the sidebar balance and everywhere else that reads the
+    // character store, rather than needing a manual refresh to notice the reward.
+    if (data.character) characterStore.character = data.character;
+    claimSummary.value = {
+      title: `${row.quest.name} claimed`,
+      gold: data.reward?.gold,
+      gems: data.reward?.gems,
+      xp: data.reward?.xp,
+    };
   } catch (e) {
     message.value = e.response?.data?.message || 'Could not claim.';
   }
@@ -74,6 +86,18 @@ onMounted(load);
     </div>
 
     <p v-if="message" class="quests-message">{{ message }}</p>
+
+    <div v-if="claimSummary" class="claim-summary">
+      <div class="claim-summary__header">
+        <span class="ox claim-summary__title">🎉 {{ claimSummary.title }}</span>
+        <button class="claim-summary__close" @click="claimSummary = null">✕</button>
+      </div>
+      <div class="claim-summary__rows">
+        <span v-if="claimSummary.gold" class="claim-summary__chip">🪙 +{{ claimSummary.gold }} gold</span>
+        <span v-if="claimSummary.gems" class="claim-summary__chip">💎 +{{ claimSummary.gems }} gems</span>
+        <span v-if="claimSummary.xp" class="claim-summary__chip">✨ +{{ claimSummary.xp }} xp</span>
+      </div>
+    </div>
 
     <AdBanner variant="inline" />
 

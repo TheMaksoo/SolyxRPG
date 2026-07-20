@@ -15,6 +15,48 @@
   margin: 0;
 }
 
+.claim-summary {
+  background: linear-gradient(160deg, rgba(74, 222, 128, 0.12), v.$bg-card);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: v.$radius-lg;
+  padding: 14px 18px;
+  margin-bottom: 18px;
+}
+
+.claim-summary__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.claim-summary__title {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: v.$success;
+}
+
+.claim-summary__close {
+  @include m.btn-reset;
+  color: v.$text-muted-45;
+  font-size: 13px;
+}
+
+.claim-summary__rows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.claim-summary__chip {
+  font-size: 12.5px;
+  font-weight: 700;
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.25);
+  border-radius: v.$radius-pill;
+  padding: 5px 12px;
+}
+
 .quests-header__completed {
   margin-left: auto;
   font-size: 13px;

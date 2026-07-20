@@ -108,6 +108,12 @@
   color: #fff;
   font-weight: 700;
   font-size: 13px;
+
+  &--current {
+    background: rgba(255, 255, 255, 0.06);
+    color: v.$text-muted-45;
+    cursor: default;
+  }
 }
 
 .vip-footer {

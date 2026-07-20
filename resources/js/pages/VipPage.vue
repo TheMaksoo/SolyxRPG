@@ -5,6 +5,20 @@ import api from '../api/client';
 const info = ref(null);
 const message = ref('');
 
+const TIER_RANK = { none: 0, bronze: 1, gold: 2, diamond: 3 };
+
+function tierAction(key) {
+  const current = info.value?.vip_tier ?? 'none';
+  if (key === current) return 'current';
+  if (current === 'none') return 'subscribe';
+  return TIER_RANK[key] > TIER_RANK[current] ? 'upgrade' : 'downgrade';
+}
+
+function tierButtonLabel(key) {
+  const action = tierAction(key);
+  return { current: 'Current Plan', subscribe: 'Subscribe', upgrade: 'Upgrade', downgrade: 'Downgrade' }[action];
+}
+
 const PERKS = {
   bronze: ['Ad-free experience', 'Bronze VIP name badge'],
   gold: ['Everything in Bronze', 'Gold VIP name badge'],
@@ -56,7 +70,13 @@ async function subscribe(tier) {
   message.value = '';
   try {
     const { data } = await api.post('/vip/subscribe', { tier });
-    window.location.href = data.checkout_url;
+    if (data.checkout_url) {
+      window.location.href = data.checkout_url;
+      return;
+    }
+    // In-place tier switch — no checkout redirect, the existing subscription was updated directly.
+    message.value = `Switched to ${tier} VIP — your next bill reflects the prorated difference.`;
+    await load();
   } catch (e) {
     message.value = e.response?.data?.message || 'Subscriptions unavailable.';
   }
@@ -125,8 +145,10 @@ onMounted(load);
         <button
           @click="subscribe(key)"
           class="vip-subscribe-btn"
+          :class="{ 'vip-subscribe-btn--current': tierAction(key) === 'current' }"
+          :disabled="tierAction(key) === 'current'"
         >
-          Subscribe
+          {{ tierButtonLabel(key) }}
         </button>
       </div>
     </div>

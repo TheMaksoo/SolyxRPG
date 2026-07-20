@@ -41,7 +41,9 @@ class VipController extends Controller
             ->all();
 
         return response()->json([
-            'vip_tier' => $user->vip_tier,
+            // Expiry-aware — a lapsed subscription's vip_tier column can sit stale until the next
+            // webhook touches it, so this always reflects whether VIP is actually active right now.
+            'vip_tier' => $user->hasActiveVip() ? $user->vip_tier : 'none',
             'vip_expires_at' => $user->vip_expires_at,
             'tiers' => $tiers,
         ]);
@@ -54,12 +56,41 @@ class VipController extends Controller
 
         if (! config('services.stripe.secret')) {
             return response()->json([
-                'message' => 'Stripe is not configured yet. Add STRIPE_KEY/STRIPE_SECRET to .env, and create a recurring Price for each VIP tier in the Stripe dashboard, to enable subscriptions.',
+                'message' => 'Stripe is not configured yet. Add STRIPE_KEY/STRIPE_SECRET to .env to enable subscriptions.',
             ], 500);
         }
 
         $stripe = new StripeClient(config('services.stripe.secret'));
+        $user = $request->user();
         $tier = self::TIERS[$data['tier']];
+
+        // Already on a different active tier — switch the existing Stripe subscription in place
+        // (with proration) instead of starting a second, separately-billed subscription.
+        if ($user->hasActiveVip() && $user->stripe_subscription_id) {
+            try {
+                $subscription = $stripe->subscriptions->retrieve($user->stripe_subscription_id);
+                $stripe->subscriptions->update($user->stripe_subscription_id, [
+                    'items' => [[
+                        'id' => $subscription->items->data[0]->id,
+                        'price_data' => [
+                            'currency' => 'usd',
+                            'product_data' => ['name' => $tier['label']],
+                            'unit_amount' => $tier['price_cents'],
+                            'recurring' => ['interval' => 'month'],
+                        ],
+                    ]],
+                    'proration_behavior' => 'create_prorations',
+                    'metadata' => ['vip_tier' => $data['tier'], 'user_id' => (string) $user->id],
+                ]);
+            } catch (\Exception $e) {
+                return response()->json(['message' => 'Could not switch plans: '.$e->getMessage()], 500);
+            }
+
+            $user->vip_tier = $data['tier'];
+            $user->save();
+
+            return response()->json(['switched' => true, 'vip_tier' => $data['tier']]);
+        }
 
         $session = $stripe->checkout->sessions->create([
             'mode' => 'subscription',
@@ -75,6 +106,12 @@ class VipController extends Controller
             ]],
             'client_reference_id' => (string) $request->user()->id,
             'metadata' => ['vip_tier' => $data['tier'], 'user_id' => $request->user()->id],
+            // Checkout Session metadata does NOT propagate to the underlying Subscription object —
+            // it has to be set here too, or the renewal (invoice.paid) and cancellation
+            // (customer.subscription.deleted) webhook handlers have no way to identify the user.
+            'subscription_data' => [
+                'metadata' => ['vip_tier' => $data['tier'], 'user_id' => $request->user()->id],
+            ],
             'success_url' => config('app.url').'/vip?checkout=success',
             'cancel_url' => config('app.url').'/vip?checkout=cancelled',
         ]);

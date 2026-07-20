@@ -204,7 +204,14 @@ class StoreController extends Controller
         if ($event->type === 'customer.subscription.deleted') {
             $subscription = $event->data->object;
             \App\Models\User::where('id', $subscription->metadata['user_id'] ?? null)
-                ->update(['vip_tier' => 'none', 'vip_expires_at' => null]);
+                ->update(['vip_tier' => 'none', 'vip_expires_at' => null, 'stripe_subscription_id' => null]);
+        }
+
+        // Renews vip_expires_at every billing cycle — without this, VIP would silently expire after
+        // the first month even though Stripe keeps charging the card, since fulfilVipSubscription()
+        // below only ever runs once, at initial checkout.
+        if (in_array($event->type, ['invoice.paid', 'invoice.payment_succeeded'], true)) {
+            $this->renewVipFromInvoice($event->data->object);
         }
 
         return response()->json(['received' => true]);
@@ -217,10 +224,53 @@ class StoreController extends Controller
             return;
         }
 
-        $user->update([
-            'vip_tier' => $session->metadata['vip_tier'],
-            'vip_expires_at' => now()->addMonth(),
-        ]);
+        // User's #[Fillable] attribute only allows name/email/password through mass-assignment —
+        // ->update() here would silently no-op (confirmed: same landmine as the is_tester bug).
+        // Direct property assignment bypasses the guard.
+        $user->vip_tier = $session->metadata['vip_tier'];
+        $user->vip_expires_at = now()->addMonth();
+        // Stashed so a later tier switch can update this same subscription in Stripe (proration)
+        // instead of starting a second, separately-billed one — see VipController::subscribe().
+        $user->stripe_subscription_id = is_string($session->subscription ?? null) ? $session->subscription : ($session->subscription->id ?? null);
+        $user->save();
+    }
+
+    /** Handles both the classic flat `invoice.subscription` shape and the newer nested
+     * `invoice.parent.subscription_details.subscription` shape, since API-version upgrades moved this field. */
+    private function renewVipFromInvoice(object $invoice): void
+    {
+        $subscriptionId = $invoice->subscription ?? $invoice->parent->subscription_details->subscription ?? null;
+        if (! $subscriptionId) {
+            return;
+        }
+        $subscriptionId = is_string($subscriptionId) ? $subscriptionId : $subscriptionId->id;
+
+        // The first invoice on a new subscription is already covered by checkout.session.completed —
+        // re-granting here would double up the first month if both events arrive close together.
+        if (($invoice->billing_reason ?? null) === 'subscription_create') {
+            return;
+        }
+
+        if (! config('services.stripe.secret')) {
+            return;
+        }
+
+        $stripe = new StripeClient(config('services.stripe.secret'));
+        $subscription = $stripe->subscriptions->retrieve($subscriptionId);
+        $userId = $subscription->metadata['user_id'] ?? null;
+        $vipTier = $subscription->metadata['vip_tier'] ?? null;
+        if (! $userId || ! $vipTier) {
+            return;
+        }
+
+        $user = \App\Models\User::find($userId);
+        if (! $user) {
+            return;
+        }
+
+        $user->vip_tier = $vipTier;
+        $user->vip_expires_at = now()->addMonth();
+        $user->save();
     }
 
     private function fulfil(Purchase $purchase): void
@@ -233,7 +283,8 @@ class StoreController extends Controller
             $character->increment('gems', $gems);
             GemLedger::log($character, $gems, "purchase:{$purchase->sku}");
         } elseif ($purchase->sku === 'remove_ads') {
-            $user->update(['ads_removed' => true]);
+            $user->ads_removed = true;
+            $user->save();
         } elseif ($purchase->sku === 'pass_ashfall' && $character) {
             $character->battlePasses()->updateOrCreate(['season' => 'ashfall'], ['premium' => true]);
         } elseif ($purchase->sku === 'auto_battle_60' && $character) {

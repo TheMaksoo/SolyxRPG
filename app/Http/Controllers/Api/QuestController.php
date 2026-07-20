@@ -67,7 +67,13 @@ class QuestController extends Controller
         $this->achievements->check($character->fresh());
         $this->grantQuestTitle($character, $quest);
 
-        return response()->json(array_merge($this->payload($character->fresh()), ['quest' => $quest]));
+        $fresh = $character->fresh();
+
+        return response()->json(array_merge($this->payload($fresh), [
+            'quest' => $quest,
+            'reward' => $reward,
+            'character' => $fresh,
+        ]));
     }
 
     /** Some titles are earned for free by completing the quest of the same name, rather than bought with
