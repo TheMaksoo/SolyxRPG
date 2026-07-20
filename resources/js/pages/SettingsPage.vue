@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useCharacterStore } from '../stores/character';
 import api from '../api/client';
@@ -8,6 +8,7 @@ import api from '../api/client';
 const auth = useAuthStore();
 const characterStore = useCharacterStore();
 const router = useRouter();
+const route = useRoute();
 const tutorialMessage = ref('');
 
 async function replayTutorial() {
@@ -21,10 +22,26 @@ async function replayTutorial() {
   }
 }
 
-const providers = ['discord', 'google', 'apple'];
+const providers = ['discord', 'google'];
 
 function linkedTo(provider) {
   return auth.user?.social_accounts?.some((a) => a.provider === provider);
+}
+
+const linkMessage = ref('');
+
+async function handleLinkRedirect() {
+  const { linked, link_error: linkError } = route.query;
+  if (!linked && !linkError) return;
+
+  if (linked) {
+    await auth.fetchMe();
+    linkMessage.value = `${linked} linked to your account.`;
+  } else if (linkError === 'already_linked_elsewhere') {
+    linkMessage.value = 'That account is already linked to a different Solyx login.';
+  }
+
+  router.replace({ query: {} });
 }
 
 async function logout() {
@@ -108,7 +125,10 @@ async function sendReply(ticket) {
   }
 }
 
-onMounted(loadTickets);
+onMounted(() => {
+  loadTickets();
+  handleLinkRedirect();
+});
 </script>
 
 <template>
@@ -121,6 +141,7 @@ onMounted(loadTickets);
     <div class="settings-content">
       <div class="linked-accounts-card">
         <h3 class="ox linked-accounts-card__title">Linked Accounts</h3>
+        <p v-if="linkMessage" class="support-card__message">{{ linkMessage }}</p>
         <div v-for="p in providers" :key="p" class="linked-account-row">
           <span class="linked-account-row__label">{{ p }}</span>
           <a

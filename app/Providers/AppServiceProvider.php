@@ -7,7 +7,6 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
-use SocialiteProviders\Apple\Provider as AppleProvider;
 use SocialiteProviders\Discord\Provider as DiscordProvider;
 use SocialiteProviders\Manager\SocialiteWasCalled;
 
@@ -29,7 +28,6 @@ class AppServiceProvider extends ServiceProvider
         Schema::defaultStringLength(100);
         Event::listen(function (SocialiteWasCalled $event) {
             $event->extendSocialite('discord', DiscordProvider::class);
-            $event->extendSocialite('apple', AppleProvider::class);
         });
 
         // Keyed by email+IP (not just IP) so credential stuffing spread across many accounts from

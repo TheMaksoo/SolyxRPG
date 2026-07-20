@@ -41,7 +41,6 @@ function resetTurnstile() {
 const providers = [
   { key: 'discord', label: 'Continue with Discord', class: 'landing-oauth-btn--discord' },
   { key: 'google', label: 'Continue with Google', class: 'landing-oauth-btn--google' },
-  { key: 'apple', label: 'Continue with Apple', class: 'landing-oauth-btn--apple' },
 ];
 
 async function submit() {

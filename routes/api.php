@@ -62,8 +62,8 @@ Route::middleware('web')->group(function () {
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware(['throttle:login', 'throttle:20,1']);
     Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:6,1');
     Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:6,1');
-    Route::get('/auth/{provider}/redirect', [SocialiteController::class, 'redirect'])->whereIn('provider', ['discord', 'google', 'apple']);
-    Route::get('/auth/{provider}/callback', [SocialiteController::class, 'callback'])->whereIn('provider', ['discord', 'google', 'apple']);
+    Route::get('/auth/{provider}/redirect', [SocialiteController::class, 'redirect'])->whereIn('provider', ['discord', 'google']);
+    Route::get('/auth/{provider}/callback', [SocialiteController::class, 'callback'])->whereIn('provider', ['discord', 'google']);
 });
 
 // Stripe webhook — no auth, verified by signature instead
