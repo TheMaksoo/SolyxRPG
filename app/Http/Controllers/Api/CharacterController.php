@@ -111,7 +111,7 @@ class CharacterController extends Controller
 
     public function select(Request $request, Character $character)
     {
-        abort_unless($character->user_id === $request->user()->id, 403);
+        abort_unless($character->user_id === $request->user()->id, 403, 'That character does not belong to your account.');
 
         $user = $request->user();
         $user->active_character_id = $character->id;
@@ -129,7 +129,7 @@ class CharacterController extends Controller
     public function destroy(Request $request, Character $character)
     {
         $user = $request->user();
-        abort_unless($character->user_id === $user->id, 403);
+        abort_unless($character->user_id === $user->id, 403, 'That character does not belong to your account.');
 
         $deletedId = $character->id;
         $character->delete();
@@ -156,7 +156,7 @@ class CharacterController extends Controller
 
         $data = $request->validate(['character_id' => ['required', 'exists:characters,id']]);
         $payer = Character::findOrFail($data['character_id']);
-        abort_unless($payer->user_id === $user->id, 403);
+        abort_unless($payer->user_id === $user->id, 403, 'That character does not belong to your account.');
 
         $tier = $user->bonus_character_slots + 1;
         $cost = self::GEM_SLOT_COSTS[$tier];

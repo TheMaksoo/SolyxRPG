@@ -72,7 +72,7 @@ class PartyController extends Controller
     public function acceptInvite(Request $request, PartyInvite $invite)
     {
         $character = $request->user()->character;
-        abort_unless($character && $invite->character_id === $character->id, 403);
+        abort_unless($character && $invite->character_id === $character->id, 403, 'This invite is not addressed to your current character.');
         abort_if($character->partyMembership, 422, 'Already in a party — leave it first.');
 
         $party = $invite->party;
@@ -87,7 +87,7 @@ class PartyController extends Controller
     public function declineInvite(Request $request, PartyInvite $invite)
     {
         $character = $request->user()->character;
-        abort_unless($character && $invite->character_id === $character->id, 403);
+        abort_unless($character && $invite->character_id === $character->id, 403, 'This invite is not addressed to your current character.');
 
         $invite->delete();
 

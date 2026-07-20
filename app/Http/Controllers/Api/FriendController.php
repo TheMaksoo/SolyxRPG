@@ -67,7 +67,7 @@ class FriendController extends Controller
     public function accept(Request $request, Friendship $friendship)
     {
         $character = $request->user()->character;
-        abort_unless($friendship->addressee_id === $character?->id, 403);
+        abort_unless($friendship->addressee_id === $character?->id, 403, 'This friend request is not addressed to your current character.');
 
         $friendship->update(['status' => 'accepted']);
 
@@ -83,7 +83,7 @@ class FriendController extends Controller
     public function decline(Request $request, Friendship $friendship)
     {
         $character = $request->user()->character;
-        abort_unless($friendship->addressee_id === $character?->id, 403);
+        abort_unless($friendship->addressee_id === $character?->id, 403, 'This friend request is not addressed to your current character.');
 
         $friendship->delete();
 

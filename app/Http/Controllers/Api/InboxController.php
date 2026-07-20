@@ -88,7 +88,7 @@ class InboxController extends Controller
 
     public function read(Request $request, Mail $mail)
     {
-        abort_unless($mail->recipient_user_id === $request->user()->id, 403);
+        abort_unless($mail->recipient_user_id === $request->user()->id, 403, 'This mail is not addressed to your account.');
 
         $mail->update(['read_at' => $mail->read_at ?? now()]);
 
@@ -97,7 +97,7 @@ class InboxController extends Controller
 
     public function dismiss(Request $request, Mail $mail)
     {
-        abort_unless($mail->recipient_user_id === $request->user()->id, 403);
+        abort_unless($mail->recipient_user_id === $request->user()->id, 403, 'This mail is not addressed to your account.');
 
         $mail->update(['dismissed_at' => now()]);
 

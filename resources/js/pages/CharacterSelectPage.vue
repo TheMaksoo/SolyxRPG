@@ -60,6 +60,9 @@ async function play(character) {
     router.push('/dashboard');
   } catch (e) {
     error.value = e.response?.data?.message || 'Could not switch character.';
+    if (e.response?.status === 403 || e.response?.status === 404) {
+      await load();
+    }
   } finally {
     busyId.value = null;
   }

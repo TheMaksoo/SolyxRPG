@@ -236,7 +236,7 @@ class CraftingController extends Controller
     public function collect(Request $request, CraftingJob $job)
     {
         $character = $request->user()->character;
-        abort_unless($character && $job->character_id === $character->id, 403);
+        abort_unless($character && $job->character_id === $character->id, 403, 'This crafting job belongs to a different character.');
         abort_if($job->collected_at !== null, 422, 'Already collected.');
 
         if (! $job->isReady()) {
