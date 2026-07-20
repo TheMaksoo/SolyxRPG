@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import api from '../api/client';
 import { useCharacterStore } from '../stores/character';
 
@@ -7,17 +7,30 @@ const characterStore = useCharacterStore();
 const friends = ref([]);
 const incoming = ref([]);
 const browse = ref([]);
+const outgoingIds = ref([]);
 const activeFriend = ref(null);
 const messages = ref([]);
 const draft = ref('');
 const message = ref('');
+const search = ref('');
+let searchTimer = null;
 
 async function load() {
-  const { data } = await api.get('/friends');
+  const { data } = await api.get('/friends', { params: { search: search.value.trim() } });
   friends.value = data.friends;
   incoming.value = data.incoming_requests;
+  outgoingIds.value = data.outgoing_ids;
   browse.value = data.browse;
 }
+
+function isRequested(character) {
+  return outgoingIds.value.includes(character.id);
+}
+
+watch(search, () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(load, 300);
+});
 
 async function openThread(character) {
   activeFriend.value = character;
@@ -33,11 +46,12 @@ async function send() {
 }
 
 async function sendRequest(character) {
+  if (isRequested(character)) return;
   message.value = '';
   try {
     await api.post(`/friends/${character.id}/request`);
     message.value = `Friend request sent to ${character.name}.`;
-    await load();
+    outgoingIds.value = [...outgoingIds.value, character.id];
   } catch (e) {
     message.value = e.response?.data?.message || 'Could not send request.';
   }
@@ -132,13 +146,22 @@ onMounted(() => {
         </template>
         <div v-else class="add-friends">
           <div class="ox add-friends__title">Add friends</div>
+          <label for="friend-search" class="sr-only">Search players by name</label>
+          <input id="friend-search" v-model="search" placeholder="Search players by name…" class="add-friends__search" />
           <div v-for="c in browse" :key="c.id" class="add-friends__row">
             <span class="add-friends__name"
               >{{ c.name }} <span class="add-friends__meta">· {{ c.base_class }} Lv.{{ c.level }}</span></span
             >
-            <button @click="sendRequest(c)" class="add-friends__add">Add</button>
+            <button
+              @click="sendRequest(c)"
+              class="add-friends__add"
+              :class="{ 'add-friends__add--sent': isRequested(c) }"
+              :disabled="isRequested(c)"
+            >{{ isRequested(c) ? 'Added' : 'Add' }}</button>
           </div>
-          <div v-if="!browse.length" class="add-friends__empty">No other players yet.</div>
+          <div v-if="!browse.length" class="add-friends__empty">
+            {{ search.trim() ? 'No players match that search.' : 'No other players yet.' }}
+          </div>
         </div>
       </div>
     </div>

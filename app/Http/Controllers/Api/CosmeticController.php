@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\CharacterCosmetic;
 use App\Models\Cosmetic;
+use App\Models\FeatureFlag;
 use App\Models\GemLedger;
 use App\Models\Quest;
 use Illuminate\Http\Request;
@@ -15,6 +16,8 @@ class CosmeticController extends Controller
 
     public function index(Request $request)
     {
+        abort_unless(FeatureFlag::gate('cosmetics', $request->user()), 403, 'Customize is not currently available.');
+
         $character = $request->user()->character;
         abort_unless($character, 404);
 
@@ -37,6 +40,8 @@ class CosmeticController extends Controller
 
     public function unlock(Request $request, Cosmetic $cosmetic)
     {
+        abort_unless(FeatureFlag::gate('cosmetics', $request->user()), 403, 'Customize is not currently available.');
+
         $character = $request->user()->character;
         abort_unless($character, 404);
 
@@ -71,6 +76,8 @@ class CosmeticController extends Controller
      * preview/switch between every cosmetic in the game. */
     public function equip(Request $request, Cosmetic $cosmetic)
     {
+        abort_unless(FeatureFlag::gate('cosmetics', $request->user()), 403, 'Customize is not currently available.');
+
         $character = $request->user()->character;
         abort_unless($character, 404);
 

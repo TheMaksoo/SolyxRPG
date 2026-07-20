@@ -2,21 +2,29 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCharacterStore } from '../stores/character';
+import { useAuthStore } from '../stores/auth';
 import api from '../api/client';
 
 const router = useRouter();
 const store = useCharacterStore();
+const auth = useAuthStore();
 const achievements = ref([]);
 const cosmetics = ref([]);
 const isTester = ref(false);
 const tab = ref('overview');
 const message = ref('');
 
-const TABS = [
+const ALL_TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'achievements', label: 'Achievements' },
   { key: 'customize', label: 'Customize' },
 ];
+// Customize is fully unreachable when a GM has switched off both LIVE and TESTERS for cosmetics.
+const TABS = computed(() => ALL_TABS.filter((t) => t.key !== 'customize' || auth.featureAccess.cosmetics !== false));
+
+watch(TABS, (next) => {
+  if (!next.some((t) => t.key === tab.value)) tab.value = 'overview';
+});
 
 async function loadAchievements() {
   const { data } = await api.get('/achievements');
@@ -59,9 +67,14 @@ const achievementView = computed(() => {
 });
 
 async function loadCosmetics() {
-  const { data } = await api.get('/cosmetics');
-  cosmetics.value = data.cosmetics;
-  isTester.value = data.is_tester;
+  if (auth.featureAccess.cosmetics === false) return;
+  try {
+    const { data } = await api.get('/cosmetics');
+    cosmetics.value = data.cosmetics;
+    isTester.value = data.is_tester;
+  } catch {
+    // Flag flipped off between page load and this call — nothing to show, Customize tab is hidden anyway.
+  }
 }
 
 // ---- Rising "quests completed" counter ----

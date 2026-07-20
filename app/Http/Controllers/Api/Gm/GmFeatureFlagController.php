@@ -17,6 +17,8 @@ class GmFeatureFlagController extends Controller
         ['key' => 'gem_store', 'name' => 'Gem Store', 'enabled' => true, 'tester_only' => false],
         ['key' => 'dungeons', 'name' => 'Dungeons', 'enabled' => true, 'tester_only' => false],
         ['key' => 'crafting', 'name' => 'Crafting', 'enabled' => true, 'tester_only' => false],
+        ['key' => 'vip', 'name' => 'VIP', 'enabled' => true, 'tester_only' => false],
+        ['key' => 'cosmetics', 'name' => 'Cosmetics (Customize)', 'enabled' => true, 'tester_only' => false],
     ];
 
     public function index()

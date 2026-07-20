@@ -5,6 +5,8 @@ export const useAuthStore = defineStore('auth', {
     state: () => ({
         user: null,
         checked: false,
+        globalTesterMode: false,
+        featureAccess: {},
     }),
 
     getters: {
@@ -17,6 +19,8 @@ export const useAuthStore = defineStore('auth', {
             try {
                 const { data } = await api.get('/me');
                 this.user = data.user;
+                this.globalTesterMode = data.global_tester_mode;
+                this.featureAccess = data.feature_access || {};
             } catch {
                 this.user = null;
             } finally {

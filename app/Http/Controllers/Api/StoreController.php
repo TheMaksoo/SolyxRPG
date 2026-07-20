@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Cosmetic;
+use App\Models\FeatureFlag;
 use App\Models\GemLedger;
 use App\Models\Item;
 use App\Models\Pet;
@@ -32,8 +33,10 @@ class StoreController extends Controller
         'auto_battle_60' => ['label' => '1 Hour Auto-Attack', 'price_cents' => 100],
     ];
 
-    public function gems()
+    public function gems(Request $request)
     {
+        abort_unless(FeatureFlag::gate('gem_store', $request->user()), 403, 'The Gem Store is not currently available.');
+
         return response()->json(['packs' => self::GEM_PACKS, 'remove_ads' => self::OTHER_SKUS['remove_ads']]);
     }
 

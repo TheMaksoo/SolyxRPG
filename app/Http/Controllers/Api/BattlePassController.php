@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\FeatureFlag;
 use App\Models\GemLedger;
 use App\Services\BattlePassService;
 use Illuminate\Http\Request;
@@ -17,6 +18,8 @@ class BattlePassController extends Controller
 
     public function index(Request $request)
     {
+        abort_unless(FeatureFlag::gate('battle_pass', $request->user()), 403, 'The Battle Pass is not currently available.');
+
         $character = $request->user()->character;
         abort_unless($character, 404);
 

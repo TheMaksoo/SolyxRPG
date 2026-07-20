@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\FeatureFlag;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -65,11 +66,25 @@ class AuthController extends Controller
         return response()->json(['message' => 'Logged out.']);
     }
 
+    /** Nav-gated feature keys — mirrors what each controller checks via FeatureFlag::gate(). Surfaced here
+     * so the sidebar can hide a tab entirely (not just 403 on click) when LIVE is off and the player isn't
+     * a tester, or when both LIVE and TESTERS are off for everyone. */
+    private const NAV_FLAG_KEYS = ['guilds', 'battle_pass', 'gem_store', 'dungeons', 'crafting', 'vip', 'cosmetics'];
+
     public function me(Request $request)
     {
         $user = $request->user()->load('character.attributes_', 'characters', 'socialAccounts');
 
-        return response()->json(['user' => $user]);
+        return response()->json([
+            'user' => $user,
+            // Surfaced here (rather than only under /gm/feature-flags, which players can't reach) so a
+            // tester's own Settings toggle can show whether their perks are actually live right now, not
+            // just whether they've personally opted in — the GM's global switch is the other half of it.
+            'global_tester_mode' => (bool) FeatureFlag::where('key', 'global_tester_mode')->value('enabled'),
+            'feature_access' => collect(self::NAV_FLAG_KEYS)->mapWithKeys(
+                fn (string $key) => [$key => FeatureFlag::gate($key, $user)]
+            ),
+        ]);
     }
 
     /** Lets an already-designated tester flip their own tester perks on/off, without needing a GM to

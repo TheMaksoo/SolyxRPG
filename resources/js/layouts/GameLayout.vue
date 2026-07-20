@@ -18,11 +18,17 @@ const visibleNavFooter = computed(() =>
   NAV_FOOTER.filter((n) => n.path !== '/admin' || ['gm', 'owner'].includes(auth.user?.role))
 );
 
+// A feature flag with LIVE off (and, for non-testers, TESTERS off too) means the feature is fully
+// unreachable — hide its sidebar entry entirely rather than showing a locked tab that just 403s.
+const visibleNav = computed(() => NAV.filter((n) => !n.flagKey || auth.featureAccess[n.flagKey] !== false));
+
 const unreadCount = ref(0);
 
 async function loadUnread() {
   const { data } = await api.get('/inbox');
-  unreadCount.value = data.items.filter((i) => i.invite).length;
+  // Every actionable/unread notification counts — invites (friend requests, etc.) plus any unread mail —
+  // not just invites, so the bell badge reflects the same "unread" state the Inbox page itself highlights.
+  unreadCount.value = data.items.filter((i) => i.invite || (i.type === 'mail' && !i.read)).length;
 }
 
 // One "!" badge count per sidebar path — quests/battle-pass/daily rewards ready to claim, pending party
@@ -118,7 +124,7 @@ onUnmounted(() => {
         </div>
       </div>
       <nav class="sidebar__nav">
-        <template v-for="n in NAV" :key="n.path">
+        <template v-for="n in visibleNav" :key="n.path">
           <router-link v-if="!isLocked(n)" :to="n.path" custom v-slot="{ navigate, isActive }">
             <button
               @click="navigate"

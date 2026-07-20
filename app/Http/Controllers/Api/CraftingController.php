@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Character;
 use App\Models\CharacterTradeSkill;
 use App\Models\CraftingJob;
+use App\Models\FeatureFlag;
 use App\Models\GameConfig;
 use App\Models\Inventory;
 use App\Models\Item;
@@ -47,6 +48,8 @@ class CraftingController extends Controller
 
     public function index(Request $request)
     {
+        abort_unless(FeatureFlag::gate('crafting', $request->user()), 403, 'Crafting is not currently available.');
+
         $character = $request->user()->character;
         abort_unless($character, 404);
 

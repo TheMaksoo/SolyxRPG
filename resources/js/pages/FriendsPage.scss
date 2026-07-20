@@ -248,6 +248,32 @@
   margin-bottom: 12px;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.add-friends__search {
+  background: v.$bg-input;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+  padding: 10px 13px;
+  color: #fff;
+  font-size: 13px;
+  margin-bottom: 14px;
+
+  &::placeholder {
+    color: v.$text-muted-40;
+  }
+}
+
 .add-friends__row {
   display: flex;
   align-items: center;
@@ -275,6 +301,13 @@
   color: v.$accent-soft;
   font-size: 12px;
   font-weight: 600;
+
+  &--sent {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    color: v.$text-muted-40;
+    cursor: default;
+  }
 }
 
 .add-friends__empty {

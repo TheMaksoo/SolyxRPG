@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\FeatureFlag;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -20,6 +21,7 @@ class VipController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+        abort_unless(FeatureFlag::gate('vip', $user), 403, 'VIP is not currently available.');
 
         $tiers = collect(self::TIERS)
             ->map(fn ($tier, $key) => [

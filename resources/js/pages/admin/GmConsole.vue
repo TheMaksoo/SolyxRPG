@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import api from '../../api/client';
 import GmContentEditor from './GmContentEditor.vue';
@@ -119,6 +119,12 @@ async function saveConfig(row) {
 const tickets = ref([]);
 
 const openTicketCount = ref(0);
+const showArchived = ref(false);
+
+// Resolved/closed tickets are archived out of the default view once handled — keeps the working
+// list focused on what still needs attention instead of accumulating every ticket ever filed.
+const activeTickets = computed(() => tickets.value.filter((t) => !['resolved', 'closed'].includes(t.status)));
+const archivedTickets = computed(() => tickets.value.filter((t) => ['resolved', 'closed'].includes(t.status)));
 
 async function loadTickets() {
   const { data } = await api.get('/gm/tickets');
@@ -128,6 +134,21 @@ async function loadTickets() {
 
 async function resolveTicket(ticket, status) {
   await api.post(`/gm/tickets/${ticket.id}/resolve`, { status });
+  await loadTickets();
+}
+
+const expandedTicket = ref(null);
+const ticketReplyBody = ref('');
+
+function toggleTicketThread(ticket) {
+  expandedTicket.value = expandedTicket.value === ticket.id ? null : ticket.id;
+  ticketReplyBody.value = '';
+}
+
+async function sendTicketReply(ticket) {
+  if (!ticketReplyBody.value.trim()) return;
+  await api.post(`/gm/tickets/${ticket.id}/messages`, { body: ticketReplyBody.value });
+  ticketReplyBody.value = '';
   await loadTickets();
 }
 
@@ -298,7 +319,7 @@ onMounted(() => {
     <!-- TICKETS -->
     <div v-else-if="tab === 'tickets'">
       <div class="gm-console-list gm-console-list--wide">
-        <div v-for="ticket in tickets" :key="ticket.id" class="gm-console-ticket-card">
+        <div v-for="ticket in activeTickets" :key="ticket.id" class="gm-console-ticket-card">
           <div class="gm-console-ticket-card__row">
             <div class="ox gm-console-ticket-card__subject">{{ ticket.subject }}</div>
             <span class="gm-console-ticket-card__meta">{{ ticket.status }} · {{ ticket.priority }}</span>
@@ -306,11 +327,78 @@ onMounted(() => {
           <div class="gm-console-ticket-card__body">{{ ticket.body }}</div>
           <div class="gm-console-ticket-card__from">From {{ ticket.user?.name }}</div>
           <div class="gm-console-ticket-card__actions">
+            <button @click="toggleTicketThread(ticket)" class="gm-console-resolve-btn">
+              {{ expandedTicket === ticket.id ? 'Hide Chat' : `Chat${ticket.messages?.length ? ` (${ticket.messages.length})` : '' }` }}
+            </button>
             <button @click="resolveTicket(ticket, 'resolved')" class="gm-console-resolve-btn">Resolve</button>
             <button @click="resolveTicket(ticket, 'closed')" class="gm-console-close-btn">Close</button>
           </div>
+
+          <div v-if="expandedTicket === ticket.id" class="gm-console-ticket-thread">
+            <div class="gm-console-ticket-thread__messages">
+              <div
+                v-for="m in ticket.messages"
+                :key="m.id"
+                class="gm-console-ticket-thread__msg"
+                :class="{ 'gm-console-ticket-thread__msg--gm': m.sender && ['gm', 'owner'].includes(m.sender.role) }"
+              >
+                <span class="gm-console-ticket-thread__msg-sender">
+                  {{ m.sender && ['gm', 'owner'].includes(m.sender.role) ? `${m.sender.name} (GM)` : ticket.user?.name }}
+                </span>
+                <span class="gm-console-ticket-thread__msg-body">{{ m.body }}</span>
+              </div>
+              <div v-if="!ticket.messages?.length" class="gm-console-empty">No replies yet.</div>
+            </div>
+            <div class="gm-console-ticket-thread__reply">
+              <input v-model="ticketReplyBody" placeholder="Reply to player…" class="gm-console-config-input" @keyup.enter="sendTicketReply(ticket)" />
+              <button @click="sendTicketReply(ticket)" class="gm-console-resolve-btn">Send</button>
+            </div>
+          </div>
         </div>
-        <div v-if="!tickets.length" class="gm-console-empty">No support tickets.</div>
+        <div v-if="!activeTickets.length" class="gm-console-empty">No open support tickets.</div>
+
+        <button
+          v-if="archivedTickets.length"
+          type="button"
+          class="gm-console-archive-toggle"
+          @click="showArchived = !showArchived"
+        >
+          {{ showArchived ? '▾' : '▸' }} Archived tickets ({{ archivedTickets.length }})
+        </button>
+
+        <template v-if="showArchived">
+          <div v-for="ticket in archivedTickets" :key="ticket.id" class="gm-console-ticket-card gm-console-ticket-card--archived">
+            <div class="gm-console-ticket-card__row">
+              <div class="ox gm-console-ticket-card__subject">{{ ticket.subject }}</div>
+              <span class="gm-console-ticket-card__meta">{{ ticket.status }} · {{ ticket.priority }}</span>
+            </div>
+            <div class="gm-console-ticket-card__body">{{ ticket.body }}</div>
+            <div class="gm-console-ticket-card__from">From {{ ticket.user?.name }}</div>
+            <div class="gm-console-ticket-card__actions">
+              <button @click="toggleTicketThread(ticket)" class="gm-console-resolve-btn">
+                {{ expandedTicket === ticket.id ? 'Hide Chat' : `Chat${ticket.messages?.length ? ` (${ticket.messages.length})` : '' }` }}
+              </button>
+              <button @click="resolveTicket(ticket, 'pending')" class="gm-console-resolve-btn">Reopen</button>
+            </div>
+
+            <div v-if="expandedTicket === ticket.id" class="gm-console-ticket-thread">
+              <div class="gm-console-ticket-thread__messages">
+                <div
+                  v-for="m in ticket.messages"
+                  :key="m.id"
+                  class="gm-console-ticket-thread__msg"
+                  :class="{ 'gm-console-ticket-thread__msg--gm': m.sender && ['gm', 'owner'].includes(m.sender.role) }"
+                >
+                  <span class="gm-console-ticket-thread__msg-sender">
+                    {{ m.sender && ['gm', 'owner'].includes(m.sender.role) ? `${m.sender.name} (GM)` : ticket.user?.name }}
+                  </span>
+                  <span class="gm-console-ticket-thread__msg-body">{{ m.body }}</span>
+                </div>
+                <div v-if="!ticket.messages?.length" class="gm-console-empty">No replies yet.</div>
+              </div>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
 

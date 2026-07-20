@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Character;
+use App\Models\FeatureFlag;
 use App\Models\Guild;
 use App\Services\AchievementService;
 use Illuminate\Http\Request;
@@ -20,6 +21,8 @@ class GuildController extends Controller
     /** Returns the character's own guild (roster + recent chat), or a browse list if not in one. */
     public function index(Request $request)
     {
+        abort_unless(FeatureFlag::gate('guilds', $request->user()), 403, 'Guilds are not currently available.');
+
         $character = $request->user()->character;
         abort_unless($character, 404);
 

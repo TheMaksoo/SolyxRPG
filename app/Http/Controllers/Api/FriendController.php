@@ -25,9 +25,15 @@ class FriendController extends Controller
         $favoriteIds = $character->favorites()->pluck('favorite_character_id');
 
         $incoming = $character->receivedFriendRequests()->where('status', 'pending')->with('requester')->get();
+        $outgoingIds = Friendship::where('requester_id', $character->id)->where('status', 'pending')->pluck('addressee_id');
 
         $friendIds = $friends->pluck('id')->push($character->id);
-        $browse = Character::whereNotIn('id', $friendIds)->limit(30)->get(['id', 'name', 'base_class', 'level']);
+        $search = trim((string) $request->query('search', ''));
+        $browseQuery = Character::whereNotIn('id', $friendIds);
+        if ($search !== '') {
+            $browseQuery->where('name', 'like', '%'.$search.'%');
+        }
+        $browse = $browseQuery->limit(30)->get(['id', 'name', 'base_class', 'level']);
 
         return response()->json([
             'friends' => $friends->map(fn ($f) => [
@@ -35,6 +41,7 @@ class FriendController extends Controller
                 'favorite' => $favoriteIds->contains($f->id),
             ])->values(),
             'incoming_requests' => $incoming,
+            'outgoing_ids' => $outgoingIds,
             'browse' => $browse,
         ]);
     }

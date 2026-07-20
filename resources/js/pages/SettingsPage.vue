@@ -139,8 +139,15 @@ onMounted(loadTickets);
 
       <div v-if="canToggleTester" class="customize-tester-toggle">
         <p class="customize-tester-note">
-          {{ auth.user.is_tester ? 'Tester perks are ON — every title, color and banner is unlocked; switch freely.' : 'Tester perks are OFF — previewing as a regular player.' }}
-          A GM must also have "Global Tester Mode" enabled in Feature Flags for this to take effect.
+          <template v-if="!auth.globalTesterMode">
+            Tester perks are currently OFF for everyone — a GM has "Global Tester Mode" disabled in Feature Flags.
+          </template>
+          <template v-else-if="auth.user.is_tester">
+            Tester perks are ON — every title, color and banner is unlocked; switch freely.
+          </template>
+          <template v-else>
+            Tester perks are OFF — previewing as a regular player.
+          </template>
         </p>
         <button type="button" class="customize-tester-toggle__btn" @click="toggleTesterMode">
           {{ auth.user.is_tester ? 'Turn off tester mode' : 'Turn on tester mode' }}

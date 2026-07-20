@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Battle;
 use App\Models\Dungeon;
 use App\Models\DungeonRun;
+use App\Models\FeatureFlag;
 use App\Services\DungeonService;
 use Illuminate\Http\Request;
 
@@ -15,6 +16,8 @@ class DungeonController extends Controller
 
     public function index(Request $request)
     {
+        abort_unless(FeatureFlag::gate('dungeons', $request->user()), 403, 'Dungeons are not currently available.');
+
         $character = $request->user()->character;
 
         $activeRuns = $character
