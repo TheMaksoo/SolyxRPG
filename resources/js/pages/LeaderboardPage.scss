@@ -19,6 +19,31 @@
   @include m.centered-column(600px);
 }
 
+.leaderboard-tabs {
+  @include m.centered-column(600px);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.leaderboard-tab-btn {
+  @include m.btn-reset;
+  padding: 8px 14px;
+  border-radius: v.$radius-pill;
+  border: 1px solid v.$border-subtle;
+  background: v.$bg-card;
+  color: v.$text-muted-70;
+  font-size: 12.5px;
+  font-weight: 600;
+
+  &.is-active {
+    background: v.$accent;
+    border-color: v.$accent;
+    color: #fff;
+  }
+}
+
 .leaderboard-table {
   @include m.centered-column(600px);
   background: v.$bg-card;

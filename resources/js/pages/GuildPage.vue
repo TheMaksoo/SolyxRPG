@@ -2,17 +2,36 @@
 import { ref, computed, onMounted } from 'vue';
 import api from '../api/client';
 import { useCharacterStore } from '../stores/character';
+import { useAuthStore } from '../stores/auth';
 import MentionInput from '../components/MentionInput.vue';
 import { renderChatBody, mentionsMe } from '../chatMentions';
 
 const characterStore = useCharacterStore();
+const auth = useAuthStore();
 const guild = ref(null);
 const myRole = ref('');
 const browse = ref([]);
+const power = ref(0);
+const guildRank = ref(null);
+const warStatus = ref('quiet');
 const message = ref('');
 const chatBody = ref('');
 const createForm = ref({ name: '', tag: '' });
 const bankForm = ref({ currency: 'gold', amount: '' });
+const upgrades = ref({});
+
+const UPGRADE_LABELS = {
+  gold_find: { title: 'Gold Find', unit: 'gold' },
+  xp: { title: 'XP Boost', unit: 'XP' },
+  luck: { title: 'Luck Boost', unit: 'luck' },
+};
+const upgradeTracks = computed(() =>
+  Object.keys(UPGRADE_LABELS).map((track) => ({
+    track,
+    ...UPGRADE_LABELS[track],
+    ...(upgrades.value[track] || { tier: 0, bonus_pct: 0, max_tier: 5, next_cost: null }),
+  }))
+);
 
 const mentionCandidates = computed(
   () => guild.value?.members?.map((m) => ({ id: m.character.id, name: m.character.name })) ?? []
@@ -27,7 +46,21 @@ async function load() {
   guild.value = data.guild;
   myRole.value = data.my_role || '';
   browse.value = data.browse || [];
+  power.value = data.power || 0;
+  guildRank.value = data.guild_rank ?? null;
+  warStatus.value = data.war_status || 'quiet';
+  upgrades.value = data.upgrades || {};
   if (!characterStore.character) await characterStore.fetch();
+}
+
+async function purchaseUpgrade(track) {
+  message.value = '';
+  try {
+    await api.post(`/guild/${guild.value.id}/upgrades/purchase`, { track });
+    await load();
+  } catch (e) {
+    message.value = e.response?.data?.message || 'Could not purchase upgrade.';
+  }
 }
 
 async function create() {
@@ -124,8 +157,31 @@ onMounted(load);
     <p v-if="message" class="guild-message">{{ message }}</p>
 
     <div v-if="guild" class="guild-panel">
-      <h2 class="ox guild-name">{{ guild.name }} [{{ guild.tag }}]</h2>
-      <div class="guild-member-count">{{ guild.members?.length || 0 }} / {{ guild.member_cap }} members</div>
+      <div class="guild-info-card">
+        <div class="guild-info-card__top">
+          <div class="guild-emblem">🏰</div>
+          <div class="guild-info-card__heading">
+            <h2 class="ox guild-name">{{ guild.name }} [{{ guild.tag }}]</h2>
+            <div class="guild-subline">
+              Rank #{{ guildRank ?? '?' }} · {{ guild.members?.length || 0 }}/{{ guild.member_cap }} members · Level {{ guild.level }} guild
+            </div>
+          </div>
+        </div>
+        <div class="guild-stat-chips">
+          <div class="guild-stat-chip">
+            <div class="guild-stat-chip__label">Guild Power</div>
+            <div class="guild-stat-chip__value">{{ power }}</div>
+          </div>
+          <div class="guild-stat-chip" :class="warStatus === 'active' ? 'is-active' : 'is-quiet'">
+            <div class="guild-stat-chip__label">War Status</div>
+            <div class="guild-stat-chip__value">{{ warStatus === 'active' ? 'Active' : 'Quiet' }}</div>
+          </div>
+          <div class="guild-stat-chip">
+            <div class="guild-stat-chip__label">XP Perk</div>
+            <div class="guild-stat-chip__value">+{{ guild.xp_perk }}%</div>
+          </div>
+        </div>
+      </div>
 
       <div class="guild-bank">
         <div class="ox guild-bank__title">Guild Bank</div>
@@ -141,6 +197,26 @@ onMounted(load);
         </div>
       </div>
 
+      <div class="guild-upgrades">
+        <div class="ox guild-upgrades__title">Guild Upgrades</div>
+        <div class="guild-upgrades-grid">
+          <div v-for="u in upgradeTracks" :key="u.track" class="guild-upgrade-card">
+            <div class="guild-upgrade-card__name">{{ u.title }}</div>
+            <div class="guild-upgrade-card__tier">Tier {{ u.tier }} / {{ u.max_tier }}</div>
+            <div class="guild-upgrade-card__bonus">+{{ u.bonus_pct }}% {{ u.unit }}</div>
+            <button
+              v-if="u.next_cost !== null"
+              :disabled="!canWithdraw"
+              @click="purchaseUpgrade(u.track)"
+              class="guild-upgrade-card__btn"
+            >
+              Upgrade to Tier {{ u.tier + 1 }} — {{ u.next_cost.toLocaleString() }}g
+            </button>
+            <div v-else class="guild-upgrade-card__maxed">Max tier reached</div>
+          </div>
+        </div>
+      </div>
+
       <div class="guild-members-list">
         <div
           v-for="m in guild.members"
@@ -149,6 +225,7 @@ onMounted(load);
         >
           <span class="guild-member-chip">
             <span :style="{ color: m.character?.active_color?.value }">{{ m.character?.name }}</span>
+            <span class="guild-member-chip__level" v-if="m.character?.level">Lv.{{ m.character.level }}</span>
             <span class="guild-member-chip__role">· {{ m.role }}</span>
           </span>
           <span v-if="canManage && m.character_id !== myCharacterId" class="guild-member-actions">
@@ -179,7 +256,7 @@ onMounted(load);
           v-for="m in [...(guild.messages || [])].reverse()"
           :key="m.id"
           class="guild-chat__line"
-          :class="{ 'is-mention-me': mentionsMe(m.body, characterStore.character?.name) }"
+          :class="{ 'is-mention-me': auth.user?.preferences?.highlight_mentions !== false && mentionsMe(m.body, characterStore.character?.name) }"
         >
           <strong :style="{ color: m.character?.active_color?.value }">{{ m.character?.name }}:</strong>
           <span v-html="renderChatBody(m.body, characterStore.character?.name)"></span>

@@ -38,7 +38,31 @@ class GuildController extends Controller
             'messages.character.activeColor',
         ])->first();
 
-        return response()->json(['guild' => $guild, 'my_role' => $membership->role]);
+        $power = $guild->members->sum(fn ($m) => $m->character?->effectiveStats()['power'] ?? 0);
+        $guildRank = Guild::orderByDesc('level')->orderByDesc('xp')->pluck('id')->search($guild->id);
+        $guildRank = $guildRank === false ? null : $guildRank + 1;
+        $displayWarStatus = ($guild->last_activity_at && $guild->last_activity_at->gt(now()->subHours(48))) ? 'active' : 'quiet';
+
+        $upgrades = [];
+        foreach (Guild::UPGRADE_TRACKS as $track => $definition) {
+            $tier = $guild->{$definition['column']};
+            $nextTier = min($tier + 1, Guild::MAX_UPGRADE_TIER);
+            $upgrades[$track] = [
+                'tier' => $tier,
+                'bonus_pct' => $guild->upgradeBonusPct($track),
+                'max_tier' => Guild::MAX_UPGRADE_TIER,
+                'next_cost' => $tier >= Guild::MAX_UPGRADE_TIER ? null : $guild->upgradeCost($track, $nextTier),
+            ];
+        }
+
+        return response()->json([
+            'guild' => $guild,
+            'my_role' => $membership->role,
+            'power' => $power,
+            'guild_rank' => $guildRank,
+            'war_status' => $displayWarStatus,
+            'upgrades' => $upgrades,
+        ]);
     }
 
     public function store(Request $request)
@@ -70,6 +94,7 @@ class GuildController extends Controller
         }
 
         $guild->members()->create(['character_id' => $character->id, 'role' => 'member']);
+        $guild->update(['last_activity_at' => now(), 'war_status' => 'active']);
         $this->achievements->check($character->fresh());
 
         return response()->json(['guild' => $guild->fresh('members.character')]);
@@ -88,6 +113,7 @@ class GuildController extends Controller
             'body' => $data['body'],
             'created_at' => now(),
         ]);
+        $guild->update(['last_activity_at' => now(), 'war_status' => 'active']);
 
         return response()->json(['message_sent' => $message->load('character.activeColor')]);
     }
@@ -108,6 +134,7 @@ class GuildController extends Controller
 
         $character->decrement($data['currency'], $data['amount']);
         $guild->increment('bank_'.$data['currency'], $data['amount']);
+        $guild->update(['last_activity_at' => now(), 'war_status' => 'active']);
 
         return response()->json(['guild' => $guild->fresh(), 'character' => $character->fresh()]);
     }
@@ -131,6 +158,38 @@ class GuildController extends Controller
         $character->increment($data['currency'], $data['amount']);
 
         return response()->json(['guild' => $guild->fresh(), 'character' => $character->fresh()]);
+    }
+
+    public function purchaseUpgrade(Request $request, Guild $guild)
+    {
+        $character = $request->user()->character;
+        $membership = $this->requireMembership($character, $guild);
+        abort_if(self::ROLE_RANK[$membership->role] < self::ROLE_RANK['officer'], 403, 'Only officers and the guild master can purchase upgrades.');
+
+        $data = $request->validate([
+            'track' => ['required', Rule::in(array_keys(Guild::UPGRADE_TRACKS))],
+        ]);
+
+        $track = $data['track'];
+        $column = Guild::UPGRADE_TRACKS[$track]['column'];
+        $currentTier = $guild->{$column};
+
+        if ($currentTier >= Guild::MAX_UPGRADE_TIER) {
+            return response()->json(['message' => 'This upgrade is already at its maximum tier.'], 422);
+        }
+
+        $nextTier = $currentTier + 1;
+        $cost = $guild->upgradeCost($track, $nextTier);
+
+        if ($guild->bank_gold < $cost) {
+            return response()->json(['message' => 'Guild bank does not have enough gold for this upgrade.'], 422);
+        }
+
+        $guild->decrement('bank_gold', $cost);
+        $guild->increment($column);
+        $guild->update(['last_activity_at' => now(), 'war_status' => 'active']);
+
+        return response()->json(['guild' => $guild->fresh()]);
     }
 
     public function promote(Request $request, Guild $guild, Character $target)

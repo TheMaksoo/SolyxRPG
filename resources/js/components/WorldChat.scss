@@ -8,6 +8,16 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+
+  &--full-height {
+    position: sticky;
+    top: 0;
+    height: 50vh;
+
+    .world-chat__messages {
+      max-height: none;
+    }
+  }
 }
 
 .world-chat__header {

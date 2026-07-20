@@ -106,6 +106,25 @@ class AuthController extends Controller
         return response()->json(['is_tester' => $user->is_tester]);
     }
 
+    /** Player-facing display/UX preferences (chat highlighting, battle log density, etc) — merged into
+     * the existing JSON blob rather than replaced, so toggling one preference never clobbers others.
+     * Uses direct property assignment + save() rather than update()/create() because User's #[Fillable]
+     * attribute only allows mass-assigning name/email/password — bypassing that is the established
+     * pattern in this codebase for any other user column. */
+    public function updatePreferences(Request $request)
+    {
+        $data = $request->validate([
+            'highlight_mentions' => ['sometimes', 'boolean'],
+            'compact_battle_log' => ['sometimes', 'boolean'],
+        ]);
+
+        $user = $request->user();
+        $user->preferences = array_merge($user->preferences ?? [], $data);
+        $user->save();
+
+        return response()->json(['preferences' => $user->preferences]);
+    }
+
     public function forgotPassword(Request $request)
     {
         $request->validate(['email' => ['required', 'email']]);

@@ -12,7 +12,7 @@ class WorldChatController extends Controller
     {
         $messages = WorldMessage::with(['character.user', 'character.activeColor'])
             ->latest('created_at')
-            ->limit(10)
+            ->limit(self::RETAIN)
             ->get()
             ->reverse()
             ->values()

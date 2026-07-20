@@ -168,6 +168,7 @@
 // ---- Stat tiles ----
 .stat-tiles {
   @include m.grid-auto-fit(130px, 12px);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   margin-bottom: 16px;
 }
 

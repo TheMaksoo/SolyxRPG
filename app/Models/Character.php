@@ -221,7 +221,8 @@ class Character extends Model
         $effEnergyMax = $this->energy_max + ($attr->energy_cap ?? 0) * 15;
         $critChance = 18 + $attr->crit * 2 + $petCritPct + $party['crit_chance'];
         $critDamageMult = round(1.8 + ($attr->crit_damage ?? 0) * 0.02, 2);
-        $luck = ($attr->luck ?? 0) + $gearLuck + ($this->user?->vipLuckBonus() ?? 0) + $party['luck'];
+        $guildLuckBonusPct = ($this->guildMembership?->guild?->upgradeBonusPct('luck') ?? 0) / 100;
+        $luck = (int) round((($attr->luck ?? 0) + $gearLuck + ($this->user?->vipLuckBonus() ?? 0) + $party['luck']) * (1 + $guildLuckBonusPct));
         $dodgeChance = (new AttributeService())->dodgeChance(($attr->dodge ?? 0), $gearDodge);
 
         return [
@@ -374,13 +375,10 @@ class Character extends Model
         return true;
     }
 
+    /** Quadratic curve (matches the level-1 cost of the old 1.3x-per-level exponential curve, but stays
+     * sane at high level — the old curve needed ~640M cumulative XP to reach level 50; this needs ~6M. */
     public static function xpForLevel(int $level): int
     {
-        $xp = 500;
-        for ($i = 1; $i < $level; $i++) {
-            $xp = (int) round($xp * 1.3);
-        }
-
-        return $xp;
+        return 150 * $level * $level + 350;
     }
 }

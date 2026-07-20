@@ -47,6 +47,23 @@ async function toggleTesterMode() {
   }
 }
 
+const preferencesMessage = ref('');
+
+// Defaults mirror the backend's default-on/off behavior when a key hasn't been set yet — highlighting
+// is opt-out, compact log is opt-in.
+const highlightMentions = computed(() => auth.user?.preferences?.highlight_mentions !== false);
+const compactBattleLog = computed(() => !!auth.user?.preferences?.compact_battle_log);
+
+async function togglePreference(key, currentValue) {
+  preferencesMessage.value = '';
+  try {
+    const { data } = await api.put('/me/preferences', { [key]: !currentValue });
+    auth.user.preferences = data.preferences;
+  } catch (e) {
+    preferencesMessage.value = e.response?.data?.message || 'Could not save preference.';
+  }
+}
+
 const tickets = ref([]);
 const ticketForm = ref({ subject: '', body: '' });
 const ticketMessage = ref('');
@@ -137,6 +154,35 @@ onMounted(loadTickets);
       </div>
       <p v-if="tutorialMessage" class="support-card__message">{{ tutorialMessage }}</p>
 
+      <div class="preferences-card">
+        <h3 class="ox preferences-card__title">Preferences</h3>
+        <div class="preferences-row">
+          <span class="preferences-row__label">Highlight mentions in chat</span>
+          <label class="toggle-switch">
+            <input
+              type="checkbox"
+              aria-label="Highlight mentions in chat"
+              :checked="highlightMentions"
+              @change="togglePreference('highlight_mentions', highlightMentions)"
+            />
+            <span class="toggle-switch__track"><span class="toggle-switch__knob"></span></span>
+          </label>
+        </div>
+        <div class="preferences-row">
+          <span class="preferences-row__label">Condensed battle log</span>
+          <label class="toggle-switch">
+            <input
+              type="checkbox"
+              aria-label="Condensed battle log"
+              :checked="compactBattleLog"
+              @change="togglePreference('compact_battle_log', compactBattleLog)"
+            />
+            <span class="toggle-switch__track"><span class="toggle-switch__knob"></span></span>
+          </label>
+        </div>
+        <p v-if="preferencesMessage" class="support-card__message">{{ preferencesMessage }}</p>
+      </div>
+
       <div v-if="canToggleTester" class="customize-tester-toggle">
         <p class="customize-tester-note">
           <template v-if="!auth.globalTesterMode">
@@ -149,9 +195,10 @@ onMounted(loadTickets);
             Tester perks are OFF — previewing as a regular player.
           </template>
         </p>
-        <button type="button" class="customize-tester-toggle__btn" @click="toggleTesterMode">
-          {{ auth.user.is_tester ? 'Turn off tester mode' : 'Turn on tester mode' }}
-        </button>
+        <label class="toggle-switch">
+          <input type="checkbox" aria-label="Toggle tester mode" :checked="auth.user.is_tester" @change="toggleTesterMode" />
+          <span class="toggle-switch__track"><span class="toggle-switch__knob"></span></span>
+        </label>
       </div>
       <p v-if="testerMessage" class="support-card__message">{{ testerMessage }}</p>
 

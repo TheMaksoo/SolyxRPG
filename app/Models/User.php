@@ -36,6 +36,7 @@ class User extends Authenticatable
             'is_tester' => 'boolean',
             'ads_removed' => 'boolean',
             'vip_gems_granted_at' => 'datetime',
+            'preferences' => 'array',
         ];
     }
 

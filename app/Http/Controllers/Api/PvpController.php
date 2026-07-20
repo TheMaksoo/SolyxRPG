@@ -42,11 +42,27 @@ class PvpController extends Controller
             ->get();
 
         $allRatings = PvpRecord::pluck('rating')->all();
+        $tier = PvpRecord::tierFor($record->rating);
 
         return response()->json([
             'record' => $record,
             'rank' => PvpRecord::bracketFromRatings($record->rating, $allRatings),
-            'opponents' => $opponents->map(fn ($row) => [...$row, 'bracket' => PvpRecord::bracketFromRatings($row['rating'], $allRatings)]),
+            'tier' => $tier,
+            'tier_progress' => PvpRecord::tierProgress($record->rating),
+            'tier_ladder' => array_map(fn ($t) => [
+                'name' => $t['name'],
+                'color' => $t['color'],
+                'is_current' => $t['name'] === $tier['name'],
+            ], PvpRecord::PVP_TIERS),
+            'opponents' => $opponents->map(fn ($row) => [
+                ...$row,
+                'bracket' => PvpRecord::bracketFromRatings($row['rating'], $allRatings),
+                'difficulty' => match (true) {
+                    $row['rating'] > $record->rating + 75 => 'Hard',
+                    $row['rating'] < $record->rating - 75 => 'Easy',
+                    default => 'Medium',
+                },
+            ]),
             'history' => $history,
         ]);
     }

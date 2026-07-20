@@ -176,6 +176,8 @@ onMounted(() => {
   <div v-if="store.loading && !store.character" class="dashboard-loading">Loading…</div>
 
   <div v-else-if="store.character" class="dashboard">
+    <WorldChat full-height />
+
     <div class="dashboard__main">
       <div v-if="autoBattleSummary" class="claim-summary">
         <div class="claim-summary__header">
@@ -458,8 +460,6 @@ onMounted(() => {
         </div>
         <div v-if="!announcements.length" class="rail-empty">No announcements yet.</div>
       </div>
-
-      <WorldChat />
     </div>
   </div>
 </template>

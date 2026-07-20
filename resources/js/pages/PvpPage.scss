@@ -34,6 +34,9 @@
   border-radius: 14px;
   padding: 22px;
   margin-bottom: 18px;
+}
+
+.rank-card__top {
   display: flex;
   flex-wrap: wrap;
   gap: v.$space-5;
@@ -41,14 +44,17 @@
 }
 
 .rank-card__icon {
-  width: 70px;
-  height: 70px;
+  width: 80px;
+  height: 80px;
   flex: none;
   border-radius: v.$radius-xl;
   background: rgba(232, 72, 47, 0.16);
+  border: 1px solid v.$accent-tint-30;
+  box-shadow: 0 0 22px rgba(232, 72, 47, 0.24);
   display: grid;
   place-items: center;
-  font-size: 34px;
+  font-size: 38px;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
 .rank-card__info {
@@ -57,7 +63,7 @@
 }
 
 .rank-card__rank {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
 }
 
@@ -73,14 +79,55 @@
 }
 
 .btn-find-match {
-  background: v.$accent;
-  color: #fff;
-  border: none;
-  border-radius: 11px;
-  padding: 14px 26px;
+  @include m.btn-primary;
   font-size: 15px;
+  padding: 14px 26px;
+}
+
+// ---- Tier progress ----
+.tier-progress {
+  margin-top: 18px;
+}
+
+.tier-progress__track {
+  height: 9px;
+  background: #1e1e22;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.tier-progress__fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.3s;
+}
+
+.tier-progress__label {
+  font-size: 11px;
+  color: v.$text-muted-45;
+  margin-top: 6px;
+}
+
+.tier-ladder {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.tier-ladder__pill {
+  font-size: 10px;
   font-weight: 700;
-  cursor: pointer;
+  letter-spacing: 0.03em;
+  padding: 4px 10px;
+  border-radius: v.$radius-pill;
+  border: 1px solid v.$border-subtle;
+  color: v.$text-muted-40;
+  background: transparent;
+
+  &--current {
+    font-weight: 800;
+  }
 }
 
 // ---- Last result ----
@@ -151,7 +198,7 @@
 
 .opponent-card__top {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 11px;
   margin-bottom: 12px;
 }
@@ -159,6 +206,15 @@
 .opponent-card__info {
   flex: 1;
   min-width: 0;
+}
+
+.opponent-card__difficulty {
+  flex: none;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 3px 8px;
+  border-radius: v.$radius-pill;
 }
 
 .opponent-card__name {
@@ -199,14 +255,11 @@
 }
 
 .btn-challenge {
-  background: v.$accent-tint-15;
+  @include m.btn-ghost;
   color: v.$accent-soft;
-  border: 1px solid v.$accent-tint-30;
-  border-radius: v.$radius-sm;
-  padding: 7px 14px;
-  font-size: 12px;
+  border-color: v.$accent-tint-30;
+  background: v.$accent-tint-15;
   font-weight: 700;
-  cursor: pointer;
 }
 
 .opponents-empty {
@@ -273,4 +326,26 @@
   padding: 14px 0;
   color: v.$text-muted-35;
   font-size: 12.5px;
+}
+
+// ---- Season reward callout ----
+.season-reward-card {
+  margin-top: 14px;
+  background: linear-gradient(150deg, rgba(167, 139, 250, 0.1), v.$bg-card);
+  border: 1px solid v.$purple-tint-12;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.season-reward-card__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: v.$purple;
+  margin-bottom: 4px;
+}
+
+.season-reward-card__body {
+  font-size: 12px;
+  color: v.$text-muted-45;
+  line-height: 1.5;
 }

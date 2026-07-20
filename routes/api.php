@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\Gm\GmBroadcastController;
 use App\Http\Controllers\Api\Gm\GmConfigController;
 use App\Http\Controllers\Api\Gm\GmContentController;
 use App\Http\Controllers\Api\Gm\GmFeatureFlagController;
+use App\Http\Controllers\Api\Gm\GmMetricsController;
 use App\Http\Controllers\Api\Gm\GmPlayerController;
 use App\Http\Controllers\Api\Gm\GmTicketController;
 use App\Http\Controllers\Api\GuildController;
@@ -71,6 +72,7 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/me/tester-mode', [AuthController::class, 'toggleTesterMode']);
+    Route::put('/me/preferences', [AuthController::class, 'updatePreferences']);
     Route::get('/announcements', [AnnouncementController::class, 'index']);
     Route::get('/nav-badges', [NavBadgeController::class, 'index']);
 
@@ -142,6 +144,7 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::post('/guild/{guild}/message', [GuildController::class, 'message']);
     Route::post('/guild/{guild}/deposit', [GuildController::class, 'deposit']);
     Route::post('/guild/{guild}/withdraw', [GuildController::class, 'withdraw']);
+    Route::post('/guild/{guild}/upgrades/purchase', [GuildController::class, 'purchaseUpgrade']);
     Route::post('/guild/{guild}/members/{target}/promote', [GuildController::class, 'promote']);
     Route::post('/guild/{guild}/members/{target}/kick', [GuildController::class, 'kick']);
     Route::post('/guild/{guild}/leave', [GuildController::class, 'leave']);
@@ -200,10 +203,10 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
 
     // GM console
     Route::middleware('gm')->prefix('gm')->group(function () {
-        Route::get('/{resource}', [GmContentController::class, 'index'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events');
-        Route::post('/{resource}', [GmContentController::class, 'store'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events');
-        Route::put('/{resource}/{id}', [GmContentController::class, 'update'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events');
-        Route::delete('/{resource}/{id}', [GmContentController::class, 'destroy'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events');
+        Route::get('/{resource}', [GmContentController::class, 'index'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics');
+        Route::post('/{resource}', [GmContentController::class, 'store'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics');
+        Route::put('/{resource}/{id}', [GmContentController::class, 'update'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics');
+        Route::delete('/{resource}/{id}', [GmContentController::class, 'destroy'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics');
 
         Route::get('/feature-flags', [GmFeatureFlagController::class, 'index']);
         Route::put('/feature-flags/{flag}', [GmFeatureFlagController::class, 'update']);
@@ -215,6 +218,10 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
         Route::post('/players/{user}/grant', [GmPlayerController::class, 'grant']);
         Route::post('/players/{user}/ban', [GmPlayerController::class, 'ban']);
         Route::post('/players/{user}/mail', [GmPlayerController::class, 'mail']);
+        Route::put('/players/{user}/edit', [GmPlayerController::class, 'update']);
+        Route::post('/players/{user}/clear-stuck-state', [GmPlayerController::class, 'clearStuckState']);
+
+        Route::get('/metrics', [GmMetricsController::class, 'index']);
 
         Route::get('/tickets', [GmTicketController::class, 'index']);
         Route::post('/tickets/{ticket}/resolve', [GmTicketController::class, 'resolve']);

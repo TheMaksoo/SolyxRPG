@@ -122,6 +122,22 @@ export const RESOURCE_SCHEMAS = {
       { name: 'enabled', type: 'checkbox' },
     ],
   },
+  cosmetics: {
+    label: 'Cosmetics',
+    columns: ['id', 'key', 'type', 'name', 'rarity', 'cost_gems', 'enabled'],
+    fields: [
+      { name: 'key', type: 'text' },
+      { name: 'type', type: 'select', options: ['title', 'color', 'banner', 'icon'] },
+      { name: 'name', type: 'text' },
+      { name: 'value', type: 'text' },
+      { name: 'rarity', type: 'select', options: ['common', 'rare', 'epic', 'legendary', 'mythic'] },
+      { name: 'category', type: 'select', options: ['leveling', 'mastery', 'raid', 'daily_weekly', 'event', 'purchased'] },
+      { name: 'cost_gems', type: 'number' },
+      { name: 'unlock_quest_key', type: 'text' },
+      { name: 'unlock_event', type: 'text' },
+      { name: 'enabled', type: 'checkbox' },
+    ],
+  },
   events: {
     label: 'Events',
     columns: ['id', 'name', 'type', 'active'],

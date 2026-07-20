@@ -37,6 +37,77 @@
   margin-bottom: 16px;
 }
 
+// ---- Guild info/header card ----
+.guild-info-card {
+  @include m.card(18px);
+  margin-bottom: 20px;
+}
+
+.guild-info-card__top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.guild-emblem {
+  font-size: 32px;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  background: v.$bg-input;
+  border-radius: v.$radius-md;
+  flex-shrink: 0;
+}
+
+.guild-info-card__heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.guild-subline {
+  font-size: 12px;
+  color: v.$text-muted-45;
+  margin-top: 2px;
+}
+
+.guild-stat-chips {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.guild-stat-chip {
+  flex: 1;
+  min-width: 120px;
+  background: v.$bg-input;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-md;
+  padding: 10px 14px;
+
+  &.is-active .guild-stat-chip__value {
+    color: v.$success;
+  }
+
+  &.is-quiet .guild-stat-chip__value {
+    color: v.$text-muted-45;
+  }
+}
+
+.guild-stat-chip__label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: v.$text-muted-40;
+  margin-bottom: 4px;
+}
+
+.guild-stat-chip__value {
+  font-size: 16px;
+  font-weight: 700;
+}
+
 .guild-bank {
   @include m.card(16px);
   margin-bottom: 20px;
@@ -88,6 +159,74 @@
   }
 }
 
+.guild-upgrades {
+  @include m.card(16px);
+  margin-bottom: 20px;
+}
+
+.guild-upgrades__title {
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.guild-upgrades-grid {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.guild-upgrade-card {
+  flex: 1;
+  min-width: 160px;
+  background: v.$bg-input;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-md;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.guild-upgrade-card__name {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.guild-upgrade-card__tier {
+  font-size: 11px;
+  color: v.$text-muted-45;
+}
+
+.guild-upgrade-card__bonus {
+  font-size: 14px;
+  font-weight: 700;
+  color: v.$success;
+  margin-bottom: 6px;
+}
+
+.guild-upgrade-card__btn {
+  @include m.btn-reset;
+  padding: 8px 10px;
+  border-radius: v.$radius-sm;
+  background: v.$accent;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: center;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.guild-upgrade-card__maxed {
+  font-size: 11.5px;
+  color: v.$text-muted-40;
+  font-style: italic;
+  padding: 8px 0;
+}
+
 .guild-members-list {
   display: flex;
   flex-direction: column;
@@ -113,6 +252,12 @@
 
 .guild-member-chip__role {
   color: v.$text-muted-35;
+}
+
+.guild-member-chip__level {
+  color: v.$text-muted-40;
+  margin-left: 6px;
+  font-size: 11px;
 }
 
 .guild-member-actions {

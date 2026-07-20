@@ -2,10 +2,12 @@
 import { ref, computed, onMounted } from 'vue';
 import api from '../api/client';
 import { useCharacterStore } from '../stores/character';
+import { useAuthStore } from '../stores/auth';
 import MentionInput from '../components/MentionInput.vue';
 import { renderChatBody, mentionsMe } from '../chatMentions';
 
 const characterStore = useCharacterStore();
+const auth = useAuthStore();
 const party = ref(null);
 const partyBonuses = ref(null);
 const invites = ref([]);
@@ -193,7 +195,7 @@ onMounted(() => {
             v-for="m in [...(party.messages || [])].reverse()"
             :key="m.id"
             class="party-chat__line"
-            :class="{ 'is-mention-me': mentionsMe(m.body, characterStore.character?.name) }"
+            :class="{ 'is-mention-me': auth.user?.preferences?.highlight_mentions !== false && mentionsMe(m.body, characterStore.character?.name) }"
           >
             <strong :style="{ color: m.character?.active_color?.value }">{{ m.character?.name }}:</strong>
             <span v-html="renderChatBody(m.body, characterStore.character?.name)"></span>

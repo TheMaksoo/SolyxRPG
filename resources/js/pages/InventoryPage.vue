@@ -33,6 +33,30 @@ const slots = computed(() =>
   }))
 );
 
+const SLOT_GROUPS = [
+  { key: 'armor', label: 'Armor', types: ['armor'] },
+  { key: 'weapons', label: 'Weapons', types: ['weapon'] },
+  { key: 'tools', label: 'Tools', types: ['pickaxe', 'axe', 'sickle', 'hammer'] },
+];
+
+const slotGroups = computed(() =>
+  SLOT_GROUPS.map((group) => ({
+    ...group,
+    slots: slots.value.filter((slot) => group.types.includes(slot.type)),
+  }))
+);
+
+const expandedSlot = ref(null);
+function toggleSlot(slot) {
+  if (!slot.row) return;
+  expandedSlot.value = expandedSlot.value === slot.type ? null : slot.type;
+}
+
+function rarityChipStyle(rarity) {
+  const color = RARITY_COLORS[rarity] || RARITY_COLORS.common;
+  return { color, background: `${color}22` };
+}
+
 /** Lower rarity = cheaper repair pack in this game's pricing, so rarity order doubles as a price order. */
 const REPAIR_PACK_RARITY_ORDER = ['common', 'rare', 'epic', 'legendary', 'mythic'];
 const cheapestRepairPack = computed(() => {
@@ -182,58 +206,75 @@ onMounted(load);
       <div v-else class="scrap-result-card__empty">Nothing recoverable from that item.</div>
     </div>
 
+    <div v-if="store.stats" class="inventory-char-summary">
+      <div class="inventory-char-stat">
+        <div class="ox inventory-char-stat__value">{{ store.stats.eff_atk }}</div>
+        <div class="inventory-char-stat__label">ATK</div>
+      </div>
+      <div class="inventory-char-stat">
+        <div class="ox inventory-char-stat__value">{{ store.stats.eff_def }}</div>
+        <div class="inventory-char-stat__label">DEF</div>
+      </div>
+      <div class="inventory-char-stat">
+        <div class="ox inventory-char-stat__value">{{ store.stats.power }}</div>
+        <div class="inventory-char-stat__label">Power</div>
+      </div>
+    </div>
+
     <h3 class="ox inventory-section-heading">Equipment</h3>
-    <div class="equipment-slots-grid">
-      <div
-        v-for="slot in slots"
-        :key="slot.type"
-        class="equipment-slot"
-        :class="{ 'equipment-slot--empty': !slot.row }"
-      >
-        <template v-if="slot.row">
-          <div class="inventory-card__head">
-            <span class="inventory-equipped-card__icon">{{ slot.row.item.glyph }}</span>
-            <span class="ox inventory-equipped-card__name">{{ slot.row.item.name }}</span>
-            <span class="inventory-card__rarity" :style="{ color: RARITY_COLORS[slot.row.item.rarity] }">{{ RARITY_LABELS[slot.row.item.rarity] }}</span>
-          </div>
-          <div class="equipment-slot__type">{{ slot.label }}</div>
-          <div v-if="formatStats(slot.row.item.stat_json).length" class="inventory-card__stats">
-            {{ formatStats(slot.row.item.stat_json).join(' · ') }}
-          </div>
-          <div v-if="hasDurability(slot.row)" class="durability">
-            <div class="durability__track">
-              <div class="durability__fill" :class="{ 'is-broken': slot.row.durability <= 0 }" :style="{ width: durabilityPct(slot.row) + '%' }"></div>
-            </div>
-            <div class="durability__label">
-              {{ slot.row.durability <= 0 ? 'Broken — repair to use its stats again' : `${slot.row.durability} / ${slot.row.durability_max} durability` }}
-            </div>
-            <div v-if="slot.row.durability < slot.row.durability_max" class="repair-row">
-              <select v-model="selectedPack[slot.row.id]" class="repair-row__select" aria-label="Repair pack">
-                <option :value="null" disabled selected>Repair pack…</option>
-                <option v-for="pack in repairPacks" :key="pack.item_id" :value="pack.item_id">
-                  {{ pack.item.name }} ×{{ pack.qty }}
-                </option>
-              </select>
-              <button @click="repair(slot.row)" :disabled="loading || !repairPacks.length" class="repair-row__btn">Repair</button>
-            </div>
-          </div>
-          <div class="equipment-slot__actions">
-            <button @click="unequip(slot.row)" :disabled="loading" class="equipment-slot__action-btn">Unequip</button>
-            <button
-              v-if="hasDurability(slot.row) && slot.row.durability <= 0"
-              @click="askScrap(slot.row)"
-              :disabled="loading"
-              class="equipment-slot__action-btn equipment-slot__action-btn--danger"
+    <div class="equipment-groups">
+      <div v-for="group in slotGroups" :key="group.key" class="equipment-group">
+        <div class="ox equipment-group__eyebrow">{{ group.label }}</div>
+        <div class="equipment-group__grid">
+          <div v-for="slot in group.slots" :key="slot.type">
+            <div
+              class="equipment-slot-row"
+              :class="{ 'equipment-slot-row--empty': !slot.row, 'equipment-slot-row--expanded': expandedSlot === slot.type }"
+              @click="toggleSlot(slot)"
             >
-              Scrap
-            </button>
+              <span class="equipment-slot-row__glyph">{{ slot.row ? slot.row.item.glyph : slot.glyph }}</span>
+              <div class="equipment-slot-row__body">
+                <div class="equipment-slot-row__label">{{ slot.label }}</div>
+                <div v-if="slot.row" class="ox equipment-slot-row__item">{{ slot.row.item.name }}</div>
+                <div v-else class="equipment-slot-row__empty">Empty</div>
+              </div>
+              <span v-if="slot.row" class="inventory-rarity-chip" :style="rarityChipStyle(slot.row.item.rarity)">{{ RARITY_LABELS[slot.row.item.rarity] }}</span>
+            </div>
+            <div v-if="slot.row && expandedSlot === slot.type" class="equipment-slot-detail">
+              <div v-if="formatStats(slot.row.item.stat_json).length" class="inventory-card__stats">
+                {{ formatStats(slot.row.item.stat_json).join(' · ') }}
+              </div>
+              <div v-if="hasDurability(slot.row)" class="durability">
+                <div class="durability__track">
+                  <div class="durability__fill" :class="{ 'is-broken': slot.row.durability <= 0 }" :style="{ width: durabilityPct(slot.row) + '%' }"></div>
+                </div>
+                <div class="durability__label">
+                  {{ slot.row.durability <= 0 ? 'Broken — repair to use its stats again' : `${slot.row.durability} / ${slot.row.durability_max} durability` }}
+                </div>
+                <div v-if="slot.row.durability < slot.row.durability_max" class="repair-row">
+                  <select v-model="selectedPack[slot.row.id]" class="repair-row__select" aria-label="Repair pack" @click.stop>
+                    <option :value="null" disabled selected>Repair pack…</option>
+                    <option v-for="pack in repairPacks" :key="pack.item_id" :value="pack.item_id">
+                      {{ pack.item.name }} ×{{ pack.qty }}
+                    </option>
+                  </select>
+                  <button @click.stop="repair(slot.row)" :disabled="loading || !repairPacks.length" class="repair-row__btn">Repair</button>
+                </div>
+              </div>
+              <div class="equipment-slot__actions">
+                <button @click.stop="unequip(slot.row)" :disabled="loading" class="equipment-slot__action-btn">Unequip</button>
+                <button
+                  v-if="hasDurability(slot.row) && slot.row.durability <= 0"
+                  @click.stop="askScrap(slot.row)"
+                  :disabled="loading"
+                  class="equipment-slot__action-btn equipment-slot__action-btn--danger"
+                >
+                  Scrap
+                </button>
+              </div>
+            </div>
           </div>
-        </template>
-        <template v-else>
-          <div class="equipment-slot__empty-glyph">{{ slot.glyph }}</div>
-          <div class="equipment-slot__empty-label">{{ slot.label }}</div>
-          <div class="equipment-slot__empty-hint">Empty — equip one from your bag</div>
-        </template>
+        </div>
       </div>
     </div>
 
@@ -249,7 +290,7 @@ onMounted(load);
           <span class="ox inventory-bag-card__name">{{ row.item.name }}</span>
           <span v-if="row.qty > 1" class="inventory-bag-card__qty">×{{ row.qty }}</span>
         </div>
-        <div class="inventory-card__rarity" :style="{ color: RARITY_COLORS[row.item.rarity] }">{{ RARITY_LABELS[row.item.rarity] }}</div>
+        <div class="inventory-rarity-chip inventory-rarity-chip--inline" :style="rarityChipStyle(row.item.rarity)">{{ RARITY_LABELS[row.item.rarity] }}</div>
         <div v-if="formatStats(row.item.stat_json).length" class="inventory-card__stats">
           {{ formatStats(row.item.stat_json).join(' · ') }}
         </div>
@@ -259,37 +300,50 @@ onMounted(load);
           </div>
           <div class="durability__label">{{ row.durability }} / {{ row.durability_max }} durability</div>
         </div>
-        <button
-          v-if="EQUIPPABLE_TYPES.includes(row.item.type)"
-          @click="equip(row)"
-          :disabled="loading"
-          class="inventory-bag-card__equip-btn"
-        >
-          Equip
-        </button>
-        <button
-          v-if="isUsable(row.item)"
-          @click="use(row)"
-          :disabled="loading"
-          class="inventory-bag-card__equip-btn"
-        >
-          Use
-        </button>
-        <button
-          @click="askScrap(row)"
-          :disabled="loading"
-          class="inventory-bag-card__scrap-btn"
-        >
-          Scrap
-        </button>
-        <div v-if="hasDurability(row) && row.durability < row.durability_max" class="repair-row">
-          <select v-model="selectedPack[row.id]" class="repair-row__select">
+        <div class="inventory-bag-card__footer">
+          <div class="inventory-bag-card__actions-row">
+            <button
+              v-if="EQUIPPABLE_TYPES.includes(row.item.type)"
+              @click="equip(row)"
+              :disabled="loading"
+              class="inventory-bag-card__equip-btn"
+            >
+              Equip
+            </button>
+            <button
+              v-if="hasDurability(row) && row.durability < row.durability_max"
+              @click="repair(row)"
+              :disabled="loading || !repairPacks.length"
+              class="inventory-bag-card__equip-btn inventory-bag-card__equip-btn--repair"
+            >
+              Repair
+            </button>
+          </div>
+          <select
+            v-if="hasDurability(row) && row.durability < row.durability_max"
+            v-model="selectedPack[row.id]"
+            class="repair-row__select repair-row__select--full"
+          >
             <option :value="null" disabled selected>Repair pack…</option>
             <option v-for="pack in repairPacks" :key="pack.item_id" :value="pack.item_id">
               {{ pack.item.name }} ×{{ pack.qty }}
             </option>
           </select>
-          <button @click="repair(row)" :disabled="loading || !repairPacks.length" class="repair-row__btn">Repair</button>
+          <button
+            v-if="isUsable(row.item)"
+            @click="use(row)"
+            :disabled="loading"
+            class="inventory-bag-card__equip-btn"
+          >
+            Use
+          </button>
+          <button
+            @click="askScrap(row)"
+            :disabled="loading"
+            class="inventory-bag-card__scrap-btn"
+          >
+            Scrap
+          </button>
         </div>
       </div>
     </div>

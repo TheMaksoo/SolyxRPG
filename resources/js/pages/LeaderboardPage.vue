@@ -4,12 +4,35 @@ import api from '../api/client';
 import AdBanner from '../components/AdBanner.vue';
 import VipBadge from '../components/VipBadge.vue';
 
-const rows = ref([]);
+const CATEGORIES = [
+  { key: 'power', label: 'Power', glyph: '💪', suffix: '' },
+  { key: 'level', label: 'Level', glyph: '⭐', suffix: '' },
+  { key: 'trophies', label: 'Trophies', glyph: '🏆', suffix: '' },
+  { key: 'monsters_slain', label: 'Monsters Slain', glyph: '⚔', suffix: '' },
+  { key: 'gold', label: 'Gold', glyph: '🪙', suffix: 'g' },
+  { key: 'deaths', label: 'Deaths', glyph: '💀', suffix: '' },
+];
 
-onMounted(async () => {
-  const { data } = await api.get('/leaderboard');
-  rows.value = data.leaderboard;
-});
+const category = ref('power');
+const rows = ref([]);
+const loading = ref(false);
+
+async function load() {
+  loading.value = true;
+  try {
+    const { data } = await api.get('/leaderboard', { params: { category: category.value } });
+    rows.value = data.leaderboard;
+  } finally {
+    loading.value = false;
+  }
+}
+
+function pick(key) {
+  category.value = key;
+  load();
+}
+
+onMounted(load);
 </script>
 
 <template>
@@ -21,6 +44,18 @@ onMounted(async () => {
 
     <div class="leaderboard-ad">
       <AdBanner variant="inline" />
+    </div>
+
+    <div class="leaderboard-tabs">
+      <button
+        v-for="c in CATEGORIES"
+        :key="c.key"
+        class="leaderboard-tab-btn"
+        :class="{ 'is-active': category === c.key }"
+        @click="pick(c.key)"
+      >
+        {{ c.glyph }} {{ c.label }}
+      </button>
     </div>
 
     <div class="leaderboard-table">
@@ -42,9 +77,9 @@ onMounted(async () => {
           <VipBadge :tier="row.vip_tier" />
         </span>
         <span class="leaderboard-row__meta">{{ row.base_class }} · Lv.{{ row.level }}</span>
-        <span class="ox leaderboard-row__power">{{ row.power }}</span>
+        <span class="ox leaderboard-row__power">{{ row.value }}{{ CATEGORIES.find((c) => c.key === category)?.suffix }}</span>
       </router-link>
-      <div v-if="rows.length === 0" class="leaderboard-empty">No ranked characters yet.</div>
+      <div v-if="rows.length === 0 && !loading" class="leaderboard-empty">No ranked characters yet.</div>
     </div>
   </div>
 </template>

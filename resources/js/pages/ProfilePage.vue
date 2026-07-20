@@ -4,6 +4,20 @@ import { useRouter } from 'vue-router';
 import { useCharacterStore } from '../stores/character';
 import { useAuthStore } from '../stores/auth';
 import api from '../api/client';
+import { RARITY_COLORS, RARITY_LABELS } from '../rarity';
+
+const RARITY_ORDER = ['common', 'rare', 'epic', 'legendary', 'mythic'];
+
+// Title categories — mirrors the 'category' column seeded on quest/purchase titles. Only titles get
+// subcategorized (colors/banners/icons are small enough sets to stay as one flat grid).
+const TITLE_CATEGORIES = [
+  { key: 'leveling', label: 'Leveling Milestones' },
+  { key: 'mastery', label: 'Class Mastery' },
+  { key: 'raid', label: 'Raids & Bosses' },
+  { key: 'daily_weekly', label: 'Daily & Weekly' },
+  { key: 'event', label: 'Special Events' },
+  { key: 'purchased', label: 'Gem Store' },
+];
 
 const router = useRouter();
 const store = useCharacterStore();
@@ -114,8 +128,21 @@ const COSMETIC_TYPES = [
 function cosmeticsOfType(type) {
   return cosmetics.value
     .filter((row) => row.cosmetic.type === type)
-    .map((row) => ({ ...row, mystery: !row.owned && !!(row.quest || row.event) }));
+    .map((row) => ({ ...row, mystery: !row.owned && !!(row.quest || row.event) }))
+    .sort((a, b) => RARITY_ORDER.indexOf(a.cosmetic.rarity) - RARITY_ORDER.indexOf(b.cosmetic.rarity));
 }
+
+const titleGroups = computed(() =>
+  TITLE_CATEGORIES.map((cat) => ({
+    ...cat,
+    rows: cosmeticsOfType('title').filter((row) => (row.cosmetic.category ?? 'purchased') === cat.key),
+  })).filter((cat) => cat.rows.length)
+);
+
+const customizeSections = computed(() => [
+  ...titleGroups.value.map((g) => ({ label: g.label, rows: g.rows })),
+  ...COSMETIC_TYPES.filter((t) => t.key !== 'title').map((t) => ({ label: t.label, rows: cosmeticsOfType(t.key) })),
+]);
 
 async function unlock(row) {
   message.value = '';
@@ -398,11 +425,11 @@ onMounted(() => {
     <template v-else-if="tab === 'customize'">
       <p v-if="isTester" class="customize-tester-note">Tester account — every title, color and banner is unlocked; switch freely.</p>
 
-      <div v-for="ct in COSMETIC_TYPES" :key="ct.key" class="customize-section">
-        <div class="customize-eyebrow">{{ ct.label.toUpperCase() }}</div>
+      <div v-for="section in customizeSections" :key="section.label" class="customize-section">
+        <div class="customize-eyebrow">{{ section.label.toUpperCase() }}</div>
         <div class="customize-grid">
           <div
-            v-for="row in cosmeticsOfType(ct.key)"
+            v-for="row in section.rows"
             :key="row.cosmetic.id"
             class="cosmetic-card"
             :class="{ 'cosmetic-card--active': row.active, 'cosmetic-card--mystery': row.mystery }"
@@ -415,19 +442,19 @@ onMounted(() => {
             </template>
             <template v-else>
               <div
-                v-if="ct.key === 'color'"
+                v-if="row.cosmetic.type === 'color' || row.cosmetic.type === 'banner'"
                 class="cosmetic-card__swatch"
                 :style="{ background: row.cosmetic.value }"
               ></div>
-              <div
-                v-else-if="ct.key === 'banner'"
-                class="cosmetic-card__swatch"
-                :style="{ background: row.cosmetic.value }"
-              ></div>
-              <div v-else-if="ct.key === 'icon'" class="cosmetic-card__icon-preview">{{ row.cosmetic.value }}</div>
-              <div v-else class="cosmetic-card__title-preview">{{ row.cosmetic.value }}</div>
+              <div v-else-if="row.cosmetic.type === 'icon'" class="cosmetic-card__icon-preview">{{ row.cosmetic.value }}</div>
 
-              <div class="cosmetic-card__name">{{ row.cosmetic.name }}</div>
+              <div class="cosmetic-card__header">
+                <div class="cosmetic-card__name" :style="{ color: RARITY_COLORS[row.cosmetic.rarity] }">{{ row.cosmetic.name }}</div>
+                <div
+                  class="cosmetic-card__rarity"
+                  :style="{ background: `${RARITY_COLORS[row.cosmetic.rarity]}22`, color: RARITY_COLORS[row.cosmetic.rarity] }"
+                >{{ RARITY_LABELS[row.cosmetic.rarity] }}</div>
+              </div>
               <div v-if="row.quest" class="cosmetic-card__cost cosmetic-card__cost--quest">Quest: {{ row.quest }}</div>
               <div v-else-if="row.cosmetic.cost_gems > 0" class="cosmetic-card__cost">💎 {{ row.cosmetic.cost_gems }}</div>
               <div v-else class="cosmetic-card__cost">Free</div>

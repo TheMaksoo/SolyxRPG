@@ -4,9 +4,13 @@ import api from '../api/client';
 import VipBadge from './VipBadge.vue';
 import MentionInput from './MentionInput.vue';
 import { useCharacterStore } from '../stores/character';
+import { useAuthStore } from '../stores/auth';
 import { renderChatBody, mentionsMe } from '../chatMentions';
 
+defineProps({ fullHeight: { type: Boolean, default: false } });
+
 const characterStore = useCharacterStore();
+const auth = useAuthStore();
 const messages = ref([]);
 const body = ref('');
 const messagesEl = ref(null);
@@ -31,9 +35,9 @@ function scrollToBottom() {
 async function load() {
   try {
     const { data } = await api.get('/chat/world');
-    // Server already caps this at the last 10 messages — keep it capped client-side too in case
+    // Server already caps this at the last 100 messages — keep it capped client-side too in case
     // that ever changes, and always pin the view to the newest message.
-    messages.value = data.messages.slice(-10);
+    messages.value = data.messages.slice(-100);
     scrollToBottom();
   } catch {
     // silent — chat is a non-critical side panel
@@ -59,14 +63,14 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="world-chat">
+  <div class="world-chat" :class="{ 'world-chat--full-height': fullHeight }">
     <div class="world-chat__header">World Chat</div>
     <div class="world-chat__messages" ref="messagesEl">
       <div
         v-for="m in messages"
         :key="m.id"
         class="world-chat__line"
-        :class="{ 'is-mention-me': mentionsMe(m.body, characterStore.character?.name) }"
+        :class="{ 'is-mention-me': auth.user?.preferences?.highlight_mentions !== false && mentionsMe(m.body, characterStore.character?.name) }"
       >
         <strong :style="{ color: m.character?.active_color?.value }">{{ m.character?.name }}:</strong>
         <VipBadge :tier="m.vip_tier" />

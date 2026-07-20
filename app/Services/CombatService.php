@@ -372,12 +372,15 @@ class CombatService
         $xpMult = GameConfig::number('xp_mult', 1);
         $gemMult = GameConfig::number('gem_mult', 1);
         $vipGoldXpBonus = ($character->user?->vipGoldXpBonusPct() ?? 0) / 100;
+        $guildXpBonus = ($character->guildMembership?->guild?->xp_perk ?? 0) / 100;
+        $guildGoldFindBonus = ($character->guildMembership?->guild?->upgradeBonusPct('gold_find') ?? 0) / 100;
+        $guildXpUpgradeBonus = ($character->guildMembership?->guild?->upgradeBonusPct('xp') ?? 0) / 100;
 
         $petXpBonus = max(0, (float) ($stats['pet_xp_bonus_pct'] ?? 0)) / 100;
         $gradeRewardMult = $this->grades->rewardMult($battle->grade);
 
-        $goldGain = (int) round($allMonsters->sum('gold') * $goldMult * $gradeRewardMult * (1 + $luckBonus + $vipGoldXpBonus));
-        $xpGain = (int) round($allMonsters->sum('xp') * $xpMult * $gradeRewardMult * (1 + ($luckBonus * $xpFactor) + $petXpBonus + $vipGoldXpBonus));
+        $goldGain = (int) round($allMonsters->sum('gold') * $goldMult * $gradeRewardMult * (1 + $luckBonus + $vipGoldXpBonus + $guildXpBonus + $guildGoldFindBonus));
+        $xpGain = (int) round($allMonsters->sum('xp') * $xpMult * $gradeRewardMult * (1 + ($luckBonus * $xpFactor) + $petXpBonus + $vipGoldXpBonus + $guildXpBonus + $guildXpUpgradeBonus));
         $gemGain = (int) round($allMonsters->sum('gems') * $gemMult * $gradeRewardMult * (1 + ($luckBonus * $gemFactor)));
 
         $character->increment('gold', $goldGain);
@@ -388,6 +391,9 @@ class CombatService
         $character->increment('battles_won');
         $character->hp = max(1, (int) $battle->character_hp);
         $character->save();
+        if ($character->guildMembership) {
+            $character->guildMembership->guild->addXp(2);
+        }
         $isBoss = $allMonsters->contains(fn (Monster $m) => $m->is_boss);
         if ($isBoss) {
             $character->increment('bosses_slain');

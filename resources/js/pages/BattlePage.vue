@@ -2,10 +2,12 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import api from '../api/client';
 import { useCharacterStore } from '../stores/character';
+import { useAuthStore } from '../stores/auth';
 import AdBanner from '../components/AdBanner.vue';
 import WorldChat from '../components/WorldChat.vue';
 
 const characterStore = useCharacterStore();
+const auth = useAuthStore();
 const battle = ref(null);
 const result = ref(null);
 const loading = ref(true);
@@ -111,6 +113,20 @@ const LOG_COLORS = [
 function logColor(line) {
   return LOG_COLORS.find((l) => l.match.test(line))?.color ?? 'rgba(255,255,255,.7)';
 }
+
+// Condensed view (opt-in via Settings > Preferences): rather than every per-round line, show only the
+// outcome/reward line (per CombatService::simulate()'s log format — "Defeated ... +Ng +Nxp", "You were
+// defeated and revived...", or "You fled the battle...") plus a round-count summary — the full log
+// (fullBattleLog) stays available underneath either way.
+const fullBattleLog = computed(() => [...(battle.value?.log_json || [])].reverse());
+const compactBattleLog = computed(() => {
+  const log = battle.value?.log_json || [];
+  const keyLines = log.filter((line) => /^Defeated |^You were defeated|^You fled the battle/i.test(line));
+  return [...keyLines, `${log.length} round${log.length === 1 ? '' : 's'} total`].reverse();
+});
+const displayedBattleLog = computed(() =>
+  auth.user?.preferences?.compact_battle_log ? compactBattleLog.value : fullBattleLog.value
+);
 
 const GRADE_META = {
   common: { label: 'Common', color: '#cbd5e1' },
@@ -423,7 +439,7 @@ onUnmounted(() => {
 
         <div class="battle-log">
           <div
-            v-for="(line, i) in [...(battle.log_json || [])].reverse()"
+            v-for="(line, i) in displayedBattleLog"
             :key="i"
             class="battle-log__line"
             :style="{ color: logColor(line) }"
