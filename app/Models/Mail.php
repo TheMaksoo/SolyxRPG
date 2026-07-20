@@ -9,7 +9,13 @@ class Mail extends Model
 {
     public $timestamps = false;
     protected $fillable = ['recipient_user_id', 'sender_gm_id', 'subject', 'body', 'read_at', 'dismissed_at', 'created_at'];
-    protected $casts = ['read_at' => 'datetime', 'dismissed_at' => 'datetime', 'created_at' => 'datetime'];
+    protected $casts = [
+        'recipient_user_id' => 'integer',
+        'sender_gm_id' => 'integer',
+        'read_at' => 'datetime',
+        'dismissed_at' => 'datetime',
+        'created_at' => 'datetime',
+    ];
 
     public function recipient(): BelongsTo
     {

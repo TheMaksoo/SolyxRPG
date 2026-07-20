@@ -24,6 +24,7 @@ class Character extends Model
     protected function casts(): array
     {
         return [
+            'user_id' => 'integer',
             'tutorial_seen' => 'boolean',
             'last_regen_at' => 'datetime',
             'last_mana_regen_at' => 'datetime',

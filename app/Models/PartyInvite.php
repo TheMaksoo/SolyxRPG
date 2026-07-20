@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class PartyInvite extends Model
 {
     protected $fillable = ['party_id', 'character_id', 'inviter_character_id'];
+    protected $casts = ['party_id' => 'integer', 'character_id' => 'integer', 'inviter_character_id' => 'integer'];
 
     public function party(): BelongsTo
     {

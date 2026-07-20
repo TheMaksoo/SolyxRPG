@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Party extends Model
 {
     protected $fillable = ['leader_character_id'];
+    protected $casts = ['leader_character_id' => 'integer'];
 
     public function leader(): BelongsTo
     {

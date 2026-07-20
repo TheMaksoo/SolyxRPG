@@ -13,6 +13,7 @@ class CraftingJob extends Model
     ];
 
     protected $casts = [
+        'character_id' => 'integer',
         'started_at' => 'datetime',
         'completes_at' => 'datetime',
         'collected_at' => 'datetime',

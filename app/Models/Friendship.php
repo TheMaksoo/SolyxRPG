@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Friendship extends Model
 {
     protected $fillable = ['requester_id', 'addressee_id', 'status'];
+    protected $casts = ['requester_id' => 'integer', 'addressee_id' => 'integer'];
 
     public function requester(): BelongsTo
     {
