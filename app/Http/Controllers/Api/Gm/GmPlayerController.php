@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Gm;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Battle;
+use App\Models\CharacterCosmetic;
 use App\Models\GemLedger;
 use App\Models\Mail;
 use App\Models\User;
@@ -33,6 +34,7 @@ class GmPlayerController extends Controller
             'item_id' => ['nullable', 'exists:items,id'],
             'gold' => ['nullable', 'integer'],
             'gems' => ['nullable', 'integer'],
+            'cosmetic_id' => ['nullable', 'exists:cosmetics,id'],
         ]);
 
         $character = $user->character;
@@ -47,6 +49,12 @@ class GmPlayerController extends Controller
         if (! empty($data['gems'])) {
             $character->increment('gems', $data['gems']);
             GemLedger::log($character, $data['gems'], 'gm_grant');
+        }
+        if (! empty($data['cosmetic_id'])) {
+            CharacterCosmetic::firstOrCreate(
+                ['character_id' => $character->id, 'cosmetic_id' => $data['cosmetic_id']],
+                ['unlocked_at' => now()]
+            );
         }
 
         AuditLog::record($request->user()->id, 'gm.player.grant', 'users', $user->id, $data);

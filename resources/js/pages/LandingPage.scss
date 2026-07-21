@@ -237,6 +237,23 @@
   margin: 0;
 }
 
+.landing-oauth-tos-notice {
+  margin: 6px 0 0;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: v.$text-muted-40;
+  text-align: center;
+
+  a {
+    color: v.$text-muted-55;
+    text-decoration: underline;
+
+    &:hover {
+      color: v.$accent;
+    }
+  }
+}
+
 .landing-tos-check {
   display: flex;
   align-items: flex-start;

@@ -28,6 +28,7 @@ class Character extends Model
         'active_title_id', 'active_color_id', 'active_banner_id', 'active_icon_id', 'tutorial_seen',
         'pvp_attempts_used', 'pvp_attempts_reset_at', 'last_daily_reward_at',
         'dungeon_attempts_used', 'dungeon_attempts_reset_at',
+        'pvp_wins_today', 'pvp_wins_today_date', 'pvp_10_wins_reward_at',
     ];
 
     protected function casts(): array
@@ -38,6 +39,8 @@ class Character extends Model
             'pvp_attempts_reset_at' => 'datetime',
             'last_daily_reward_at' => 'datetime',
             'dungeon_attempts_reset_at' => 'datetime',
+            'pvp_wins_today_date' => 'date',
+            'pvp_10_wins_reward_at' => 'datetime',
             'last_regen_at' => 'datetime',
             'last_mana_regen_at' => 'datetime',
             'last_energy_regen_at' => 'datetime',

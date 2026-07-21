@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/auth';
 import api from '../api/client';
 import TutorialOverlay from '../components/TutorialOverlay.vue';
 import Toast from '../components/Toast.vue';
+import BugReportWidget from '../components/BugReportWidget.vue';
 
 const route = useRoute();
 const characterStore = useCharacterStore();
@@ -24,6 +25,7 @@ const visibleNav = computed(() => NAV.filter((n) => !n.flagKey || auth.featureAc
 
 const unreadCount = ref(0);
 const activePlayersHour = ref(null);
+const bugReportWidget = ref(null);
 
 async function loadActivePlayers() {
   try {
@@ -160,6 +162,10 @@ onUnmounted(() => {
         <span class="sidebar__online-dot"></span>
         {{ activePlayersHour }} active this hour
       </div>
+      <button type="button" class="sidebar__bug-report-btn" @click="bugReportWidget?.open()">
+        🐞 Report a Bug — Beta!
+      </button>
+      <BugReportWidget ref="bugReportWidget" />
       <nav class="sidebar__nav">
         <template v-for="n in visibleNav" :key="n.path">
           <router-link v-if="!isLocked(n)" :to="n.path" custom v-slot="{ navigate, isActive }">

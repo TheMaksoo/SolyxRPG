@@ -469,6 +469,11 @@
   font-size: 12px;
 }
 
+.gm-console-grant-select {
+  width: 150px;
+  text-transform: capitalize;
+}
+
 .gm-console-grant-btn {
   @include m.btn-reset;
   padding: 7px 14px;
@@ -618,6 +623,17 @@
   font-size: 11px;
   color: v.$text-muted-40;
   text-transform: capitalize;
+}
+
+.gm-console-ticket-card__bug-badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 2px 6px;
+  border-radius: v.$radius-sm;
+  background: rgba(255, 106, 77, 0.15);
+  color: v.$danger;
+  font-weight: 700;
+  text-transform: none;
 }
 
 .gm-console-ticket-card__body {

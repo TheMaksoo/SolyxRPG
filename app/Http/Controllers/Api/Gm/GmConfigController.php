@@ -71,6 +71,11 @@ class GmConfigController extends Controller
         'vip_monthly_gems_bronze' => '50',
         'vip_monthly_gems_gold' => '85',
         'vip_monthly_gems_diamond' => '170',
+        'durability_max_common' => '100',
+        'durability_max_rare' => '160',
+        'durability_max_epic' => '240',
+        'durability_max_legendary' => '350',
+        'durability_max_mythic' => '500',
     ];
 
     public function index()

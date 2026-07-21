@@ -80,11 +80,21 @@ class SocialiteController extends Controller
             // regular (or other-provider) account, attach this identity to it rather than trying
             // to INSERT a second user with the same email, which fails on the unique constraint.
             $email = $oauthUser->getEmail();
-            $user = ($email ? User::where('email', $email)->first() : null) ?: User::create([
-                'name' => $oauthUser->getName() ?: $oauthUser->getNickname() ?: 'Player',
-                'email' => $email ?: Str::uuid().'@solyx.local',
-                'password' => null,
-            ]);
+            $user = $email ? User::where('email', $email)->first() : null;
+
+            if (! $user) {
+                $user = User::create([
+                    'name' => $oauthUser->getName() ?: $oauthUser->getNickname() ?: 'Player',
+                    'email' => $email ?: Str::uuid().'@solyx.local',
+                    'password' => null,
+                ]);
+                // tos_accepted_at isn't in User's #[Fillable] allow-list — set it directly rather than
+                // via create()/update(). The landing page's OAuth buttons carry an explicit "by
+                // continuing you agree to..." notice right below them (see LandingPage.vue), so a brand
+                // new OAuth signup counts as acceptance the same way the email/password path's checkbox does.
+                $user->tos_accepted_at = now();
+                $user->save();
+            }
 
             SocialAccount::create([
                 'user_id' => $user->id,

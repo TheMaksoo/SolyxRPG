@@ -88,18 +88,26 @@ const players = ref([]);
 const search = ref('');
 const grantForm = ref({});
 const playerMessage = ref('');
+const cosmeticOptions = ref([]);
+
+async function loadCosmeticOptions() {
+  if (cosmeticOptions.value.length) return;
+  const { data } = await api.get('/gm/cosmetics');
+  cosmeticOptions.value = data.cosmetics ?? [];
+}
 
 async function loadPlayers() {
   const { data } = await api.get('/gm/players', { params: { search: search.value } });
   players.value = data.players;
   for (const user of data.players) {
     if (!grantForm.value[user.id]) {
-      grantForm.value[user.id] = { gold: '', gems: '', item_id: '' };
+      grantForm.value[user.id] = { gold: '', gems: '', item_id: '', cosmetic_id: '' };
     }
     if (!mailForm.value[user.id]) {
       mailForm.value[user.id] = { subject: '', body: '' };
     }
   }
+  loadCosmeticOptions();
 }
 
 const mailForm = ref({});
@@ -126,6 +134,7 @@ async function grant(user) {
       gold: form.gold ? Number(form.gold) : undefined,
       gems: form.gems ? Number(form.gems) : undefined,
       item_id: form.item_id ? Number(form.item_id) : undefined,
+      cosmetic_id: form.cosmetic_id ? Number(form.cosmetic_id) : undefined,
     });
     playerMessage.value = `Granted to ${user.name}.`;
   } catch (e) {
@@ -494,6 +503,10 @@ onMounted(() => {
             <input v-model="grantForm[user.id].gold" placeholder="Gold" type="number" class="gm-console-grant-input" />
             <input v-model="grantForm[user.id].gems" placeholder="Gems" type="number" class="gm-console-grant-input" />
             <input v-model="grantForm[user.id].item_id" placeholder="Item ID" type="number" class="gm-console-grant-input" />
+            <select v-model="grantForm[user.id].cosmetic_id" class="gm-console-grant-input gm-console-grant-select">
+              <option value="">Cosmetic…</option>
+              <option v-for="c in cosmeticOptions" :key="c.id" :value="c.id">{{ c.type }} — {{ c.name }}</option>
+            </select>
             <button @click="grant(user)" class="gm-console-grant-btn">Grant</button>
           </div>
           <div v-if="mailForm[user.id]" class="gm-console-mail-row">
@@ -540,7 +553,10 @@ onMounted(() => {
         <div v-for="ticket in activeTickets" :key="ticket.id" class="gm-console-ticket-card">
           <div class="gm-console-ticket-card__row">
             <div class="ox gm-console-ticket-card__subject">{{ ticket.subject }}</div>
-            <span class="gm-console-ticket-card__meta">{{ ticket.status }} · {{ ticket.priority }}</span>
+            <span class="gm-console-ticket-card__meta">
+              <span v-if="ticket.category === 'bug'" class="gm-console-ticket-card__bug-badge">🐞 BUG</span>
+              {{ ticket.status }} · {{ ticket.priority }}
+            </span>
           </div>
           <div class="gm-console-ticket-card__body">{{ ticket.body }}</div>
           <div class="gm-console-ticket-card__from">From {{ ticket.user?.name }}</div>
@@ -588,7 +604,10 @@ onMounted(() => {
           <div v-for="ticket in archivedTickets" :key="ticket.id" class="gm-console-ticket-card gm-console-ticket-card--archived">
             <div class="gm-console-ticket-card__row">
               <div class="ox gm-console-ticket-card__subject">{{ ticket.subject }}</div>
-              <span class="gm-console-ticket-card__meta">{{ ticket.status }} · {{ ticket.priority }}</span>
+              <span class="gm-console-ticket-card__meta">
+              <span v-if="ticket.category === 'bug'" class="gm-console-ticket-card__bug-badge">🐞 BUG</span>
+              {{ ticket.status }} · {{ ticket.priority }}
+            </span>
             </div>
             <div class="gm-console-ticket-card__body">{{ ticket.body }}</div>
             <div class="gm-console-ticket-card__from">From {{ ticket.user?.name }}</div>

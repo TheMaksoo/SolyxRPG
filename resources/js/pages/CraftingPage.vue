@@ -26,6 +26,8 @@ function showMessage(text, type = 'success') {
 }
 
 const SECTIONS = [
+  { key: 'consumable', label: 'Consumables', glyph: '🧪' },
+  { key: 'repair_pack', label: 'Repair Packs', glyph: '🧰' },
   { key: 'weapon', label: 'Weapons', glyph: '⚔' },
   { key: 'armor', label: 'Armor', glyph: '🛡' },
   { key: 'quiver', label: 'Quivers', glyph: '🎯' },
@@ -33,8 +35,6 @@ const SECTIONS = [
   { key: 'axe', label: 'Axes', glyph: '🪓' },
   { key: 'sickle', label: 'Sickles', glyph: '🔪' },
   { key: 'hammer', label: 'Hammers', glyph: '🔨' },
-  { key: 'consumable', label: 'Consumables', glyph: '🧪' },
-  { key: 'repair_pack', label: 'Repair Packs', glyph: '🧰' },
   { key: 'material', label: 'Materials', glyph: '🪨' },
 ];
 
@@ -48,6 +48,22 @@ const sections = computed(() =>
     recipes: recipes.value.filter((r) => sectionKeyFor(r.result_item.type) === section.key),
   })).filter((section) => section.recipes.length)
 );
+
+// Minimized (collapsed) sections persist across visits so a player who only cares about
+// consumables can fold away the gear categories once and not redo it every time they craft.
+const COLLAPSE_STORAGE_KEY = 'solyx_crafting_collapsed_sections';
+const collapsedSections = ref(new Set(JSON.parse(localStorage.getItem(COLLAPSE_STORAGE_KEY) || '[]')));
+
+function isCollapsed(key) {
+  return collapsedSections.value.has(key);
+}
+
+function toggleSection(key) {
+  const next = new Set(collapsedSections.value);
+  next.has(key) ? next.delete(key) : next.add(key);
+  collapsedSections.value = next;
+  localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify([...next]));
+}
 
 async function load() {
   const [recipesRes, queueRes] = await Promise.all([api.get('/crafting/recipes'), api.get('/crafting/queue')]);
@@ -152,8 +168,12 @@ onUnmounted(() => {
     <p v-else class="crafting-queue-empty">Queue is empty — craft something below.</p>
 
     <div v-for="section in sections" :key="section.key" :id="`section-${section.key}`">
-      <div class="recipe-section-eyebrow">{{ section.glyph }} {{ section.label.toUpperCase() }}</div>
-      <div class="recipe-grid">
+      <button type="button" class="recipe-section-eyebrow recipe-section-eyebrow--toggle" @click="toggleSection(section.key)">
+        <span>{{ section.glyph }} {{ section.label.toUpperCase() }}</span>
+        <span class="recipe-section-eyebrow__count">{{ section.recipes.length }}</span>
+        <span class="recipe-section-eyebrow__chevron" :class="{ 'is-collapsed': isCollapsed(section.key) }">▾</span>
+      </button>
+      <div v-show="!isCollapsed(section.key)" class="recipe-grid">
         <div
           v-for="recipe in section.recipes"
           :key="recipe.id"

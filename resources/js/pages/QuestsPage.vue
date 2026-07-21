@@ -19,7 +19,14 @@ const tabs = [
   { key: 'raid', label: 'Raid' },
 ];
 
-const filtered = computed(() => rows.value.filter((r) => r.quest.type === tab.value));
+// Claimed quests sink to the end of the grid — nothing left to do with them, so they shouldn't
+// compete for attention with quests that are still claimable or in progress.
+const filtered = computed(() =>
+  rows.value
+    .filter((r) => r.quest.type === tab.value)
+    .slice()
+    .sort((a, b) => (a.claimed === b.claimed ? 0 : a.claimed ? 1 : -1))
+);
 
 function applyPayload(data) {
   rows.value = data.quests;

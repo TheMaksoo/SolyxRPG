@@ -175,6 +175,10 @@ onMounted(async () => {
             {{ p.label }}
           </a>
         </div>
+        <p class="landing-oauth-tos-notice">
+          By continuing with Discord or Google, you agree to our
+          <router-link to="/terms" target="_blank">Terms of Service &amp; Beta Disclaimer</router-link>.
+        </p>
 
         <div class="landing-auth-card__divider">
           <div class="landing-auth-card__divider-line"></div>

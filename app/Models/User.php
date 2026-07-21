@@ -35,6 +35,7 @@ class User extends Authenticatable
             'banned_at' => 'datetime',
             'password' => 'hashed',
             'is_tester' => 'boolean',
+            'tester_mode_disabled' => 'boolean',
             'ads_removed' => 'boolean',
             'vip_gems_granted_at' => 'datetime',
             'preferences' => 'array',
@@ -66,7 +67,10 @@ class User extends Authenticatable
     /** Testers get every title/color/banner unlocked and can freely switch between them — but only while
      * a GM has the "global_tester_mode" feature flag switched on; a designated tester's is_tester flag
      * or role is otherwise inert. GMs/owners always get tester perks regardless, since they need them to
-     * QA the game whether or not the flag is on for everyone else. */
+     * QA the game whether or not the flag is on for everyone else. `tester_mode_disabled` is a SEPARATE
+     * self-serve on/off switch (see AuthController::toggleTesterMode()) — it never touches the underlying
+     * is_tester/role designation, so a tester who switches their own perks off to preview the game as a
+     * regular player can always switch back on themselves; only a GM can revoke the designation itself. */
     public function isTester(): bool
     {
         if ($this->isGm()) {
@@ -74,6 +78,10 @@ class User extends Authenticatable
         }
 
         if (! ($this->is_tester || $this->role === 'tester')) {
+            return false;
+        }
+
+        if ($this->tester_mode_disabled) {
             return false;
         }
 

@@ -28,6 +28,7 @@ class SupportTicketController extends Controller
             'subject' => ['required', 'string', 'max:120'],
             'body' => ['required', 'string', 'max:2000'],
             'priority' => ['nullable', Rule::in(['low', 'normal', 'high', 'urgent'])],
+            'category' => ['nullable', Rule::in(['support', 'bug'])],
         ]);
 
         $ticket = SupportTicket::create([
@@ -35,6 +36,7 @@ class SupportTicketController extends Controller
             'subject' => $data['subject'],
             'body' => $data['body'],
             'priority' => $data['priority'] ?? 'normal',
+            'category' => $data['category'] ?? 'support',
         ]);
 
         return response()->json(['ticket' => $ticket], 201);

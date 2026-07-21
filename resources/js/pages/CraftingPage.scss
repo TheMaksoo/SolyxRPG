@@ -108,6 +108,37 @@
   margin: 24px 0 12px;
 }
 
+.recipe-section-eyebrow--toggle {
+  @include m.btn-reset;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  cursor: pointer;
+
+  &:hover {
+    color: v.$text-primary;
+  }
+}
+
+.recipe-section-eyebrow__count {
+  font-size: 10.5px;
+  color: v.$text-muted-40;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: v.$radius-pill;
+  padding: 1px 7px;
+}
+
+.recipe-section-eyebrow__chevron {
+  margin-left: auto;
+  font-size: 11px;
+  transition: transform 0.15s ease;
+
+  &.is-collapsed {
+    transform: rotate(-90deg);
+  }
+}
+
 .recipe-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));

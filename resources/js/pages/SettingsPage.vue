@@ -62,7 +62,7 @@ async function toggleTesterMode() {
   testerMessage.value = '';
   try {
     const { data } = await api.post('/me/tester-mode');
-    auth.user.is_tester = data.is_tester;
+    auth.user.tester_mode_disabled = data.tester_mode_disabled;
   } catch (e) {
     testerMessage.value = e.response?.data?.message || 'Could not toggle tester mode.';
   }
@@ -213,15 +213,15 @@ onMounted(() => {
           <template v-if="!auth.globalTesterMode">
             Tester perks are currently OFF for everyone — a GM has "Global Tester Mode" disabled in Feature Flags.
           </template>
-          <template v-else-if="auth.user.is_tester">
+          <template v-else-if="!auth.user.tester_mode_disabled">
             Tester perks are ON — every title, color and banner is unlocked; switch freely.
           </template>
           <template v-else>
-            Tester perks are OFF — previewing as a regular player.
+            Tester perks are OFF — previewing as a regular player. Flip this back on any time.
           </template>
         </p>
         <label class="toggle-switch">
-          <input type="checkbox" aria-label="Toggle tester mode" :checked="auth.user.is_tester" @change="toggleTesterMode" />
+          <input type="checkbox" aria-label="Toggle tester mode" :checked="!auth.user.tester_mode_disabled" @change="toggleTesterMode" />
           <span class="toggle-switch__track"><span class="toggle-switch__knob"></span></span>
         </label>
       </div>

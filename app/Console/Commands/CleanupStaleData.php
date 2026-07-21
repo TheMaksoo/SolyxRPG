@@ -6,6 +6,8 @@ use App\Models\AuditLog;
 use App\Models\Battle;
 use App\Models\CraftingJob;
 use App\Models\DungeonRun;
+use App\Models\Inventory;
+use App\Models\Item;
 use App\Models\Mail;
 use App\Models\PartyInvite;
 use App\Models\SupportTicket;
@@ -69,6 +71,7 @@ class CleanupStaleData extends Command
             'audit_logs' => $this->purge(
                 AuditLog::where('created_at', '<', now()->subDays(180))
             ),
+            'crafted_item_variants' => $this->purgeOrphanedCraftedVariants(),
         ];
 
         foreach ($deleted as $table => $count) {
@@ -76,6 +79,29 @@ class CleanupStaleData extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /** Every crafted-variant Item row (rolled-stat gear, key "{baseKey}_crafted_{random}") backs exactly
+     * one Inventory row and is deleted the moment that row is scrapped (see InventoryController::scrap()).
+     * This is the backstop for variants that went orphaned before that fix existed, or via any other path
+     * that removes the Inventory row without going through scrap() — without it, `items` grows by one row
+     * per craft forever. */
+    private function purgeOrphanedCraftedVariants(): int
+    {
+        $count = 0;
+        Item::where('key', 'like', '%\_crafted\_%')
+            ->whereNotIn('id', Inventory::select('item_id')->distinct())
+            ->chunkById(self::CHUNK, function ($rows) use (&$count) {
+                $ids = $rows->pluck('id');
+                // A collected CraftingJob row keeps pointing at result_item_id purely for historical
+                // display and has an FK on it — once the crafted item itself is orphaned (no Inventory
+                // row left), that history has nothing left to point at either, so it goes too.
+                CraftingJob::whereIn('result_item_id', $ids)->delete();
+                $count += $rows->count();
+                Item::whereIn('id', $ids)->delete();
+            });
+
+        return $count;
     }
 
     /** Chunked delete so purging a large table doesn't take one long-running lock/query. */

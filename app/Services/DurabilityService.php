@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\GameConfig;
+
 class DurabilityService
 {
     /** Canonical grade order — index doubles as the tier-gap distance for repair penalties. */
@@ -35,7 +37,9 @@ class DurabilityService
 
     public function maxDurability(string $rarity): int
     {
-        return self::MAX_DURABILITY_BY_RARITY[$rarity] ?? self::MAX_DURABILITY_BY_RARITY['common'];
+        $default = self::MAX_DURABILITY_BY_RARITY[$rarity] ?? self::MAX_DURABILITY_BY_RARITY['common'];
+
+        return (int) GameConfig::number("durability_max_{$rarity}", $default);
     }
 
     /** Repair packs' own display stats — what they grant when used on gear of the same grade. */

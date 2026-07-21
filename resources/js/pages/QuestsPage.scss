@@ -93,10 +93,7 @@
 }
 
 .quests-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-width: 600px;
+  @include m.grid-auto-fill(360px, 14px);
 }
 
 .quest-row {

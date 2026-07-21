@@ -2,14 +2,28 @@
 import { ref, onMounted, computed } from 'vue';
 import api from '../api/client';
 import { useAuthStore } from '../stores/auth';
+import { useCharacterStore } from '../stores/character';
 import AdBanner from '../components/AdBanner.vue';
+import Toast from '../components/Toast.vue';
 import { formatStats, RARITY_COLORS, RARITY_LABELS } from '../rarity';
 
+const RARITY_ORDER = ['common', 'rare', 'epic', 'legendary', 'mythic'];
+
 const auth = useAuthStore();
+const characterStore = useCharacterStore();
 const items = ref([]);
 const tab = ref('weapon');
 const message = ref('');
+const messageType = ref('success');
 const loading = ref(false);
+let messageTimer = null;
+
+function showMessage(text, type = 'success') {
+  clearTimeout(messageTimer);
+  message.value = text;
+  messageType.value = type;
+  messageTimer = setTimeout(() => { message.value = ''; }, 3000);
+}
 
 const tabs = [
   { key: 'weapon', label: 'Weapons', glyph: '⚔' },
@@ -35,7 +49,7 @@ const filtered = computed(() =>
 );
 
 function canAfford(item) {
-  const character = auth.user?.character;
+  const character = characterStore.character;
   if (!character) return true;
   if (item.price_gold) return character.gold >= item.price_gold;
   if (item.price_gems) return character.gems >= item.price_gems;
@@ -47,16 +61,33 @@ async function load() {
   items.value = data.items;
 }
 
+// Grouped by rarity within the active type tab (common -> mythic) so higher-tier gear reads as a
+// clear progression instead of one flat unsorted grid — mirrors CraftingPage's section treatment.
+const groupedByRarity = computed(() => {
+  const groups = RARITY_ORDER.map((rarity) => ({
+    rarity,
+    label: RARITY_LABELS[rarity],
+    color: RARITY_COLORS[rarity],
+    items: filtered.value.filter((i) => i.rarity === rarity),
+  })).filter((g) => g.items.length);
+
+  // Anything with an unrecognized/missing rarity still shows up rather than silently vanishing.
+  const known = new Set(RARITY_ORDER);
+  const leftover = filtered.value.filter((i) => !known.has(i.rarity));
+  if (leftover.length) groups.push({ rarity: 'other', label: 'Other', color: null, items: leftover });
+
+  return groups;
+});
+
 async function buy(item) {
-  message.value = '';
   loading.value = true;
   try {
     const { data } = await api.post('/shop/buy', { item_id: item.id });
-    auth.user.character.gold = data.character.gold;
-    auth.user.character.gems = data.character.gems;
-    message.value = `Bought ${item.name}.`;
+    characterStore.character = data.character;
+    if (auth.user) auth.user.character = data.character;
+    showMessage(`Bought ${item.name} — added to your inventory.`, 'success');
   } catch (e) {
-    message.value = e.response?.data?.message || 'Purchase failed.';
+    showMessage(e.response?.data?.message || 'Purchase failed.', 'error');
   } finally {
     loading.value = false;
   }
@@ -72,8 +103,8 @@ onMounted(load);
         <div class="shop-header__icon">🛒</div>
         <h1 class="ox shop-title">Shop</h1>
       </div>
-      <div v-if="auth.user?.character" class="shop-header__currency">
-        {{ auth.user.character.gold }}g · {{ auth.user.character.gems }}◆
+      <div v-if="characterStore.character" class="shop-header__currency">
+        {{ characterStore.character.gold }}g · {{ characterStore.character.gems }}◆
       </div>
     </div>
 
@@ -89,49 +120,52 @@ onMounted(load);
       </button>
     </div>
 
-    <p v-if="message" class="shop-message">{{ message }}</p>
+    <Toast :message="message" :type="messageType" />
 
     <AdBanner variant="inline" />
 
-    <div class="shop-grid">
-      <div
-        v-for="item in filtered"
-        :key="item.id"
-        class="shop-item-card"
-        :class="{ 'shop-item-card--mystery': item.mystery }"
-      >
-        <template v-if="item.mystery">
-          <div class="shop-item__header">
-            <span class="shop-item__glyph">❔</span>
-            <span class="ox shop-item__name">???</span>
-            <span class="shop-item__rarity" :style="{ color: RARITY_COLORS[item.rarity] }">{{ RARITY_LABELS[item.rarity] }}</span>
-          </div>
-          <div class="shop-item__desc">🔒 Unlocks at level {{ item.min_level }}</div>
-        </template>
-        <template v-else>
-          <div class="shop-item__header">
-            <span class="shop-item__glyph">{{ item.glyph }}</span>
-            <span class="ox shop-item__name">{{ item.name }}</span>
-            <span class="shop-item__rarity" :style="{ color: RARITY_COLORS[item.rarity] }">{{ RARITY_LABELS[item.rarity] }}</span>
-          </div>
-          <div v-if="formatStats(item.stat_json).length" class="shop-item__stats">
-            <span v-for="stat in formatStats(item.stat_json)" :key="stat" class="shop-item__stat">{{ stat }}</span>
-          </div>
-          <div class="shop-item__desc">{{ item.description }}</div>
-          <button
-            v-if="item.price_gold || item.price_gems"
-            @click="buy(item)"
-            :disabled="loading || !canAfford(item)"
-            class="shop-buy-btn"
-            :class="{ 'shop-buy-btn--gems': !item.price_gold }"
-          >
-            Buy — {{ item.price_gold ? `🪙 ${item.price_gold}` : `◆ ${item.price_gems}` }}
-          </button>
-          <div v-else class="shop-item__craft-only">🔨 Crafting only</div>
-        </template>
+    <div v-for="group in groupedByRarity" :key="group.rarity" class="shop-rarity-group">
+      <div class="shop-rarity-eyebrow" :style="group.color ? { color: group.color } : {}">{{ group.label }}</div>
+      <div class="shop-grid">
+        <div
+          v-for="item in group.items"
+          :key="item.id"
+          class="shop-item-card"
+          :class="{ 'shop-item-card--mystery': item.mystery }"
+        >
+          <template v-if="item.mystery">
+            <div class="shop-item__header">
+              <span class="shop-item__glyph">❔</span>
+              <span class="ox shop-item__name">???</span>
+              <span class="shop-item__rarity" :style="{ color: RARITY_COLORS[item.rarity] }">{{ RARITY_LABELS[item.rarity] }}</span>
+            </div>
+            <div class="shop-item__desc">🔒 Unlocks at level {{ item.min_level }}</div>
+          </template>
+          <template v-else>
+            <div class="shop-item__header">
+              <span class="shop-item__glyph">{{ item.glyph }}</span>
+              <span class="ox shop-item__name">{{ item.name }}</span>
+              <span class="shop-item__rarity" :style="{ color: RARITY_COLORS[item.rarity] }">{{ RARITY_LABELS[item.rarity] }}</span>
+            </div>
+            <div v-if="formatStats(item.stat_json).length" class="shop-item__stats">
+              <span v-for="stat in formatStats(item.stat_json)" :key="stat" class="shop-item__stat">{{ stat }}</span>
+            </div>
+            <div class="shop-item__desc">{{ item.description }}</div>
+            <button
+              v-if="item.price_gold || item.price_gems"
+              @click="buy(item)"
+              :disabled="loading || !canAfford(item)"
+              class="shop-buy-btn"
+              :class="{ 'shop-buy-btn--gems': !item.price_gold }"
+            >
+              Buy — {{ item.price_gold ? `🪙 ${item.price_gold}` : `◆ ${item.price_gems}` }}
+            </button>
+            <div v-else class="shop-item__craft-only">🔨 Crafting only</div>
+          </template>
+        </div>
       </div>
-      <div v-if="!filtered.length" class="shop-empty">Nothing here yet.</div>
     </div>
+    <div v-if="!groupedByRarity.length" class="shop-empty">Nothing here yet.</div>
   </div>
 </template>
 

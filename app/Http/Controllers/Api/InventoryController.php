@@ -91,12 +91,33 @@ class InventoryController extends Controller
             ->firstOrFail();
 
         $refunded = $this->refundScrapMaterials($character, $inventory);
+        $scrappedItem = $inventory->item;
         $inventory->delete();
+        $this->deleteOrphanedCraftedVariant($scrappedItem);
 
         return response()->json([
             'inventory' => $character->inventory()->with('item')->get(),
             'refunded' => $refunded,
         ]);
+    }
+
+    /** Every crafted-variant Item row (rolled-stat gear, key "{baseKey}_crafted_{random}") exists solely to
+     * back ONE specific Inventory row — nothing else ever references it (shop/wiki/recipes only ever point
+     * at the base item). Once the last Inventory row holding it is scrapped, the row is permanently
+     * unreachable dead weight, so delete it — this is what keeps `items` from growing forever as players
+     * craft and scrap gear. Safe even if two stacks of the "same" crafted item existed, since we only ever
+     * delete after confirming zero remaining Inventory references. */
+    private function deleteOrphanedCraftedVariant(Item $item): void
+    {
+        if (! str_contains($item->key, '_crafted_')) {
+            return;
+        }
+
+        if (Inventory::where('item_id', $item->id)->exists()) {
+            return;
+        }
+
+        $item->delete();
     }
 
     /** Crafted variants (rolled-stat gear) are their own Item row keyed "{baseKey}_crafted_{random}" —

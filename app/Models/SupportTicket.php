@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SupportTicket extends Model
 {
-    protected $fillable = ['user_id', 'subject', 'body', 'priority', 'status', 'assigned_gm_id'];
+    protected $fillable = ['user_id', 'subject', 'body', 'priority', 'status', 'category', 'assigned_gm_id'];
 
     public function user(): BelongsTo
     {

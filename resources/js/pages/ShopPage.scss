@@ -63,6 +63,15 @@
   margin-bottom: 14px;
 }
 
+.shop-rarity-group {
+  margin-bottom: 22px;
+}
+
+.shop-rarity-eyebrow {
+  @include m.section-eyebrow;
+  margin-bottom: 10px;
+}
+
 .shop-grid {
   @include m.grid-auto-fill(240px, 14px);
 }
