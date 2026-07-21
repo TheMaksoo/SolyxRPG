@@ -117,12 +117,16 @@ class CombatService
         // Battle::skill_cooldowns_json) rather than real elapsed time — one act() call is one round, so
         // every ability on the map ticks down by 1 every round regardless of what action was taken.
         // Assigning it back onto $battle now means it rides along with whichever save()/update() call
-        // below ends up persisting this turn, on every return path.
+        // below ends up persisting this turn, on every return path. Using an item is a free action (see
+        // the $type !== 'item' guard around the enemy's turn below) so cooldowns don't tick for it either
+        // — drinking a potion shouldn't quietly burn a round off your other abilities.
         $skillCooldowns = $battle->skill_cooldowns_json ?? [];
-        foreach ($skillCooldowns as $sid => $remaining) {
-            $skillCooldowns[$sid] = max(0, $remaining - 1);
+        if ($type !== 'item') {
+            foreach ($skillCooldowns as $sid => $remaining) {
+                $skillCooldowns[$sid] = max(0, $remaining - 1);
+            }
+            $battle->skill_cooldowns_json = $skillCooldowns;
         }
-        $battle->skill_cooldowns_json = $skillCooldowns;
 
         $playerDmg = 0;
         $healed = 0;
@@ -143,6 +147,7 @@ class CombatService
             abort_if($character->mana < $skill->mp_cost, 422, 'Not enough mana.');
 
             $character->decrement('mana', $skill->mp_cost);
+            $characterSkill->increment('times_used');
             if ($skill->cooldown_rounds > 0) {
                 // Ranger identity: high-DPS, low-cooldown skirmisher (see Character::classPassiveBonuses()
                 // for the matching flat-ATK/dodge half of this). Applies class-wide rather than only to
@@ -171,11 +176,17 @@ class CombatService
             $item = $inventory->item;
             $healHpPct = $item->stat_json['heal_hp_pct'] ?? 0;
             $healMpPct = $item->stat_json['heal_mp_pct'] ?? 0;
+            $atkPctBuff = $item->stat_json['atk_pct_buff'] ?? 0;
             $healed = (int) round($stats['eff_hp_max'] * $healHpPct / 100);
             $healedMp = (int) round($stats['eff_mp_max'] * $healMpPct / 100);
             $battle->character_hp = min($stats['eff_hp_max'], $battle->character_hp + $healed);
             if ($healedMp > 0) {
                 $character->mana = min($stats['eff_mp_max'], $character->mana + $healedMp);
+                $character->save();
+            }
+            if ($atkPctBuff > 0) {
+                $character->atk_buff_pct = $atkPctBuff;
+                $character->atk_buff_fights_left = $item->stat_json['buff_fights'] ?? 1;
                 $character->save();
             }
 
@@ -184,7 +195,7 @@ class CombatService
                 $inventory->delete();
             }
             $healText = array_filter([$healed > 0 ? "{$healed} HP" : null, $healedMp > 0 ? "{$healedMp} MP" : null]);
-            $log[] = "Used {$item->name}, restored ".implode(' and ', $healText).'.';
+            $log[] = "Used {$item->name}, restored ".implode(' and ', $healText).'.'.($atkPctBuff > 0 ? " +{$atkPctBuff}% ATK for your next {$character->atk_buff_fights_left} fights." : '');
         } else {
             abort(422, 'Unknown action.');
         }
@@ -196,6 +207,23 @@ class CombatService
 
         if ($this->allEnemiesDefeated($battle)) {
             return $this->resolveWin($battle, $character, $log);
+        }
+
+        // Using an item (potion/elixir) is a free action — it doesn't end your turn, so the enemy never
+        // gets a free swing off the back of drinking a potion. Attacks and skills still pass the turn as
+        // normal below.
+        if ($type === 'item') {
+            $battle->log_json = $log;
+            $battle->save();
+
+            $freshCharacter = $character->fresh(['attributes_', 'inventory.item', 'skills.skill']);
+
+            return [
+                'battle' => $battle->fresh(['monster', 'battleMonsters.monster']),
+                'result' => null,
+                'character' => $freshCharacter,
+                'stats' => $freshCharacter->effectiveStats(),
+            ];
         }
 
         $hasAdds = $battle->battleMonsters->isNotEmpty();
@@ -401,6 +429,7 @@ class CombatService
         $xpGain = (int) round($allMonsters->sum('xp') * $xpMult * $gradeRewardMult * (1 + ($luckBonus * $xpFactor) + $petXpBonus + $vipGoldXpBonus + $guildXpBonus + $guildXpUpgradeBonus));
         $gemGain = (int) round($allMonsters->sum('gems') * $gemMult * $gradeRewardMult * (1 + ($luckBonus * $gemFactor)));
 
+        $character->decrementAtkBuffFight();
         $character->increment('gold', $goldGain);
         $character->increment('gems', $gemGain);
         if ($gemGain > 0) {
@@ -532,6 +561,7 @@ class CombatService
         $penalty = $this->applyDeathPenalty($character);
 
         $character->hp = $reviveHp;
+        $character->decrementAtkBuffFight();
         $character->increment('battles_lost');
         $battle->character_hp = $reviveHp;
 

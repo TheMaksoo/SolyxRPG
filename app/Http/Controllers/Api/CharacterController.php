@@ -9,8 +9,10 @@ use App\Models\Character;
 use App\Models\CharacterAttribute;
 use App\Models\ClassProgression;
 use App\Models\Cosmetic;
+use App\Models\DungeonRun;
 use App\Models\FeatureFlag;
 use App\Models\GemLedger;
+use App\Models\PvpLiveMatch;
 use App\Models\User;
 use App\Services\AttributeService;
 use App\Services\QuestService;
@@ -206,6 +208,63 @@ class CharacterController extends Controller
         ]);
     }
 
+    /** Real per-character activity data for the Profile page's Stats tab — a 14-day battle trend, a
+     * lifetime content-mix breakdown, most-used skills, and a couple of extra fun counts (pets/cosmetics
+     * collected). Every number is a live query or an existing flat counter column, nothing simulated. */
+    public function activity(Request $request)
+    {
+        $character = $request->user()->character;
+        abort_unless($character, 404);
+
+        $since = now()->subDays(13)->startOfDay();
+        $rows = Battle::where('character_id', $character->id)
+            ->where('created_at', '>=', $since)
+            ->selectRaw('DATE(created_at) as day, count(*) as count')
+            ->groupBy('day')
+            ->pluck('count', 'day');
+
+        $trend = [];
+        for ($i = 13; $i >= 0; $i--) {
+            $day = now()->subDays($i)->toDateString();
+            $trend[] = ['date' => $day, 'count' => (int) ($rows[$day] ?? 0)];
+        }
+
+        // Top 5 skills by times_used (see CombatService::act()'s skill branch) — deliberately excludes
+        // battles_won/battles_lost from the breakdown below since those already show in the profile hero
+        // line and the win/loss chart; this endpoint shouldn't repeat numbers shown elsewhere on the page.
+        $topSkills = $character->skills()
+            ->with('skill')
+            ->where('times_used', '>', 0)
+            ->orderByDesc('times_used')
+            ->limit(5)
+            ->get()
+            ->map(fn ($row) => ['key' => $row->skill->key, 'label' => $row->skill->name, 'count' => $row->times_used]);
+
+        // A broad lifetime activity mix across content systems (mirrors GmAnalyticsController's
+        // "what players are doing" breakdown, just scoped to this one character) — deliberately distinct
+        // from the granular per-resource gathering chips rendered separately below it on the page, so the
+        // two panels never repeat the same numbers.
+        $gatheringTotal = ($character->times_mined ?? 0) + ($character->times_chopped ?? 0)
+            + ($character->times_smelted ?? 0) + ($character->times_foraged ?? 0);
+
+        // Battles deliberately excluded from this breakdown — its count so dwarfs everything else that
+        // the other bars become invisible next to it, and battles already get their own trend line and
+        // win/loss chart above.
+        return response()->json([
+            'battle_trend_14d' => $trend,
+            'activity_breakdown' => [
+                ['key' => 'dungeons', 'label' => 'Dungeon Runs', 'count' => DungeonRun::where('character_id', $character->id)->count()],
+                ['key' => 'pvp', 'label' => 'PvP Matches', 'count' => PvpLiveMatch::where('character_a_id', $character->id)->orWhere('character_b_id', $character->id)->count()],
+                ['key' => 'crafted', 'label' => 'Items Crafted', 'count' => $character->times_crafted ?? 0],
+                ['key' => 'quests', 'label' => 'Quests Completed', 'count' => $character->quests_completed ?? 0],
+                ['key' => 'gathering', 'label' => 'Gathering Actions', 'count' => $gatheringTotal],
+            ],
+            'top_skills' => $topSkills,
+            'pets_collected' => $character->pets()->count(),
+            'cosmetics_unlocked' => $character->cosmetics()->count(),
+        ]);
+    }
+
     /** Marks the new-character guided tour as seen so it never shows again for this character. Also grants
      * the "Initiate" title the first time it's completed — a permanent record of finishing onboarding. */
     public function dismissTutorial(Request $request)
@@ -349,9 +408,11 @@ class CharacterController extends Controller
     }
 
     /** Unlocks a skill at rank 1 (cost 1), or — if already unlocked — spends skill points to upgrade its
-     * rank (up to the skill's max_level). Each rank costs quadratically more than the last (rank N costs
-     * N² points — 1/4/9/16/25 for a 5-rank skill, 1/4/9 for a 3-rank ultimate) so maxing a skill out is a
-     * real high-level skill-point sink, not just a handful of cheap clicks. */
+     * rank (up to the skill's max_level). Each rank costs 1 more point than the last (rank N costs N points
+     * — 1/2/3/4/5/6/7/8 for an 8-rank skill, totaling 36) so maxing a skill is a real sink across a
+     * character's leveling but doesn't require hoarding points for dozens of levels the way the old
+     * quadratic curve (N² — 204 points to max an 8-rank skill, more than a level 150 character ever earns)
+     * did. */
     public function unlockSkill(Request $request, \App\Models\Skill $skill)
     {
         $character = $request->user()->character;
@@ -372,7 +433,7 @@ class CharacterController extends Controller
             if ($character->level < $nextRankLevel) {
                 return response()->json(['message' => "Rank {$nextRank} requires level {$nextRankLevel}."], 422);
             }
-            $cost = $nextRank ** 2;
+            $cost = $nextRank;
             if ($character->skill_points < $cost) {
                 return response()->json(['message' => "Rank {$nextRank} costs {$cost} skill points."], 422);
             }

@@ -266,6 +266,453 @@
   @include m.grid-auto-fit(160px, 12px);
 }
 
+// ---- Activity tab ----
+.gm-console-activity__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.gm-console-activity__window-note {
+  font-size: 11.5px;
+  color: v.$text-muted-40;
+}
+
+.gm-console-activity__range {
+  display: flex;
+  gap: 6px;
+}
+
+.gm-console-activity__range-btn {
+  @include m.btn-reset;
+  padding: 6px 14px;
+  border-radius: v.$radius-pill;
+  border: 1px solid v.$border-medium;
+  background: transparent;
+  color: v.$text-muted-45;
+  font-size: 12px;
+  font-weight: 600;
+
+  &.is-active {
+    border-color: v.$accent-tint-30;
+    background: v.$accent-tint-15;
+    color: v.$accent;
+  }
+}
+
+.gm-console-activity-stats {
+  @include m.grid-auto-fit(180px, 12px);
+  margin-bottom: 20px;
+}
+
+.gm-console-activity-stat {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: v.$radius-lg;
+  padding: 14px 16px;
+}
+
+.gm-console-activity-stat__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.gm-console-activity-stat__label {
+  font-size: 10.5px;
+  color: v.$text-muted-40;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+}
+
+.gm-console-activity-stat__icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.06);
+  color: v.$text-muted-55;
+
+  &--purple {
+    background: rgba(167, 139, 250, 0.15);
+    color: #a78bfa;
+  }
+
+  &--green {
+    background: rgba(74, 222, 128, 0.15);
+    color: #4ade80;
+    font-size: 9px;
+  }
+
+  &--blue {
+    background: rgba(92, 199, 245, 0.15);
+    color: #5cc7f5;
+  }
+
+  &--red {
+    background: v.$accent-tint-15;
+    color: v.$accent;
+  }
+
+  &--amber {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+  }
+
+  &--warn {
+    background: rgba(255, 107, 107, 0.15);
+    color: #ff6b6b;
+  }
+}
+
+.gm-console-activity-stat__value {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+
+  &--blue {
+    color: #5cc7f5;
+  }
+
+  &--amber {
+    color: #fbbf24;
+  }
+
+  &--warn {
+    color: #ff6b6b;
+  }
+}
+
+.gm-console-activity-stat__sub {
+  font-size: 11px;
+  color: v.$text-muted-45;
+  margin-top: 6px;
+
+  &--up {
+    color: v.$success;
+  }
+}
+
+.gm-console-activity-stat--warn {
+  border-color: rgba(255, 107, 107, 0.35);
+
+  .gm-console-activity-stat__value {
+    color: #ff6b6b;
+  }
+}
+
+// ---- Activity: "what players are doing" bar list ----
+.gm-console-bar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gm-console-bar-list__row {
+  display: grid;
+  grid-template-columns: 108px 1fr 44px;
+  align-items: center;
+  gap: 8px;
+}
+
+.gm-console-bar-list__label {
+  font-size: 11.5px;
+  color: v.$text-muted-55;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gm-console-bar-list__track {
+  height: 8px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.gm-console-bar-list__fill {
+  height: 100%;
+  border-radius: 5px;
+  background: v.$accent;
+}
+
+.gm-console-bar-list__count {
+  font-size: 12px;
+  text-align: right;
+  color: v.$text-primary;
+}
+
+// ---- Activity: retention ----
+.gm-console-retention {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gm-console-retention__row {
+  display: grid;
+  grid-template-columns: 52px 1fr 40px;
+  align-items: center;
+  gap: 10px;
+}
+
+.gm-console-retention__label {
+  font-size: 11.5px;
+  color: v.$text-muted-55;
+}
+
+.gm-console-retention__track {
+  height: 8px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.gm-console-retention__fill {
+  height: 100%;
+  border-radius: 5px;
+  background: v.$success;
+}
+
+.gm-console-retention__row--0 .gm-console-retention__fill {
+  background: v.$success;
+}
+
+.gm-console-retention__row--1 .gm-console-retention__fill {
+  background: #5cc7f5;
+}
+
+.gm-console-retention__row--2 .gm-console-retention__fill {
+  background: #fbbf24;
+}
+
+.gm-console-retention__pct {
+  font-size: 12px;
+  text-align: right;
+}
+
+// ---- Activity: top players ----
+.gm-console-top-players {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gm-console-top-players__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gm-console-top-players__rank {
+  width: 16px;
+  font-size: 12px;
+  color: v.$text-muted-40;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.gm-console-top-players__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: v.$accent-tint-15;
+  color: v.$accent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.gm-console-top-players__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.gm-console-top-players__name {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.gm-console-top-players__meta {
+  font-size: 11px;
+  color: v.$text-muted-40;
+  text-transform: capitalize;
+}
+
+.gm-console-top-players__stats {
+  text-align: right;
+}
+
+.gm-console-top-players__power {
+  font-size: 13px;
+  font-weight: 700;
+  color: v.$accent;
+}
+
+.gm-console-top-players__lvl {
+  font-size: 10.5px;
+  color: v.$text-muted-40;
+}
+
+// ---- Activity: live health ----
+.gm-console-health {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gm-console-health-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.gm-console-health-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: v.$radius-sm;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+
+  &:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+.gm-console-health__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: v.$success;
+  flex-shrink: 0;
+
+  &.is-warn {
+    background: #ff6b6b;
+  }
+}
+
+.gm-console-health-tile__label {
+  font-size: 10.5px;
+  color: v.$text-muted-45;
+  margin-left: 6px;
+}
+
+.gm-console-health-tile__value {
+  font-size: 17px;
+  font-weight: 800;
+  color: v.$text-primary;
+}
+
+.gm-console-health__banner {
+  padding: 10px 12px;
+  border-radius: v.$radius-sm;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: rgba(16, 185, 129, 0.1);
+  color: v.$success;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+
+  &.is-warn {
+    background: rgba(255, 107, 107, 0.1);
+    color: #ff6b6b;
+    border-color: rgba(255, 107, 107, 0.3);
+  }
+}
+
+.gm-console-activity-charts {
+  @include m.grid-auto-fit(280px, 14px);
+  margin-bottom: 18px;
+}
+
+.gm-console-activity-chart-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: v.$radius-lg;
+  padding: 16px;
+}
+
+.gm-console-activity-chart-card__title {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: v.$text-muted-55;
+  margin-bottom: 10px;
+}
+
+.gm-console-activity-stat--link {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-decoration: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  &:hover {
+    border-color: v.$accent-tint-30;
+    background: v.$accent-tint-15;
+  }
+
+  .gm-console-activity-stat__label {
+    color: v.$accent;
+    text-transform: none;
+    font-size: 12.5px;
+    font-weight: 700;
+  }
+}
+
+// ---- Overview: action items ----
+.gm-console-todo-grid {
+  @include m.grid-auto-fit(180px, 12px);
+  margin-bottom: 24px;
+}
+
+.gm-console-todo-tile {
+  display: block;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: v.$radius-lg;
+  padding: 14px 16px;
+  text-decoration: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  &:hover {
+    border-color: v.$accent-tint-30;
+    background: v.$accent-tint-15;
+  }
+
+  &--warn {
+    border-color: rgba(255, 107, 107, 0.35);
+  }
+}
+
+.gm-console-todo-tile__count {
+  font-size: 24px;
+  font-weight: 800;
+  color: v.$text-primary;
+}
+
+.gm-console-todo-tile__label {
+  font-size: 12px;
+  color: v.$text-muted-45;
+  margin-top: 2px;
+}
+
 .gm-console-revenue-tile {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -497,13 +944,12 @@
 }
 
 .gm-console-config-grid {
-  @include m.grid-auto-fit(200px, 14px);
-  max-width: 700px;
+  @include m.grid-auto-fit(240px, 18px);
 }
 
 .gm-console-config-tile {
   @extend %gm-tile-base;
-  padding: 16px;
+  padding: 18px 20px;
 }
 
 .gm-console-config-tile__label {
@@ -917,8 +1363,48 @@
   .gm-console-stats-grid,
   .gm-console-revenue-grid,
   .gm-console-config-grid,
+  .gm-console-activity-stats,
+  .gm-console-activity-charts,
+  .gm-console-todo-grid,
   .edit-user-modal__grid {
     grid-template-columns: 1fr;
+  }
+
+  .gm-console-activity__toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .gm-console-bar-list__row {
+    grid-template-columns: 1fr;
+    row-gap: 4px;
+  }
+
+  .gm-console-health-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .gm-console-health-tile:last-child {
+    grid-column: auto;
+  }
+
+  .gm-console-bar-list__count {
+    text-align: left;
+  }
+
+  .gm-console-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 12px;
+
+    &::-webkit-scrollbar {
+      height: 4px;
+    }
+  }
+
+  .gm-console-tab-btn {
+    flex-shrink: 0;
   }
 
   // The feature-flags table is a fixed 3-column grid — switch to a flex

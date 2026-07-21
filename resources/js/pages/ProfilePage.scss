@@ -373,6 +373,175 @@
   margin-top: 2px;
 }
 
+.metric-cards {
+  @include m.grid-auto-fit(180px, 12px);
+  margin-bottom: v.$space-5;
+}
+
+.metric-card {
+  @include m.card(16px);
+}
+
+.metric-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.metric-card__label {
+  font-size: 10.5px;
+  color: v.$text-muted-40;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.metric-card__icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.06);
+
+  &--green {
+    background: rgba(74, 222, 128, 0.15);
+    color: #4ade80;
+  }
+
+  &--red {
+    background: rgba(255, 106, 77, 0.15);
+    color: #ff6a4d;
+  }
+
+  &--blue {
+    background: rgba(92, 199, 245, 0.15);
+    color: #5cc7f5;
+  }
+
+  &--amber {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+  }
+
+  &--purple {
+    background: rgba(167, 139, 250, 0.15);
+    color: #a78bfa;
+  }
+}
+
+.metric-card__value {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+
+  &--text {
+    font-size: 16px;
+    text-transform: capitalize;
+  }
+
+  &--green {
+    color: #4ade80;
+  }
+
+  &--red {
+    color: #ff6a4d;
+  }
+
+  &--blue {
+    color: #5cc7f5;
+  }
+
+  &--amber {
+    color: #fbbf24;
+  }
+
+  &--purple {
+    color: #a78bfa;
+  }
+}
+
+.metric-card__sub {
+  font-size: 11px;
+  color: v.$text-muted-45;
+  margin-top: 6px;
+}
+
+.activity-charts {
+  @include m.grid-auto-fit(240px, 14px);
+  margin-bottom: v.$space-5;
+}
+
+.activity-chart-card {
+  @include m.card(16px);
+
+  &--wide {
+    grid-column: 1 / -1;
+  }
+}
+
+.activity-chart-card__title {
+  font-size: 12px;
+  font-weight: 700;
+  color: v.$text-muted-55;
+  margin-bottom: 10px;
+}
+
+// Matches GM Console's .gm-console-bar-list treatment so "What you've been doing" reads as the same
+// design language across the player Profile and the GM dashboard.
+.bar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bar-list__row {
+  display: grid;
+  grid-template-columns: 108px 1fr 40px;
+  align-items: center;
+  gap: 8px;
+}
+
+.bar-list__label {
+  font-size: 11.5px;
+  color: v.$text-muted-55;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bar-list__track {
+  height: 8px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.bar-list__fill {
+  height: 100%;
+  border-radius: 5px;
+  background: v.$accent;
+
+  &--alt {
+    background: #5cc7f5;
+  }
+}
+
+.bar-list__count {
+  font-size: 12px;
+  text-align: right;
+  color: v.$text-primary;
+}
+
+.fun-stats-empty {
+  font-size: 12px;
+  color: v.$text-muted-40;
+}
+
 .quests-completed-banner {
   @include m.card(22px);
   text-align: center;

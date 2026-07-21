@@ -93,10 +93,26 @@ const activeSkillRows = computed(() => (characterStore.character?.skills || []).
 // not a wall-clock timer, so it only ever changes when the server sends back an updated `battle` after an
 // action (no local ticking needed, unlike the old seconds-based version).
 const skillCooldowns = computed(() => battle.value?.skill_cooldowns_json ?? {});
-const potion = computed(() => {
+// Every usable-in-battle consumable (heal, mana, or the elixir ATK buff) with stock — not just the
+// single auto-picked "best" potion, so you can choose e.g. a mana potion over a health potion, or save
+// your Phoenix Elixir for later. Using one is a free action (see CombatService::act()'s $type==='item'
+// branch) — it doesn't end your turn.
+const usableConsumables = computed(() => {
   const inv = characterStore.character?.inventory ?? [];
-  return inv.find((i) => i.item?.type === 'consumable' && i.item?.stat_json?.heal_hp_pct && i.qty > 0) ?? null;
+  return inv.filter((i) => {
+    const stats = i.item?.stat_json ?? {};
+    return i.item?.type === 'consumable' && i.qty > 0 && (stats.heal_hp_pct || stats.heal_mp_pct || stats.atk_pct_buff);
+  });
 });
+
+function consumableLabel(row) {
+  const stats = row.item?.stat_json ?? {};
+  const parts = [];
+  if (stats.heal_hp_pct) parts.push(`+${stats.heal_hp_pct}% HP`);
+  if (stats.heal_mp_pct) parts.push(`+${stats.heal_mp_pct}% MP`);
+  if (stats.atk_pct_buff) parts.push(`+${stats.atk_pct_buff}% ATK`);
+  return `${row.item.glyph || '🧪'} ${row.item.name} (${parts.join(', ')})`;
+}
 
 const LOG_COLORS = [
   { match: /critical/i, color: '#eab308' },
@@ -418,12 +434,16 @@ onUnmounted(() => {
             </template>
           </button>
           <button
+            v-for="row in usableConsumables"
+            :key="row.item_id"
             class="btn-item"
-            @click="act('item', { item_id: potion.item_id })"
-            :disabled="loading || !potion"
+            @click="act('item', { item_id: row.item_id })"
+            :disabled="loading"
+            :title="consumableLabel(row)"
           >
-            🧪 Potion ({{ potion?.qty ?? 0 }})
+            {{ row.item.glyph || '🧪' }} {{ row.item.name }} ({{ row.qty }})
           </button>
+          <p v-if="!usableConsumables.length" class="no-consumables-hint">No usable potions or elixirs.</p>
         </div>
 
         <div class="battle-log">

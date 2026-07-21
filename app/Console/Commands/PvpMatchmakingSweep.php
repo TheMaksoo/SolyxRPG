@@ -18,7 +18,8 @@ class PvpMatchmakingSweep extends Command
     public function handle(PvpMatchmakingService $matchmaking): int
     {
         $matched = $matchmaking->sweep();
-        $this->info("{$matched} PvP match(es) created from the queue backstop sweep.");
+        $purged = $matchmaking->purgeStaleEntries();
+        $this->info("{$matched} PvP match(es) created from the queue backstop sweep. {$purged} stale queue entry(ies) (>5m) purged.");
 
         return self::SUCCESS;
     }

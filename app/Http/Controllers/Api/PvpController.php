@@ -31,10 +31,16 @@ class PvpController extends Controller
 
         $record = $character->pvpRecord()->firstOrCreate([], ['rating' => 1000]);
 
+        // Only ever list rivals who could actually accept the challenge right now — a character whose
+        // owner has lost PvP access (feature flag toggled off for them, e.g. a tester-only rollout) would
+        // otherwise show up as challengeable and then 403 the moment you hit Challenge.
         $opponents = Character::where('id', '!=', $character->id)
-            ->with('pvpRecord')
-            ->limit(20)
+            ->with(['pvpRecord', 'user'])
+            ->limit(40)
             ->get()
+            ->filter(fn (Character $c) => FeatureFlag::gate('pvp', $c->user))
+            ->take(20)
+            ->values()
             ->map(fn (Character $c) => [
                 'character' => $c,
                 'rating' => $c->pvpRecord->rating ?? 1000,
@@ -136,6 +142,14 @@ class PvpController extends Controller
         $entry = $this->matchmaking->queueEntryFor($character->id);
         if (! $entry) {
             return response()->json(['status' => 'idle']);
+        }
+
+        // Nobody suitable showed up in 5 minutes — stop searching instead of leaving the player queued
+        // forever; "no rival nearby" is a real, honest answer rather than an endless spinner.
+        if (now()->diffInSeconds($entry->queued_at) >= 300) {
+            $entry->delete();
+
+            return response()->json(['status' => 'timeout']);
         }
 
         $match = $this->matchmaking->attemptMatch($character);

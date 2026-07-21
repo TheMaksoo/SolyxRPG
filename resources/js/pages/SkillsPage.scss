@@ -71,6 +71,14 @@
   color: v.$text-muted-45;
 }
 
+.class-tier-card__bonus {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: v.$accent-soft;
+}
+
 .class-tier-card__options {
   display: flex;
   flex-direction: column;

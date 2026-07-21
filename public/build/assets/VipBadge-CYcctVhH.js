@@ -1,1 +1,0 @@
-import{_ as t,s as a,c as n,t as s,n as r,e as i}from"./app-BLRpXL0h.js";const c={__name:"VipBadge",props:{tier:{type:String,default:"none"}},setup(e){return(o,p)=>e.tier&&e.tier!=="none"?(a(),n("span",{key:0,class:r(["vip-badge",`vip-badge--${e.tier}`])},s(e.tier),3)):i("",!0)}},l=t(c,[["__scopeId","data-v-7a518fb3"]]);export{l as V};

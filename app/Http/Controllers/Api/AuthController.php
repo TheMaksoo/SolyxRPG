@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password as PasswordRule;
+use Stripe\StripeClient;
 
 class AuthController extends Controller
 {
@@ -93,6 +94,9 @@ class AuthController extends Controller
 
         return response()->json([
             'user' => $user,
+            // password is #[Hidden] on User and never serialized — exposed here as a bool only, so
+            // Settings knows whether to ask for a password or a typed confirmation before deleting.
+            'has_password' => $user->password !== null,
             // Surfaced here (rather than only under /gm/feature-flags, which players can't reach) so a
             // tester's own Settings toggle can show whether their perks are actually live right now, not
             // just whether they've personally opted in — the GM's global switch is the other half of it.
@@ -129,6 +133,7 @@ class AuthController extends Controller
         $data = $request->validate([
             'highlight_mentions' => ['sometimes', 'boolean'],
             'compact_battle_log' => ['sometimes', 'boolean'],
+            'reduce_motion' => ['sometimes', 'boolean'],
         ]);
 
         $user = $request->user();
@@ -136,6 +141,43 @@ class AuthController extends Controller
         $user->save();
 
         return response()->json(['preferences' => $user->preferences]);
+    }
+
+    /** Permanent, self-service account deletion. Cancels any active Stripe subscription immediately
+     * (no proration/refund — matches the ToS's "purchases are final") so deleting the account also stops
+     * future billing, then deletes the user row. Every gameplay table (characters, inventory, guild
+     * membership, tickets, etc.) hangs off `user_id`/`character_id` foreign keys declared with
+     * cascadeOnDelete() in their migrations, so the single User::delete() call cascades the entire graph
+     * at the database level — no manual per-table cleanup needed. */
+    public function deleteAccount(Request $request)
+    {
+        $user = $request->user();
+
+        // OAuth-only accounts (Discord/Google) have no password set — nothing to verify beyond the
+        // already-authenticated session, so the frontend gates this with a typed "DELETE" confirmation instead.
+        if ($user->password) {
+            $request->validate(['password' => ['required', 'string']]);
+
+            if (! Hash::check($request->input('password'), $user->password)) {
+                return response()->json(['message' => 'Incorrect password.'], 422);
+            }
+        }
+
+        if ($user->stripe_subscription_id && config('services.stripe.secret')) {
+            try {
+                $stripe = new StripeClient(config('services.stripe.secret'));
+                $stripe->subscriptions->cancel($user->stripe_subscription_id);
+            } catch (\Exception $e) {
+                // Subscription may already be canceled/expired on Stripe's side — don't block deletion over it.
+            }
+        }
+
+        Auth::guard('web')->logout();
+        $user->delete();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return response()->json(['message' => 'Account deleted.']);
     }
 
     public function forgotPassword(Request $request)

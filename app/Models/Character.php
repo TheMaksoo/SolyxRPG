@@ -236,9 +236,14 @@ class Character extends Model
         $party = $this->partyBonuses();
         $classPassives = $this->classPassiveBonuses($hasArmorSlotEquipped);
         $specPassives = $this->subclassPassiveBonuses();
+        // Elixir of Power / Phoenix Elixir consumables (see InventoryController::use() and
+        // CombatService's in-battle item branch, which set these two columns) — a temporary ATK% buff
+        // that lasts a fixed number of *fights* rather than real time, decremented once per battle
+        // resolution in CombatService::resolveWin()/resolveLoss().
+        $elixirAtkPct = $this->atk_buff_fights_left > 0 ? $this->atk_buff_pct : 0;
 
         $atkSubtotal = $this->base_atk + $attr->damage * 5 + $gearAtk;
-        $effAtk = (int) round($atkSubtotal * (1 + ($petAtkPct + $skillPassives['atk_pct'] + $party['atk_pct'] + $classPassives['atk_pct'] + $specPassives['atk_pct']) / 100));
+        $effAtk = (int) round($atkSubtotal * (1 + ($petAtkPct + $skillPassives['atk_pct'] + $party['atk_pct'] + $classPassives['atk_pct'] + $specPassives['atk_pct'] + $elixirAtkPct) / 100));
 
         $defSubtotal = $this->base_def + $attr->armor * 4 + $gearDef;
         $effDef = (int) round($defSubtotal * (1 + ($petDefPct + $skillPassives['def_pct'] + $party['def_pct'] + $classPassives['def_pct'] + $classPassives['shield_def_pct'] + $specPassives['def_pct']) / 100));
@@ -277,6 +282,7 @@ class Character extends Model
                 ['label' => 'Party Bonus', 'value' => $party['atk_pct']],
                 ['label' => 'Class Passive', 'value' => $classPassives['atk_pct']],
                 ['label' => 'Subclass Passive', 'value' => $specPassives['atk_pct']],
+                ['label' => 'Elixir Buff', 'value' => $elixirAtkPct],
             ]),
             'eff_def' => $this->statSourceBreakdown($effDef, [
                 ['label' => 'Base', 'value' => $this->base_def, 'always' => true],
@@ -356,6 +362,8 @@ class Character extends Model
             'pet_xp_bonus_pct' => $petXpPct,
             'pet_gather_speed_pct' => $petGatherSpeedPct,
             'pet_craft_speed_pct' => $petCraftSpeedPct,
+            'atk_buff_pct' => $elixirAtkPct,
+            'atk_buff_fights_left' => $elixirAtkPct > 0 ? $this->atk_buff_fights_left : 0,
             'has_undying' => $skillPassives['has_undying'],
             'party_bonuses' => $party,
             'power' => $power,
@@ -463,6 +471,21 @@ class Character extends Model
         };
     }
 
+    /** Human-readable mirror of subclassPassiveBonuses() below, so the Skills page can actually show what
+     * each t20 subclass choice does mechanically instead of leaving players to pick blind off flavor text
+     * alone — see ClassProgressionController::index(). Keep this in sync with subclassPassiveBonuses() by
+     * hand; t40/profession and t60/ascension have no entries here since they carry no real bonus yet. */
+    public const SUBCLASS_BONUS_TEXT = [
+        'berserker' => '+6% ATK, -4% DEF',
+        'guardian' => '+8% DEF',
+        'shadowmage' => '+6% ATK',
+        'elementalist' => '+4% Crit Chance',
+        'assassin' => '+4% ATK, +4% Crit Chance',
+        'trickster' => '+6% Dodge Chance',
+        'hunter' => '+4% ATK',
+        'beastmaster' => '+6% HP, +3% DEF',
+    ];
+
     /** Lv.20 subclass identity (Character::spec_class, chosen via chooseProfession('t20', ...) against
      * ClassProgression — see ClassSeeder for the two options per base class). Purely flavor/name/glyph
      * until now; this is where each pair's two subclasses actually diverge mechanically, stacking on top
@@ -528,6 +551,21 @@ class Character extends Model
         $pct = ($this->user?->vipRegenPctBonus() ?? 0) + $this->activeBuffPct('mana_regen_buff_pct', 'mana_regen_buff_expires_at');
 
         return max(1, (int) round($base * (1 + $pct / 100)));
+    }
+
+    /** Ticks the Elixir of Power / Phoenix Elixir ATK buff down by one fight — called once per battle
+     * resolution (win or loss) in CombatService, not per action, since "next N fights" counts fights
+     * entered, not turns taken. Clears the pct once the counter bottoms out. */
+    public function decrementAtkBuffFight(): void
+    {
+        if ($this->atk_buff_fights_left <= 0) {
+            return;
+        }
+
+        $this->atk_buff_fights_left -= 1;
+        if ($this->atk_buff_fights_left <= 0) {
+            $this->atk_buff_pct = 0;
+        }
     }
 
     /** Reads a temporary regen-buff column pair, returning 0 once the buff has expired. */

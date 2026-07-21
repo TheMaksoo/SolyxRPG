@@ -63,9 +63,9 @@ const branches = computed(() => {
         const nextRank = (owned?.level ?? 0) + 1;
         const nextRankLevel = skill.rank_levels?.[nextRank - 1] ?? skill.level_req;
         const nextRankLevelOk = (store.character?.level ?? 0) >= nextRankLevel;
-        // Rank N costs N² skill points — unlocking (rank 1) is always 1 point. Matches
+        // Rank N costs N skill points — unlocking (rank 1) is always 1 point. Matches
         // CharacterController::unlockSkill()'s cost curve.
-        const cost = unlocked ? nextRank * nextRank : 1;
+        const cost = unlocked ? nextRank : 1;
         const hasPoints = (store.character?.skill_points ?? 0) >= cost;
         const canUnlock = !unlocked && prevUnlocked && levelOk && hasPoints;
         const canUpgrade = unlocked && !maxed && hasPoints && nextRankLevelOk;
@@ -169,6 +169,7 @@ onMounted(load);
           <div>
             <div class="ox class-tier-card__chosen-name">{{ t.chosen.name }}</div>
             <div class="class-tier-card__chosen-desc">{{ t.chosen.description }}</div>
+            <div v-if="t.chosen.bonus_text" class="class-tier-card__bonus">{{ t.chosen.bonus_text }}</div>
           </div>
         </div>
         <div v-else-if="t.isChoose" class="class-tier-card__options">
@@ -179,7 +180,11 @@ onMounted(load);
             class="class-tier-card__option-btn"
           >
             <span class="class-tier-card__option-glyph">{{ o.glyph }}</span>
-            <span><span class="class-tier-card__option-name">{{ o.name }}</span><br /><span class="class-tier-card__option-desc">{{ o.description }}</span></span>
+            <span>
+              <span class="class-tier-card__option-name">{{ o.name }}</span><br />
+              <span class="class-tier-card__option-desc">{{ o.description }}</span>
+              <span v-if="o.bonus_text" class="class-tier-card__bonus">{{ o.bonus_text }}</span>
+            </span>
           </button>
         </div>
         <div v-else class="class-tier-card__locked">🔒 {{ t.reqText }}</div>

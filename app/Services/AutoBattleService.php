@@ -215,12 +215,23 @@ class AutoBattleService
 
             if ($hpPct <= 30) {
                 $potion = $this->bestHealingPotion($character);
-                $result = $potion
-                    ? $this->combat->act($battle, $character->fresh(), 'item', null, $potion->item_id)
-                    : $this->combat->flee($battle, $character->fresh());
-            } else {
-                $result = $this->combat->act($battle, $character->fresh(), 'attack');
+                if (! $potion) {
+                    $fleeResult = $this->combat->flee($battle, $character->fresh());
+
+                    return $this->extractOutcome($fleeResult['result']);
+                }
+
+                // Drinking a potion is a free action (CombatService::act() doesn't pass the turn for
+                // 'item') — heal, then still attack this same round instead of burning a whole loop
+                // iteration on the heal alone.
+                $healResult = $this->combat->act($battle, $character->fresh(), 'item', null, $potion->item_id);
+                if ($healResult['result']) {
+                    return $this->extractOutcome($healResult['result']);
+                }
+                $battle = $healResult['battle'];
             }
+
+            $result = $this->combat->act($battle, $character->fresh(), 'attack');
 
             if ($result['result']) {
                 return $this->extractOutcome($result['result']);

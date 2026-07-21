@@ -31,6 +31,14 @@ class PvpMatchmakingService
         PvpQueueEntry::where('character_id', $characterId)->delete();
     }
 
+    /** Backstop for players who close the tab/app while queued and never poll queue/status again (which
+     * is what normally catches the same 5-minute timeout) — swept alongside sweep() so a stale queue row
+     * can't sit forever inflating the pool. Returns how many entries were purged. */
+    public function purgeStaleEntries(): int
+    {
+        return PvpQueueEntry::where('queued_at', '<=', now()->subMinutes(5))->delete();
+    }
+
     /** Rating band (±) a queued character will accept an opponent from, widening the longer they've waited
      * so a rare high/low rating rarely waits forever — starts at ±100, +50 every 30s queued, capped at
      * ±1000 (by a few minutes in, effectively "anyone currently searching"). */

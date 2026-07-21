@@ -16,12 +16,19 @@
 }
 
 .settings-content {
-  @include m.centered-column(420px);
+  @include m.centered-column(760px);
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+  align-items: start;
 }
 
 .linked-accounts-card {
   @include m.card(22px);
-  margin-bottom: 16px;
 }
 
 .linked-accounts-card__title {
@@ -76,14 +83,15 @@
 }
 
 .customize-tester-toggle {
-  @include m.card(14px);
+  @include m.card(20px);
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
+  flex-direction: column;
+  gap: 12px;
   border-color: rgba(16, 185, 129, 0.35);
-  margin-top: 16px;
-  flex-wrap: wrap;
+
+  .toggle-switch {
+    align-self: flex-start;
+  }
 }
 
 .customize-tester-note {
@@ -94,7 +102,6 @@
 
 .preferences-card {
   @include m.card(22px);
-  margin-top: 16px;
 }
 
 .preferences-card__title {
@@ -252,6 +259,134 @@
   text-transform: capitalize;
 }
 
+.legal-card {
+  @include m.card(22px);
+}
+
+.legal-card__title {
+  font-size: 13px;
+  color: v.$text-muted-40;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 12px;
+}
+
+.legal-card__links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+
+  a {
+    color: v.$text-muted-70;
+
+    &:hover {
+      color: v.$accent-hover;
+    }
+  }
+}
+
+.danger-zone-card {
+  @include m.card(22px);
+  margin-top: 16px;
+  border-color: rgba(255, 107, 107, 0.3);
+}
+
+.danger-zone-card__title {
+  font-size: 13px;
+  color: #ff6b6b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+
+.danger-zone-card__note {
+  font-size: 12.5px;
+  color: v.$text-muted-55;
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+
+.danger-zone-card__btn {
+  padding: 10px 20px;
+  border-radius: v.$radius-md;
+  border: 1px solid rgba(255, 107, 107, 0.4);
+  background: rgba(255, 107, 107, 0.1);
+  color: #ff6b6b;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &:hover:not(:disabled) {
+    background: rgba(255, 107, 107, 0.18);
+  }
+}
+
+.delete-account-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 200;
+}
+
+.delete-account-modal {
+  @include m.card(24px);
+  max-width: 380px;
+  width: 100%;
+}
+
+.delete-account-modal__title {
+  font-size: 17px;
+  margin-bottom: 8px;
+}
+
+.delete-account-modal__note {
+  font-size: 12.5px;
+  color: v.$text-muted-55;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.delete-account-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: v.$text-muted-45;
+  margin-bottom: 12px;
+
+  input {
+    background: v.$bg-input;
+    border: 1px solid v.$border-subtle;
+    border-radius: v.$radius-sm;
+    padding: 9px 12px;
+    color: v.$text-primary;
+    font-size: 13px;
+    font-family: inherit;
+  }
+}
+
+.delete-account-modal__message {
+  font-size: 12.5px;
+  color: #ff6b6b;
+  margin-bottom: 10px;
+}
+
+.delete-account-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 @media (max-width: 768px) {
   .settings-header__icon {
     font-size: 24px;
@@ -267,14 +402,32 @@
 
   .linked-accounts-card,
   .support-card,
-  .preferences-card {
+  .preferences-card,
+  .danger-zone-card {
     padding: 16px;
   }
 
+  .danger-zone-card__btn {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .delete-account-modal {
+    padding: 18px;
+  }
+
+  .delete-account-modal__actions {
+    flex-direction: column-reverse;
+  }
+
+  .delete-account-modal__actions .settings-action-btn,
+  .delete-account-modal__actions .danger-zone-card__btn {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
   .customize-tester-toggle {
-    padding: 14px;
-    flex-direction: column;
-    align-items: flex-start;
+    padding: 16px;
   }
 
   .settings-actions {

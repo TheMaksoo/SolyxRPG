@@ -182,6 +182,12 @@ class InventoryController extends Controller
             $character->mana_regen_buff_expires_at = now()->addSeconds($duration);
             $applied[] = "+{$stats['mana_regen_pct_buff']}% mana regen for ".intdiv($duration, 60).'m';
         }
+        if (isset($stats['atk_pct_buff'])) {
+            $fights = $stats['buff_fights'] ?? 1;
+            $character->atk_buff_pct = $stats['atk_pct_buff'];
+            $character->atk_buff_fights_left = $fights;
+            $applied[] = "+{$stats['atk_pct_buff']}% ATK for your next {$fights} fight".($fights > 1 ? 's' : '');
+        }
 
         if (! $applied) {
             return response()->json(['message' => 'This item can only be used in battle.'], 422);

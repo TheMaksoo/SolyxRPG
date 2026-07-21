@@ -18,7 +18,7 @@ export const useAuthStore = defineStore('auth', {
         async fetchMe() {
             try {
                 const { data } = await api.get('/me');
-                this.user = data.user;
+                this.user = { ...data.user, has_password: data.has_password };
                 this.globalTesterMode = data.global_tester_mode;
                 this.featureAccess = data.feature_access || {};
             } catch {

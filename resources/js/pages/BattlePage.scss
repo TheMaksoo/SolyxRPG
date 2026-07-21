@@ -292,6 +292,14 @@
   text-align: center;
 }
 
+.no-consumables-hint {
+  font-size: 11.5px;
+  color: v.$text-muted-40;
+  grid-column: 1 / -1;
+  text-align: center;
+  margin: 4px 0 0;
+}
+
 .monster-art {
   width: 100%;
   max-width: 280px;

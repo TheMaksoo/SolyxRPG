@@ -80,7 +80,7 @@ async function findMatch() {
       enterLive();
     } else {
       queuedAt.value = data.queued_at;
-      elapsedSeconds.value = data.elapsed_seconds ?? 0;
+      elapsedSeconds.value = Math.max(0, Math.floor(data.elapsed_seconds ?? 0));
       enterSearching();
     }
   } catch (e) {
@@ -107,7 +107,14 @@ async function pollQueue() {
       enterLive();
     } else if (data.status === 'searching') {
       queuedAt.value = data.queued_at;
-      elapsedSeconds.value = data.elapsed_seconds ?? elapsedSeconds.value;
+      elapsedSeconds.value = Math.max(0, Math.floor(data.elapsed_seconds ?? elapsedSeconds.value));
+    } else if (data.status === 'timeout') {
+      // Searched for over an hour with nobody found — stop, and say so plainly instead of leaving the
+      // player staring at a spinner forever.
+      stopAllPolling();
+      view.value = 'lobby';
+      errorMessage.value = 'No rival nearby right now. Try again in a bit.';
+      await load();
     } else {
       // 'idle' — queue row vanished without a match (e.g. left from another tab).
       stopAllPolling();
@@ -209,9 +216,13 @@ async function backToLobby() {
 
 const hpPct = (hp, max) => (max > 0 ? Math.max(0, Math.min(100, Math.round((hp / max) * 100))) : 0);
 
+// Clamped/floored defensively — elapsedSeconds should only ever be a non-negative integer, but a stale
+// poll landing after cancelSearch()/a clock hiccup previously let a negative or fractional value slip
+// through and render as garbage like "-1:-10.86...". This can never display anything but a clean mm:ss.
 const searchDuration = computed(() => {
-  const m = Math.floor(elapsedSeconds.value / 60);
-  const s = elapsedSeconds.value % 60;
+  const total = Math.max(0, Math.floor(elapsedSeconds.value || 0));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
   return `${m}:${String(s).padStart(2, '0')}`;
 });
 

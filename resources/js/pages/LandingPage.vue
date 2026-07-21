@@ -246,7 +246,8 @@ onMounted(async () => {
 
     <div class="landing-footer">
       Solyx RPG · Built on the Solyx Discord bot ·
-      <router-link to="/terms">Terms of Service</router-link>
+      <router-link to="/terms">Terms of Service</router-link> ·
+      <router-link to="/privacy">Privacy Policy</router-link>
     </div>
   </div>
 </template>

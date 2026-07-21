@@ -122,6 +122,7 @@
   align-items: center;
   gap: v.$space-3;
   margin-bottom: v.$space-5;
+  flex-wrap: wrap;
 }
 
 @mixin centered-column($max-width) {

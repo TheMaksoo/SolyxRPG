@@ -6,6 +6,7 @@ use App\Models\AuditLog;
 use App\Models\Battle;
 use App\Models\CraftingJob;
 use App\Models\DungeonRun;
+use App\Models\ErrorLog;
 use App\Models\Inventory;
 use App\Models\Item;
 use App\Models\Mail;
@@ -34,6 +35,8 @@ use Illuminate\Console\Command;
  *   ->cascadeOnDelete() in the migration), so no separate cleanup needed there.
  * - audit_logs: 180 days. GM action audit trail — kept much longer than gameplay logs for
  *   accountability, but still shouldn't grow forever on a table nothing archives.
+ * - error_logs: 30 days. Crash reports are only useful while actively debugging a recent regression;
+ *   nothing queries them past that window.
  *
  * Every delete is chunked (chunkById) rather than a single unbounded ->delete() so a cleanup run
  * against a large table doesn't itself hold a long-running lock or blow up the query log — see the
@@ -72,6 +75,9 @@ class CleanupStaleData extends Command
                 AuditLog::where('created_at', '<', now()->subDays(180))
             ),
             'crafted_item_variants' => $this->purgeOrphanedCraftedVariants(),
+            'error_logs' => $this->purge(
+                ErrorLog::where('created_at', '<', now()->subDays(30))
+            ),
         ];
 
         foreach ($deleted as $table => $count) {

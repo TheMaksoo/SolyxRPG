@@ -20,6 +20,8 @@ use App\Http\Controllers\Api\Gm\GmBroadcastController;
 use App\Http\Controllers\Api\Gm\GmConfigController;
 use App\Http\Controllers\Api\Gm\GmContentController;
 use App\Http\Controllers\Api\Gm\GmFeatureFlagController;
+use App\Http\Controllers\Api\Gm\GmAnalyticsController;
+use App\Http\Controllers\Api\Gm\GmErrorLogController;
 use App\Http\Controllers\Api\Gm\GmMetricsController;
 use App\Http\Controllers\Api\Gm\GmPlayerController;
 use App\Http\Controllers\Api\Gm\GmTicketController;
@@ -74,10 +76,12 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/me/tester-mode', [AuthController::class, 'toggleTesterMode']);
     Route::put('/me/preferences', [AuthController::class, 'updatePreferences']);
+    Route::delete('/me', [AuthController::class, 'deleteAccount']);
     Route::get('/announcements', [AnnouncementController::class, 'index']);
     Route::get('/nav-badges', [NavBadgeController::class, 'index']);
 
     Route::get('/character', [CharacterController::class, 'show']);
+    Route::get('/character/activity', [CharacterController::class, 'activity']);
     Route::post('/character', [CharacterController::class, 'store']);
     Route::post('/character/attributes', [CharacterController::class, 'spendAttribute']);
     Route::post('/character/skills/{skill}', [CharacterController::class, 'unlockSkill']);
@@ -232,6 +236,8 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
         Route::post('/players/{user}/clear-stuck-state', [GmPlayerController::class, 'clearStuckState']);
 
         Route::get('/metrics', [GmMetricsController::class, 'index']);
+        Route::get('/analytics', [GmAnalyticsController::class, 'index']);
+        Route::get('/errors', [GmErrorLogController::class, 'index']);
 
         Route::get('/tickets', [GmTicketController::class, 'index']);
         Route::post('/tickets/{ticket}/resolve', [GmTicketController::class, 'resolve']);

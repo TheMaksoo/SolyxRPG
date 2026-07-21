@@ -4,6 +4,8 @@ import { useRoute } from 'vue-router';
 import api from '../../api/client';
 import { useAuthStore } from '../../stores/auth';
 import GmContentEditor from './GmContentEditor.vue';
+import ActivityChart from '../../components/admin/ActivityChart.vue';
+import InfoTooltip from '../../components/InfoTooltip.vue';
 import { RESOURCE_SCHEMAS } from './resourceSchemas';
 
 const route = useRoute();
@@ -37,27 +39,64 @@ const metrics = ref(null);
 function formatCents(cents) {
   return ((cents || 0) / 100).toFixed(2);
 }
-const TAB_KEYS = ['overview', 'content', 'players', 'economy', 'tickets', 'broadcast', 'audit'];
+const TAB_KEYS = ['overview', 'activity', 'content', 'players', 'economy', 'revenue', 'flags', 'tickets', 'broadcast', 'audit'];
 // Supports deep-linking straight to a tab (e.g. /admin?tab=tickets from the Settings page's
 // "manage tickets" link) while still defaulting to the overview tab otherwise.
 const tab = ref(TAB_KEYS.includes(route.query.tab) ? route.query.tab : 'overview');
 const TABS = [
   { key: 'overview', label: 'Overview' },
+  { key: 'activity', label: 'Activity' },
   { key: 'content', label: 'Content' },
   { key: 'players', label: 'Players' },
   { key: 'economy', label: 'Economy' },
+  { key: 'revenue', label: 'Revenue' },
+  { key: 'flags', label: 'Feature Flags' },
   { key: 'tickets', label: 'Tickets' },
   { key: 'broadcast', label: 'Broadcast' },
   { key: 'audit', label: 'Audit Log' },
 ];
 
-// Overview
+// Activity tab — real engagement analytics (signups/battles/active-character trend, content interest,
+// class & level distribution). See GmAnalyticsController for the query side.
+const analytics = ref(null);
+const analyticsRangeDays = ref(30);
+
+async function loadActivity() {
+  const { data } = await api.get('/gm/analytics', { params: { days: analyticsRangeDays.value } });
+  analytics.value = data;
+}
+
+function formatPct(v) {
+  return v === null || v === undefined ? '—' : `${v}%`;
+}
+
+const classChartData = computed(() => {
+  const dist = analytics.value?.class_distribution ?? {};
+  return { labels: Object.keys(dist), data: Object.values(dist) };
+});
+
+const levelChartData = computed(() => {
+  const rows = analytics.value?.level_distribution ?? [];
+  return { labels: rows.map((r) => r.bucket), data: rows.map((r) => r.count) };
+});
+
+function seriesChartData(key) {
+  const rows = analytics.value?.daily?.[key] ?? [];
+  return {
+    labels: rows.map((r) => r.date.slice(5)),
+    data: rows.map((r) => r.count),
+  };
+}
+
+// Overview — a curated "what matters right now" summary: quick totals (from Activity's analytics),
+// game-content totals, an action-items panel (open tickets/bug reports), and the tester-mode quick
+// toggle. The full Feature Flags table and Revenue breakdown live in their own tabs (see loadFlags()/
+// loadRevenue() below) so Overview stays a glance, not another wall of tables.
 const flags = ref([]);
 const contentCounts = ref({});
 
 async function loadOverview() {
-  const { data } = await api.get('/gm/feature-flags');
-  flags.value = data.flags;
+  await Promise.all([loadFlags(), loadActivity(), loadTickets()]);
 
   const entries = await Promise.all(
     Object.keys(RESOURCE_SCHEMAS).map(async (key) => {
@@ -66,9 +105,11 @@ async function loadOverview() {
     })
   );
   contentCounts.value = Object.fromEntries(entries);
+}
 
-  const { data: metricsData } = await api.get('/gm/metrics');
-  metrics.value = metricsData;
+async function loadFlags() {
+  const { data } = await api.get('/gm/feature-flags');
+  flags.value = data.flags;
 }
 
 async function toggleFlag(flag, field) {
@@ -76,9 +117,18 @@ async function toggleFlag(flag, field) {
   Object.assign(flag, data.flag);
 }
 
-// The tester-mode banner is a second UI entry point onto the same flag row/toggleFlag() call already
-// used in the Feature Flags table below — no separate endpoint or state.
+// The tester-mode banner is a second UI entry point onto the same flag row/toggleFlag() call the
+// Feature Flags tab's table uses — no separate endpoint or state.
 const globalTesterFlag = computed(() => flags.value.find((f) => f.key === 'global_tester_mode'));
+
+async function loadRevenue() {
+  const { data } = await api.get('/gm/metrics');
+  metrics.value = data;
+}
+
+const openBugReportCount = computed(
+  () => tickets.value.filter((t) => t.category === 'bug' && ['open', 'pending'].includes(t.status)).length
+);
 
 // Content tab
 const resource = ref('items');
@@ -319,8 +369,11 @@ async function loadAuditLog() {
 function switchTab(key) {
   tab.value = key;
   if (key === 'overview') loadOverview();
+  if (key === 'activity') loadActivity();
   if (key === 'players') loadPlayers();
   if (key === 'economy') loadConfig();
+  if (key === 'revenue') loadRevenue();
+  if (key === 'flags') loadFlags();
   if (key === 'tickets') loadTickets();
   if (key === 'audit') loadAuditLog();
 }
@@ -383,7 +436,48 @@ onMounted(() => {
         </label>
       </div>
 
-      <div class="gm-console-section-label gm-console-section-label--spaced">GAME CONTENT</div>
+      <div class="gm-console-section-label gm-console-section-label--spaced">RIGHT NOW</div>
+      <div v-if="analytics" class="gm-console-activity-stats">
+        <div class="gm-console-activity-stat">
+          <div class="gm-console-activity-stat__label">Total users</div>
+          <div class="ox gm-console-activity-stat__value">{{ analytics.headline.total_users }}</div>
+          <div class="gm-console-activity-stat__sub">+{{ analytics.headline.new_users_7d }} last 7d</div>
+        </div>
+        <div class="gm-console-activity-stat">
+          <div class="gm-console-activity-stat__label">Active now</div>
+          <div class="ox gm-console-activity-stat__value">{{ analytics.headline.active_1h }}</div>
+          <div class="gm-console-activity-stat__sub">last hour · {{ analytics.headline.active_24h }} today</div>
+        </div>
+        <div class="gm-console-activity-stat">
+          <div class="gm-console-activity-stat__label">Battles today</div>
+          <div class="ox gm-console-activity-stat__value">{{ analytics.headline.battles_today }}</div>
+          <div class="gm-console-activity-stat__sub">{{ analytics.headline.battles_total }} all-time</div>
+        </div>
+        <router-link :to="{ query: { tab: 'activity' } }" class="gm-console-activity-stat gm-console-activity-stat--link" @click="switchTab('activity')">
+          <div class="gm-console-activity-stat__label">Full activity dashboard →</div>
+          <div class="gm-console-activity-stat__sub">Signups, engagement trends, content interest</div>
+        </router-link>
+      </div>
+
+      <div class="gm-console-section-label gm-console-section-label--spaced">ACTION ITEMS</div>
+      <div class="gm-console-todo-grid">
+        <router-link :to="{ query: { tab: 'tickets' } }" class="gm-console-todo-tile" @click="switchTab('tickets')">
+          <div class="ox gm-console-todo-tile__count">{{ openTicketCount }}</div>
+          <div class="gm-console-todo-tile__label">Open support tickets</div>
+        </router-link>
+        <router-link :to="{ query: { tab: 'tickets' } }" class="gm-console-todo-tile" :class="{ 'gm-console-todo-tile--warn': openBugReportCount > 0 }" @click="switchTab('tickets')">
+          <div class="ox gm-console-todo-tile__count">{{ openBugReportCount }}</div>
+          <div class="gm-console-todo-tile__label">🐞 Open bug reports</div>
+        </router-link>
+        <router-link :to="{ query: { tab: 'revenue' } }" class="gm-console-todo-tile" @click="switchTab('revenue')">
+          <div class="gm-console-todo-tile__label">Revenue breakdown →</div>
+        </router-link>
+        <router-link :to="{ query: { tab: 'flags' } }" class="gm-console-todo-tile" @click="switchTab('flags')">
+          <div class="gm-console-todo-tile__label">Feature flags →</div>
+        </router-link>
+      </div>
+
+      <div class="gm-console-section-label gm-console-section-label--spaced">GAME CONTENT TOTALS</div>
       <div class="gm-console-stats-grid">
         <div
           v-for="(count, key) in contentCounts"
@@ -395,10 +489,11 @@ onMounted(() => {
           <div class="gm-console-stat-tile__label">{{ key }}</div>
         </div>
       </div>
+    </div>
 
-      <div class="gm-console-flags-header">
-        <div class="gm-console-section-label">FEATURE FLAGS</div>
-      </div>
+    <!-- FEATURE FLAGS -->
+    <div v-else-if="tab === 'flags'">
+      <p class="gm-console-intro">LIVE makes a feature reachable by everyone. TESTERS-only features stay reachable only to designated testers while Global Tester Mode (Overview) is on.</p>
       <div class="gm-console-panel">
         <div class="gm-console-flags-row gm-console-flags-row--header">
           <div>FEATURE</div><div class="gm-console-flags-row__cell--center">LIVE</div><div class="gm-console-flags-row__cell--center">TESTERS</div>
@@ -420,7 +515,10 @@ onMounted(() => {
         </div>
         <div v-if="!flags.length" class="gm-console-empty gm-console-empty--panel">No feature flags.</div>
       </div>
+    </div>
 
+    <!-- REVENUE -->
+    <div v-else-if="tab === 'revenue'">
       <div class="gm-console-flags-header">
         <div class="gm-console-section-label">REVENUE — {{ metrics?.period?.label || 'THIS MONTH' }}</div>
       </div>
@@ -459,6 +557,221 @@ onMounted(() => {
           </div>
         </div>
       </div>
+      <p v-else class="gm-console-intro">Loading revenue…</p>
+    </div>
+
+    <!-- ACTIVITY -->
+    <div v-else-if="tab === 'activity'">
+      <div v-if="analytics" class="gm-console-activity">
+        <div class="gm-console-activity__toolbar">
+          <div class="gm-console-activity__range">
+            <button
+              v-for="d in [7, 30, 90]"
+              :key="d"
+              class="gm-console-activity__range-btn"
+              :class="{ 'is-active': analyticsRangeDays === d }"
+              @click="analyticsRangeDays = d; loadActivity();"
+            >
+              {{ d }}d
+            </button>
+          </div>
+          <div class="gm-console-activity__window-note">{{ analytics.range_days }}-day window</div>
+        </div>
+
+        <div class="gm-console-activity-stats">
+          <div class="gm-console-activity-stat">
+            <div class="gm-console-activity-stat__head">
+              <div class="gm-console-activity-stat__label">Total users</div>
+              <div class="gm-console-activity-stat__icon gm-console-activity-stat__icon--purple">👥</div>
+            </div>
+            <div class="ox gm-console-activity-stat__value">{{ analytics.headline.total_users }}</div>
+            <div class="gm-console-activity-stat__sub gm-console-activity-stat__sub--up">+{{ analytics.headline.new_users_7d }} this week</div>
+          </div>
+          <div class="gm-console-activity-stat">
+            <div class="gm-console-activity-stat__head">
+              <div class="gm-console-activity-stat__label">Active now</div>
+              <div class="gm-console-activity-stat__icon gm-console-activity-stat__icon--green">●</div>
+            </div>
+            <div class="ox gm-console-activity-stat__value">{{ analytics.headline.active_1h }}</div>
+            <div class="gm-console-activity-stat__sub">last hour · {{ analytics.headline.active_24h }} today</div>
+          </div>
+          <div class="gm-console-activity-stat">
+            <div class="gm-console-activity-stat__head">
+              <div class="gm-console-activity-stat__label">
+                DAU / MAU
+                <InfoTooltip text="Daily active users ÷ users active in the last 30 days — a rough stickiness gauge. Higher means people who play, play often." />
+              </div>
+              <div class="gm-console-activity-stat__icon gm-console-activity-stat__icon--blue">📈</div>
+            </div>
+            <div class="ox gm-console-activity-stat__value gm-console-activity-stat__value--blue">{{ formatPct(analytics.headline.dau_mau_pct) }}</div>
+            <div class="gm-console-activity-stat__sub">{{ analytics.headline.active_30d }} active in 30d</div>
+          </div>
+          <div class="gm-console-activity-stat">
+            <div class="gm-console-activity-stat__head">
+              <div class="gm-console-activity-stat__label">Battles fought</div>
+              <div class="gm-console-activity-stat__icon gm-console-activity-stat__icon--red">⚔</div>
+            </div>
+            <div class="ox gm-console-activity-stat__value">{{ analytics.headline.battles_total }}</div>
+            <div class="gm-console-activity-stat__sub">{{ analytics.headline.battles_today }} today</div>
+          </div>
+          <div class="gm-console-activity-stat">
+            <div class="gm-console-activity-stat__head">
+              <div class="gm-console-activity-stat__label">Active this week</div>
+              <div class="gm-console-activity-stat__icon gm-console-activity-stat__icon--amber">🧍</div>
+            </div>
+            <div class="ox gm-console-activity-stat__value gm-console-activity-stat__value--amber">{{ analytics.headline.active_7d }}</div>
+            <div class="gm-console-activity-stat__sub">of {{ analytics.headline.total_characters }} characters</div>
+          </div>
+          <div
+            class="gm-console-activity-stat"
+            :class="{ 'gm-console-activity-stat--warn': analytics.live_health.errors_24h > 0 }"
+          >
+            <div class="gm-console-activity-stat__head">
+              <div class="gm-console-activity-stat__label">
+                Errors (24h)
+                <InfoTooltip text="Unhandled server errors (500s) caught automatically — not player mistakes or expected 4xx validation. Zero is healthy." />
+              </div>
+              <div
+                class="gm-console-activity-stat__icon"
+                :class="analytics.live_health.errors_24h > 0 ? 'gm-console-activity-stat__icon--warn' : 'gm-console-activity-stat__icon--green'"
+              >⚠</div>
+            </div>
+            <div
+              class="ox gm-console-activity-stat__value"
+              :class="{ 'gm-console-activity-stat__value--warn': analytics.live_health.errors_24h > 0 }"
+            >{{ analytics.live_health.errors_24h }}</div>
+            <div class="gm-console-activity-stat__sub">{{ analytics.live_health.errors_7d }} in last 7d</div>
+          </div>
+        </div>
+
+        <div class="gm-console-activity-charts">
+          <div class="gm-console-activity-chart-card">
+            <div class="gm-console-activity-chart-card__title">New signups</div>
+            <ActivityChart type="line" color="#5cc7f5" v-bind="seriesChartData('signups')" />
+          </div>
+          <div class="gm-console-activity-chart-card">
+            <div class="gm-console-activity-chart-card__title">Battles played</div>
+            <ActivityChart type="line" color="#e8482f" v-bind="seriesChartData('battles')" />
+          </div>
+          <div class="gm-console-activity-chart-card">
+            <div class="gm-console-activity-chart-card__title">Active characters</div>
+            <ActivityChart type="line" color="#4ade80" v-bind="seriesChartData('active_characters')" />
+          </div>
+        </div>
+
+        <div class="gm-console-activity-charts">
+          <div class="gm-console-activity-chart-card">
+            <div class="gm-console-activity-chart-card__title">What players are doing (7d)</div>
+            <div class="gm-console-bar-list">
+              <div
+                v-for="row in analytics.content_interest"
+                :key="row.key"
+                class="gm-console-bar-list__row"
+              >
+                <div class="gm-console-bar-list__label">{{ row.label }}</div>
+                <div class="gm-console-bar-list__track">
+                  <div
+                    class="gm-console-bar-list__fill"
+                    :style="{ width: `${Math.min(100, (row.count / (analytics.content_interest[0]?.count || 1)) * 100)}%` }"
+                  ></div>
+                </div>
+                <div class="ox gm-console-bar-list__count">{{ row.count }}</div>
+              </div>
+            </div>
+          </div>
+          <div class="gm-console-activity-chart-card">
+            <div class="gm-console-activity-chart-card__title">Class distribution</div>
+            <ActivityChart type="doughnut" v-bind="classChartData" />
+          </div>
+          <div class="gm-console-activity-chart-card">
+            <div class="gm-console-activity-chart-card__title">Level distribution</div>
+            <ActivityChart type="bar" color="#a78bfa" v-bind="levelChartData" />
+          </div>
+        </div>
+
+        <div class="gm-console-activity-charts">
+          <div class="gm-console-activity-chart-card">
+            <div class="gm-console-activity-chart-card__title">
+              Retention
+              <InfoTooltip text="Of users who signed up long enough ago to have had the chance, the % that still had an active character N days later. Cohort window caps at 60 days back, so Day 30 always has a real observation window." />
+            </div>
+            <div class="gm-console-retention">
+              <div
+                v-for="(row, i) in analytics.retention"
+                :key="row.window"
+                class="gm-console-retention__row"
+                :class="`gm-console-retention__row--${i}`"
+              >
+                <div class="gm-console-retention__label">{{ row.label }}</div>
+                <div class="gm-console-retention__track">
+                  <div class="gm-console-retention__fill" :style="{ width: `${row.pct ?? 0}%` }"></div>
+                </div>
+                <div class="ox gm-console-retention__pct">{{ formatPct(row.pct) }}</div>
+              </div>
+              <div v-if="!analytics.retention.some((r) => r.cohort_size > 0)" class="gm-console-empty">
+                Not enough signup history yet to measure retention.
+              </div>
+            </div>
+          </div>
+
+          <div class="gm-console-activity-chart-card">
+            <div class="gm-console-activity-chart-card__title">
+              Top players by power
+              <InfoTooltip text="Power is the same formula the in-game Leaderboard ranks by — combined stats from level, gear, and active pets." />
+            </div>
+            <div class="gm-console-top-players">
+              <div v-for="(p, i) in analytics.top_players" :key="p.name" class="gm-console-top-players__row">
+                <div class="ox gm-console-top-players__rank">{{ i + 1 }}</div>
+                <div class="ox gm-console-top-players__avatar">{{ p.name.slice(0, 2).toUpperCase() }}</div>
+                <div class="gm-console-top-players__info">
+                  <div class="gm-console-top-players__name">{{ p.name }}</div>
+                  <div class="gm-console-top-players__meta">{{ p.base_class }}</div>
+                </div>
+                <div class="gm-console-top-players__stats">
+                  <div class="ox gm-console-top-players__power">{{ p.power.toLocaleString() }}</div>
+                  <div class="gm-console-top-players__lvl">Lv.{{ p.level }}</div>
+                </div>
+              </div>
+              <div v-if="!analytics.top_players.length" class="gm-console-empty">No characters yet.</div>
+            </div>
+          </div>
+
+          <div class="gm-console-activity-chart-card">
+            <div class="gm-console-activity-chart-card__title">
+              Live health
+              <InfoTooltip text="Real counts only — this game doesn't fake server load or API latency. Open tickets and crash-report counts are the true signal available today." />
+            </div>
+            <div class="gm-console-health">
+              <div class="gm-console-health-grid">
+                <div class="gm-console-health-tile">
+                  <span class="gm-console-health__dot" :class="{ 'is-warn': analytics.live_health.open_tickets > 0 }"></span>
+                  <span class="gm-console-health-tile__label">Open tickets</span>
+                  <span class="ox gm-console-health-tile__value">{{ analytics.live_health.open_tickets }}</span>
+                </div>
+                <div class="gm-console-health-tile">
+                  <span class="gm-console-health__dot" :class="{ 'is-warn': analytics.live_health.errors_24h > 0 }"></span>
+                  <span class="gm-console-health-tile__label">Errors, 24h</span>
+                  <span class="ox gm-console-health-tile__value">{{ analytics.live_health.errors_24h }}</span>
+                </div>
+                <div class="gm-console-health-tile">
+                  <span class="gm-console-health__dot" :class="{ 'is-warn': analytics.live_health.errors_7d > 0 }"></span>
+                  <span class="gm-console-health-tile__label">Errors, 7d</span>
+                  <span class="ox gm-console-health-tile__value">{{ analytics.live_health.errors_7d }}</span>
+                </div>
+              </div>
+              <div
+                class="gm-console-health__banner"
+                :class="{ 'is-warn': analytics.live_health.errors_24h > 0 }"
+              >
+                {{ analytics.live_health.errors_24h > 0
+                  ? `⚠ ${analytics.live_health.errors_24h} error(s) detected in the last 24h`
+                  : '✓ All systems operational' }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p v-else class="gm-console-intro">Loading activity…</p>
     </div>
 
     <!-- CONTENT -->

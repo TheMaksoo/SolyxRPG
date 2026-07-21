@@ -75,6 +75,7 @@ const routes = [
   },
   { path: '/wiki', name: 'wiki', component: pageImport('WikiPage') },
   { path: '/terms', name: 'terms', component: pageImport('TermsPage') },
+  { path: '/privacy', name: 'privacy', component: pageImport('PrivacyPage') },
   {
     path: '/',
     component: GameLayout,
@@ -100,6 +101,7 @@ router.beforeEach(async (to) => {
     isLanding ||
     to.path === '/wiki' ||
     to.path === '/terms' ||
+    to.path === '/privacy' ||
     to.path === '/forgot-password' ||
     to.path === '/reset-password';
 

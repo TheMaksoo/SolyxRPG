@@ -27,6 +27,16 @@ const unreadCount = ref(0);
 const activePlayersHour = ref(null);
 const bugReportWidget = ref(null);
 
+// Settings > Preferences > "Reduce motion" — toggles a root class that CSS animations (e.g. the topbar
+// bug-report glow) key off, rather than a fake preference with no actual effect.
+watch(
+  () => auth.user?.preferences?.reduce_motion,
+  (reduceMotion) => {
+    document.documentElement.classList.toggle('reduce-motion', !!reduceMotion);
+  },
+  { immediate: true }
+);
+
 async function loadActivePlayers() {
   try {
     const { data } = await api.get('/stats/public');
@@ -162,9 +172,6 @@ onUnmounted(() => {
         <span class="sidebar__online-dot"></span>
         {{ activePlayersHour }} active this hour
       </div>
-      <button type="button" class="sidebar__bug-report-btn" @click="bugReportWidget?.open()">
-        🐞 Report a Bug — Beta!
-      </button>
       <BugReportWidget ref="bugReportWidget" />
       <nav class="sidebar__nav">
         <template v-for="n in visibleNav" :key="n.path">
@@ -216,6 +223,9 @@ onUnmounted(() => {
           >Solyx Web Game <span class="topbar__title-sep">—</span>
           <span class="topbar__title-active">{{ activeLabel }}</span></span
         >
+        <button type="button" class="topbar__bug-report-btn" @click="bugReportWidget?.open()">
+          🐞 Report a Bug — Beta!
+        </button>
         <div class="topbar__actions">
           <router-link to="/inbox" class="topbar__inbox">
             🔔

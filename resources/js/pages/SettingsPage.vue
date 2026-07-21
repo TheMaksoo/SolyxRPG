@@ -129,6 +129,41 @@ async function sendReply(ticket) {
   }
 }
 
+// Account deletion — OAuth-only accounts have no password to verify, so they confirm by typing
+// DELETE instead (see AuthController::deleteAccount()).
+const hasPassword = computed(() => auth.user?.has_password !== false);
+const deleteModalOpen = ref(false);
+const deletePassword = ref('');
+const deleteConfirmText = ref('');
+const deleteMessage = ref('');
+const deleting = ref(false);
+
+function openDeleteModal() {
+  deletePassword.value = '';
+  deleteConfirmText.value = '';
+  deleteMessage.value = '';
+  deleteModalOpen.value = true;
+}
+
+async function confirmDeleteAccount() {
+  deleteMessage.value = '';
+  if (!hasPassword.value && deleteConfirmText.value.trim().toUpperCase() !== 'DELETE') {
+    deleteMessage.value = 'Type DELETE to confirm.';
+    return;
+  }
+  deleting.value = true;
+  try {
+    await api.delete('/me', hasPassword.value ? { data: { password: deletePassword.value } } : undefined);
+    deleteModalOpen.value = false;
+    auth.user = null;
+    router.push('/landing');
+  } catch (e) {
+    deleteMessage.value = e.response?.data?.message || 'Could not delete account.';
+  } finally {
+    deleting.value = false;
+  }
+}
+
 onMounted(() => {
   loadTickets();
   handleLinkRedirect();
@@ -143,20 +178,6 @@ onMounted(() => {
     </div>
 
     <div class="settings-content">
-      <div class="linked-accounts-card">
-        <h3 class="ox linked-accounts-card__title">Linked Accounts</h3>
-        <p v-if="linkMessage" class="support-card__message">{{ linkMessage }}</p>
-        <div v-for="p in providers" :key="p" class="linked-account-row">
-          <span class="linked-account-row__label">{{ p }}</span>
-          <a
-            v-if="!linkedTo(p)"
-            :href="`/api/auth/${p}/redirect`"
-            class="linked-account-row__link"
-          >Link</a>
-          <span v-else class="linked-account-row__status">Linked</span>
-        </div>
-      </div>
-
       <div class="settings-actions">
         <router-link
           to="/characters"
@@ -179,53 +200,77 @@ onMounted(() => {
       </div>
       <p v-if="tutorialMessage" class="support-card__message">{{ tutorialMessage }}</p>
 
-      <div class="preferences-card">
-        <h3 class="ox preferences-card__title">Preferences</h3>
-        <div class="preferences-row">
-          <span class="preferences-row__label">Highlight mentions in chat</span>
-          <label class="toggle-switch">
-            <input
-              type="checkbox"
-              aria-label="Highlight mentions in chat"
-              :checked="highlightMentions"
-              @change="togglePreference('highlight_mentions', highlightMentions)"
-            />
-            <span class="toggle-switch__track"><span class="toggle-switch__knob"></span></span>
-          </label>
+      <div class="settings-grid">
+        <div class="linked-accounts-card">
+          <h3 class="ox linked-accounts-card__title">Linked Accounts</h3>
+          <p v-if="linkMessage" class="support-card__message">{{ linkMessage }}</p>
+          <div v-for="p in providers" :key="p" class="linked-account-row">
+            <span class="linked-account-row__label">{{ p }}</span>
+            <a
+              v-if="!linkedTo(p)"
+              :href="`/api/auth/${p}/redirect`"
+              class="linked-account-row__link"
+            >Link</a>
+            <span v-else class="linked-account-row__status">Linked</span>
+          </div>
         </div>
-        <div class="preferences-row">
-          <span class="preferences-row__label">Condensed battle log</span>
-          <label class="toggle-switch">
-            <input
-              type="checkbox"
-              aria-label="Condensed battle log"
-              :checked="compactBattleLog"
-              @change="togglePreference('compact_battle_log', compactBattleLog)"
-            />
-            <span class="toggle-switch__track"><span class="toggle-switch__knob"></span></span>
-          </label>
-        </div>
-        <p v-if="preferencesMessage" class="support-card__message">{{ preferencesMessage }}</p>
-      </div>
 
-      <div v-if="canToggleTester" class="customize-tester-toggle">
-        <p class="customize-tester-note">
-          <template v-if="!auth.globalTesterMode">
-            Tester perks are currently OFF for everyone — a GM has "Global Tester Mode" disabled in Feature Flags.
-          </template>
-          <template v-else-if="!auth.user.tester_mode_disabled">
-            Tester perks are ON — every title, color and banner is unlocked; switch freely.
-          </template>
-          <template v-else>
-            Tester perks are OFF — previewing as a regular player. Flip this back on any time.
-          </template>
-        </p>
-        <label class="toggle-switch">
-          <input type="checkbox" aria-label="Toggle tester mode" :checked="!auth.user.tester_mode_disabled" @change="toggleTesterMode" />
-          <span class="toggle-switch__track"><span class="toggle-switch__knob"></span></span>
-        </label>
+        <div class="preferences-card">
+          <h3 class="ox preferences-card__title">Preferences</h3>
+          <div class="preferences-row">
+            <span class="preferences-row__label">Highlight mentions in chat</span>
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                aria-label="Highlight mentions in chat"
+                :checked="highlightMentions"
+                @change="togglePreference('highlight_mentions', highlightMentions)"
+              />
+              <span class="toggle-switch__track"><span class="toggle-switch__knob"></span></span>
+            </label>
+          </div>
+          <div class="preferences-row">
+            <span class="preferences-row__label">Condensed battle log</span>
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                aria-label="Condensed battle log"
+                :checked="compactBattleLog"
+                @change="togglePreference('compact_battle_log', compactBattleLog)"
+              />
+              <span class="toggle-switch__track"><span class="toggle-switch__knob"></span></span>
+            </label>
+          </div>
+          <p v-if="preferencesMessage" class="support-card__message">{{ preferencesMessage }}</p>
+        </div>
+
+        <div v-if="canToggleTester" class="customize-tester-toggle">
+          <p class="customize-tester-note">
+            <template v-if="!auth.globalTesterMode">
+              Tester perks are currently OFF for everyone — a GM has "Global Tester Mode" disabled in Feature Flags.
+            </template>
+            <template v-else-if="!auth.user.tester_mode_disabled">
+              Tester perks are ON — every title, color and banner is unlocked; switch freely.
+            </template>
+            <template v-else>
+              Tester perks are OFF — previewing as a regular player. Flip this back on any time.
+            </template>
+          </p>
+          <label class="toggle-switch">
+            <input type="checkbox" aria-label="Toggle tester mode" :checked="!auth.user.tester_mode_disabled" @change="toggleTesterMode" />
+            <span class="toggle-switch__track"><span class="toggle-switch__knob"></span></span>
+          </label>
+          <p v-if="testerMessage" class="support-card__message">{{ testerMessage }}</p>
+        </div>
+
+        <div class="legal-card">
+          <h3 class="ox legal-card__title">Legal</h3>
+          <div class="legal-card__links">
+            <router-link to="/terms">Terms of Service &amp; Beta Disclaimer</router-link>
+            <router-link to="/privacy">Privacy Policy</router-link>
+          </div>
+        </div>
       </div>
-      <p v-if="testerMessage" class="support-card__message">{{ testerMessage }}</p>
 
       <div class="support-card">
         <h3 class="ox support-card__title">Contact Support</h3>
@@ -270,6 +315,38 @@ onMounted(() => {
               <p v-else class="ticket-thread__closed-note">This ticket is closed.</p>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div class="danger-zone-card">
+        <h3 class="ox danger-zone-card__title">Danger Zone</h3>
+        <p class="danger-zone-card__note">
+          Permanently deletes your account, character, inventory, and all associated data. This cannot be undone.
+        </p>
+        <button type="button" class="danger-zone-card__btn" @click="openDeleteModal">Delete my account</button>
+      </div>
+    </div>
+
+    <div v-if="deleteModalOpen" class="delete-account-modal-overlay" @click.self="deleteModalOpen = false">
+      <div class="delete-account-modal">
+        <h3 class="ox delete-account-modal__title">Delete your account?</h3>
+        <p class="delete-account-modal__note">
+          This immediately and permanently deletes your account and character. There is no recovery.
+        </p>
+        <label v-if="hasPassword" class="delete-account-modal__field">
+          <span>Enter your password to confirm</span>
+          <input v-model="deletePassword" type="password" placeholder="Password" @keyup.enter="confirmDeleteAccount" />
+        </label>
+        <label v-else class="delete-account-modal__field">
+          <span>Type DELETE to confirm</span>
+          <input v-model="deleteConfirmText" placeholder="DELETE" @keyup.enter="confirmDeleteAccount" />
+        </label>
+        <p v-if="deleteMessage" class="delete-account-modal__message">{{ deleteMessage }}</p>
+        <div class="delete-account-modal__actions">
+          <button type="button" class="settings-action-btn" @click="deleteModalOpen = false">Cancel</button>
+          <button type="button" class="danger-zone-card__btn" :disabled="deleting" @click="confirmDeleteAccount">
+            {{ deleting ? 'Deleting…' : 'Permanently delete' }}
+          </button>
         </div>
       </div>
     </div>

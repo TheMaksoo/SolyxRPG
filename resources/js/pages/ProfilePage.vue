@@ -5,6 +5,7 @@ import { useCharacterStore } from '../stores/character';
 import { useAuthStore } from '../stores/auth';
 import api from '../api/client';
 import { RARITY_COLORS, RARITY_LABELS } from '../rarity';
+import ActivityChart from '../components/admin/ActivityChart.vue';
 
 const RARITY_ORDER = ['common', 'rare', 'epic', 'legendary', 'mythic'];
 
@@ -30,6 +31,7 @@ const message = ref('');
 
 const ALL_TABS = [
   { key: 'overview', label: 'Overview' },
+  { key: 'stats', label: 'Stats' },
   { key: 'achievements', label: 'Achievements' },
   { key: 'customize', label: 'Customize' },
 ];
@@ -219,15 +221,38 @@ function toggleStat(key) {
 const battlesTotal = computed(() => (store.character?.battles_won ?? 0) + (store.character?.battles_lost ?? 0));
 const winRate = computed(() => (battlesTotal.value > 0 ? Math.round(((store.character?.battles_won ?? 0) / battlesTotal.value) * 100) : 0));
 
-// ---- Fun stats ----
+// ---- Activity charts (real per-character data — see CharacterController::activity()) ----
+const activity = ref(null);
+
+async function loadActivity() {
+  const { data } = await api.get('/character/activity');
+  activity.value = data;
+}
+
+const battleTrendChartData = computed(() => {
+  const rows = activity.value?.battle_trend_14d ?? [];
+  return { labels: rows.map((r) => r.date.slice(5)), data: rows.map((r) => r.count) };
+});
+
+// Rendered as a GM-console-style label+bar+count list (see .bar-list in ProfilePage.scss, matching
+// .gm-console-bar-list) rather than a Chart.js bar — reads cleaner next to the doughnut/line charts.
+function barListMax(rows) {
+  return Math.max(1, ...rows.map((r) => r.count));
+}
+
+const winLossChartData = computed(() => ({
+  labels: ['Won', 'Lost'],
+  data: [store.character?.battles_won ?? 0, store.character?.battles_lost ?? 0],
+}));
+
+// ---- Fun stats ---- Granular gathering-resource breakdown only — battles_lost/bosses_slain (hero line)
+// and times_crafted (now in the activity_breakdown bar-list below) are deliberately excluded so nothing
+// on this tab repeats a number shown elsewhere.
 const FUN_STAT_ROWS = [
   { key: 'times_mined', label: 'Ore Mined', glyph: '⛏' },
   { key: 'times_chopped', label: 'Trees Chopped', glyph: '🪓' },
   { key: 'times_smelted', label: 'Bars Smelted', glyph: '🔥' },
   { key: 'times_foraged', label: 'Herbs Foraged', glyph: '🌿' },
-  { key: 'times_crafted', label: 'Items Crafted', glyph: '🔨' },
-  { key: 'battles_lost', label: 'Times Died', glyph: '💀' },
-  { key: 'bosses_slain', label: 'Bosses Slain', glyph: '☠' },
 ];
 
 const GATHER_STAT_LABELS = {
@@ -263,10 +288,19 @@ function activeBuff(pctKey, expiresKey) {
 const hpRegenBuff = computed(() => activeBuff('hp_regen_buff_pct', 'hp_regen_buff_expires_at'));
 const manaRegenBuff = computed(() => activeBuff('mana_regen_buff_pct', 'mana_regen_buff_expires_at'));
 
+// Elixir of Power / Phoenix Elixir — a fight-count buff (not time-based), so it reads straight off
+// stats.atk_buff_fights_left rather than activeBuff()'s expires-at check.
+const atkBuff = computed(() => {
+  const fights = store.stats?.atk_buff_fights_left ?? 0;
+  if (!fights) return null;
+  return `+${store.stats.atk_buff_pct}% for ${fights} fight${fights > 1 ? 's' : ''}`;
+});
+
 onMounted(() => {
   if (!store.character) store.fetch();
   loadAchievements();
   loadCosmetics();
+  loadActivity();
 });
 </script>
 
@@ -351,7 +385,10 @@ onMounted(() => {
                   {{ row.label }}
                 </td>
                 <td class="stats-table__base">{{ row.base ? store.character[row.base] : '—' }}</td>
-                <td class="stats-table__eff">{{ store.stats[row.key] ?? 0 }}{{ row.suffix || '' }}</td>
+                <td class="stats-table__eff">
+                  {{ store.stats[row.key] ?? 0 }}{{ row.suffix || '' }}
+                  <span v-if="row.key === 'eff_atk' && atkBuff" class="stats-table__buff">({{ atkBuff }})</span>
+                </td>
               </tr>
               <tr v-if="expandedStat === row.key && statBreakdown(row.key)" class="stats-table__breakdown-row">
                 <td colspan="3">
@@ -403,18 +440,86 @@ onMounted(() => {
         </div>
       </div>
 
-      <div class="fun-stats-eyebrow">FUN STATS</div>
-      <div class="fun-stats-panel">
-        <div v-if="favoriteSkill" class="fun-stats-favorite">
-          <span class="fun-stats-favorite__label">Favorite Skill</span>
-          <span class="fun-stats-favorite__value">{{ favoriteSkill }}</span>
-        </div>
-        <div class="fun-stats-grid">
-          <div v-for="s in FUN_STAT_ROWS" :key="s.key" class="fun-stat-chip">
-            <div class="fun-stat-chip__glyph">{{ s.glyph }}</div>
-            <div class="fun-stat-chip__value">{{ store.character[s.key] ?? 0 }}</div>
-            <div class="fun-stat-chip__label">{{ s.label }}</div>
+    </template>
+
+    <template v-else-if="tab === 'stats'">
+      <div class="metric-cards">
+        <div class="metric-card">
+          <div class="metric-card__head">
+            <div class="metric-card__label">Most-Used Skill</div>
+            <div class="metric-card__icon metric-card__icon--green">✨</div>
           </div>
+          <div class="metric-card__value metric-card__value--green metric-card__value--text">{{ activity?.top_skills?.[0]?.label || '—' }}</div>
+          <div class="metric-card__sub">{{ activity?.top_skills?.[0]?.count ? `used ${activity.top_skills[0].count} times` : 'no skills cast yet' }}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-card__head">
+            <div class="metric-card__label">Favorite Gathering Skill</div>
+            <div class="metric-card__icon metric-card__icon--amber">⭐</div>
+          </div>
+          <div class="metric-card__value metric-card__value--amber metric-card__value--text">{{ favoriteSkill || '—' }}</div>
+          <div class="metric-card__sub">most-performed gathering activity</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-card__head">
+            <div class="metric-card__label">Pets Collected</div>
+            <div class="metric-card__icon metric-card__icon--blue">🐾</div>
+          </div>
+          <div class="metric-card__value metric-card__value--blue">{{ activity?.pets_collected ?? 0 }}</div>
+          <div class="metric-card__sub">companions unlocked</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-card__head">
+            <div class="metric-card__label">Cosmetics Unlocked</div>
+            <div class="metric-card__icon metric-card__icon--purple">👑</div>
+          </div>
+          <div class="metric-card__value metric-card__value--purple">{{ activity?.cosmetics_unlocked ?? 0 }}</div>
+          <div class="metric-card__sub">titles, colors, banners &amp; icons</div>
+        </div>
+      </div>
+
+      <div v-if="activity" class="activity-charts">
+        <div class="activity-chart-card">
+          <div class="activity-chart-card__title">Battles fought (14 days)</div>
+          <ActivityChart type="line" color="#e8482f" v-bind="battleTrendChartData" />
+        </div>
+        <div class="activity-chart-card">
+          <div class="activity-chart-card__title">Win / Loss</div>
+          <ActivityChart type="doughnut" v-bind="winLossChartData" />
+        </div>
+        <div class="activity-chart-card">
+          <div class="activity-chart-card__title">What you've been doing</div>
+          <div class="bar-list">
+            <div v-for="row in activity.activity_breakdown" :key="row.key" class="bar-list__row">
+              <div class="bar-list__label">{{ row.label }}</div>
+              <div class="bar-list__track">
+                <div class="bar-list__fill" :style="{ width: `${Math.min(100, (row.count / barListMax(activity.activity_breakdown)) * 100)}%` }"></div>
+              </div>
+              <div class="ox bar-list__count">{{ row.count }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="activity-chart-card">
+          <div class="activity-chart-card__title">Skills you use most</div>
+          <div v-if="activity.top_skills?.length" class="bar-list">
+            <div v-for="row in activity.top_skills" :key="row.key" class="bar-list__row">
+              <div class="bar-list__label">{{ row.label }}</div>
+              <div class="bar-list__track">
+                <div class="bar-list__fill bar-list__fill--alt" :style="{ width: `${Math.min(100, (row.count / barListMax(activity.top_skills)) * 100)}%` }"></div>
+              </div>
+              <div class="ox bar-list__count">{{ row.count }}</div>
+            </div>
+          </div>
+          <p v-else class="fun-stats-empty">No skills cast in battle yet.</p>
+        </div>
+      </div>
+
+      <div class="fun-stats-eyebrow">GATHERING &amp; CRAFTING</div>
+      <div class="fun-stats-grid">
+        <div v-for="s in FUN_STAT_ROWS" :key="s.key" class="fun-stat-chip">
+          <div class="fun-stat-chip__glyph">{{ s.glyph }}</div>
+          <div class="fun-stat-chip__value">{{ store.character[s.key] ?? 0 }}</div>
+          <div class="fun-stat-chip__label">{{ s.label }}</div>
         </div>
       </div>
     </template>
