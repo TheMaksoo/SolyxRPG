@@ -13,6 +13,10 @@ class PvpLiveMatch extends Model
         'status', 'winner_character_id', 'last_action_at', 'created_at',
     ];
     protected $casts = [
+        'character_a_id' => 'integer',
+        'character_b_id' => 'integer',
+        'turn_character_id' => 'integer',
+        'winner_character_id' => 'integer',
         'state_json' => 'array',
         'log_json' => 'array',
         'last_action_at' => 'datetime',
