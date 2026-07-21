@@ -41,11 +41,14 @@ class PvpController extends Controller
         // outright #1 player gets a distinct crown on top of it. See PvpRecord::hybridRank() for cutoffs.
         $hybridRank = PvpRecord::hybridRank($record->rating, $allRatings);
 
-        // Only ever list rivals who could actually accept the challenge right now and make for a fair
-        // fight: a character whose owner has lost PvP access (feature flag toggled off for them, e.g. a
-        // tester-only rollout) would otherwise show up as challengeable and then 403 the moment you hit
-        // Challenge; a character outside your hybrid tier or level band is either a guaranteed stomp or a
-        // guaranteed loss, not a real match.
+        // Only ever list rivals who could actually accept the challenge right now: a character whose
+        // owner has lost PvP access (feature flag toggled off for them, e.g. a tester-only rollout)
+        // would otherwise show up as challengeable and then 403 the moment you hit Challenge, and a
+        // character outside the level band is either a guaranteed stomp or a guaranteed loss. Sorted by
+        // rating proximity (closest first) rather than requiring an exact same hybrid-tier match — with
+        // a small population, ratings can be spread across every tier with nobody sharing one, which
+        // used to mean an empty rivals list even with plenty of fair, level-appropriate opponents around;
+        // the per-row Easy/Medium/Hard difficulty badge already communicates how fair each pick is.
         $opponents = Character::where('id', '!=', $character->id)
             ->whereBetween('level', [max(1, $character->level - self::PVP_LEVEL_BAND), $character->level + self::PVP_LEVEL_BAND])
             ->with(['pvpRecord', 'user'])
@@ -56,7 +59,7 @@ class PvpController extends Controller
                 'character' => $c,
                 'rating' => $c->pvpRecord->rating ?? 1000,
             ])
-            ->filter(fn ($row) => PvpRecord::hybridRank($row['rating'], $allRatings)['base_name'] === $hybridRank['base_name'])
+            ->sortBy(fn ($row) => abs($row['rating'] - $record->rating))
             ->take(20)
             ->values();
 

@@ -40,11 +40,13 @@ class PvpMatchmakingService
     }
 
     /** Rating band (±) a queued character will accept an opponent from, widening the longer they've waited
-     * so a rare high/low rating rarely waits forever — starts at ±100, +50 every 30s queued, capped at
-     * ±1000 (by a few minutes in, effectively "anyone currently searching"). */
+     * so a rare high/low rating rarely waits forever — starts at ±100, +100 every 30s queued, capped at
+     * ±1000 (reached well before queueStatus()'s 5-minute search timeout, so two valid, level-appropriate
+     * opponents with a big rating gap — common with a small population — actually get to pair up instead
+     * of both timing out having "found no rival", which is what a slower +50/30s widening rate used to do). */
     public function bandFor(int $waitedSeconds): int
     {
-        return min(1000, 100 + intdiv(max(0, $waitedSeconds), 30) * 50);
+        return min(1000, 100 + intdiv(max(0, $waitedSeconds), 30) * 100);
     }
 
     /**
@@ -63,9 +65,12 @@ class PvpMatchmakingService
 
             $band = $this->bandFor((int) now()->diffInSeconds($mine->queued_at, true));
 
+            // rating is an unsignedInteger column — casting to SIGNED before subtracting avoids MySQL
+            // strict mode erroring on an unsigned-arithmetic underflow whenever a candidate's rating is
+            // lower than $mine->rating (a very ordinary case, not an edge case).
             $candidate = PvpQueueEntry::where('character_id', '!=', $character->id)
-                ->whereBetween('rating', [$mine->rating - $band, $mine->rating + $band])
-                ->orderByRaw('ABS(rating - ?) asc', [$mine->rating])
+                ->whereBetween('rating', [max(0, $mine->rating - $band), $mine->rating + $band])
+                ->orderByRaw('ABS(CAST(rating AS SIGNED) - ?) asc', [$mine->rating])
                 ->lockForUpdate()
                 ->first();
 

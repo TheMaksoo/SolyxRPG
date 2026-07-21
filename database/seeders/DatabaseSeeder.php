@@ -42,6 +42,7 @@ class DatabaseSeeder extends Seeder
             AchievementSeeder::class,
             CosmeticSeeder::class,
             ChangelogSeeder::class,
+            LegacyDiscordUserSeeder::class,
             // Runs last: derives the monsters/items/pets wiki categories from the rows the seeders above just created.
             WikiEntrySeeder::class,
         ]);
