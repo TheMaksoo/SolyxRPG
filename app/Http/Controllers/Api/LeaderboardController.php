@@ -24,7 +24,14 @@ class LeaderboardController extends Controller
 
         $allRatings = $category === 'trophies' ? PvpRecord::pluck('rating')->all() : [];
 
-        $ranked = Character::with(['attributes_', 'inventory.item', 'user', 'pvpRecord', 'skills', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon'])
+        // Only the 'power' category calls effectiveStats(), which needs attributes_/inventory.item/pets to
+        // avoid falling back to a per-character query for each — 'skills' was eager-loaded but never read
+        // at all. The other five categories are plain column reads, so skip pulling every character's full
+        // inventory+item rows for them; this endpoint loads every character in the game on every request.
+        $ranked = Character::with([
+                'user', 'pvpRecord', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon',
+                ...($category === 'power' ? ['attributes_', 'inventory.item', 'pets.pet'] : []),
+            ])
             ->get()
             ->map(fn (Character $c) => [
                 'character_id' => $c->id,

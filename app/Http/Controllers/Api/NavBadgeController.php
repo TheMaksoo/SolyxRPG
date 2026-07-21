@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Character;
-use App\Models\CharacterQuest;
 use App\Models\CraftingJob;
 use App\Models\Friendship;
 use App\Models\Mail;
@@ -55,20 +54,26 @@ class NavBadgeController extends Controller
         return max(0, $max - $used);
     }
 
-    /** Mirrors QuestController::stateFor()'s completed/claimed logic, counted rather than fully serialized. */
+    /** Mirrors QuestController::stateFor()'s completed/claimed logic, counted rather than fully serialized.
+     * Fetches every CharacterQuest row for this character once up front and keys it by quest_id, instead
+     * of the previous one-query-per-quest lookup — this endpoint backs the sidebar badge count rendered
+     * on every page load, so an N+1 here means N extra queries on every single page navigation. */
     private function unclaimedQuestCount(Character $character): int
     {
         $quests = Quest::where('enabled', true)
             ->where(fn ($q) => $q->whereNull('class_key')->orWhere('class_key', $character->base_class))
             ->get();
 
+        $progressByQuest = $character->quests()->get()->keyBy('quest_id');
+
         $count = 0;
         foreach ($quests as $quest) {
             $kind = $quest->goal_json['kind'] ?? null;
+            $progress = $progressByQuest->get($quest->id);
 
             if ($kind === 'level') {
                 $target = $quest->goal_json['target'] ?? 1;
-                $claimed = CharacterQuest::where('character_id', $character->id)->where('quest_id', $quest->id)->value('claimed') ?? false;
+                $claimed = $progress->claimed ?? false;
                 if ($character->level >= $target && ! $claimed) {
                     $count++;
                 }
@@ -76,7 +81,6 @@ class NavBadgeController extends Controller
                 continue;
             }
 
-            $progress = $character->quests()->where('quest_id', $quest->id)->first();
             if ($progress) {
                 $progress = $this->quests->resetIfStale($progress, $quest);
             }
