@@ -184,8 +184,13 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::post('/party/kick/{target}', [PartyController::class, 'kick']);
 
     Route::get('/pvp', [PvpController::class, 'index']);
-    Route::post('/pvp/find-match', [PvpController::class, 'findMatch']);
+    Route::post('/pvp/queue/join', [PvpController::class, 'queueJoin']);
+    Route::post('/pvp/queue/leave', [PvpController::class, 'queueLeave']);
+    Route::get('/pvp/queue/status', [PvpController::class, 'queueStatus']);
     Route::post('/pvp/challenge/{opponent}', [PvpController::class, 'challenge']);
+    Route::get('/pvp/live/{match}', [PvpController::class, 'liveShow']);
+    Route::post('/pvp/live/{match}/action', [PvpController::class, 'liveAction']);
+    Route::post('/pvp/live/{match}/forfeit', [PvpController::class, 'liveForfeit']);
 
     Route::get('/inbox', [InboxController::class, 'index']);
     Route::post('/inbox/{mail}/read', [InboxController::class, 'read']);

@@ -213,6 +213,21 @@
   }
 }
 
+.daily-reward-banner--ten-wins {
+  background: linear-gradient(135deg, rgba(232, 72, 47, 0.18), rgba(232, 72, 47, 0.06));
+  border-color: v.$accent-tint-30;
+
+  .daily-reward-banner__text {
+    color: v.$accent;
+  }
+}
+
+.pvp-wins-today-progress {
+  margin-top: 10px;
+  font-size: 12px;
+  color: v.$text-muted-45;
+}
+
 @keyframes daily-reward-pop {
   from {
     opacity: 0;
@@ -411,10 +426,260 @@
   line-height: 1.5;
 }
 
+// ---- Searching (queue) view ----
+.searching-view {
+  @include m.centered-column(420px);
+  @include m.fade-in;
+  text-align: center;
+  margin-top: 60px;
+}
+
+.searching-view__art {
+  font-size: 48px;
+  margin-bottom: 12px;
+  animation: pvp-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pvp-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.92); }
+}
+
+.searching-view__title {
+  font-size: 20px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.searching-view__timer {
+  font-size: 26px;
+  font-weight: 800;
+  color: v.$accent-soft;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 10px;
+}
+
+.searching-view__hint {
+  color: v.$text-muted-45;
+  font-size: 13px;
+  margin: 0 0 22px;
+}
+
+.btn-cancel-search {
+  @include m.btn-ghost;
+}
+
+// ---- Live match view ----
+.live-match {
+  @include m.centered-column(720px);
+  @include m.fade-in;
+}
+
+.turn-banner {
+  text-align: center;
+  font-weight: 800;
+  font-size: 15px;
+  padding: 10px 14px;
+  border-radius: v.$radius-md;
+  margin-bottom: 16px;
+  background: v.$bg-input;
+  border: 1px solid v.$border-subtle;
+  color: v.$text-muted-55;
+
+  &--mine {
+    background: rgba(74, 222, 128, 0.12);
+    border-color: rgba(74, 222, 128, 0.35);
+    color: v.$success;
+    animation: pvp-pulse 1.6s ease-in-out infinite;
+  }
+}
+
+.fighters-row {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.fighter-card {
+  @include m.card(16px);
+  flex: 1;
+  min-width: 0;
+  border: 1px solid transparent;
+  transition: border-color 0.2s;
+
+  &--turn {
+    border-color: v.$accent;
+  }
+}
+
+.fighters-row__vs {
+  flex: none;
+  align-self: center;
+  font-weight: 800;
+  color: v.$text-muted-40;
+  font-size: 13px;
+}
+
+.fighter-card__name {
+  font-weight: 700;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.stat-block {
+  margin-bottom: 8px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.stat-label-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 4px;
+
+  .hp {
+    color: v.$success;
+  }
+  .mp {
+    color: v.$info;
+  }
+}
+
+.stat-bar-track {
+  @include m.stat-bar-track;
+}
+
+.stat-bar-fill {
+  &--hp {
+    @include m.stat-bar-fill(v.$success-strong, v.$success);
+  }
+  &--mp {
+    @include m.stat-bar-fill(#0284c7, v.$info-strong);
+  }
+}
+
+.actions-grid {
+  @include m.grid-auto-fit(150px, 10px);
+  margin-bottom: 16px;
+}
+
+.btn-attack {
+  @include m.btn-reset;
+  background: v.$accent;
+  color: #fff;
+  border-radius: v.$radius-md;
+  padding: 14px;
+  font-weight: 700;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}
+
+.btn-skill {
+  @include m.btn-reset;
+  background: v.$bg-card;
+  color: v.$info;
+  border: 1px solid v.$info-tint-25;
+  border-radius: v.$radius-md;
+  padding: 14px;
+  font-weight: 700;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}
+
+.flee-btn {
+  @include m.btn-ghost;
+}
+
+.battle-log {
+  background: v.$bg-input;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-md;
+  padding: 14px 16px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.battle-log__line {
+  font-size: 13px;
+  padding: 3px 0;
+  font-family: monospace;
+}
+
+// ---- Live match result ----
+.result-view {
+  @include m.centered-column(520px);
+  @include m.fade-in;
+  margin: 20px auto 24px;
+  text-align: center;
+  @include m.card(36px);
+}
+
+.result-icon {
+  font-size: 48px;
+  margin-bottom: 8px;
+}
+
+.result-title {
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.reward-chip {
+  &--gold {
+    @include m.reward-chip(v.$warning, v.$warning-tint-12);
+  }
+  &--loss {
+    @include m.reward-chip(v.$danger, rgba(255, 106, 77, 0.12));
+  }
+}
+
+.result-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.btn-dashboard-link {
+  @include m.btn-secondary;
+  display: inline-flex;
+  align-items: center;
+}
+
 // ---- Mobile ----
 @media (max-width: 768px) {
   .pvp-title {
     font-size: 22px;
+  }
+
+  // Fighter panels stack instead of sitting side by side.
+  .fighters-row {
+    flex-direction: column;
+  }
+
+  .fighters-row__vs {
+    align-self: center;
+  }
+
+  .actions-grid {
+    gap: 8px;
+  }
+
+  .btn-attack,
+  .btn-skill {
+    padding: 12px 10px;
+    font-size: 13px;
+    min-height: 40px;
   }
 
   // Main column + history sidebar stack instead of sitting side by side.

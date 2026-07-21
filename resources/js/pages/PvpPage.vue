@@ -1,22 +1,33 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import api from '../api/client';
 import { useCharacterStore } from '../stores/character';
-import AdBanner from '../components/AdBanner.vue';
 
 const characterStore = useCharacterStore();
 
+// ---- Lobby state (rank card + opponent list + history) ----
 const record = ref(null);
 const rank = ref(null);
 const rankProgress = ref(null);
 const rankLadder = ref([]);
 const opponents = ref([]);
 const history = ref([]);
-const lastResult = ref(null);
 const loading = ref(false);
-const attemptsUsed = ref(0);
-const attemptsMax = ref(10);
 const errorMessage = ref('');
+
+// 'lobby' | 'searching' | 'live'
+const view = ref('lobby');
+
+// ---- Queue state ----
+const queuedAt = ref(null);
+const elapsedSeconds = ref(0);
+let queuePollTimer = null;
+let queueTickTimer = null;
+
+// ---- Live match state ----
+const matchId = ref(null);
+const match = ref(null);
+let livePollTimer = null;
 
 // Mirrors $success / $warning / $purple in resources/scss/_variables.scss.
 const difficultyColor = {
@@ -33,32 +44,88 @@ async function load() {
   rankLadder.value = data.rank_ladder;
   opponents.value = data.opponents;
   history.value = data.history;
-  attemptsUsed.value = data.pvp_attempts_used;
-  attemptsMax.value = data.pvp_attempts_max;
-}
 
-// Both match actions can grant gold/gems (the daily win reward) — syncing the returned character into the
-// shared store immediately updates the gold/gem pills in the top bar (see GameLayout.vue), the same way
-// BattlePage.vue does after a PvE action. Previously nothing here touched the store, so a granted reward
-// was easy to miss: it showed in the in-page callout below but the top bar kept the stale pre-reward total.
-function syncCharacter(data) {
-  if (data.character) {
-    characterStore.character = data.character;
+  if (data.active_match_id) {
+    matchId.value = data.active_match_id;
+    enterLive();
+  } else if (data.queued) {
+    enterSearching();
   }
 }
+
+function syncCharacter(character) {
+  if (character) {
+    characterStore.character = character;
+  }
+}
+
+function stopAllPolling() {
+  clearInterval(queuePollTimer);
+  clearInterval(queueTickTimer);
+  clearInterval(livePollTimer);
+  queuePollTimer = null;
+  queueTickTimer = null;
+  livePollTimer = null;
+}
+
+// ---- Queue flow ----
 
 async function findMatch() {
   loading.value = true;
   errorMessage.value = '';
   try {
-    const { data } = await api.post('/pvp/find-match');
-    lastResult.value = data;
-    syncCharacter(data);
-    await load();
+    const { data } = await api.post('/pvp/queue/join');
+    if (data.status === 'matched') {
+      matchId.value = data.match_id;
+      enterLive();
+    } else {
+      queuedAt.value = data.queued_at;
+      elapsedSeconds.value = data.elapsed_seconds ?? 0;
+      enterSearching();
+    }
   } catch (e) {
     errorMessage.value = e?.response?.data?.message || 'Something went wrong.';
   } finally {
     loading.value = false;
+  }
+}
+
+function enterSearching() {
+  stopAllPolling();
+  view.value = 'searching';
+  queueTickTimer = setInterval(() => {
+    elapsedSeconds.value += 1;
+  }, 1000);
+  queuePollTimer = setInterval(pollQueue, 2500);
+}
+
+async function pollQueue() {
+  try {
+    const { data } = await api.get('/pvp/queue/status');
+    if (data.status === 'matched') {
+      matchId.value = data.match_id;
+      enterLive();
+    } else if (data.status === 'searching') {
+      queuedAt.value = data.queued_at;
+      elapsedSeconds.value = data.elapsed_seconds ?? elapsedSeconds.value;
+    } else {
+      // 'idle' — queue row vanished without a match (e.g. left from another tab).
+      stopAllPolling();
+      view.value = 'lobby';
+    }
+  } catch (e) {
+    errorMessage.value = e?.response?.data?.message || 'Lost connection to matchmaking.';
+  }
+}
+
+async function cancelSearch() {
+  loading.value = true;
+  try {
+    await api.post('/pvp/queue/leave');
+  } finally {
+    loading.value = false;
+    stopAllPolling();
+    view.value = 'lobby';
   }
 }
 
@@ -67,9 +134,8 @@ async function challenge(row) {
   errorMessage.value = '';
   try {
     const { data } = await api.post(`/pvp/challenge/${row.character.id}`);
-    lastResult.value = data;
-    syncCharacter(data);
-    await load();
+    matchId.value = data.match_id;
+    enterLive();
   } catch (e) {
     errorMessage.value = e?.response?.data?.message || 'Something went wrong.';
   } finally {
@@ -77,7 +143,92 @@ async function challenge(row) {
   }
 }
 
+// ---- Live match flow ----
+
+function enterLive() {
+  stopAllPolling();
+  view.value = 'live';
+  loadMatch();
+  livePollTimer = setInterval(loadMatch, 2500);
+}
+
+async function loadMatch() {
+  if (!matchId.value) return;
+  try {
+    const { data } = await api.get(`/pvp/live/${matchId.value}`);
+    match.value = data;
+  } catch (e) {
+    errorMessage.value = e?.response?.data?.message || 'Could not load the match.';
+    stopAllPolling();
+    view.value = 'lobby';
+    await load();
+  }
+}
+
+async function act(type, skillId = null) {
+  if (!match.value || loading.value || !match.value.is_my_turn) return;
+  loading.value = true;
+  errorMessage.value = '';
+  try {
+    const { data } = await api.post(`/pvp/live/${matchId.value}/action`, { type, skill_id: skillId });
+    match.value = data;
+    if (data.status !== 'active') {
+      clearInterval(livePollTimer);
+      livePollTimer = null;
+    }
+  } catch (e) {
+    errorMessage.value = e?.response?.data?.message || 'Action failed.';
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function forfeit() {
+  if (!match.value || loading.value) return;
+  loading.value = true;
+  errorMessage.value = '';
+  try {
+    const { data } = await api.post(`/pvp/live/${matchId.value}/forfeit`);
+    match.value = data;
+    clearInterval(livePollTimer);
+    livePollTimer = null;
+  } catch (e) {
+    errorMessage.value = e?.response?.data?.message || 'Could not forfeit.';
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function backToLobby() {
+  stopAllPolling();
+  view.value = 'lobby';
+  match.value = null;
+  matchId.value = null;
+  await load();
+}
+
+const hpPct = (hp, max) => (max > 0 ? Math.max(0, Math.min(100, Math.round((hp / max) * 100))) : 0);
+
+const searchDuration = computed(() => {
+  const m = Math.floor(elapsedSeconds.value / 60);
+  const s = elapsedSeconds.value % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+});
+
+const matchFinished = computed(() => match.value && match.value.status !== 'active');
+const fullLog = computed(() => [...(match.value?.log ?? [])].reverse());
+
+/** Turn number this fighter would be acting on if they act right now — cooldowns in state_json are
+ * stored as the absolute turn number a skill becomes ready again (see PvpLiveCombatService::resolveTurn). */
+function skillReady(skill, fighter) {
+  return skill.ready_at_turn <= (fighter?.turns_taken ?? 0) + 1;
+}
+function skillCooldownTurns(skill, fighter) {
+  return Math.max(0, skill.ready_at_turn - ((fighter?.turns_taken ?? 0) + 1));
+}
+
 onMounted(load);
+onUnmounted(stopAllPolling);
 </script>
 
 <template>
@@ -87,9 +238,10 @@ onMounted(load);
       <h1 class="ox pvp-title">PvP Arena</h1>
     </div>
 
-    <AdBanner variant="inline" />
+    <div v-if="errorMessage" class="pvp-error-banner">{{ errorMessage }}</div>
 
-    <div class="pvp-layout">
+    <!-- ============ LOBBY ============ -->
+    <div v-if="view === 'lobby'" class="pvp-layout">
       <div class="pvp-main">
         <div v-if="record" class="rank-card">
           <div class="rank-card__top">
@@ -106,18 +258,12 @@ onMounted(load);
               <div v-if="record.win_streak > 0" class="rank-card__streak">🔥 {{ record.win_streak }} win streak</div>
             </div>
             <div class="rank-card__attempts-wrap">
-              <button
-                @click="findMatch"
-                :disabled="loading || attemptsUsed >= attemptsMax"
-                class="btn-find-match"
-              >
-                Find ranked match
+              <button @click="findMatch" :disabled="loading" class="btn-find-match">
+                Find match
               </button>
-              <div class="rank-card__attempts">{{ attemptsMax - attemptsUsed }} / {{ attemptsMax }} attempts left today</div>
+              <div class="rank-card__attempts">Queues you against a live opponent near your rating</div>
             </div>
           </div>
-
-          <div v-if="errorMessage" class="pvp-error-banner">{{ errorMessage }}</div>
 
           <div v-if="rankProgress" class="tier-progress">
             <div class="tier-progress__track">
@@ -144,30 +290,6 @@ onMounted(load);
           </div>
         </div>
 
-        <div
-          v-if="lastResult"
-          class="last-result-card"
-          :class="{ 'last-result-card--win': lastResult.result === 'win', 'last-result-card--loss': lastResult.result !== 'win' }"
-        >
-          <span
-            class="last-result-card__title"
-            :class="lastResult.result === 'win' ? 'last-result-card__title--win' : 'last-result-card__title--loss'"
-          >
-            {{ lastResult.result === 'win' ? 'Victory' : 'Defeat' }} vs {{ lastResult.opponent.name }}
-          </span>
-          <span class="last-result-card__delta">{{ lastResult.rating_delta >= 0 ? '+' : '' }}{{ lastResult.rating_delta }} rating</span>
-          <div v-if="lastResult.daily_reward_granted" class="daily-reward-banner">
-            <span class="daily-reward-banner__icon">🎁</span>
-            <span class="daily-reward-banner__text">
-              <strong>First win of the day!</strong>
-              +{{ lastResult.daily_reward_gold }} gold, +{{ lastResult.daily_reward_gems }} gems added to your balance.
-            </span>
-          </div>
-          <div v-if="lastResult.log?.length" class="last-result-card__log">
-            <div v-for="(line, i) in lastResult.log" :key="i" class="last-result-card__log-line">{{ line }}</div>
-          </div>
-        </div>
-
         <div class="challenge-eyebrow">CHALLENGE A RIVAL</div>
         <div class="opponents-grid">
           <div v-for="row in opponents" :key="row.character.id" class="opponent-card">
@@ -184,11 +306,7 @@ onMounted(load);
             </div>
             <div class="opponent-card__bottom">
               <span class="opponent-card__rating">{{ row.rating }} rating <span class="opponent-card__bracket" :style="{ color: row.rank?.color }">· {{ row.rank?.name }}</span></span>
-              <button
-                @click="challenge(row)"
-                :disabled="loading"
-                class="btn-challenge"
-              >
+              <button @click="challenge(row)" :disabled="loading" class="btn-challenge">
                 Challenge
               </button>
             </div>
@@ -200,11 +318,7 @@ onMounted(load);
       <div class="pvp-sidebar">
         <div class="history-eyebrow">MATCH HISTORY</div>
         <div class="history-card">
-          <div
-            v-for="h in history"
-            :key="h.id"
-            class="history-row"
-          >
+          <div v-for="h in history" :key="h.id" class="history-row">
             <div>
               <div class="history-row__name">vs {{ h.opponent.name }}</div>
               <div
@@ -226,6 +340,106 @@ onMounted(load);
           <div class="season-reward-card__title">🏆 Season reward</div>
           <div class="season-reward-card__body">Reach Diamond for the Gladiator title & exclusive rewards.</div>
         </div>
+      </div>
+    </div>
+
+    <!-- ============ SEARCHING ============ -->
+    <div v-else-if="view === 'searching'" class="searching-view">
+      <div class="searching-view__art">⚔</div>
+      <div class="ox searching-view__title">Searching for an opponent…</div>
+      <div class="searching-view__timer">{{ searchDuration }}</div>
+      <p class="searching-view__hint">Widening the search the longer you wait.</p>
+      <button class="btn-cancel-search" @click="cancelSearch" :disabled="loading">Cancel</button>
+    </div>
+
+    <!-- ============ LIVE MATCH ============ -->
+    <div v-else-if="view === 'live' && match" class="live-match">
+      <div v-if="!matchFinished" class="turn-banner" :class="{ 'turn-banner--mine': match.is_my_turn }">
+        {{ match.is_my_turn ? "🟢 Your turn!" : `⏳ Waiting for ${match.opponent?.name}…` }}
+      </div>
+
+      <div class="fighters-row">
+        <div class="fighter-card" :class="{ 'fighter-card--turn': match.turn_character_id === match.me?.character_id }">
+          <div class="ox fighter-card__name">{{ match.me?.name }} (You)</div>
+          <div class="stat-block">
+            <div class="stat-label-row"><span class="hp">HP</span><span>{{ match.me?.hp }} / {{ match.me?.hp_max }}</span></div>
+            <div class="stat-bar-track"><div class="stat-bar-fill--hp" :style="{ width: hpPct(match.me?.hp, match.me?.hp_max) + '%' }"></div></div>
+          </div>
+          <div class="stat-block">
+            <div class="stat-label-row"><span class="mp">MP</span><span>{{ match.me?.mana }} / {{ match.me?.mana_max }}</span></div>
+            <div class="stat-bar-track"><div class="stat-bar-fill--mp" :style="{ width: hpPct(match.me?.mana, match.me?.mana_max) + '%' }"></div></div>
+          </div>
+        </div>
+
+        <div class="fighters-row__vs">VS</div>
+
+        <div class="fighter-card" :class="{ 'fighter-card--turn': match.turn_character_id === match.opponent?.character_id }">
+          <div class="ox fighter-card__name">{{ match.opponent?.name }}</div>
+          <div class="stat-block">
+            <div class="stat-label-row"><span class="hp">HP</span><span>{{ match.opponent?.hp }} / {{ match.opponent?.hp_max }}</span></div>
+            <div class="stat-bar-track"><div class="stat-bar-fill--hp" :style="{ width: hpPct(match.opponent?.hp, match.opponent?.hp_max) + '%' }"></div></div>
+          </div>
+          <div class="stat-block">
+            <div class="stat-label-row"><span class="mp">MP</span><span>{{ match.opponent?.mana }} / {{ match.opponent?.mana_max }}</span></div>
+            <div class="stat-bar-track"><div class="stat-bar-fill--mp" :style="{ width: hpPct(match.opponent?.mana, match.opponent?.mana_max) + '%' }"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions: only shown/enabled on my turn -->
+      <div v-if="!matchFinished" class="actions-grid">
+        <button class="btn-attack" @click="act('attack')" :disabled="loading || !match.is_my_turn">⚔ Attack</button>
+        <button
+          v-for="skill in match.me?.skills ?? []"
+          :key="skill.skill_id"
+          class="btn-skill"
+          @click="act('skill', skill.skill_id)"
+          :disabled="loading || !match.is_my_turn || match.me.mana < skill.mp_cost || !skillReady(skill, match.me)"
+        >
+          <template v-if="!skillReady(skill, match.me)">
+            {{ skill.glyph }} {{ skill.name }} — {{ skillCooldownTurns(skill, match.me) }} turn{{ skillCooldownTurns(skill, match.me) > 1 ? 's' : '' }}
+          </template>
+          <template v-else>
+            {{ skill.glyph }} {{ skill.name }} ({{ skill.mp_cost }} MP)
+          </template>
+        </button>
+        <button class="flee-btn" @click="forfeit" :disabled="loading">Forfeit</button>
+      </div>
+
+      <!-- Finished banner -->
+      <div v-else class="result-view">
+        <div class="result-icon">{{ match.i_won ? '🏆' : '💀' }}</div>
+        <div class="ox result-title" :style="{ color: match.i_won ? '#4ade80' : '#ff6a4d' }">
+          {{ match.i_won ? 'Victory!' : match.status === 'forfeited' ? 'Match forfeited' : 'Defeated' }}
+        </div>
+
+        <div v-if="match.reward" class="reward-chips">
+          <div class="reward-chip--gold" v-if="match.i_won">{{ match.reward.rating_delta >= 0 ? '+' : '' }}{{ match.reward.rating_delta }} rating</div>
+          <div class="reward-chip--loss" v-else>{{ -match.reward.rating_delta >= 0 ? '+' : '' }}{{ -match.reward.rating_delta }} rating</div>
+        </div>
+
+        <div v-if="match.i_won && match.reward?.daily_reward_granted" class="daily-reward-banner">
+          <span class="daily-reward-banner__icon">🎁</span>
+          <span class="daily-reward-banner__text">
+            <strong>First win of the day!</strong>
+            +{{ match.reward.daily_reward_gold }} gold, +{{ match.reward.daily_reward_gems }} gems added to your balance.
+          </span>
+        </div>
+        <div v-if="match.i_won && match.reward?.ten_win_reward_granted" class="daily-reward-banner daily-reward-banner--ten-wins">
+          <span class="daily-reward-banner__icon">🏅</span>
+          <span class="daily-reward-banner__text">
+            <strong>10 wins today!</strong>
+            +{{ match.reward.ten_win_reward_gold }} gold, +{{ match.reward.ten_win_reward_gems }} gems bonus added.
+          </span>
+        </div>
+
+        <div class="result-actions">
+          <button class="btn-dashboard-link" @click="backToLobby">Back to Arena</button>
+        </div>
+      </div>
+
+      <div class="battle-log">
+        <div v-for="(line, i) in fullLog" :key="i" class="battle-log__line">{{ line }}</div>
       </div>
     </div>
   </div>
