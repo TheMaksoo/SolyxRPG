@@ -888,6 +888,127 @@
   text-align: center;
 }
 
+.gm-console-kills-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.gm-console-kills-chip {
+  @include m.card(8px 12px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 90px;
+  cursor: default;
+}
+
+.gm-console-kills-chip__level {
+  font-size: 10px;
+  color: v.$text-muted-40;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.gm-console-kills-chip__value {
+  font-size: 15px;
+  font-weight: 800;
+  color: v.$warning;
+  font-variant-numeric: tabular-nums;
+}
+
+.gm-console-kills-chip__monster {
+  font-size: 10.5px;
+  color: v.$text-muted-45;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.gm-console-unlock-timeline {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.gm-console-unlock-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 12px;
+}
+
+.gm-console-unlock-row__level {
+  flex: none;
+  width: 42px;
+  font-weight: 700;
+  color: v.$text-muted-55;
+  font-variant-numeric: tabular-nums;
+}
+
+.gm-console-unlock-row__type {
+  flex: none;
+  width: 56px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 6px;
+  border-radius: 5px;
+  text-align: center;
+
+  &--zone {
+    background: rgba(74, 222, 128, 0.15);
+    color: #4ade80;
+  }
+
+  &--dungeon {
+    background: v.$accent-tint-15;
+    color: v.$accent;
+  }
+
+  &--feature {
+    background: rgba(92, 199, 245, 0.15);
+    color: #5cc7f5;
+  }
+
+  &--monster {
+    background: rgba(255, 129, 99, 0.15);
+    color: #ff8163;
+  }
+
+  &--skill {
+    background: rgba(167, 139, 250, 0.15);
+    color: #a78bfa;
+  }
+
+  &--recipe {
+    background: rgba(234, 179, 8, 0.15);
+    color: #eab308;
+  }
+}
+
+.gm-console-unlock-row__name {
+  flex: 1;
+  min-width: 0;
+  color: v.$text-body;
+}
+
+.gm-console-unlock-row__xp {
+  flex: none;
+  font-size: 11px;
+  color: v.$text-muted-45;
+  font-variant-numeric: tabular-nums;
+}
+
 .gm-console-activity-stat--link {
   display: flex;
   flex-direction: column;
@@ -1062,6 +1183,16 @@
 .gm-console-player-card__meta {
   font-size: 11.5px;
   color: v.$text-muted-40;
+}
+
+.gm-console-player-card__referral {
+  font-size: 11px;
+  color: v.$text-muted-55;
+  margin-top: 2px;
+
+  strong {
+    color: v.$text-muted-70;
+  }
 }
 
 .gm-console-edit-btn {

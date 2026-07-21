@@ -21,6 +21,19 @@
   margin: 2px 0 0;
 }
 
+.market-search {
+  display: block;
+  width: 280px;
+  max-width: 100%;
+  background: v.$bg-input;
+  border: 1px solid v.$border-medium;
+  border-radius: v.$radius-md;
+  padding: 8px 12px;
+  color: v.$text-primary;
+  font-size: 12.5px;
+  margin-bottom: 14px;
+}
+
 .market-tabs {
   display: flex;
   gap: 8px;
@@ -111,6 +124,20 @@
 .market-card__qty {
   font-size: 11.5px;
   color: v.$text-muted-45;
+}
+
+.roll-chip {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: v.$text-muted-45;
+
+  &.is-good {
+    color: v.$success;
+  }
+
+  &.is-bad {
+    color: v.$danger;
+  }
 }
 
 .market-card__stats {

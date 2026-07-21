@@ -165,6 +165,12 @@
   font-weight: 600;
 }
 
+.class-card__gear-note {
+  font-size: 10.5px;
+  color: v.$text-muted-45;
+  margin-top: 6px;
+}
+
 .create-page__form {
   display: flex;
   flex-direction: column;

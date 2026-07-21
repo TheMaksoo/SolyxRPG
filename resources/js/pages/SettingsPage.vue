@@ -323,7 +323,8 @@ onMounted(() => {
                 </div>
               </div>
               <p v-if="replyMessage" class="support-card__message">{{ replyMessage }}</p>
-              <div v-if="t.status !== 'closed'" class="ticket-thread__reply">
+              <p v-if="t.status === 'closed'" class="ticket-thread__closed-note">This ticket is closed — replying will reopen it.</p>
+              <div class="ticket-thread__reply">
                 <input
                   v-model="replyBody"
                   placeholder="Write a reply…"
@@ -332,7 +333,6 @@ onMounted(() => {
                 />
                 <button type="button" class="settings-action-btn" @click="sendReply(t)">Send</button>
               </div>
-              <p v-else class="ticket-thread__closed-note">This ticket is closed.</p>
             </div>
           </div>
         </div>

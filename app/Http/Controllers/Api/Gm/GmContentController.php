@@ -58,6 +58,10 @@ class GmContentController extends Controller
         'items' => ['syncItem', 'item'],
         'monsters' => ['syncMonster', 'monster'],
         'pets' => ['syncPet', 'pet'],
+        'zones' => ['syncZone', 'zone'],
+        'dungeons' => ['syncDungeon', 'dungeon'],
+        'skills' => ['syncSkill', 'skill'],
+        'events' => ['syncEvent', 'event'],
     ];
 
     public function __construct(private WikiSyncService $wiki) {}

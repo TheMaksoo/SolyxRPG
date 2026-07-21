@@ -47,8 +47,65 @@ class VipController extends Controller
             // webhook touches it, so this always reflects whether VIP is actually active right now.
             'vip_tier' => $user->hasActiveVip() ? $user->vip_tier : 'none',
             'vip_expires_at' => $user->vip_expires_at,
+            'vip_cancel_at_period_end' => $user->vip_cancel_at_period_end,
+            'has_stripe_subscription' => $user->stripe_subscription_id !== null,
             'tiers' => $tiers,
         ]);
+    }
+
+    /** Stops future billing without touching current access — perks and vip_expires_at stay exactly as
+     * they are; Stripe just won't renew the subscription when that date arrives (cancel_at_period_end,
+     * not an immediate cancel/delete). The `customer.subscription.deleted` webhook then does the actual
+     * downgrade once the period genuinely ends — see StoreController::webhook(). */
+    public function cancel(Request $request)
+    {
+        $user = $request->user();
+
+        if (! $user->stripe_subscription_id) {
+            return response()->json(['message' => 'No active subscription to cancel.'], 422);
+        }
+        if (! config('services.stripe.secret')) {
+            return response()->json(['message' => 'Stripe is not configured.'], 500);
+        }
+
+        try {
+            $stripe = new StripeClient(config('services.stripe.secret'));
+            $stripe->subscriptions->update($user->stripe_subscription_id, ['cancel_at_period_end' => true]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Could not cancel: '.$e->getMessage()], 500);
+        }
+
+        $user->vip_cancel_at_period_end = true;
+        $user->save();
+
+        return response()->json(['vip_cancel_at_period_end' => true, 'vip_expires_at' => $user->vip_expires_at]);
+    }
+
+    /** Undoes a pending cancellation on the SAME subscription — since it was never actually deleted
+     * (see cancel() above), this just flips cancel_at_period_end back off. No new checkout, no charge
+     * now: billing simply resumes as normal on the existing subscription's next renewal date. */
+    public function resume(Request $request)
+    {
+        $user = $request->user();
+
+        if (! $user->stripe_subscription_id || ! $user->vip_cancel_at_period_end) {
+            return response()->json(['message' => 'No pending cancellation to undo.'], 422);
+        }
+        if (! config('services.stripe.secret')) {
+            return response()->json(['message' => 'Stripe is not configured.'], 500);
+        }
+
+        try {
+            $stripe = new StripeClient(config('services.stripe.secret'));
+            $stripe->subscriptions->update($user->stripe_subscription_id, ['cancel_at_period_end' => false]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Could not resume: '.$e->getMessage()], 500);
+        }
+
+        $user->vip_cancel_at_period_end = false;
+        $user->save();
+
+        return response()->json(['vip_cancel_at_period_end' => false]);
     }
 
     /** Starts a Stripe Billing subscription — this one genuinely requires Stripe keys, unlike the gem-cost purchases. */

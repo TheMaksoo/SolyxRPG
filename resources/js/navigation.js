@@ -29,6 +29,7 @@ export const NAV = [
 ];
 
 export const NAV_FOOTER = [
+  { path: 'https://discord.gg/WhCmHm3KaS', name: 'discord-link', label: 'Join Discord', icon: '💬', external: true },
   { path: '/wiki', name: 'wiki-link', label: 'Wiki', icon: '📖' },
   { path: '/known-bugs', name: 'known-bugs-link', label: 'Known Bugs', icon: '🐞' },
   { path: '/changelog', name: 'changelog-link', label: 'Changelog', icon: '📜' },

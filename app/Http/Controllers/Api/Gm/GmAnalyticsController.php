@@ -7,12 +7,17 @@ use App\Models\Battle;
 use App\Models\Character;
 use App\Models\CharacterQuest;
 use App\Models\CraftingJob;
+use App\Models\Dungeon;
 use App\Models\DungeonRun;
 use App\Models\ErrorLog;
+use App\Models\Monster;
 use App\Models\PvpLiveMatch;
+use App\Models\Recipe;
+use App\Models\Skill;
 use App\Models\SupportTicket;
 use App\Models\TradeSkillLog;
 use App\Models\User;
+use App\Models\Zone;
 use App\Services\ReferralService;
 use Illuminate\Http\Request;
 
@@ -39,6 +44,9 @@ class GmAnalyticsController extends Controller
                 'referrals' => $this->dailyCounts(User::whereNotNull('referred_by_user_id'), 'created_at', $since, $days),
             ],
             'referral_funnel' => $this->referralFunnel(),
+            'level_growth' => $this->levelGrowth(),
+            'kills_to_level_up' => $this->killsToLevelUp(),
+            'unlock_timeline' => $this->unlockTimeline(),
             'content_interest' => $this->contentInterest($since),
             'class_distribution' => Character::select('base_class')
                 ->selectRaw('count(*) as count')
@@ -72,6 +80,124 @@ class GmAnalyticsController extends Controller
             'reward_milestones_granted' => (int) User::sum('referral_rewards_claimed'),
             'referee_bonuses_granted' => User::whereNotNull('referral_bonus_granted_at')->count(),
         ];
+    }
+
+    /** Cumulative XP required to reach each level, sampled every 5 levels through 150 — the top of
+     * currently-authored content (see Character::MAX_LEVEL's comment: there's no real cap, but nothing
+     * new unlocks past 150, it's just further attribute/skill grind on xpForLevel()'s linear curve). */
+    private function levelGrowth(): array
+    {
+        $sampleEvery = 5;
+        $topLevel = 150;
+
+        $cumulative = 0;
+        $labels = [];
+        $data = [];
+
+        for ($level = 1; $level <= $topLevel; $level++) {
+            if ($level > 1) {
+                $cumulative += Character::xpForLevel($level - 1);
+            }
+            if ($level === 1 || $level % $sampleEvery === 0) {
+                $labels[] = (string) $level;
+                $data[] = $cumulative;
+            }
+        }
+
+        return ['labels' => $labels, 'data' => $data];
+    }
+
+    /** Every 10 levels, the TOTAL kills from level 1 to get there — not just the last level's step —
+     * averaged across every non-boss monster reachable at each level along the way (bosses are
+     * dungeon-only, never wandered into, see BattleController::walk()). Matches the real grind far
+     * better than a single-level snapshot: this cumulative, averaged model lines up closely with
+     * observed play (~1000 kills to hit level 10, ~1800 to hit level 15). A rough grind-pace gut check
+     * for a GM, not a promise (real XP varies by rolled Grade). */
+    private function killsToLevelUp(): array
+    {
+        $monsters = Monster::where('enabled', true)->where('is_boss', false)->orderBy('min_level')->get(['name', 'min_level', 'xp']);
+
+        $rows = [];
+        $cumulativeKills = 0;
+        for ($level = 1; $level < 150; $level++) {
+            $reachable = $monsters->filter(fn (Monster $m) => $m->min_level <= $level && $m->xp > 0);
+            if ($reachable->isEmpty()) {
+                continue;
+            }
+
+            $avgXp = $reachable->avg('xp');
+            $cumulativeKills += ceil(Character::xpForLevel($level) / $avgXp);
+
+            if (($level + 1) % 10 === 0) {
+                $rows[] = [
+                    'level' => $level + 1,
+                    'monster_name' => $reachable->count() === 1
+                        ? $reachable->first()->name
+                        : "{$reachable->count()} monsters (avg)",
+                    'monster_xp' => (int) round($avgXp),
+                    'kills' => $cumulativeKills,
+                ];
+            }
+        }
+
+        return $rows;
+    }
+
+    /** Every level-gated zone/dungeon, sorted ascending — paired with the cumulative XP needed to reach
+     * that level so a GM can see exactly how much grinding stands between a player and the next unlock.
+     * Nav feature unlocks (Shop, World Map, etc.) are merged in on the frontend from navigation.js rather
+     * than duplicated here, since that list is already the single source of truth for the sidebar. */
+    /** Every level-gated thing in the game, in one merged timeline — zones/dungeons (real unlock gates),
+     * monsters/skills/recipes (level_req/min_level — when a fight or a craft option first becomes
+     * reachable). Nav feature unlocks (Shop, World Map, ...) are merged in on the frontend from
+     * navigation.js, since that file is already the single source of truth for the sidebar. */
+    private function unlockTimeline(): array
+    {
+        $zones = Zone::where('enabled', true)->get()->map(fn (Zone $z) => [
+            'level' => $z->min_level,
+            'name' => $z->name,
+            'type' => 'zone',
+        ]);
+
+        $dungeons = Dungeon::where('enabled', true)->get()->map(fn (Dungeon $d) => [
+            'level' => $d->min_level,
+            'name' => $d->name,
+            'type' => 'dungeon',
+        ]);
+
+        $monsters = Monster::where('enabled', true)->get()->map(fn (Monster $m) => [
+            'level' => $m->min_level,
+            'name' => $m->name.($m->is_boss ? ' (boss)' : ''),
+            'type' => 'monster',
+        ]);
+
+        $skills = Skill::all()->map(fn (Skill $s) => [
+            'level' => $s->level_req,
+            'name' => "{$s->name} ({$s->class_scope})",
+            'type' => 'skill',
+        ]);
+
+        $recipes = Recipe::where('enabled', true)->get()->map(fn (Recipe $r) => [
+            'level' => $r->min_level,
+            'name' => $r->name,
+            'type' => 'recipe',
+        ]);
+
+        return $zones->concat($dungeons)->concat($monsters)->concat($skills)->concat($recipes)
+            ->sortBy('level')->values()->map(fn ($row) => [
+                ...$row,
+                'cumulative_xp' => $this->cumulativeXpForLevel($row['level']),
+            ])->all();
+    }
+
+    private function cumulativeXpForLevel(int $level): int
+    {
+        $cumulative = 0;
+        for ($i = 1; $i < $level; $i++) {
+            $cumulative += Character::xpForLevel($i);
+        }
+
+        return $cumulative;
     }
 
     private function headline(): array

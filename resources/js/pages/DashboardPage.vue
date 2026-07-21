@@ -134,13 +134,6 @@ const repairLinkTarget = computed(() => {
   return hasRepairPack ? '/inventory' : { path: '/crafting', query: { section: 'repair_pack' } };
 });
 
-function gearDurabilityStatus(row) {
-  if (!row.durability_max) return null;
-  if (row.durability <= 0) return 'broken';
-  if (row.durability / row.durability_max <= LOW_DURABILITY_PCT) return 'low';
-  return null;
-}
-
 const hasUnclaimedBattlePass = computed(() => {
   const bp = battlePass.value;
   if (!bp) return false;
@@ -410,35 +403,6 @@ onMounted(() => {
         <button v-else type="button" class="quick-actions__secondary quick-actions__secondary--locked" disabled>
           🔒 Crafting <span class="quick-actions__lock-lvl">Lv.{{ CRAFTING_UNLOCK_LEVEL }}</span>
         </button>
-      </div>
-
-      <!-- Equipped -->
-      <div class="equipped-eyebrow">EQUIPPED</div>
-      <div class="equipped-grid">
-        <div
-          v-for="row in (store.character.inventory || []).filter((i) => i.equipped)"
-          :key="row.id"
-          class="equipped-item"
-          :class="{
-            'equipped-item--broken': gearDurabilityStatus(row) === 'broken',
-            'equipped-item--low': gearDurabilityStatus(row) === 'low',
-          }"
-        >
-          <div class="equipped-item__name">{{ row.item.glyph }} {{ row.item.name }}</div>
-          <div class="equipped-item__type">{{ row.item.type }}</div>
-          <div v-if="gearDurabilityStatus(row) === 'broken'" class="equipped-item__durability-tag equipped-item__durability-tag--broken">
-            BROKEN
-          </div>
-          <div v-else-if="gearDurabilityStatus(row) === 'low'" class="equipped-item__durability-tag equipped-item__durability-tag--low">
-            {{ Math.round((row.durability / row.durability_max) * 100) }}% durability
-          </div>
-        </div>
-        <div
-          v-if="!(store.character.inventory || []).some((i) => i.equipped)"
-          class="equipped-empty"
-        >
-          Nothing equipped — visit the <router-link to="/inventory" class="equipped-empty__link">Inventory</router-link>.
-        </div>
       </div>
 
       <AdBanner variant="inline" />

@@ -9,6 +9,7 @@ class Skill extends Model
     protected $fillable = [
         'branch', 'key', 'name', 'glyph', 'description', 'tier', 'level_req',
         'mp_cost', 'cooldown_seconds', 'cooldown_rounds', 'max_level', 'rank_levels', 'effect_json', 'class_scope',
+        'requires_profession',
     ];
 
     protected $casts = [
@@ -20,6 +21,7 @@ class Skill extends Model
         'cooldown_seconds' => 'integer',
         'cooldown_rounds' => 'integer',
         'max_level' => 'integer',
+        'requires_profession' => 'boolean',
     ];
 
     /** Character level required to unlock a given rank (1-indexed). Falls back to level_req for rank 1

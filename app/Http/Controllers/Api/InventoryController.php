@@ -14,8 +14,10 @@ use Illuminate\Support\Str;
 
 class InventoryController extends Controller
 {
-    /** Fraction of a scrapped item's crafting materials refunded, rounded up per material. */
-    private const SCRAP_REFUND_PCT = 0.05;
+    /** Fraction of a scrapped item's crafting materials refunded, rounded up per material. Deliberately
+     * small — scrapping a roll you don't like and recrafting should cost noticeably more than repairing
+     * the one you have (see DurabilityService::REPAIR_PACK_TIERS), not be a cheap way to keep re-rolling. */
+    private const SCRAP_REFUND_PCT = 0.03;
 
     public function __construct(private DurabilityService $durability) {}
 
@@ -41,10 +43,20 @@ class InventoryController extends Controller
             ->firstOrFail();
 
         $item = $inventory->item;
-        // 'quiver' is the ranger's second slot (alongside their bow/weapon) — see ItemSeeder. Equipping one
-        // only unequips other quivers below, never the weapon slot, so bow + quiver stay on together.
-        if (! in_array($item->type, ['weapon', 'armor', 'pickaxe', 'axe', 'sickle', 'hammer', 'quiver'], true)) {
+        // 'quiver' is the ranger's second slot (alongside their bow/weapon), 'shield' is the warrior's
+        // (alongside their chest armor) — see ItemSeeder. Equipping one only unequips other same-type
+        // items below, never the weapon/armor slot, so bow+quiver or armor+shield stay on together.
+        if (! in_array($item->type, ['weapon', 'armor', 'shield', 'pickaxe', 'axe', 'sickle', 'hammer', 'quiver'], true)) {
             return response()->json(['message' => 'Only weapons, armor, and tools can be equipped.'], 422);
+        }
+
+        // Any class can craft or buy another class's gear (e.g. to resell on the Marketplace — see
+        // CraftingController's 'other_class' flag), but only their own class can actually wear it.
+        // Quivers are the one exception: Rogues share the Ranger's quiver slot (both classes can equip
+        // one, even though the item's own class_key is 'ranger' for crafting-flavor purposes).
+        $wearableClasses = $item->type === 'quiver' ? ['ranger', 'rogue'] : [$item->class_key];
+        if ($item->class_key !== null && ! in_array($character->base_class, $wearableClasses, true)) {
+            return response()->json(['message' => "This gear is for the {$item->class_key} class."], 422);
         }
 
         // unequip anything else of the same type first (one weapon, one armor slot)
@@ -227,9 +239,11 @@ class InventoryController extends Controller
         $outcome = $this->durability->repairOutcome($pack->item->rarity, $gear->item->rarity);
         $success = (mt_rand() / mt_getrandmax() * 100) < $outcome['chance_pct'];
         $restored = 0;
+        $rolledPct = null;
 
         if ($success) {
-            $restored = (int) round($gear->durability_max * $outcome['repair_pct'] / 100);
+            $rolledPct = $this->durability->rollRepairPct($outcome['repair_pct']);
+            $restored = (int) round($gear->durability_max * $rolledPct / 100);
             $gear->update(['durability' => min($gear->durability_max, $gear->durability + $restored)]);
         }
 
@@ -241,6 +255,8 @@ class InventoryController extends Controller
         return response()->json([
             'success' => $success,
             'chance_pct' => $outcome['chance_pct'],
+            'base_repair_pct' => $outcome['repair_pct'],
+            'rolled_pct' => $rolledPct,
             'restored' => $restored,
             'inventory' => $character->inventory()->with('item')->get(),
         ]);

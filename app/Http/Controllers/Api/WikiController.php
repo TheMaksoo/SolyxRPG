@@ -31,8 +31,9 @@ class WikiController extends Controller
             $entries = WikiEntry::query()
                 ->where('enabled', true)
                 ->orderBy('category')
+                ->orderBy('group_label')
                 ->orderBy('sort_order')
-                ->get(['id', 'category', 'glyph', 'name', 'sub', 'rarity', 'description', 'stats']);
+                ->get(['id', 'category', 'group_label', 'glyph', 'name', 'sub', 'rarity', 'description', 'stats']);
 
             $counts = $entries->countBy('category');
 
@@ -51,6 +52,7 @@ class WikiController extends Controller
                 'entries' => $entries->map(fn ($e) => [
                     'id' => $e->id,
                     'category' => $e->category,
+                    'group' => $e->group_label,
                     'g' => $e->glyph,
                     'name' => $e->name,
                     'sub' => $e->sub,

@@ -9,7 +9,9 @@ class SkillSeeder extends Seeder
 {
     /** Every class gets 3 skills: an early passive stat buff, a mid-game active nuke, and a Lv.40 signature
      * ultimate. Mage additionally gets Healing Light, a standalone Restoration-branch heal — the only
-     * class with a self-heal, fitting its caster identity. */
+     * class with a self-heal, fitting its caster identity. Every class also gets one "Mastery" branch
+     * skill gated on actually picking a t20 profession (see requires_profession below), not just reaching
+     * the level. */
     public function run(): void
     {
         // Rank-unlock levels are spread across each tier's own window (before the next tier unlocks),
@@ -47,6 +49,15 @@ class SkillSeeder extends Seeder
             ['branch' => 'Marksmanship', 'key' => 'focused_aim', 'name' => 'Focused Aim', 'glyph' => '🎯', 'description' => '+15% attack damage on your basic attack.', 'tier' => 1, 'level_req' => 1, 'mp_cost' => 0, 'cooldown_seconds' => 0, 'cooldown_rounds' => 0, 'max_level' => 8, 'rank_levels' => $t1of5, 'effect_json' => ['atk_pct' => 15], 'class_scope' => 'ranger'],
             ['branch' => 'Marksmanship', 'key' => 'piercing_shot', 'name' => 'Piercing Shot', 'glyph' => '🏹', 'description' => 'A precise shot that punches through armor. Costs MP.', 'tier' => 2, 'level_req' => 20, 'mp_cost' => 30, 'cooldown_seconds' => 12, 'cooldown_rounds' => 3, 'max_level' => 8, 'rank_levels' => $t2of5, 'effect_json' => ['dmg_mult' => 2.1], 'class_scope' => 'ranger'],
             ['branch' => 'Marksmanship', 'key' => 'rain_of_arrows', 'name' => 'Rain of Arrows', 'glyph' => '🌧', 'description' => 'A hail of arrows strikes all enemies at once. Costs MP.', 'tier' => 3, 'level_req' => 40, 'mp_cost' => 75, 'cooldown_seconds' => 25, 'cooldown_rounds' => 5, 'max_level' => 5, 'rank_levels' => $t3of3, 'effect_json' => ['aoe' => true, 'dmg_mult' => 2.3], 'class_scope' => 'ranger'],
+
+            // "Mastery" branch — one skill per class, standalone (no prior-skill prerequisite within the
+            // branch, single rank) and gated on having actually chosen a t20 profession (Character::spec_class,
+            // see CharacterController::unlockSkill()) rather than just reaching Lv.20, so picking a profession
+            // is a real unlock moment, not just a name change.
+            ['branch' => 'Mastery', 'key' => 'warlords_resolve', 'name' => "Warlord's Resolve", 'glyph' => '🏰', 'description' => 'Your training as a warlord hardens your stance. +12% defense, permanently.', 'tier' => 1, 'level_req' => 20, 'mp_cost' => 0, 'cooldown_seconds' => 0, 'cooldown_rounds' => 0, 'max_level' => 1, 'rank_levels' => [20], 'effect_json' => ['def_pct' => 12], 'class_scope' => 'warrior', 'requires_profession' => true],
+            ['branch' => 'Mastery', 'key' => 'archmagi_surge', 'name' => 'Archmagi Surge', 'glyph' => '🌠', 'description' => 'Channel your profession\'s arcane mastery into one devastating burst. Costs MP.', 'tier' => 1, 'level_req' => 20, 'mp_cost' => 70, 'cooldown_seconds' => 20, 'cooldown_rounds' => 4, 'max_level' => 1, 'rank_levels' => [20], 'effect_json' => ['dmg_mult' => 2.6], 'class_scope' => 'mage', 'requires_profession' => true],
+            ['branch' => 'Mastery', 'key' => 'killer_instinct', 'name' => 'Killer Instinct', 'glyph' => '🔪', 'description' => 'Everything your profession taught you converges on one lethal opening. Costs MP.', 'tier' => 1, 'level_req' => 20, 'mp_cost' => 35, 'cooldown_seconds' => 14, 'cooldown_rounds' => 3, 'max_level' => 1, 'rank_levels' => [20], 'effect_json' => ['dmg_mult' => 2.2], 'class_scope' => 'rogue', 'requires_profession' => true],
+            ['branch' => 'Mastery', 'key' => 'trueshot', 'name' => 'Trueshot', 'glyph' => '🎯', 'description' => 'A profession-trained shot that never misses its mark. Costs MP.', 'tier' => 1, 'level_req' => 20, 'mp_cost' => 35, 'cooldown_seconds' => 14, 'cooldown_rounds' => 3, 'max_level' => 1, 'rank_levels' => [20], 'effect_json' => ['dmg_mult' => 2.2], 'class_scope' => 'ranger', 'requires_profession' => true],
         ];
 
         $keys = collect($skills)->pluck('key');

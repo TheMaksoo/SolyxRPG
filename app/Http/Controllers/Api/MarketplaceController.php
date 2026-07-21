@@ -28,8 +28,13 @@ class MarketplaceController extends Controller
      * elsewhere, so the marketplace doesn't just recirculate gold with zero drain on the economy. */
     private const MARKET_FEE_PCT = 5;
 
+    /** Cancelling your own listing early costs a cut of the LISTED price (not charged to a buyer, since
+     * there isn't one) — otherwise listing-then-cancelling is a free way to "reserve" a price check with
+     * zero commitment. */
+    private const CANCEL_FEE_PCT = 10;
+
     /** Gear is never qty-stacked (each copy has its own durability) — mirrors CraftingController::GEAR_TYPES. */
-    private const GEAR_TYPES = ['weapon', 'armor', 'pickaxe', 'axe', 'sickle', 'hammer', 'quiver'];
+    private const GEAR_TYPES = ['weapon', 'armor', 'shield', 'pickaxe', 'axe', 'sickle', 'hammer', 'quiver'];
 
     public function index(Request $request)
     {
@@ -165,12 +170,19 @@ class MarketplaceController extends Controller
         abort_if($listing->seller_character_id !== $character->id, 403, 'That\'s not your listing.');
         abort_if($listing->status !== 'active', 422, 'Only active listings can be cancelled.');
 
-        DB::transaction(function () use ($listing, $character) {
+        $fee = (int) ceil($listing->price_gold * self::CANCEL_FEE_PCT / 100);
+
+        DB::transaction(function () use ($listing, $character, $fee) {
             $this->depositItem($character, $listing);
+            $character->update(['gold' => max(0, $character->gold - $fee)]);
             $listing->update(['status' => 'cancelled']);
         });
 
-        return response()->json(['inventory' => $character->inventory()->with('item')->get()]);
+        return response()->json([
+            'inventory' => $character->inventory()->with('item')->get(),
+            'character' => $character->fresh(),
+            'cancel_fee' => $fee,
+        ]);
     }
 
     /** Returns/awards a listing's escrowed item+qty to a character's inventory — used on both a

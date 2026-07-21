@@ -42,11 +42,27 @@ function sectionKeyFor(type) {
   return type;
 }
 
+// Weapons/armor are the two sections where "which class is this even for" actually matters when
+// scanning a long list — every other section (tools, potions, repair packs) is either class-agnostic
+// or already small enough not to need it.
+const CLASS_ORDER = ['warrior', 'mage', 'rogue', 'ranger'];
+const GROUPED_SECTIONS = ['weapon', 'armor'];
+
 const sections = computed(() =>
-  SECTIONS.map((section) => ({
-    ...section,
-    recipes: recipes.value.filter((r) => sectionKeyFor(r.result_item.type) === section.key),
-  })).filter((section) => section.recipes.length)
+  SECTIONS.map((section) => {
+    const sectionRecipes = recipes.value.filter((r) => sectionKeyFor(r.result_item.type) === section.key);
+    if (!GROUPED_SECTIONS.includes(section.key)) {
+      return { ...section, recipes: sectionRecipes, groups: null };
+    }
+
+    const groups = CLASS_ORDER.map((cls) => ({
+      key: cls,
+      label: cls.charAt(0).toUpperCase() + cls.slice(1),
+      recipes: sectionRecipes.filter((r) => r.result_item.class_key === cls),
+    })).filter((g) => g.recipes.length);
+
+    return { ...section, recipes: sectionRecipes, groups };
+  }).filter((section) => section.recipes.length)
 );
 
 // Minimized (collapsed) sections persist across visits so a player who only cares about
@@ -158,6 +174,12 @@ onUnmounted(() => {
           <div class="ox queue-card__name">
             {{ job.result_item.name }}
             <span class="queue-card__rarity" :style="{ color: rarityOdds[job.rarity]?.color }">{{ rarityOdds[job.rarity]?.label ?? job.rarity }}</span>
+            <span v-if="job.roll_pct !== null" class="queue-card__roll" :class="{ 'is-good': job.roll_pct > 0, 'is-bad': job.roll_pct < 0 }">
+              {{ job.roll_pct > 0 ? '+' : '' }}{{ job.roll_pct }}% roll
+            </span>
+          </div>
+          <div v-if="formatStats(job.result_item.stat_json).length" class="queue-card__stats">
+            {{ formatStats(job.result_item.stat_json).join(' · ') }}
           </div>
           <div class="queue-card__status">{{ job.is_ready ? 'Ready to collect!' : `${job.seconds_remaining}s remaining` }}</div>
         </div>
@@ -172,56 +194,61 @@ onUnmounted(() => {
         <span class="recipe-section-eyebrow__count">{{ section.recipes.length }}</span>
         <span class="recipe-section-eyebrow__chevron" :class="{ 'is-collapsed': isCollapsed(section.key) }">▾</span>
       </button>
-      <div v-show="!isCollapsed(section.key)" class="recipe-grid">
-        <div
-          v-for="recipe in section.recipes"
-          :key="recipe.id"
-          class="recipe-card"
-          :class="{ 'recipe-card--locked': !recipe.can_craft }"
-        >
-          <div class="recipe-card__head">
-            <span class="recipe-card__glyph">{{ recipe.result_item.glyph }}</span>
-            <span class="ox recipe-card__name">{{ recipe.name }}</span>
-            <span v-if="recipe.other_class" class="recipe-card__other-class" :title="`Made for the ${recipe.result_item.class_key} class — craft it anyway to sell on the Marketplace.`">
-              {{ recipe.result_item.class_key }} gear
-            </span>
-            <span v-if="recipe.result_qty > 1" class="recipe-card__qty">×{{ recipe.result_qty }}</span>
-          </div>
-          <div v-if="formatStats(recipe.result_item.stat_json).length" class="recipe-card__stats">
-            <span v-for="stat in formatStats(recipe.result_item.stat_json)" :key="stat" class="recipe-card__stat">{{ stat }}</span>
-          </div>
-          <div class="recipe-card__label">
-            Requires resources:
-          </div>
-          <div class="recipe-card__materials">
+      <div v-show="!isCollapsed(section.key)">
+        <template v-for="group in (section.groups && section.groups.length ? section.groups : [{ key: 'all', label: null, recipes: section.recipes }])" :key="group.key">
+          <div v-if="group.label" class="recipe-class-group-label">{{ group.label }}</div>
+          <div class="recipe-grid">
             <div
-              v-for="material in recipe.materials_detailed"
-              :key="material.item_id"
-              class="material-row"
-              :class="{ 'material-row--missing': !material.has_enough }"
+              v-for="recipe in group.recipes"
+              :key="recipe.id"
+              class="recipe-card"
+              :class="{ 'recipe-card--locked': !recipe.can_craft }"
             >
-              {{ material.glyph }} {{ material.name }}: {{ material.owned_qty }}/{{ material.required_qty }}
+              <div class="recipe-card__head">
+                <span class="recipe-card__glyph">{{ recipe.result_item.glyph }}</span>
+                <span class="ox recipe-card__name">{{ recipe.name }}</span>
+                <span v-if="recipe.other_class" class="recipe-card__other-class" :title="`Made for the ${recipe.result_item.class_key} class — craft it anyway to sell on the Marketplace.`">
+                  {{ recipe.result_item.class_key }} gear
+                </span>
+                <span v-if="recipe.result_qty > 1" class="recipe-card__qty">×{{ recipe.result_qty }}</span>
+              </div>
+              <div v-if="formatStats(recipe.result_item.stat_json).length" class="recipe-card__stats">
+                <span v-for="stat in formatStats(recipe.result_item.stat_json)" :key="stat" class="recipe-card__stat">{{ stat }}</span>
+              </div>
+              <div class="recipe-card__label">
+                Requires resources:
+              </div>
+              <div class="recipe-card__materials">
+                <div
+                  v-for="material in recipe.materials_detailed"
+                  :key="material.item_id"
+                  class="material-row"
+                  :class="{ 'material-row--missing': !material.has_enough }"
+                >
+                  {{ material.glyph }} {{ material.name }}: {{ material.owned_qty }}/{{ material.required_qty }}
+                </div>
+              </div>
+              <div
+                v-if="recipe.gold_cost > 0"
+                class="material-row"
+                :class="{ 'material-row--missing': !recipe.can_afford_gold }"
+              >
+                🪙 {{ recipe.gold_cost }} gold
+              </div>
+              <div class="recipe-card__time">
+                ⏱ {{ recipe.craft_seconds }}s to craft
+                <span v-if="!recipe.level_unlocked" class="recipe-card__locked">🔒 Requires level {{ recipe.min_level }}</span>
+              </div>
+              <button
+                @click="craft(recipe)"
+                :disabled="!recipe.can_craft || queueFull()"
+                class="recipe-card__craft-btn"
+              >
+                {{ craftButtonLabel(recipe) }}
+              </button>
             </div>
           </div>
-          <div
-            v-if="recipe.gold_cost > 0"
-            class="material-row"
-            :class="{ 'material-row--missing': !recipe.can_afford_gold }"
-          >
-            🪙 {{ recipe.gold_cost }} gold
-          </div>
-          <div class="recipe-card__time">
-            ⏱ {{ recipe.craft_seconds }}s to craft
-            <span v-if="!recipe.level_unlocked" class="recipe-card__locked">🔒 Requires level {{ recipe.min_level }}</span>
-          </div>
-          <button
-            @click="craft(recipe)"
-            :disabled="!recipe.can_craft || queueFull()"
-            class="recipe-card__craft-btn"
-          >
-            {{ craftButtonLabel(recipe) }}
-          </button>
-        </div>
+        </template>
       </div>
     </div>
   </div>

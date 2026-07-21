@@ -91,6 +91,40 @@ async function subscribe(tier) {
   }
 }
 
+const cancelling = ref(false);
+
+async function cancelSubscription() {
+  message.value = '';
+  cancelling.value = true;
+  try {
+    await api.post('/vip/cancel');
+    message.value = "Subscription cancelled — you'll keep your perks until it runs out, then it won't renew.";
+    await load();
+  } catch (e) {
+    message.value = e.response?.data?.message || 'Could not cancel.';
+  } finally {
+    cancelling.value = false;
+  }
+}
+
+async function resumeSubscription() {
+  message.value = '';
+  cancelling.value = true;
+  try {
+    await api.post('/vip/resume');
+    message.value = "Subscription resumed — you won't be charged again until your current period runs out.";
+    await load();
+  } catch (e) {
+    message.value = e.response?.data?.message || 'Could not resume.';
+  } finally {
+    cancelling.value = false;
+  }
+}
+
+function formatDate(iso) {
+  return iso ? new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+}
+
 onMounted(load);
 </script>
 
@@ -105,6 +139,24 @@ onMounted(load);
     </div>
 
     <p v-if="message" class="vip-message">{{ message }}</p>
+
+    <div v-if="info?.has_stripe_subscription && info.vip_tier !== 'none'" class="vip-subscription-status">
+      <template v-if="info.vip_cancel_at_period_end">
+        <p>
+          Your subscription is <strong>cancelled</strong> — you'll keep {{ info.vip_tier }} VIP until
+          <strong>{{ formatDate(info.vip_expires_at) }}</strong>, then it won't renew or charge you again.
+        </p>
+        <button type="button" class="vip-cancel-btn" :disabled="cancelling" @click="resumeSubscription">
+          {{ cancelling ? 'Resuming…' : 'Resubscribe' }}
+        </button>
+      </template>
+      <template v-else>
+        <p>Renews on <strong>{{ formatDate(info.vip_expires_at) }}</strong>.</p>
+        <button type="button" class="vip-cancel-btn" :disabled="cancelling" @click="cancelSubscription">
+          {{ cancelling ? 'Cancelling…' : 'Cancel subscription' }}
+        </button>
+      </template>
+    </div>
 
     <div v-if="info" class="vip-tiers-grid">
       <div

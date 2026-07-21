@@ -14,12 +14,12 @@ class Character extends Model
     /** Both HP and mana regen tick out-of-combat on this same interval. */
     private const REGEN_TICK_SECONDS = 5;
 
-    /** Hard level ceiling — previously there wasn't one (CombatService::grantXp() looped unbounded), even
-     * though AchievementSeeder already authors milestones up through level 150 ("Transcendent") that a
-     * character could never meaningfully be capped at. 150 formalizes that already-authored ceiling: with
-     * xpForLevel()'s linear curve, levels 61-150 are pure additional attribute/skill-point grind on top of
-     * the levels 1-60 profession/skill content, rather than a new curve or new systems. */
-    public const MAX_LEVEL = 150;
+    /** There's no real level cap — this just bounds CombatService::grantXp()'s multi-level-up loop so a
+     * pathological xp value can't spin forever. AchievementSeeder's "Transcendent" milestone at level 150
+     * is a flavor milestone, not a ceiling: with xpForLevel()'s linear curve, content past level 60 is
+     * pure additional attribute/skill-point grind rather than a new curve or new systems, so there's
+     * nothing stopping a character from leveling well beyond it. */
+    public const MAX_LEVEL = 999999;
 
     protected $fillable = [
         'user_id', 'name', 'base_class', 'spec_class', 'profession', 'ascension',
@@ -238,9 +238,9 @@ class Character extends Model
             $gearDef += $stats['def'] ?? 0;
             $gearLuck += $stats['luck'] ?? 0;
             $gearDodge += $stats['dodge_pct'] ?? 0;
-            if ($slot->item->type === 'armor') {
-                // Warriors are the only class whose "armor" slot is actually a shield (buckler/kite
-                // shield/aegis/bulwark — see ItemSeeder), so this doubles as "warrior has a shield up".
+            if ($slot->item->type === 'shield') {
+                // Only warriors have shield-type gear (buckler/kite shield/aegis/bulwark — see
+                // ItemSeeder) — their 2nd defensive slot alongside regular chest armor.
                 $hasArmorSlotEquipped = true;
             }
         }
@@ -486,7 +486,8 @@ class Character extends Model
      *     separately in CombatService::act(), since cooldowns are a battle-state concern, not a stat).
      *   - Warrior: already innately tanky via its base HP/DEF (see CharacterController::store()); the
      *     "weapon AND shield" identity is made a felt mechanical choice via shield_def_pct below, which
-     *     only turns on while a shield (this class's sole 'armor'-slot item — see ItemSeeder) is equipped.
+     *     only turns on while a shield (this class's 2nd, 'shield'-type slot alongside chest armor — see
+     *     ItemSeeder) is equipped.
      * NOTE: none of this reads $this->spec_class — see subclassPassiveBonuses() for that layer. */
     private function classPassiveBonuses(bool $hasArmorSlotEquipped): array
     {

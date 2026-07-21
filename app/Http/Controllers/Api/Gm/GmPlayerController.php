@@ -19,7 +19,8 @@ class GmPlayerController extends Controller
     {
         $search = $request->query('search');
 
-        $users = User::with('character')
+        $users = User::with('character', 'referrer:id,name')
+            ->withCount('referrals')
             ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"))
             ->orderBy('id')
             ->limit(100)

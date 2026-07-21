@@ -23,6 +23,35 @@
   margin-bottom: 10px;
 }
 
+.inventory-bag-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+
+  .inventory-section-heading {
+    margin-bottom: 0;
+  }
+}
+
+.inventory-bag-search {
+  background: v.$bg-input;
+  border: 1px solid v.$border-medium;
+  border-radius: v.$radius-md;
+  padding: 7px 12px;
+  color: v.$text-primary;
+  font-size: 12.5px;
+  width: 220px;
+  max-width: 100%;
+}
+
+.inventory-bag-empty {
+  font-size: 12.5px;
+  color: v.$text-muted-40;
+  margin: 4px 0 14px;
+}
+
 .inventory-message {
   color: v.$success;
   font-size: 13px;
@@ -134,18 +163,12 @@
   gap: 10px;
   background: v.$bg-card;
   border: 1px solid v.$accent;
-  border-radius: 10px;
+  border-radius: 10px 10px 0 0;
   padding: 10px 12px;
-  cursor: pointer;
 
   &--empty {
     border: 1px dashed v.$border-medium;
-    cursor: default;
-  }
-
-  &--expanded {
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
+    border-radius: 10px;
   }
 }
 
@@ -251,12 +274,40 @@
   letter-spacing: 0.04em;
   padding: 3px 7px;
   border-radius: v.$radius-sm;
-  margin-left: auto;
   flex: none;
 
   &--inline {
     margin-left: 0;
-    margin-bottom: 8px;
+  }
+}
+
+.equipment-slot-row__chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  flex: none;
+}
+
+.inventory-bag-card__chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.roll-chip {
+  font-size: 10px;
+  font-weight: 700;
+  color: v.$text-muted-45;
+
+  &.is-good {
+    color: v.$success;
+  }
+
+  &.is-bad {
+    color: v.$danger;
   }
 }
 
@@ -372,6 +423,7 @@
 }
 
 .inventory-bag-card__equip-btn {
+  display: block;
   width: 100%;
   padding: 5px;
   border-radius: 6px;
@@ -379,8 +431,11 @@
   background: transparent;
   color: #fff;
   font-size: 10.5px;
+  text-align: center;
+  text-decoration: none;
   cursor: pointer;
   margin-bottom: 6px;
+  box-sizing: border-box;
 
   &--repair {
     border-color: v.$accent;
@@ -390,6 +445,11 @@
       border-color: v.$border-medium;
       color: v.$text-muted-40;
     }
+  }
+
+  &--sell {
+    border-color: v.$warning;
+    color: v.$warning;
   }
 }
 

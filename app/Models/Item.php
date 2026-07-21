@@ -8,7 +8,7 @@ class Item extends Model
 {
     protected $fillable = [
         'key', 'name', 'type', 'weapon_category', 'class_key', 'rarity', 'min_level', 'glyph', 'description', 'stat_json',
-        'price_gold', 'price_gems', 'enabled', 'tester_only',
+        'roll_pct', 'price_gold', 'price_gems', 'enabled', 'tester_only',
     ];
 
     protected $casts = [

@@ -8,6 +8,7 @@ import ActivityChart from '../../components/admin/ActivityChart.vue';
 import InfoTooltip from '../../components/InfoTooltip.vue';
 import Skeleton from '../../components/Skeleton.vue';
 import { RESOURCE_SCHEMAS } from './resourceSchemas';
+import { NAV } from '../../navigation';
 
 const route = useRoute();
 const auth = useAuthStore();
@@ -130,6 +131,78 @@ const referralFunnelChartData = computed(() => {
   const funnel = analytics.value?.referral_funnel;
   if (!funnel) return { labels: [], data: [] };
   return { labels: ['Pending', 'Qualified (finished)'], data: [funnel.pending, funnel.qualified] };
+});
+
+const levelGrowthChartData = computed(() => {
+  const growth = analytics.value?.level_growth;
+  if (!growth) return { labels: [], data: [] };
+  return { labels: growth.labels.map((l) => `Lv.${l}`), data: growth.data };
+});
+
+// Total kills from level 1 to reach each level, averaged across every monster reachable along the way —
+// a rough grind-pace gut check every 10 levels, shown as chips under the Level growth chart (see
+// GmAnalyticsController::killsToLevelUp()).
+const killsToLevelUp = computed(() => analytics.value?.kills_to_level_up ?? []);
+
+// Merges the backend's zone/dungeon unlock rows with navigation.js's own unlockLevel entries (Shop,
+// World Map, etc.) — that file is already the single source of truth for what unlocks at what level in
+// the sidebar, so it's read directly here rather than duplicated server-side.
+const unlockTimeline = computed(() => {
+  const serverRows = analytics.value?.unlock_timeline ?? [];
+  const navRows = NAV.filter((n) => n.unlockLevel).map((n) => ({ level: n.unlockLevel, name: n.label, type: 'feature' }));
+  return [...serverRows, ...navRows]
+    .sort((a, b) => a.level - b.level)
+    .map((row) => ({ ...row, cumulative_xp: row.cumulative_xp ?? cumulativeXpForLevel(row.level) }));
+});
+
+// Same formula as GmAnalyticsController::cumulativeXpForLevel() — needed here only for the nav-feature
+// rows merged in above, which don't come from the backend and so never carry a cumulative_xp value.
+function cumulativeXpForLevel(level) {
+  let total = 0;
+  for (let i = 1; i < level; i++) total += 500 + 800 * (i - 1);
+  return total;
+}
+
+// Unlocks plotted on their own axis — one stacked bar per level that unlocks ANYTHING (level 1 through
+// the last such level), height = how many things unlock there, color-split by type so the mix is
+// readable at a glance instead of one flat count. Hovering a segment lists that type's actual unlock
+// names at that level; the full sorted table stays below so nothing requires hovering to be found.
+const UNLOCK_TYPE_COLORS = {
+  zone: '#4ade80',
+  dungeon: '#e8482f',
+  feature: '#5cc7f5',
+  monster: '#ff8163',
+  skill: '#a78bfa',
+  recipe: '#eab308',
+};
+const UNLOCK_TYPE_LABELS = { zone: 'Zone', dungeon: 'Dungeon', feature: 'Feature', monster: 'Monster', skill: 'Skill', recipe: 'Recipe' };
+
+function truncateNames(names, max = 8) {
+  return names.length > max ? [...names.slice(0, max), `+${names.length - max} more`] : names;
+}
+
+const unlockChartData = computed(() => {
+  const byLevel = new Map();
+  for (const row of unlockTimeline.value) {
+    if (!byLevel.has(row.level)) byLevel.set(row.level, {});
+    (byLevel.get(row.level)[row.type] ??= []).push(row.name);
+  }
+  const levels = [...byLevel.keys()].sort((a, b) => a - b);
+  const typesPresent = Object.keys(UNLOCK_TYPE_COLORS).filter((t) => levels.some((lvl) => byLevel.get(lvl)[t]));
+
+  return {
+    labels: levels.map((lvl) => `Lv.${lvl}`),
+    datasets: typesPresent.map((type) => ({
+      label: UNLOCK_TYPE_LABELS[type],
+      color: UNLOCK_TYPE_COLORS[type],
+      data: levels.map((lvl) => (byLevel.get(lvl)[type] ?? []).length),
+      // Each entry is an array of names, not a joined string — ActivityChart renders one tooltip line
+      // per array item (Chart.js supports an array return from its label callback for this). Capped at
+      // 8 names + a "+N more" line so a level with many unlocks (e.g. Lv.8) can't grow a tooltip taller
+      // than the chart's own canvas, which would just get clipped instead of actually being visible.
+      tooltipLabels: levels.map((lvl) => truncateNames(byLevel.get(lvl)[type] ?? [])),
+    })),
+  };
 });
 
 function seriesChartData(key) {
@@ -541,6 +614,46 @@ onMounted(() => {
           <div class="gm-console-stat-tile__label">{{ key }}</div>
         </div>
       </div>
+
+      <div class="gm-console-section-label gm-console-section-label--spaced">LEVEL GROWTH & CONTENT UNLOCKS</div>
+      <div class="gm-console-activity-charts">
+        <div class="gm-console-activity-chart-card gm-console-activity-chart-card--wide">
+          <div class="gm-console-activity-chart-card__title">
+            Level growth
+            <InfoTooltip text="Cumulative XP required to reach each level (xpForLevel is linear: 500 + 800 per level), sampled every 5 levels through 150. There's no real level cap — content unlocks stop around level 150, but a character can keep leveling past it as pure attribute/skill grind." />
+          </div>
+          <ActivityChart type="line" color="#eab308" v-bind="levelGrowthChartData" :height="200" />
+          <div v-if="killsToLevelUp.length" class="gm-console-kills-row">
+            <div
+              v-for="row in killsToLevelUp"
+              :key="row.level"
+              class="gm-console-kills-chip"
+              :title="`Total kills from level 1 — avg vs. ${row.monster_name} (${row.monster_xp} avg xp each)`"
+            >
+              <span class="gm-console-kills-chip__level">Lv.{{ row.level }}</span>
+              <span class="gm-console-kills-chip__value">{{ row.kills.toLocaleString() }} kills total</span>
+              <span class="gm-console-kills-chip__monster">{{ row.monster_name }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="gm-console-activity-charts">
+        <div v-if="unlockTimeline.length" class="gm-console-activity-chart-card gm-console-activity-chart-card--wide">
+          <div class="gm-console-activity-chart-card__title">
+            Content unlocks
+            <InfoTooltip text="Every zone/dungeon/monster/skill/recipe/feature unlock, level 1 through the last level that unlocks anything. Bar height = how many things unlock at that level; hover a bar to see what. Full sorted list below." />
+          </div>
+          <ActivityChart type="bar" v-bind="unlockChartData" stacked :height="280" />
+          <div class="gm-console-unlock-timeline">
+            <div v-for="row in unlockTimeline" :key="row.type + row.name" class="gm-console-unlock-row">
+              <span class="gm-console-unlock-row__level">Lv.{{ row.level }}</span>
+              <span class="gm-console-unlock-row__type" :class="`gm-console-unlock-row__type--${row.type}`">{{ row.type }}</span>
+              <span class="gm-console-unlock-row__name">{{ row.name }}</span>
+              <span class="gm-console-unlock-row__xp">{{ row.cumulative_xp.toLocaleString() }} xp</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- FEATURE FLAGS -->
@@ -936,6 +1049,11 @@ onMounted(() => {
                 <span v-if="user.banned_at" class="gm-console-banned-badge">BANNED</span>
               </div>
               <div class="gm-console-player-card__meta">{{ user.email }} · {{ user.role }}<span v-if="user.character"> · {{ user.character.name }} Lv.{{ user.character.level }}</span></div>
+              <div class="gm-console-player-card__referral">
+                <span v-if="user.referrer">Referred by <strong>{{ user.referrer.name }}</strong></span>
+                <span v-else>Not referred</span>
+                <span v-if="user.referrals_count"> · referred {{ user.referrals_count }} player{{ user.referrals_count === 1 ? '' : 's' }}</span>
+              </div>
             </div>
             <button @click="openEditUser(user)" class="gm-console-edit-btn">✎ Edit user</button>
             <button @click="ban(user)" class="gm-console-ban-btn" :class="{ 'gm-console-ban-btn--active': user.banned_at }">

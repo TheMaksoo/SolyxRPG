@@ -1,9 +1,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import api from '../api/client';
 import { RARITY_COLORS, formatStats } from '../rarity';
 
-const tab = ref('browse');
+const route = useRoute();
+const tab = ref(route.query.tab === 'sell' ? 'sell' : 'browse');
 const listings = ref([]);
 const mine = ref([]);
 const inventory = ref([]);
@@ -12,7 +14,13 @@ const message = ref('');
 
 // Gear is listed one piece at a time (each copy has its own durability) — mirrors
 // CraftingController::GEAR_TYPES / MarketplaceController::GEAR_TYPES.
-const GEAR_TYPES = ['weapon', 'armor', 'pickaxe', 'axe', 'sickle', 'hammer', 'quiver'];
+const GEAR_TYPES = ['weapon', 'armor', 'shield', 'pickaxe', 'axe', 'sickle', 'hammer', 'quiver'];
+
+const browseQuery = ref('');
+const filteredListings = computed(() => {
+  const q = browseQuery.value.trim().toLowerCase();
+  return !q ? listings.value : listings.value.filter((l) => l.item.name.toLowerCase().includes(q));
+});
 
 const listForm = ref(null); // the inventory row currently being listed, or null
 const listQty = ref(1);
@@ -82,8 +90,9 @@ async function buy(listing) {
 
 async function cancel(listing) {
   try {
-    await api.post(`/market/${listing.id}/cancel`);
-    showMessage(`Cancelled — ${listing.item.name} returned to your bag.`, 'success');
+    const { data } = await api.post(`/market/${listing.id}/cancel`);
+    const feeText = data.cancel_fee > 0 ? ` (10% cancel fee: -${data.cancel_fee}g)` : '';
+    showMessage(`Cancelled — ${listing.item.name} returned to your bag.${feeText}`, 'success');
     await Promise.all([loadMine(), loadInventory()]);
   } catch (e) {
     showMessage(e.response?.data?.message || 'Could not cancel that listing.');
@@ -105,7 +114,17 @@ function timeLeft(isoString) {
 const activeMine = computed(() => mine.value.filter((l) => l.status === 'active'));
 const historyMine = computed(() => mine.value.filter((l) => l.status !== 'active'));
 
-onMounted(load);
+onMounted(async () => {
+  await load();
+  // Deep-link from Inventory's "Sell on Market" shortcut (for gear the character can't equip) —
+  // jumps straight to that specific row's listing form instead of leaving the player to find it
+  // again in the sell picker.
+  const listItemId = Number(route.query.list_item);
+  if (listItemId) {
+    const row = inventory.value.find((r) => r.id === listItemId);
+    if (row) openListForm(row);
+  }
+});
 </script>
 
 <template>
@@ -128,18 +147,27 @@ onMounted(load);
     <p v-if="message" class="market-message" :class="`market-message--${message.tone}`">{{ message.text }}</p>
 
     <!-- BROWSE -->
+    <input
+      v-if="tab === 'browse'"
+      v-model="browseQuery"
+      type="text"
+      placeholder="🔍 Search listings…"
+      class="market-search"
+    />
+    <div v-if="tab === 'browse' && browseQuery && !filteredListings.length" class="market-empty">No listings match "{{ browseQuery }}".</div>
     <div v-if="tab === 'browse'" class="market-grid">
-      <div v-for="l in listings" :key="l.id" class="market-card">
+      <div v-for="l in filteredListings" :key="l.id" class="market-card">
         <div class="market-card__head">
           <span class="market-card__glyph">{{ l.item.glyph }}</span>
           <span class="ox market-card__name" :style="{ color: RARITY_COLORS[l.item.rarity] }">{{ l.item.name }}</span>
+          <span v-if="l.item.roll_pct != null" class="roll-chip" :class="{ 'is-good': l.item.roll_pct > 0, 'is-bad': l.item.roll_pct < 0 }">{{ l.item.roll_pct > 0 ? '+' : '' }}{{ l.item.roll_pct }}% roll</span>
           <span v-if="l.qty > 1" class="market-card__qty">×{{ l.qty }}</span>
         </div>
         <div v-if="formatStats(l.item.stat_json).length" class="market-card__stats">
           <span v-for="stat in formatStats(l.item.stat_json)" :key="stat" class="market-card__stat">{{ stat }}</span>
         </div>
         <div v-if="isGear(l.item) && l.durability_max" class="market-card__durability">
-          Durability {{ l.durability }}/{{ l.durability_max }}
+          Durability {{ l.durability }}/{{ l.durability_max }} ({{ Math.round((l.durability / l.durability_max) * 100) }}%)
         </div>
         <div class="market-card__foot">
           <div class="market-card__seller">Sold by {{ l.seller_name }} · {{ timeLeft(l.expires_at) }}</div>
@@ -205,7 +233,7 @@ onMounted(load);
           </div>
           <div class="market-card__foot">
             <div class="market-card__seller">🪙 {{ l.price_gold }} · {{ timeLeft(l.expires_at) }}</div>
-            <button class="market-card__cancel-btn" @click="cancel(l)">Cancel</button>
+            <button class="market-card__cancel-btn" :title="`Cancelling costs a 10% fee (${Math.ceil(l.price_gold * 0.1)}g)`" @click="cancel(l)">Cancel</button>
           </div>
         </div>
         <div v-if="!activeMine.length" class="market-empty">You have no active listings.</div>

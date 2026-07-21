@@ -40,7 +40,7 @@ class CraftingController extends Controller
      * 'quiver' is the ranger's second, simultaneously-equippable slot alongside their bow (weapon) — see
      * ItemSeeder for the quiver line and InventoryController::equip() for how the generic per-type equip
      * logic makes that "just work" without any bow/quiver conflict handling needed. */
-    private const GEAR_TYPES = ['weapon', 'armor', 'pickaxe', 'axe', 'sickle', 'hammer', 'quiver'];
+    private const GEAR_TYPES = ['weapon', 'armor', 'shield', 'pickaxe', 'axe', 'sickle', 'hammer', 'quiver'];
 
     public function __construct(
         private CraftingService $crafting,
@@ -102,7 +102,10 @@ class CraftingController extends Controller
             $canAffordGold = $recipe->gold_cost <= 0 || $character->gold >= $recipe->gold_cost;
             // Any class can craft any class's gear — lets a dedicated crafter ("smithy" playstyle) supply
             // the whole roster and sell the results on the marketplace rather than only their own class's kit.
-            $otherClass = $recipe->resultItem->class_key !== null && $recipe->resultItem->class_key !== $character->base_class;
+            // Quivers are the one shared slot (Ranger + Rogue both wear one — see InventoryController::equip()),
+            // so neither sees the "other class" flag for it despite the item's class_key being 'ranger'.
+            $wearsQuiver = $recipe->resultItem->type === 'quiver' && in_array($character->base_class, ['ranger', 'rogue'], true);
+            $otherClass = $recipe->resultItem->class_key !== null && $recipe->resultItem->class_key !== $character->base_class && ! $wearsQuiver;
 
             return [
                 'id' => $recipe->id,
@@ -186,9 +189,9 @@ class CraftingController extends Controller
 
             if (in_array($resultItem->type, self::GEAR_TYPES, true)) {
                 $rarity = $this->crafting->roll($craftingLevel);
-                $range = $this->applyLuckToRollRange($this->rarityRollRange($rarity), $luck);
+                $range = $this->applyBonusesToRollRange($this->rarityRollRange($rarity), $luck, $craftingLevel);
                 $rollPct = random_int($range['min'], $range['max']);
-                $resultItem = $this->createCraftedVariant($resultItem, 1 + ($rollPct / 100), $luck, $rarity);
+                $resultItem = $this->createCraftedVariant($resultItem, 1 + ($rollPct / 100), $luck, $rarity, $rollPct);
             }
 
             $seconds = $this->craftSeconds($recipe->craft_seconds, $craftSpeedPct, $craftSpeedAttr, $hammerSpeedPct);
@@ -338,7 +341,7 @@ class CraftingController extends Controller
         }
     }
 
-    private function createCraftedVariant(Item $baseItem, float $multiplier, int $luck, string $rarity): Item
+    private function createCraftedVariant(Item $baseItem, float $multiplier, int $luck, string $rarity, int $rollPct): Item
     {
         $stats = $baseItem->stat_json ?? [];
         $scaledStats = [];
@@ -359,10 +362,12 @@ class CraftingController extends Controller
             'name' => $baseItem->name,
             'type' => $baseItem->type,
             'weapon_category' => $baseItem->weapon_category,
+            'class_key' => $baseItem->class_key,
             'rarity' => $rarity,
             'glyph' => $baseItem->glyph,
             'description' => $baseItem->description,
             'stat_json' => $scaledStats,
+            'roll_pct' => $rollPct,
             'price_gold' => $priceGold,
             'price_gems' => null,
             'enabled' => false,
@@ -384,16 +389,20 @@ class CraftingController extends Controller
         return ['min' => $min, 'max' => $max];
     }
 
-    private function applyLuckToRollRange(array $range, int $luck): array
+    /** Both Luck and Crafting rank push the roll range up — Luck is the immediate, gearable lever;
+     * Crafting rank rewards actually leveling the trade skill instead of just gear-checking Luck. Each
+     * point of either shifts the floor a little and the ceiling more, so investing in both meaningfully
+     * raises your odds of a high roll without guaranteeing one. */
+    private function applyBonusesToRollRange(array $range, int $luck, int $craftingLevel): array
     {
-        if ($luck <= 0) {
-            return $range;
-        }
-
         $minDivisor = max(1, (int) round(GameConfig::number('luck_roll_min_shift_divisor', 10)));
         $maxDivisor = max(1, (int) round(GameConfig::number('luck_roll_max_shift_divisor', 4)));
-        $minShift = intdiv($luck, $minDivisor);
-        $maxShift = intdiv($luck, $maxDivisor);
+        $craftMinDivisor = max(1, (int) round(GameConfig::number('crafting_roll_min_shift_divisor', 5)));
+        $craftMaxDivisor = max(1, (int) round(GameConfig::number('crafting_roll_max_shift_divisor', 2)));
+
+        $craftingBonus = max(0, $craftingLevel - 1);
+        $minShift = intdiv(max(0, $luck), $minDivisor) + intdiv($craftingBonus, $craftMinDivisor);
+        $maxShift = intdiv(max(0, $luck), $maxDivisor) + intdiv($craftingBonus, $craftMaxDivisor);
 
         return [
             'min' => $range['min'] + $minShift,

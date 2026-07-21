@@ -4,13 +4,16 @@ namespace App\Services;
 
 class CraftingService
 {
-    /** Rarity tier rolled for every craft, gated by the character's Crafting trade-skill level — higher rank unlocks a shot at better tiers. */
+    /** Rarity tier rolled for every craft, gated by the character's Crafting trade-skill level — higher
+     * rank unlocks a shot at better tiers. Unlock levels pushed back and weights tilted harder toward
+     * common (was 55/25/13/5/2 unlocking at 1/8/20/35/50) so rare-and-up gear stays meaningfully harder
+     * to roll even at high Crafting rank, instead of rare+ becoming easy the moment a tier unlocks. */
     private const TIERS = [
-        'common' => ['weight' => 55, 'unlock_level' => 1, 'label' => 'Common', 'color' => '#cbd5e1'],
-        'rare' => ['weight' => 25, 'unlock_level' => 8, 'label' => 'Rare', 'color' => '#5cc7f5'],
-        'epic' => ['weight' => 13, 'unlock_level' => 20, 'label' => 'Epic', 'color' => '#a78bfa'],
-        'legendary' => ['weight' => 5, 'unlock_level' => 35, 'label' => 'Legendary', 'color' => '#eab308'],
-        'mythic' => ['weight' => 2, 'unlock_level' => 50, 'label' => 'Mythic', 'color' => '#f472b6'],
+        'common' => ['weight' => 68, 'unlock_level' => 1, 'label' => 'Common', 'color' => '#cbd5e1'],
+        'rare' => ['weight' => 17, 'unlock_level' => 12, 'label' => 'Rare', 'color' => '#5cc7f5'],
+        'epic' => ['weight' => 8, 'unlock_level' => 28, 'label' => 'Epic', 'color' => '#a78bfa'],
+        'legendary' => ['weight' => 5, 'unlock_level' => 45, 'label' => 'Legendary', 'color' => '#eab308'],
+        'mythic' => ['weight' => 2, 'unlock_level' => 65, 'label' => 'Mythic', 'color' => '#f472b6'],
     ];
 
     /** Rolls the crafted item's rarity, excluding tiers the Crafting skill level hasn't unlocked yet. */

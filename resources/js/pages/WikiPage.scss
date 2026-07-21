@@ -85,6 +85,32 @@
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.wiki-group-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.wiki-group-pill {
+  @include m.btn-reset;
+  padding: 6px 12px;
+  border-radius: v.$radius-pill;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  font-weight: 600;
+
+  &.is-active {
+    background: rgba(232, 72, 47, 0.16);
+    color: v.$accent;
+  }
+
+  &:hover:not(.is-active) {
+    background: rgba(255, 255, 255, 0.09);
+  }
+}
+
 .wiki-sidebar__back-link {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.5);

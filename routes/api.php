@@ -233,6 +233,8 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::post('/battlepass/claim-all', [BattlePassController::class, 'claimAll']);
     Route::get('/vip', [VipController::class, 'index']);
     Route::post('/vip/subscribe', [VipController::class, 'subscribe']);
+    Route::post('/vip/cancel', [VipController::class, 'cancel']);
+    Route::post('/vip/resume', [VipController::class, 'resume']);
 
     // GM console
     Route::middleware('gm')->prefix('gm')->group(function () {

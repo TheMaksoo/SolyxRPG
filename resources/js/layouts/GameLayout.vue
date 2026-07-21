@@ -215,15 +215,16 @@ onUnmounted(() => {
         </template>
       </nav>
       <div class="sidebar__footer">
-        <router-link
-          v-for="n in visibleNavFooter"
-          :key="n.path"
-          :to="n.path"
-          class="sidebar__footer-link"
-        >
-          <span class="sidebar__footer-icon">{{ n.icon }}</span>
-          {{ n.label }}
-        </router-link>
+        <template v-for="n in visibleNavFooter" :key="n.path">
+          <a v-if="n.external" :href="n.path" target="_blank" rel="noopener noreferrer" class="sidebar__footer-link">
+            <span class="sidebar__footer-icon">{{ n.icon }}</span>
+            {{ n.label }}
+          </a>
+          <router-link v-else :to="n.path" class="sidebar__footer-link">
+            <span class="sidebar__footer-icon">{{ n.icon }}</span>
+            {{ n.label }}
+          </router-link>
+        </template>
       </div>
     </aside>
 

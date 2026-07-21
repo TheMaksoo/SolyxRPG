@@ -14,6 +14,7 @@ const classes = [
     blurb: 'High HP and defense. Tank.',
     stats: { hp: 230, atk: 12, def: 14, mp: 90 },
     firstSkill: { glyph: '⚔', name: 'Power Strike' },
+    gearNote: '🛡🥋 2 defense slots — Shield + Armor, worn together',
   },
   {
     key: 'mage',
@@ -22,6 +23,7 @@ const classes = [
     blurb: 'Fragile burst caster.',
     stats: { hp: 155, atk: 11, def: 8, mp: 240 },
     firstSkill: { glyph: '✷', name: 'Shadow Bolt' },
+    gearNote: '⚔🥋 Weapon + Armor',
   },
   {
     key: 'rogue',
@@ -29,7 +31,8 @@ const classes = [
     name: 'Rogue',
     blurb: 'Fast, evasive, crit-focused.',
     stats: { hp: 180, atk: 13, def: 10, mp: 120 },
-    firstSkill: { glyph: '🛡', name: 'Tough Skin' },
+    firstSkill: { glyph: '🗡', name: 'Precision Strikes' },
+    gearNote: '⚔🥋 Weapon + Armor',
   },
   {
     key: 'ranger',
@@ -37,7 +40,8 @@ const classes = [
     name: 'Ranger',
     blurb: 'Precise ranged DPS.',
     stats: { hp: 195, atk: 12, def: 11, mp: 140 },
-    firstSkill: { glyph: '🛡', name: 'Tough Skin' },
+    firstSkill: { glyph: '🎯', name: 'Focused Aim' },
+    gearNote: '🏹🎯 2 weapon slots — Bow + Quiver, worn together',
   },
 ];
 
@@ -128,6 +132,7 @@ async function submit() {
           <span class="class-card__skill-glyph">{{ c.firstSkill.glyph }}</span>
           First Skill: <span class="class-card__skill-name">{{ c.firstSkill.name }}</span>
         </div>
+        <div class="class-card__gear-note">{{ c.gearNote }}</div>
       </button>
     </div>
 

@@ -12,13 +12,16 @@ const selectedPack = reactive({});
 const scrapTarget = ref(null);
 const scrapResult = ref(null);
 
-// 'quiver' is the ranger's second, simultaneously-equippable slot alongside their bow (weapon) — see
-// ItemSeeder/CraftingController. Equipping by type means it never conflicts with the weapon slot.
-const EQUIPPABLE_TYPES = ['weapon', 'armor', 'quiver', 'pickaxe', 'axe', 'sickle', 'hammer'];
+// 'quiver' is the ranger's 2nd combat slot (alongside their bow/weapon); 'shield' is the warrior's
+// (alongside their chest armor) — see ItemSeeder/CraftingController. Equipping by type means neither
+// ever conflicts with the weapon/armor slot. Both are class-restricted (see `classes` below) so other
+// classes simply never see an empty slot they could never fill.
+const EQUIPPABLE_TYPES = ['weapon', 'armor', 'shield', 'quiver', 'pickaxe', 'axe', 'sickle', 'hammer'];
 const SLOT_DEFS = [
   { type: 'weapon', label: 'Weapon', glyph: '⚔' },
-  { type: 'armor', label: 'Armor', glyph: '🛡' },
-  { type: 'quiver', label: 'Quiver', glyph: '🎯' },
+  { type: 'armor', label: 'Armor', glyph: '🥋' },
+  { type: 'shield', label: 'Shield', glyph: '🛡', classes: ['warrior'] },
+  { type: 'quiver', label: 'Quiver', glyph: '🎯', classes: ['ranger', 'rogue'] },
   { type: 'pickaxe', label: 'Pickaxe', glyph: '⛏' },
   { type: 'axe', label: 'Axe', glyph: '🪓' },
   { type: 'sickle', label: 'Sickle', glyph: '🔪' },
@@ -35,6 +38,7 @@ const BAG_TYPE_PRIORITY = {
   repair_pack: 0,
   weapon: 1,
   armor: 1,
+  shield: 1,
   quiver: 1,
   pickaxe: 1,
   axe: 1,
@@ -43,23 +47,26 @@ const BAG_TYPE_PRIORITY = {
   cosmetic: 2,
   material: 3,
 };
-const bag = computed(() =>
-  inventory.value
+const bagQuery = ref('');
+const bag = computed(() => {
+  const q = bagQuery.value.trim().toLowerCase();
+  return inventory.value
     .filter((i) => !i.equipped)
+    .filter((i) => !q || i.item.name.toLowerCase().includes(q) || i.item.type.toLowerCase().includes(q))
     .slice()
-    .sort((a, b) => (BAG_TYPE_PRIORITY[a.item.type] ?? 4) - (BAG_TYPE_PRIORITY[b.item.type] ?? 4))
-);
+    .sort((a, b) => (BAG_TYPE_PRIORITY[a.item.type] ?? 4) - (BAG_TYPE_PRIORITY[b.item.type] ?? 4));
+});
 const repairPacks = computed(() => inventory.value.filter((i) => i.item.type === 'repair_pack'));
 
 const slots = computed(() =>
-  SLOT_DEFS.map((slot) => ({
+  SLOT_DEFS.filter((slot) => !slot.classes || slot.classes.includes(store.character?.base_class)).map((slot) => ({
     ...slot,
     row: equipped.value.find((row) => row.item.type === slot.type) ?? null,
   }))
 );
 
 const SLOT_GROUPS = [
-  { key: 'armor', label: 'Armor', types: ['armor'] },
+  { key: 'armor', label: 'Armor', types: ['armor', 'shield'] },
   { key: 'weapons', label: 'Weapons', types: ['weapon', 'quiver'] },
   { key: 'tools', label: 'Tools', types: ['pickaxe', 'axe', 'sickle', 'hammer'] },
 ];
@@ -70,12 +77,6 @@ const slotGroups = computed(() =>
     slots: slots.value.filter((slot) => group.types.includes(slot.type)),
   }))
 );
-
-const expandedSlot = ref(null);
-function toggleSlot(slot) {
-  if (!slot.row) return;
-  expandedSlot.value = expandedSlot.value === slot.type ? null : slot.type;
-}
 
 function rarityChipStyle(rarity) {
   const color = RARITY_COLORS[rarity] || RARITY_COLORS.common;
@@ -93,6 +94,14 @@ const cheapestRepairPack = computed(() => {
 
 function isUsable(item) {
   return !!(item.stat_json?.hp_regen_pct_buff || item.stat_json?.mana_regen_pct_buff);
+}
+
+// Any class can craft/buy/sell another class's gear, but only that class can wear it — matches
+// InventoryController::equip()'s server-side check. Quivers are shared between Ranger and Rogue.
+function isMyClass(item) {
+  if (!item.class_key) return true;
+  if (item.type === 'quiver') return ['ranger', 'rogue'].includes(store.character?.base_class);
+  return item.class_key === store.character?.base_class;
 }
 
 function hasDurability(row) {
@@ -195,9 +204,14 @@ async function repair(row) {
   message.value = '';
   try {
     const { data } = await api.post('/inventory/repair', { inventory_id: row.id, pack_item_id: packItemId });
-    message.value = data.success
-      ? `Repaired ${row.item.name} — restored ${data.restored} durability.`
-      : `Repair failed (${data.chance_pct}% chance) — the pack was consumed.`;
+    if (data.success) {
+      let rollNote = '';
+      if (data.rolled_pct > data.base_repair_pct) rollNote = ' (lucky roll!)';
+      else if (data.rolled_pct < data.base_repair_pct) rollNote = ' (unlucky roll)';
+      message.value = `Repaired ${row.item.name} — restored ${data.restored} durability (${data.rolled_pct}% roll)${rollNote}.`;
+    } else {
+      message.value = `Repair failed (${data.chance_pct}% chance) — the pack was consumed.`;
+    }
     await load();
   } catch (e) {
     message.value = e.response?.data?.message || 'Could not repair that item.';
@@ -254,8 +268,7 @@ onMounted(load);
           <div v-for="slot in group.slots" :key="slot.type">
             <div
               class="equipment-slot-row"
-              :class="{ 'equipment-slot-row--empty': !slot.row, 'equipment-slot-row--expanded': expandedSlot === slot.type }"
-              @click="toggleSlot(slot)"
+              :class="{ 'equipment-slot-row--empty': !slot.row }"
             >
               <span class="equipment-slot-row__glyph">{{ slot.row ? slot.row.item.glyph : slot.glyph }}</span>
               <div class="equipment-slot-row__body">
@@ -263,9 +276,12 @@ onMounted(load);
                 <div v-if="slot.row" class="ox equipment-slot-row__item">{{ slot.row.item.name }}</div>
                 <div v-else class="equipment-slot-row__empty">Empty</div>
               </div>
-              <span v-if="slot.row" class="inventory-rarity-chip" :style="rarityChipStyle(slot.row.item.rarity)">{{ RARITY_LABELS[slot.row.item.rarity] }}</span>
+              <div v-if="slot.row" class="equipment-slot-row__chips">
+                <span v-if="slot.row.item.roll_pct != null" class="roll-chip" :class="{ 'is-good': slot.row.item.roll_pct > 0, 'is-bad': slot.row.item.roll_pct < 0 }">{{ slot.row.item.roll_pct > 0 ? '+' : '' }}{{ slot.row.item.roll_pct }}%</span>
+                <span class="inventory-rarity-chip" :style="rarityChipStyle(slot.row.item.rarity)">{{ RARITY_LABELS[slot.row.item.rarity] }}</span>
+              </div>
             </div>
-            <div v-if="slot.row && expandedSlot === slot.type" class="equipment-slot-detail">
+            <div v-if="slot.row" class="equipment-slot-detail">
               <div v-if="formatStats(slot.row.item.stat_json).length" class="inventory-card__stats">
                 {{ formatStats(slot.row.item.stat_json).join(' · ') }}
               </div>
@@ -274,7 +290,7 @@ onMounted(load);
                   <div class="durability__fill" :class="{ 'is-broken': slot.row.durability <= 0 }" :style="{ width: durabilityPct(slot.row) + '%' }"></div>
                 </div>
                 <div class="durability__label">
-                  {{ slot.row.durability <= 0 ? 'Broken — repair to use its stats again' : `${slot.row.durability} / ${slot.row.durability_max} durability` }}
+                  {{ slot.row.durability <= 0 ? 'Broken — repair to use its stats again' : `${slot.row.durability} / ${slot.row.durability_max} durability (${durabilityPct(slot.row)}%)` }}
                 </div>
                 <div v-if="slot.row.durability < slot.row.durability_max" class="repair-row">
                   <select v-model="selectedPack[slot.row.id]" class="repair-row__select" aria-label="Repair pack" @click.stop>
@@ -303,7 +319,16 @@ onMounted(load);
       </div>
     </div>
 
-    <h3 class="ox inventory-section-heading">Bag</h3>
+    <div class="inventory-bag-heading-row">
+      <h3 class="ox inventory-section-heading">Bag</h3>
+      <input
+        v-model="bagQuery"
+        type="text"
+        placeholder="🔍 Search your bag…"
+        class="inventory-bag-search"
+      />
+    </div>
+    <div v-if="bagQuery && !bag.length" class="inventory-bag-empty">No items match "{{ bagQuery }}".</div>
     <div class="inventory-bag-grid">
       <div
         v-for="row in bag"
@@ -315,7 +340,10 @@ onMounted(load);
           <span class="ox inventory-bag-card__name">{{ row.item.name }}</span>
           <span v-if="row.qty > 1" class="inventory-bag-card__qty">×{{ row.qty }}</span>
         </div>
-        <div class="inventory-rarity-chip inventory-rarity-chip--inline" :style="rarityChipStyle(row.item.rarity)">{{ RARITY_LABELS[row.item.rarity] }}</div>
+        <div class="inventory-bag-card__chips">
+          <div class="inventory-rarity-chip inventory-rarity-chip--inline" :style="rarityChipStyle(row.item.rarity)">{{ RARITY_LABELS[row.item.rarity] }}</div>
+          <span v-if="row.item.roll_pct != null" class="roll-chip" :class="{ 'is-good': row.item.roll_pct > 0, 'is-bad': row.item.roll_pct < 0 }">{{ row.item.roll_pct > 0 ? '+' : '' }}{{ row.item.roll_pct }}% roll</span>
+        </div>
         <div v-if="formatStats(row.item.stat_json).length" class="inventory-card__stats">
           {{ formatStats(row.item.stat_json).join(' · ') }}
         </div>
@@ -323,7 +351,9 @@ onMounted(load);
           <div class="durability__track">
             <div class="durability__fill" :class="{ 'is-broken': row.durability <= 0 }" :style="{ width: durabilityPct(row) + '%' }"></div>
           </div>
-          <div class="durability__label">{{ row.durability }} / {{ row.durability_max }} durability</div>
+          <div class="durability__label">
+            {{ row.durability <= 0 ? 'Broken — repair to use its stats again' : `${row.durability} / ${row.durability_max} durability (${durabilityPct(row)}%)` }}
+          </div>
         </div>
         <div class="inventory-bag-card__footer">
           <select
@@ -353,13 +383,20 @@ onMounted(load);
             Use
           </button>
           <button
-            v-if="EQUIPPABLE_TYPES.includes(row.item.type)"
+            v-if="EQUIPPABLE_TYPES.includes(row.item.type) && isMyClass(row.item)"
             @click="equip(row)"
             :disabled="loading"
             class="inventory-bag-card__equip-btn"
           >
             Equip
           </button>
+          <router-link
+            v-else-if="EQUIPPABLE_TYPES.includes(row.item.type) && !isMyClass(row.item)"
+            :to="{ path: '/market', query: { tab: 'sell', list_item: row.id } }"
+            class="inventory-bag-card__equip-btn inventory-bag-card__equip-btn--sell"
+          >
+            Sell on Market
+          </router-link>
         </div>
         <button
           @click="askScrap(row)"
@@ -382,7 +419,7 @@ onMounted(load);
         <p class="scrap-modal__text">
           You are about to scrap
           <strong class="scrap-modal__name">{{ scrapTarget.item.name }}{{ scrapTarget.qty > 1 ? ` ×${scrapTarget.qty}` : '' }}</strong>.
-          You'll recover 5% of its crafting materials back. This action cannot be undone.
+          You'll recover 3% of its crafting materials back — repairing is almost always the better deal. This action cannot be undone.
         </p>
         <div class="scrap-modal__actions">
           <button @click="cancelScrap" :disabled="loading" class="scrap-modal__cancel-btn">Cancel</button>

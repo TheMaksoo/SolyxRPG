@@ -59,6 +59,9 @@ const branches = computed(() => {
         const unlocked = !!owned;
         const prevUnlocked = i === 0 || unlockedById.value.has(arr[i - 1].id);
         const levelOk = (store.character?.level ?? 0) >= skill.level_req;
+        // Some skills (see Skill::requires_profession) need a t20 profession chosen — a real level
+        // requirement isn't enough for these, distinct from the ordinary prior-skill-in-branch gate.
+        const professionOk = !skill.requires_profession || !!store.character?.spec_class;
         const maxed = unlocked && owned.level >= skill.max_level;
         const nextRank = (owned?.level ?? 0) + 1;
         const nextRankLevel = skill.rank_levels?.[nextRank - 1] ?? skill.level_req;
@@ -67,7 +70,7 @@ const branches = computed(() => {
         // CharacterController::unlockSkill()'s cost curve.
         const cost = unlocked ? nextRank : 1;
         const hasPoints = (store.character?.skill_points ?? 0) >= cost;
-        const canUnlock = !unlocked && prevUnlocked && levelOk && hasPoints;
+        const canUnlock = !unlocked && prevUnlocked && levelOk && professionOk && hasPoints;
         const canUpgrade = unlocked && !maxed && hasPoints && nextRankLevelOk;
 
         return {
@@ -80,14 +83,23 @@ const branches = computed(() => {
           canUpgrade,
           effectDescription: owned?.effect_description,
           nextEffectDescription: owned?.next_rank_effect_description,
-          locked: !unlocked && (!prevUnlocked || !levelOk),
+          locked: !unlocked && (!prevUnlocked || !levelOk || !professionOk),
           // A skill you've already unlocked the prerequisite for just needs more levels — worth
           // teasing with its real name/effect. One buried behind an un-unlocked prior skill stays
           // a full mystery so the branch doesn't spoil itself top to bottom.
           mystery: !unlocked && !prevUnlocked,
           rankLocked: unlocked && !maxed && !nextRankLevelOk,
           nextRankLevel,
-          reqText: !prevUnlocked ? '🔒 Unlock previous skill first' : `🔒 Requires level ${skill.level_req}`,
+          // Ordered by the actual blocker so a level-1 character looking at a level_req:1 skill sees
+          // "Need 1 skill point" instead of a nonsensical "Requires level 1" (a level they already are),
+          // and a profession-gated skill is never blamed on level/points once level is actually met.
+          reqText: !prevUnlocked
+            ? '🔒 Unlock previous skill first'
+            : !levelOk
+              ? `🔒 Requires level ${skill.level_req}`
+              : !professionOk
+                ? '🔒 Choose a profession first (Class Path, Lv.20)'
+                : `🔒 Need ${cost} skill point${cost > 1 ? 's' : ''}`,
         };
       }),
   }));

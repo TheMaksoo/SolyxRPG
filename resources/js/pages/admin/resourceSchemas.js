@@ -98,6 +98,7 @@ export const RESOURCE_SCHEMAS = {
       { name: 'cooldown_rounds', type: 'number' },
       { name: 'effect_json', type: 'json' },
       { name: 'class_scope', type: 'text' },
+      { name: 'requires_profession', type: 'checkbox' },
     ],
   },
   recipes: {

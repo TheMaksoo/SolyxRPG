@@ -37,6 +37,7 @@ class User extends Authenticatable
             'is_tester' => 'boolean',
             'tester_mode_disabled' => 'boolean',
             'ads_removed' => 'boolean',
+            'vip_cancel_at_period_end' => 'boolean',
             'vip_gems_granted_at' => 'datetime',
             'referral_bonus_granted_at' => 'datetime',
             'preferences' => 'array',

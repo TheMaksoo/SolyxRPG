@@ -443,6 +443,9 @@ class CharacterController extends Controller
             if ($character->level < $skill->level_req) {
                 return response()->json(['message' => "Requires level {$skill->level_req}."], 422);
             }
+            if ($skill->requires_profession && ! $character->spec_class) {
+                return response()->json(['message' => 'Choose a profession (Lv.20, see Class Path) first.'], 422);
+            }
             // Same branch, one tier below — matches SkillsPage.vue's `prevUnlocked` gating on the frontend.
             // That frontend check was purely cosmetic until now: nothing server-side stopped a client from
             // unlocking a tier-2/3 skill directly (skipping tier-1) as long as level_req + skill_points

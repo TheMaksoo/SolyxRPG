@@ -35,6 +35,52 @@
   text-align: center;
 }
 
+.vip-subscription-status {
+  @include m.card(14px 18px);
+  @include m.centered-column(480px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.65);
+
+  p {
+    margin: 0;
+    flex: 1;
+    min-width: 200px;
+  }
+
+  strong {
+    color: v.$text-primary;
+  }
+}
+
+.vip-cancel-btn {
+  @include m.btn-reset;
+  flex: none;
+  padding: 8px 14px;
+  border-radius: v.$radius-md;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: transparent;
+  color: v.$text-primary;
+  font-weight: 600;
+  font-size: 12.5px;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: v.$accent;
+    color: v.$accent;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}
+
 .vip-tiers-grid {
   @include m.grid-auto-fit(240px, 16px);
   @include m.centered-column(900px);

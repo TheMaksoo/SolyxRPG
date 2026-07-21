@@ -14,6 +14,7 @@ const TILE_BG = 'repeating-linear-gradient(45deg,#1a1216,#1a1216 8px,#161014 8px
 const categories = ref([]);
 const entries = ref([]);
 const activeCat = ref('items');
+const activeGroup = ref(null);
 const query = ref('');
 const loading = ref(true);
 
@@ -25,14 +26,30 @@ onMounted(async () => {
   loading.value = false;
 });
 
+function selectCategory(key) {
+  activeCat.value = key;
+  activeGroup.value = null;
+}
+
 const activeCategory = computed(
   () => categories.value.find((c) => c.key === activeCat.value) ?? { label: '', icon: '', key: '' }
 );
+
+// Sub-filter within a category — e.g. Monsters by zone, Items by class — only shown when the category
+// actually carries a group_label (see WikiSyncService); categories without one (dungeons/skills/...)
+// never show this row since every entry's `group` is null.
+const groupsForCategory = computed(() => {
+  const groups = new Set(
+    entries.value.filter((e) => e.category === activeCat.value && e.group).map((e) => e.group)
+  );
+  return [...groups].sort();
+});
 
 const filteredEntries = computed(() => {
   const q = query.value.trim().toLowerCase();
   return entries.value
     .filter((e) => e.category === activeCat.value)
+    .filter((e) => !activeGroup.value || e.group === activeGroup.value)
     .filter(
       (e) =>
         !q ||
@@ -61,7 +78,7 @@ function statBg(stat) {
         <button
           v-for="c in categories"
           :key="c.key"
-          @click="activeCat = c.key"
+          @click="selectCategory(c.key)"
           class="wiki-nav-btn"
           :class="{ 'is-active': activeCat === c.key }"
         >
@@ -90,6 +107,27 @@ function statBg(stat) {
           placeholder="🔍 Search the wiki…"
           class="wiki-search-input"
         />
+      </div>
+
+      <div v-if="groupsForCategory.length" class="wiki-group-row">
+        <button
+          type="button"
+          class="wiki-group-pill"
+          :class="{ 'is-active': !activeGroup }"
+          @click="activeGroup = null"
+        >
+          All
+        </button>
+        <button
+          v-for="g in groupsForCategory"
+          :key="g"
+          type="button"
+          class="wiki-group-pill"
+          :class="{ 'is-active': activeGroup === g }"
+          @click="activeGroup = g"
+        >
+          {{ g }}
+        </button>
       </div>
 
       <div class="wiki-entries-grid">
