@@ -131,6 +131,9 @@ class User extends Authenticatable
     /** Flat active-companion-pet cap per VIP tier — always applies regardless of character level. */
     public const VIP_TIER_PET_SLOTS = ['bronze' => 3, 'gold' => 4, 'diamond' => 5];
 
+    /** Extra concurrent active Marketplace listings (on top of the 10 base slots) per VIP tier. */
+    public const VIP_TIER_MARKET_LISTINGS = ['bronze' => 5, 'gold' => 10, 'diamond' => 20];
+
     /** Level milestones that raise the level-earned active pet cap (cumulative — highest reached wins). */
     private const PET_LEVEL_SLOT_TIERS = [1 => 1, 50 => 2, 100 => 3];
 
@@ -184,6 +187,19 @@ class User extends Authenticatable
     public function vipCharacterSlots(): int
     {
         return $this->hasActiveVip() ? (self::VIP_TIER_SLOTS[$this->vip_tier] ?? 0) : 0;
+    }
+
+    /** Extra concurrent active Marketplace listing slots from an active VIP subscription, on top of
+     * MarketplaceController::BASE_LISTING_CAP. */
+    public function vipMarketListingBonus(): int
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_MARKET_LISTINGS[$this->vip_tier] ?? 0;
+
+        return (int) round(GameConfig::number("vip_market_listings_{$this->vip_tier}", $fallback));
     }
 
     public function vipLuckBonus(): int

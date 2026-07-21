@@ -26,7 +26,7 @@ class AuthController extends Controller
             'password' => ['required', 'string', PasswordRule::min(8)->letters()->numbers()->uncompromised()],
             'cf_turnstile_response' => ['nullable', 'string'],
             'tos_accepted' => ['accepted'],
-            'referral_code' => ['nullable', 'string', 'max:10'],
+            'referral_code' => ['nullable', 'string', 'max:24'],
         ])->validate();
 
         if (! Turnstile::verify($data['cf_turnstile_response'] ?? null, $request->ip())) {

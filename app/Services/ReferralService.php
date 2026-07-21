@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\GemLedger;
 use App\Models\User;
-use Illuminate\Support\Str;
 
 /**
  * Invite-a-friend rewards: every 5 people you referred who actually played to REQUIRED_LEVEL earns you
@@ -25,32 +24,38 @@ class ReferralService
     public const REFEREE_BONUS_GEMS = 300;
 
     /** Every account gets a stable code lazily on first need rather than at registration, so accounts
-     * created before this feature shipped still get one the first time they open the Referrals page. */
+     * created before this feature shipped still get one the first time they open the Referrals page.
+     * The code is just the account's own id, base64url-encoded — deterministic and inherently unique
+     * (no collision loop needed), and trivially decodable back to a user id if ever needed. */
     public function ensureCode(User $user): string
     {
         if ($user->referral_code) {
             return $user->referral_code;
         }
 
-        do {
-            $code = Str::upper(Str::random(6));
-        } while (User::where('referral_code', $code)->exists());
-
-        $user->referral_code = $code;
+        $user->referral_code = self::encodeUid($user->id);
         $user->save();
 
-        return $code;
+        return $user->referral_code;
+    }
+
+    /** Base64url (RFC 4648 §5) encoding of an account id — URL/query-string safe, unlike raw base64's
+     * '+', '/', and '=' padding. */
+    public static function encodeUid(int $id): string
+    {
+        return rtrim(strtr(base64_encode((string) $id), '+/', '-_'), '=');
     }
 
     /** Links a brand-new account to whoever referred them. Silently no-ops on an unknown/self code
-     * rather than failing registration over a cosmetic attribution field. */
+     * rather than failing registration over a cosmetic attribution field. Case-sensitive match — unlike
+     * the old random-uppercase codes, base64url codes are case-sensitive. */
     public function attach(User $newUser, ?string $code): void
     {
         if (! $code || $newUser->referred_by_user_id) {
             return;
         }
 
-        $referrer = User::where('referral_code', Str::upper(trim($code)))->first();
+        $referrer = User::where('referral_code', trim($code))->first();
         if (! $referrer || $referrer->id === $newUser->id) {
             return;
         }

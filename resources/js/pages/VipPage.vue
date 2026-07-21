@@ -44,6 +44,7 @@ const PERK_SECTIONS = [
     perks: [
       (tier) => `+${tier.gold_xp_pct_bonus}% gold & XP from battles`,
       (tier) => `+${tier.monthly_gems} gems every month, free`,
+      (tier) => `+${tier.market_listing_bonus} active Marketplace listing${tier.market_listing_bonus > 1 ? 's' : ''} (up to ${10 + tier.market_listing_bonus} total)`,
     ],
   },
   {

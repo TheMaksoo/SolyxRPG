@@ -280,6 +280,13 @@
   }
 }
 
+.market-mine__cap {
+  font-size: 12px;
+  font-weight: 600;
+  color: v.$text-muted-45;
+  margin-left: 6px;
+}
+
 .market-history {
   display: flex;
   flex-direction: column;

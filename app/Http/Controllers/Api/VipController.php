@@ -37,6 +37,7 @@ class VipController extends Controller
                 'craft_queue_bonus' => User::VIP_TIER_CRAFT_QUEUE_BONUS[$key],
                 'monthly_gems' => User::VIP_TIER_MONTHLY_GEMS[$key],
                 'pet_slots' => User::VIP_TIER_PET_SLOTS[$key],
+                'market_listing_bonus' => User::VIP_TIER_MARKET_LISTINGS[$key],
                 'pvp_bonus_attempts' => User::VIP_TIER_PVP_ATTEMPTS[$key],
                 'dungeon_bonus_attempts' => User::VIP_TIER_DUNGEON_ATTEMPTS[$key],
             ])

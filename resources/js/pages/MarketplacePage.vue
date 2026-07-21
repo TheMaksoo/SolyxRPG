@@ -8,6 +8,7 @@ const route = useRoute();
 const tab = ref(route.query.tab === 'sell' ? 'sell' : 'browse');
 const listings = ref([]);
 const mine = ref([]);
+const listingCap = ref(10);
 const inventory = ref([]);
 const loading = ref(false);
 const message = ref('');
@@ -39,6 +40,7 @@ async function loadBrowse() {
 async function loadMine() {
   const { data } = await api.get('/market/mine');
   mine.value = data.listings;
+  listingCap.value = data.listing_cap;
 }
 
 async function loadInventory() {
@@ -140,7 +142,7 @@ onMounted(async () => {
       <button class="market-tab" :class="{ 'market-tab--active': tab === 'sell' }" @click="tab = 'sell'">Sell an item</button>
       <button class="market-tab" :class="{ 'market-tab--active': tab === 'mine' }" @click="tab = 'mine'">
         My listings
-        <span v-if="activeMine.length" class="market-tab__badge">{{ activeMine.length }}</span>
+        <span v-if="activeMine.length" class="market-tab__badge">{{ activeMine.length }}/{{ listingCap }}</span>
       </button>
     </div>
 
@@ -223,7 +225,7 @@ onMounted(async () => {
 
     <!-- MINE -->
     <div v-else class="market-mine">
-      <h3 class="ox market-mine__section-title">Active</h3>
+      <h3 class="ox market-mine__section-title">Active <span class="market-mine__cap">{{ activeMine.length }} / {{ listingCap }}</span></h3>
       <div class="market-grid">
         <div v-for="l in activeMine" :key="l.id" class="market-card">
           <div class="market-card__head">

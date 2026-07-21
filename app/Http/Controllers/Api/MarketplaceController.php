@@ -7,6 +7,7 @@ use App\Models\Character;
 use App\Models\FeatureFlag;
 use App\Models\Inventory;
 use App\Models\MarketListing;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -23,6 +24,15 @@ use Illuminate\Support\Facades\DB;
 class MarketplaceController extends Controller
 {
     private const LISTING_DURATION_HOURS = 72;
+
+    /** Base concurrent active listing cap — VIP tiers add on top, see User::VIP_TIER_MARKET_LISTINGS. */
+    private const BASE_LISTING_CAP = 10;
+
+    /** Only the N most recent resolved (sold/cancelled/expired) listings per seller are kept as visible
+     * history — older ones are pruned the moment a NEWER one resolves, so a character's history table
+     * never grows past this regardless of how long the 30-day time-based cleanup (CleanupStaleData) takes
+     * to catch up. */
+    private const MAX_HISTORY_PER_CHARACTER = 30;
 
     /** Cut taken from the sale price on a successful sale — a gold sink, same role VIP/gem purchases play
      * elsewhere, so the marketplace doesn't just recirculate gold with zero drain on the economy. */
@@ -70,7 +80,17 @@ class MarketplaceController extends Controller
             ->get()
             ->map(fn (MarketListing $listing) => $this->present($listing));
 
-        return response()->json(['listings' => $listings]);
+        return response()->json([
+            'listings' => $listings,
+            'listing_cap' => $this->listingCap($request->user()),
+        ]);
+    }
+
+    /** Base cap plus this account's VIP bonus (see User::VIP_TIER_MARKET_LISTINGS) — shared by the cap
+     * check on store() and the "X / cap" readout on the My Listings tab. */
+    private function listingCap(User $user): int
+    {
+        return self::BASE_LISTING_CAP + $user->vipMarketListingBonus();
     }
 
     public function store(Request $request)
@@ -85,6 +105,12 @@ class MarketplaceController extends Controller
             'qty' => ['required', 'integer', 'min:1'],
             'price_gold' => ['required', 'integer', 'min:1'],
         ]);
+
+        $activeCount = MarketListing::where('seller_character_id', $character->id)->where('status', 'active')->count();
+        $listingCap = $this->listingCap($request->user());
+        if ($activeCount >= $listingCap) {
+            return response()->json(['message' => "You've hit your active listing limit ({$listingCap}). Cancel or wait for one to sell/expire — VIP raises this cap."], 422);
+        }
 
         $inventory = Inventory::where('id', $data['inventory_id'])
             ->where('character_id', $character->id)
@@ -158,6 +184,8 @@ class MarketplaceController extends Controller
                 'buyer_character_id' => $character->id,
                 'sold_at' => now(),
             ]);
+
+            $this->trimHistory($listing->seller_character_id);
         });
 
         return response()->json(['inventory' => $character->inventory()->with('item')->get(), 'character' => $character->fresh()]);
@@ -176,6 +204,7 @@ class MarketplaceController extends Controller
             $this->depositItem($character, $listing);
             $character->update(['gold' => max(0, $character->gold - $fee)]);
             $listing->update(['status' => 'cancelled']);
+            $this->trimHistory($character->id);
         });
 
         return response()->json([
@@ -223,8 +252,26 @@ class MarketplaceController extends Controller
                 DB::transaction(function () use ($listing) {
                     $this->depositItem($listing->sellerCharacter, $listing);
                     $listing->update(['status' => 'expired']);
+                    $this->trimHistory($listing->seller_character_id);
                 });
             });
+    }
+
+    /** Keeps only the MAX_HISTORY_PER_CHARACTER most recently resolved listings for a seller, deleting
+     * the rest — called right after any listing resolves (sold/cancelled/expired) so history never
+     * outgrows the cap between time-based cleanup runs (see CleanupStaleData). */
+    private function trimHistory(int $characterId): void
+    {
+        $keepIds = MarketListing::where('seller_character_id', $characterId)
+            ->whereIn('status', ['sold', 'cancelled', 'expired'])
+            ->orderByDesc('updated_at')
+            ->limit(self::MAX_HISTORY_PER_CHARACTER)
+            ->pluck('id');
+
+        MarketListing::where('seller_character_id', $characterId)
+            ->whereIn('status', ['sold', 'cancelled', 'expired'])
+            ->whereNotIn('id', $keepIds)
+            ->delete();
     }
 
     private function present(MarketListing $listing): array
