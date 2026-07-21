@@ -211,8 +211,9 @@ class PvpController extends Controller
     public function liveAction(Request $request, PvpLiveMatch $match)
     {
         $data = $request->validate([
-            'type' => ['required', Rule::in(['attack', 'skill'])],
+            'type' => ['required', Rule::in(['attack', 'skill', 'item'])],
             'skill_id' => ['nullable', 'exists:skills,id'],
+            'item_id' => ['nullable', 'exists:items,id'],
         ]);
 
         $character = $request->user()->character;
@@ -227,6 +228,22 @@ class PvpController extends Controller
         $state = $match->state_json;
         $atk = $state[$side];
         $def = $state[$defSide];
+
+        // Drinking a potion is a free action — it doesn't end your turn (mirrors PvE's CombatService),
+        // so it never flips turn_character_id or touches the defender's side at all.
+        if ($data['type'] === 'item') {
+            abort_unless($data['item_id'] ?? null, 422, 'item_id is required for an item action.');
+
+            $log = $this->combat->applyItem($atk, $character->id, $data['item_id'], $match->log_json ?? []);
+
+            $state[$side] = $atk;
+            $match->state_json = $state;
+            $match->log_json = $log;
+            $match->last_action_at = now();
+            $match->save();
+
+            return response()->json($this->matchPayload($match, $character->id));
+        }
 
         $log = $this->combat->resolveTurn($atk, $def, $data['type'], $data['skill_id'] ?? null, $match->log_json ?? []);
 
@@ -304,6 +321,13 @@ class PvpController extends Controller
         $mySide = $match->sideFor($viewerCharacterId);
         $oppSide = $mySide === 'a' ? 'b' : 'a';
 
+        $me = $state[$mySide] ?? null;
+        if ($me) {
+            // Live inventory, not snapshotted onto the match — a potion crafted/bought mid-match shows
+            // up next poll, and the opponent never sees this (only added to the viewer's own side).
+            $me['potions'] = $this->combat->availablePotions($viewerCharacterId);
+        }
+
         return [
             'id' => $match->id,
             'status' => $match->status,
@@ -313,7 +337,7 @@ class PvpController extends Controller
             'i_won' => $match->winner_character_id !== null && $match->winner_character_id === $viewerCharacterId,
             'last_action_at' => $match->last_action_at,
             'log' => $match->log_json,
-            'me' => $state[$mySide] ?? null,
+            'me' => $me,
             'opponent' => $state[$oppSide] ?? null,
             'reward' => $state['reward'] ?? null,
         ];

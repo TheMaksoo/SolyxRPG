@@ -596,6 +596,21 @@
   }
 }
 
+.btn-potion {
+  @include m.btn-reset;
+  background: v.$bg-card;
+  color: v.$success;
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  border-radius: v.$radius-md;
+  padding: 14px;
+  font-weight: 700;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}
+
 .flee-btn {
   @include m.btn-ghost;
 }
@@ -676,7 +691,8 @@
   }
 
   .btn-attack,
-  .btn-skill {
+  .btn-skill,
+  .btn-potion {
     padding: 12px 10px;
     font-size: 13px;
     min-height: 40px;

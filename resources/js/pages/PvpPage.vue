@@ -172,12 +172,12 @@ async function loadMatch() {
   }
 }
 
-async function act(type, skillId = null) {
+async function act(type, skillId = null, itemId = null) {
   if (!match.value || loading.value || !match.value.is_my_turn) return;
   loading.value = true;
   errorMessage.value = '';
   try {
-    const { data } = await api.post(`/pvp/live/${matchId.value}/action`, { type, skill_id: skillId });
+    const { data } = await api.post(`/pvp/live/${matchId.value}/action`, { type, skill_id: skillId, item_id: itemId });
     match.value = data;
     if (data.status !== 'active') {
       clearInterval(livePollTimer);
@@ -413,6 +413,16 @@ onUnmounted(stopAllPolling);
           <template v-else>
             {{ skill.glyph }} {{ skill.name }} ({{ skill.mp_cost }} MP)
           </template>
+        </button>
+        <button
+          v-for="potion in match.me?.potions ?? []"
+          :key="potion.item_id"
+          class="btn-potion"
+          @click="act('item', null, potion.item_id)"
+          :disabled="loading || !match.is_my_turn"
+          :title="`Free action — doesn't end your turn`"
+        >
+          {{ potion.glyph }} {{ potion.name }} ×{{ potion.qty }}
         </button>
         <button class="flee-btn" @click="forfeit" :disabled="loading">Forfeit</button>
       </div>

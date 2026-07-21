@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Character;
 use App\Models\GemLedger;
+use App\Models\Inventory;
 use App\Models\PvpLiveMatch;
 use App\Models\PvpMatch;
 use App\Models\PvpRecord;
@@ -122,6 +123,58 @@ class PvpLiveCombatService
 
         $atk['mana'] = min($atk['mana_max'], $atk['mana'] + $atk['mana_regen']);
         $atk['turns_taken'] = $turnNumber;
+
+        return $log;
+    }
+
+    /** Every consumable in $character's real inventory usable mid-PvP-match (a straight HP/MP heal —
+     * same fields PvE battles read, see CombatService's 'item' branch — buffs like Elixir of Power
+     * aren't supported here yet). Queried live rather than snapshotted onto the match, since inventory
+     * can change between polls (buy/craft another potion mid-match). */
+    public function availablePotions(int $characterId): array
+    {
+        return Inventory::where('character_id', $characterId)
+            ->where('qty', '>', 0)
+            ->whereHas('item', fn ($q) => $q->where('type', 'consumable'))
+            ->with('item')
+            ->get()
+            ->filter(fn (Inventory $row) => ($row->item->stat_json['heal_hp_pct'] ?? 0) > 0 || ($row->item->stat_json['heal_mp_pct'] ?? 0) > 0)
+            ->map(fn (Inventory $row) => [
+                'item_id' => $row->item_id,
+                'name' => $row->item->name,
+                'glyph' => $row->item->glyph,
+                'qty' => $row->qty,
+                'heal_hp_pct' => $row->item->stat_json['heal_hp_pct'] ?? 0,
+                'heal_mp_pct' => $row->item->stat_json['heal_mp_pct'] ?? 0,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /** Drinks a potion mid-match — a free action (mirrors PvE's CombatService: it doesn't end your turn,
+     * so healing up never hands the opponent a free hit). Mutates $atk's hp/mana in place and returns the
+     * updated log. Aborts with a 422 on an invalid/unusable/out-of-stock item, same as resolveTurn(). */
+    public function applyItem(array &$atk, int $characterId, int $itemId, array $log): array
+    {
+        $inventory = Inventory::where('character_id', $characterId)->where('item_id', $itemId)->with('item')->first();
+        abort_if(! $inventory || $inventory->qty < 1, 422, 'Out of that item.');
+
+        $healHpPct = $inventory->item->stat_json['heal_hp_pct'] ?? 0;
+        $healMpPct = $inventory->item->stat_json['heal_mp_pct'] ?? 0;
+        abort_if($healHpPct <= 0 && $healMpPct <= 0, 422, 'That item cannot be used in a PvP match.');
+
+        $healed = (int) round($atk['hp_max'] * $healHpPct / 100);
+        $healedMp = (int) round($atk['mana_max'] * $healMpPct / 100);
+        $atk['hp'] = min($atk['hp_max'], $atk['hp'] + $healed);
+        $atk['mana'] = min($atk['mana_max'], $atk['mana'] + $healedMp);
+
+        $inventory->decrement('qty');
+        if ($inventory->fresh()->qty <= 0) {
+            $inventory->delete();
+        }
+
+        $healText = array_filter([$healed > 0 ? "{$healed} HP" : null, $healedMp > 0 ? "{$healedMp} MP" : null]);
+        $log[] = "{$atk['name']} uses {$inventory->item->name}, restoring ".implode(' and ', $healText).'.';
 
         return $log;
     }

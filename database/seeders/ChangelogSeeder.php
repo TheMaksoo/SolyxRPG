@@ -86,6 +86,7 @@ class ChangelogSeeder extends Seeder
         ['1.11.7', 'Legend of Solyx Title', "If you played the original Discord-bot version of Solyx, link your Discord account in Settings — if it matches our records, you'll automatically receive the exclusive \"Legend of Solyx\" title.", 'feature', '2026-07-22 09:00:00'],
         ['1.11.8', 'Lifesteal Now Works', "Lifesteal gear was showing on the Wiki but never actually did anything in battle — fixed, and every heal-back now shows in your battle log.", 'fix', '2026-07-22 09:10:00'],
         ['1.11.9', 'Consistent Emoji Everywhere', "Switched every emoji in the game to Twemoji so icons look the same for everyone, regardless of device or OS.", 'misc', '2026-07-22 09:15:00'],
+        ['1.11.10', 'Potions in PvP', "You can now drink a healing potion mid-PvP-match — same as in regular battles, it's a free action that doesn't cost you your turn.", 'feature', '2026-07-22 09:20:00'],
     ];
 
     /** Keyed on version, not create() — re-running db:seed on live must never duplicate or reset
