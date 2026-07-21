@@ -32,7 +32,7 @@ const initials = computed(() =>
 // data itself is untouched.
 const RESOURCE_ICONS = {
   items: '⚔', monsters: '👹', zones: '🗺', dungeons: '🏰', quests: '📜',
-  skills: '✨', recipes: '🔨', pets: '🐾', events: '📅', cosmetics: '👑',
+  skills: '✨', recipes: '🔨', pets: '🐾', events: '📅', cosmetics: '👑', known_bugs: '🐞',
 };
 
 // Real "this month" revenue metrics, fed by GET /gm/metrics (see GmMetricsController).
@@ -90,6 +90,19 @@ function toggleErrorTrace(id) {
   expandedErrorId.value = expandedErrorId.value === id ? null : id;
 }
 
+// Doesn't delete the row outright — just hides it from the list and starts the 7-day purge clock (see
+// CleanupStaleData), in case a "fixed" error turns out to need a second look.
+async function clearError(log) {
+  await api.post(`/gm/errors/${log.id}/archive`);
+  errorLog.value.logs = errorLog.value.logs.filter((l) => l.id !== log.id);
+}
+
+// Anything within the last hour gets flagged as fresh, so a GM re-opening the panel can immediately
+// spot new crashes rather than re-scanning the whole list against memory of what was there last time.
+function isNewError(isoString) {
+  return Date.now() - new Date(isoString).getTime() < 60 * 60 * 1000;
+}
+
 function timeAgo(isoString) {
   const seconds = Math.max(0, Math.round((Date.now() - new Date(isoString).getTime()) / 1000));
   if (seconds < 60) return `${seconds}s ago`;
@@ -106,6 +119,11 @@ const classChartData = computed(() => {
 const levelChartData = computed(() => {
   const rows = analytics.value?.level_distribution ?? [];
   return { labels: rows.map((r) => r.bucket), data: rows.map((r) => r.count) };
+});
+
+const contentInterestChartData = computed(() => {
+  const rows = analytics.value?.content_interest ?? [];
+  return { labels: rows.map((r) => r.label), data: rows.map((r) => r.count) };
 });
 
 function seriesChartData(key) {
@@ -694,11 +712,19 @@ onMounted(() => {
                 v-for="log in errorLog.logs"
                 :key="log.id"
                 class="gm-console-error-log__row"
+                :class="{ 'gm-console-error-log__row--new': isNewError(log.created_at) }"
                 @click="toggleErrorTrace(log.id)"
               >
                 <div class="gm-console-error-log__row-head">
+                  <span v-if="isNewError(log.created_at)" class="gm-console-error-log__new-badge">NEW</span>
                   <span class="gm-console-error-log__class">{{ log.exception_class.split('\\').pop() }}</span>
                   <span class="gm-console-error-log__when">{{ timeAgo(log.created_at) }}</span>
+                  <button
+                    type="button"
+                    class="gm-console-error-log__clear-btn"
+                    title="Fixed — clear from this list (purged after 7 days)"
+                    @click.stop="clearError(log)"
+                  >Clear</button>
                 </div>
                 <div class="gm-console-error-log__message">{{ log.message }}</div>
                 <div class="gm-console-error-log__meta">
@@ -731,22 +757,7 @@ onMounted(() => {
         <div class="gm-console-activity-charts">
           <div class="gm-console-activity-chart-card">
             <div class="gm-console-activity-chart-card__title">What players are doing (7d)</div>
-            <div class="gm-console-bar-list">
-              <div
-                v-for="row in analytics.content_interest"
-                :key="row.key"
-                class="gm-console-bar-list__row"
-              >
-                <div class="gm-console-bar-list__label">{{ row.label }}</div>
-                <div class="gm-console-bar-list__track">
-                  <div
-                    class="gm-console-bar-list__fill"
-                    :style="{ width: `${Math.min(100, (row.count / (analytics.content_interest[0]?.count || 1)) * 100)}%` }"
-                  ></div>
-                </div>
-                <div class="ox gm-console-bar-list__count">{{ row.count }}</div>
-              </div>
-            </div>
+            <ActivityChart type="bar" color="#5cc7f5" v-bind="contentInterestChartData" />
           </div>
           <div class="gm-console-activity-chart-card">
             <div class="gm-console-activity-chart-card__title">Class distribution</div>
@@ -848,13 +859,14 @@ onMounted(() => {
             </div>
             <div class="gm-console-active-players">
               <div class="gm-console-active-players__row gm-console-active-players__row--header">
-                <div>Character</div><div>Account</div><div>Class</div><div>Lvl</div><div>Last active</div>
+                <div>Character</div><div>Account</div><div>Class</div><div>Lvl</div><div>Doing</div><div>Last active</div>
               </div>
               <div v-for="p in analytics.active_players" :key="p.name" class="gm-console-active-players__row">
                 <div class="gm-console-active-players__name">{{ p.name }}</div>
                 <div class="gm-console-active-players__account">{{ p.user_name || '—' }}</div>
                 <div class="gm-console-active-players__class">{{ p.base_class }}</div>
                 <div class="ox gm-console-active-players__lvl">{{ p.level }}</div>
+                <div class="gm-console-active-players__doing">{{ p.last_action }}</div>
                 <div class="gm-console-active-players__ago">{{ timeAgo(p.last_active_at) }}</div>
               </div>
               <div v-if="!analytics.active_players?.length" class="gm-console-empty">No characters yet.</div>

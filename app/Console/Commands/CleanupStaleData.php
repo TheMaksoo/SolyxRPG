@@ -10,6 +10,7 @@ use App\Models\ErrorLog;
 use App\Models\Inventory;
 use App\Models\Item;
 use App\Models\Mail;
+use App\Models\MarketListing;
 use App\Models\PartyInvite;
 use App\Models\SupportTicket;
 use Illuminate\Console\Command;
@@ -35,8 +36,10 @@ use Illuminate\Console\Command;
  *   ->cascadeOnDelete() in the migration), so no separate cleanup needed there.
  * - audit_logs: 180 days. GM action audit trail — kept much longer than gameplay logs for
  *   accountability, but still shouldn't grow forever on a table nothing archives.
- * - error_logs: 30 days. Crash reports are only useful while actively debugging a recent regression;
- *   nothing queries them past that window.
+ * - error_logs: 30 days unarchived, 7 days once a GM clears it via the "Clear" button in the GM Console
+ *   (archived_at set) — a cleared error is presumed fixed, so it doesn't need the full debugging window.
+ * - market_listings (sold/cancelled/expired): 30 days. The transaction already fully resolved — gold and
+ *   items moved — so the row is only kept around as a short "recent activity" history for the seller/buyer.
  *
  * Every delete is chunked (chunkById) rather than a single unbounded ->delete() so a cleanup run
  * against a large table doesn't itself hold a long-running lock or blow up the query log — see the
@@ -76,7 +79,14 @@ class CleanupStaleData extends Command
             ),
             'crafted_item_variants' => $this->purgeOrphanedCraftedVariants(),
             'error_logs' => $this->purge(
-                ErrorLog::where('created_at', '<', now()->subDays(30))
+                ErrorLog::where(function ($q) {
+                    $q->whereNotNull('archived_at')->where('archived_at', '<', now()->subDays(7));
+                })->orWhere(function ($q) {
+                    $q->whereNull('archived_at')->where('created_at', '<', now()->subDays(30));
+                })
+            ),
+            'market_listings' => $this->purge(
+                MarketListing::whereIn('status', ['sold', 'cancelled', 'expired'])->where('updated_at', '<', now()->subDays(30))
             ),
         ];
 

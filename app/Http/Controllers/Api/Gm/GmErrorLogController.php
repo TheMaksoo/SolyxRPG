@@ -9,7 +9,11 @@ class GmErrorLogController extends Controller
 {
     public function index()
     {
-        $logs = ErrorLog::with('user:id,name')->latest('created_at')->limit(100)->get();
+        // Archived (i.e. "cleared") errors drop out of the list immediately rather than waiting for the
+        // 7-day purge in CleanupStaleData — clearing is about decluttering the GM's view, not deleting
+        // the record on the spot, so the row still exists (and is still counted in trend/by_class below)
+        // until the retention window catches up to it.
+        $logs = ErrorLog::with('user:id,name')->whereNull('archived_at')->latest('created_at')->limit(100)->get();
 
         $daily = ErrorLog::where('created_at', '>=', now()->subDays(14))
             ->selectRaw('DATE(created_at) as day, count(*) as count')
@@ -36,5 +40,15 @@ class GmErrorLogController extends Controller
             'trend' => $trend,
             'by_class' => $byClass,
         ]);
+    }
+
+    /** "Clear" a fixed error out of the log view — doesn't delete it outright, just hides it and starts
+     * a 7-day clock (see CleanupStaleData) before it's purged for good, in case it turns out not to be
+     * fixed after all and a GM needs to look back at it. */
+    public function archive(ErrorLog $errorLog)
+    {
+        $errorLog->update(['archived_at' => now()]);
+
+        return response()->json(['message' => 'Cleared.']);
     }
 }

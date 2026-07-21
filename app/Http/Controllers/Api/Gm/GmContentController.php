@@ -8,6 +8,7 @@ use App\Models\Cosmetic;
 use App\Models\Dungeon;
 use App\Models\Event;
 use App\Models\Item;
+use App\Models\KnownBug;
 use App\Models\Monster;
 use App\Models\Pet;
 use App\Models\Quest;
@@ -31,6 +32,7 @@ class GmContentController extends Controller
         'pets' => Pet::class,
         'events' => Event::class,
         'cosmetics' => Cosmetic::class,
+        'known_bugs' => KnownBug::class,
     ];
 
     /** Minimal required-field guard per resource — catches the most common blank-required-column 500s before they hit the DB. */
@@ -45,6 +47,7 @@ class GmContentController extends Controller
         'pets' => ['key', 'name'],
         'events' => ['name', 'type'],
         'cosmetics' => ['key', 'type', 'name', 'value', 'rarity'],
+        'known_bugs' => ['title', 'description'],
     ];
 
     /** resource key => [WikiSyncService sync method, wiki source_type] */

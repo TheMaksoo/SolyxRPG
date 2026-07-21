@@ -189,6 +189,8 @@ class PvpController extends Controller
         $this->matchmaking->leaveQueue($character->id);
 
         $match = $this->matchmaking->createLiveMatch($character, $opponent);
+        $character->update(['last_action' => "PvP vs {$opponent->name}"]);
+        $opponent->update(['last_action' => "PvP vs {$character->name}"]);
 
         return response()->json(['status' => 'matched', 'match_id' => $match->id]);
     }

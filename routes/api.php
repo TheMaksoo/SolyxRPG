@@ -29,7 +29,9 @@ use App\Http\Controllers\Api\GuildController;
 use App\Http\Controllers\Api\GuildWarController;
 use App\Http\Controllers\Api\InboxController;
 use App\Http\Controllers\Api\InventoryController;
+use App\Http\Controllers\Api\KnownBugController;
 use App\Http\Controllers\Api\LeaderboardController;
+use App\Http\Controllers\Api\MarketplaceController;
 use App\Http\Controllers\Api\NavBadgeController;
 use App\Http\Controllers\Api\PartyController;
 use App\Http\Controllers\Api\PetController;
@@ -161,6 +163,12 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::get('/leaderboard', [LeaderboardController::class, 'index']);
     Route::get('/leaderboard/recent-battles', [LeaderboardController::class, 'recentBattles']);
 
+    Route::get('/market', [MarketplaceController::class, 'index']);
+    Route::get('/market/mine', [MarketplaceController::class, 'mine']);
+    Route::post('/market', [MarketplaceController::class, 'store']);
+    Route::post('/market/{listing}/buy', [MarketplaceController::class, 'buy']);
+    Route::post('/market/{listing}/cancel', [MarketplaceController::class, 'cancel']);
+
     Route::get('/daily', [DailyController::class, 'index']);
     Route::post('/daily/claim', [DailyController::class, 'claim']);
 
@@ -201,6 +209,8 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::post('/inbox/{mail}/read', [InboxController::class, 'read']);
     Route::post('/inbox/{mail}/dismiss', [InboxController::class, 'dismiss']);
 
+    Route::get('/known-bugs', [KnownBugController::class, 'index']);
+
     Route::get('/support-tickets', [SupportTicketController::class, 'index']);
     Route::post('/support-tickets', [SupportTicketController::class, 'store']);
     Route::post('/support-tickets/{ticket}/messages', [SupportTicketController::class, 'sendMessage']);
@@ -218,10 +228,10 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
 
     // GM console
     Route::middleware('gm')->prefix('gm')->group(function () {
-        Route::get('/{resource}', [GmContentController::class, 'index'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics');
-        Route::post('/{resource}', [GmContentController::class, 'store'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics');
-        Route::put('/{resource}/{id}', [GmContentController::class, 'update'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics');
-        Route::delete('/{resource}/{id}', [GmContentController::class, 'destroy'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics');
+        Route::get('/{resource}', [GmContentController::class, 'index'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics|known_bugs');
+        Route::post('/{resource}', [GmContentController::class, 'store'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics|known_bugs');
+        Route::put('/{resource}/{id}', [GmContentController::class, 'update'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics|known_bugs');
+        Route::delete('/{resource}/{id}', [GmContentController::class, 'destroy'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics|known_bugs');
 
         Route::get('/feature-flags', [GmFeatureFlagController::class, 'index']);
         Route::put('/feature-flags/{flag}', [GmFeatureFlagController::class, 'update']);
@@ -239,6 +249,7 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
         Route::get('/metrics', [GmMetricsController::class, 'index']);
         Route::get('/analytics', [GmAnalyticsController::class, 'index']);
         Route::get('/errors', [GmErrorLogController::class, 'index']);
+        Route::post('/errors/{errorLog}/archive', [GmErrorLogController::class, 'archive']);
 
         Route::get('/tickets', [GmTicketController::class, 'index']);
         Route::post('/tickets/{ticket}/resolve', [GmTicketController::class, 'resolve']);

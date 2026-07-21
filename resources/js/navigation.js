@@ -13,6 +13,7 @@ export const NAV = [
   { path: '/pets', name: 'pets', label: 'Companions', icon: '🐾', unlockLevel: 10, unlockHint: 'Reach level 10 to adopt your first companion.', flagKey: 'pets' },
   { path: '/trade-skills', name: 'trade-skills', label: 'Gathering', icon: '⛏', unlockLevel: 2, unlockHint: 'Reach level 2 to start gathering materials.', flagKey: 'trade_skills' },
   { path: '/crafting', name: 'crafting', label: 'Crafting', icon: '🔨', unlockLevel: 3, unlockHint: 'Reach level 3 to unlock crafting.', flagKey: 'crafting' },
+  { path: '/market', name: 'market', label: 'Marketplace', icon: '🏪', unlockLevel: 3, unlockHint: 'Reach level 3 to buy and sell on the Marketplace.', flagKey: 'marketplace' },
   { path: '/guild', name: 'guild', label: 'Guild', icon: '🛡', unlockLevel: 20, unlockHint: 'Reach level 20 to join or found a guild.', flagKey: 'guilds' },
   { path: '/friends', name: 'friends', label: 'Friends', icon: '🧑‍🤝‍🧑', flagKey: 'friends' },
   { path: '/party', name: 'party', label: 'Party', icon: '🧑‍🧑‍🧒', unlockLevel: 5, unlockHint: 'Reach level 5 to form a party.', flagKey: 'party' },
@@ -28,5 +29,6 @@ export const NAV = [
 
 export const NAV_FOOTER = [
   { path: '/wiki', name: 'wiki-link', label: 'Wiki', icon: '📖' },
+  { path: '/known-bugs', name: 'known-bugs-link', label: 'Known Bugs', icon: '🐞' },
   { path: '/admin', name: 'admin', label: 'GM Console', icon: '🛠' },
 ];

@@ -31,6 +31,7 @@ class FeatureFlagSeeder extends Seeder
             ['key' => 'quests', 'name' => 'Quests', 'enabled' => true, 'tester_only' => false],
             ['key' => 'world_map', 'name' => 'World Map', 'enabled' => true, 'tester_only' => false],
             ['key' => 'inventory', 'name' => 'Inventory', 'enabled' => true, 'tester_only' => false],
+            ['key' => 'marketplace', 'name' => 'Marketplace', 'enabled' => true, 'tester_only' => false],
         ];
 
         foreach ($flags as $flag) {

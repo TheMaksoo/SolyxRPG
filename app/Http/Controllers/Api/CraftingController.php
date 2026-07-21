@@ -100,7 +100,9 @@ class CraftingController extends Controller
             $isGear = in_array($recipe->resultItem->type, self::GEAR_TYPES, true);
             $levelUnlocked = $character->level >= $recipe->min_level;
             $canAffordGold = $recipe->gold_cost <= 0 || $character->gold >= $recipe->gold_cost;
-            $classLocked = $recipe->resultItem->class_key !== null && $recipe->resultItem->class_key !== $character->base_class;
+            // Any class can craft any class's gear — lets a dedicated crafter ("smithy" playstyle) supply
+            // the whole roster and sell the results on the marketplace rather than only their own class's kit.
+            $otherClass = $recipe->resultItem->class_key !== null && $recipe->resultItem->class_key !== $character->base_class;
 
             return [
                 'id' => $recipe->id,
@@ -114,8 +116,8 @@ class CraftingController extends Controller
                 'gold_cost' => $recipe->gold_cost,
                 'can_afford_gold' => $canAffordGold,
                 'level_unlocked' => $levelUnlocked,
-                'class_locked' => $classLocked,
-                'can_craft' => ! $classLocked && $levelUnlocked && $canAffordGold && ! $materialsDetailed->contains(fn (array $m) => ! $m['has_enough']),
+                'other_class' => $otherClass,
+                'can_craft' => $levelUnlocked && $canAffordGold && ! $materialsDetailed->contains(fn (array $m) => ! $m['has_enough']),
                 'is_gear' => $isGear,
                 'craft_seconds' => $this->craftSeconds($recipe->craft_seconds, $craftSpeedPct, $craftSpeedAttr, $hammerSpeedPct),
             ];
@@ -136,11 +138,6 @@ class CraftingController extends Controller
 
         if ($character->level < $recipe->min_level) {
             return response()->json(['message' => "Requires character level {$recipe->min_level}."], 422);
-        }
-
-        $itemClass = $recipe->resultItem->class_key;
-        if ($itemClass !== null && $itemClass !== $character->base_class) {
-            return response()->json(['message' => "That recipe is locked to the {$itemClass} class."], 403);
         }
 
         $maxSlots = $this->maxQueueSlots($character, $request->user());
@@ -180,6 +177,8 @@ class CraftingController extends Controller
             if ($recipe->gold_cost > 0) {
                 $character->decrement('gold', $recipe->gold_cost);
             }
+
+            $character->update(['last_action' => "Crafting: {$recipe->name}"]);
 
             $resultItem = $recipe->resultItem;
             $rarity = $resultItem->rarity;

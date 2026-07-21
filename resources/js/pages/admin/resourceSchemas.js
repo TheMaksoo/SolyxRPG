@@ -153,4 +153,15 @@ export const RESOURCE_SCHEMAS = {
       { name: 'active', type: 'checkbox' },
     ],
   },
+  known_bugs: {
+    label: 'Known Bugs',
+    columns: ['id', 'title', 'area', 'severity', 'status'],
+    fields: [
+      { name: 'title', type: 'text' },
+      { name: 'description', type: 'textarea' },
+      { name: 'area', type: 'text' },
+      { name: 'severity', type: 'select', options: ['minor', 'major', 'critical'] },
+      { name: 'status', type: 'select', options: ['reported', 'investigating', 'fixed'] },
+    ],
+  },
 };

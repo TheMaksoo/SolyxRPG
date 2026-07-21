@@ -157,6 +157,7 @@ class TradeSkillController extends Controller
 
         $luckBonusPct = $this->luckBonusPct($character);
         $qty = $this->tradeSkills->yieldQty($skillKey, $targetKey, $row->level, $tool['yield_bonus'], $luckBonusPct);
+        $character->update(['last_action' => "{$meta['label']}: {$target['label']}"]);
 
         if (isset($target['input_key'])) {
             $inputItem = Item::where('key', $target['input_key'])->firstOrFail();

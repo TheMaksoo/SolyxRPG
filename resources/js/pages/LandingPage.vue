@@ -68,7 +68,10 @@ async function submit() {
       router.push('/character/create');
     } else {
       await auth.login({ email: form.value.email, password: form.value.password });
-      router.push('/characters');
+      // A returning player with an already-selected character should land straight on the dashboard,
+      // not be routed through character-select every time they log in — that screen is for picking or
+      // creating a slot, which only matters if there's no active character yet.
+      router.push(auth.hasCharacter ? '/dashboard' : '/characters');
     }
   } catch (e) {
     error.value = e.response?.data?.message || Object.values(e.response?.data?.errors ?? {})[0]?.[0] || 'Something went wrong.';

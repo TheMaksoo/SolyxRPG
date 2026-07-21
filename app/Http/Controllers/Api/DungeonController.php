@@ -70,6 +70,7 @@ class DungeonController extends Controller
         }
 
         $result = $this->dungeons->enter($character, $dungeon);
+        $character->update(['last_action' => "Running dungeon: {$dungeon->name}"]);
 
         return response()->json([
             'battle' => $result['battle'],

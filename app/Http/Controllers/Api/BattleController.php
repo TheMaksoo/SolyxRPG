@@ -72,6 +72,7 @@ class BattleController extends Controller
 
         $grade = $this->grades->roll($character->level);
         $battle = $this->combat->start($character, $monster, $grade);
+        $character->update(['last_action' => "Fighting {$monster->name}"]);
 
         return response()->json(['battle' => $battle->load(['monster', 'battleMonsters.monster']), 'grade' => $this->grades->meta($grade)]);
     }

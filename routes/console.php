@@ -26,3 +26,8 @@ Schedule::command('pvp:matchmaking-sweep')->everyMinute();
 // "If no actions have been taken for an hour the user that has its turn forfeits automatically" — sweeps
 // active live PvP matches and auto-forfeits whoever's turn it is once last_action_at is over an hour stale.
 Schedule::command('pvp:forfeit-afk')->everyFiveMinutes();
+
+// Returns escrowed items to sellers whose marketplace listings ran out the clock unsold — the
+// buy/browse endpoints already expire past-due listings inline, this is just the backstop for
+// listings nobody looked at again before they expired.
+Schedule::command('market:expire-listings')->everyFifteenMinutes();

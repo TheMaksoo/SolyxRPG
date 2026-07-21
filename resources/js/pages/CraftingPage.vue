@@ -88,7 +88,6 @@ async function craft(recipe) {
 }
 
 function craftButtonLabel(recipe) {
-  if (recipe.class_locked) return `🔒 ${recipe.result_item.class_key} only`;
   if (!recipe.level_unlocked) return `Requires Lv.${recipe.min_level}`;
   if (!recipe.can_afford_gold) return 'Not Enough Gold';
   if (!recipe.can_craft) return 'Missing Materials';
@@ -178,13 +177,13 @@ onUnmounted(() => {
           v-for="recipe in section.recipes"
           :key="recipe.id"
           class="recipe-card"
-          :class="{ 'recipe-card--locked': !recipe.can_craft, 'recipe-card--class-locked': recipe.class_locked }"
+          :class="{ 'recipe-card--locked': !recipe.can_craft }"
         >
           <div class="recipe-card__head">
             <span class="recipe-card__glyph">{{ recipe.result_item.glyph }}</span>
             <span class="ox recipe-card__name">{{ recipe.name }}</span>
-            <span v-if="recipe.class_locked" class="recipe-card__class-lock" :title="`Only the ${recipe.result_item.class_key} class can craft this.`">
-              🔒 {{ recipe.result_item.class_key }}
+            <span v-if="recipe.other_class" class="recipe-card__other-class" :title="`Made for the ${recipe.result_item.class_key} class — craft it anyway to sell on the Marketplace.`">
+              {{ recipe.result_item.class_key }} gear
             </span>
             <span v-if="recipe.result_qty > 1" class="recipe-card__qty">×{{ recipe.result_qty }}</span>
           </div>

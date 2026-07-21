@@ -18,6 +18,7 @@ const PAGE_COMPONENT = {
   '/pets': 'PetsPage',
   '/trade-skills': 'TradeSkillsPage',
   '/crafting': 'CraftingPage',
+  '/market': 'MarketplacePage',
   '/guild': 'GuildPage',
   '/friends': 'FriendsPage',
   '/party': 'PartyPage',
@@ -50,6 +51,11 @@ gameChildren.push(
     path: 'inbox',
     name: 'inbox',
     component: pageImport('InboxPage'),
+  },
+  {
+    path: 'known-bugs',
+    name: 'known-bugs',
+    component: pageImport('KnownBugsPage'),
   },
   {
     path: 'characters/:id/profile',

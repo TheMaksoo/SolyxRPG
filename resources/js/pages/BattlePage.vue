@@ -106,6 +106,17 @@ const usableConsumables = computed(() => {
   });
 });
 
+// The battle actions grid used to render one button per usable potion, which crowded the grid fast on
+// a phone once a player was carrying 4-5 different consumables. One "Consumables" button opens a picker
+// grid instead — using an item from it is still the same free action (act('item', ...) doesn't end your
+// turn, see CombatService::act()'s $type==='item' branch).
+const consumableGridOpen = ref(false);
+
+function useConsumable(row) {
+  consumableGridOpen.value = false;
+  act('item', { item_id: row.item_id });
+}
+
 function consumableLabel(row) {
   const stats = row.item?.stat_json ?? {};
   const parts = [];
@@ -439,16 +450,37 @@ onUnmounted(() => {
             </template>
           </button>
           <button
-            v-for="row in usableConsumables"
-            :key="row.item_id"
             class="btn-item"
-            @click="act('item', { item_id: row.item_id })"
-            :disabled="loading"
-            :title="consumableLabel(row)"
+            @click="consumableGridOpen = true"
+            :disabled="loading || !usableConsumables.length"
           >
-            {{ row.item.glyph || '🧪' }} {{ row.item.name }} ({{ row.qty }})
+            🧪 Consumables{{ usableConsumables.length ? ` (${usableConsumables.length})` : '' }}
           </button>
           <p v-if="!usableConsumables.length" class="no-consumables-hint">No usable potions or elixirs.</p>
+        </div>
+
+        <div v-if="consumableGridOpen" class="consumable-modal-overlay" @click.self="consumableGridOpen = false">
+          <div class="consumable-modal">
+            <div class="consumable-modal__head">
+              <span class="ox consumable-modal__title">Use a consumable</span>
+              <button class="consumable-modal__close" @click="consumableGridOpen = false">✕</button>
+            </div>
+            <p class="consumable-modal__hint">Doesn't use your turn — pick freely, then act.</p>
+            <div class="consumable-grid">
+              <button
+                v-for="row in usableConsumables"
+                :key="row.item_id"
+                class="consumable-card"
+                @click="useConsumable(row)"
+                :disabled="loading"
+              >
+                <span class="consumable-card__glyph">{{ row.item.glyph || '🧪' }}</span>
+                <span class="ox consumable-card__name">{{ row.item.name }}</span>
+                <span class="consumable-card__effect">{{ consumableLabel(row).split('(')[1]?.replace(')', '') }}</span>
+                <span class="consumable-card__qty">×{{ row.qty }}</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="battle-log">

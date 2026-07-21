@@ -592,7 +592,7 @@
 
 .gm-console-active-players__row {
   display: grid;
-  grid-template-columns: 1.3fr 1.3fr 1fr 0.5fr 0.9fr;
+  grid-template-columns: 1.3fr 1.3fr 1fr 0.5fr 1.4fr 0.9fr;
   gap: 10px;
   align-items: center;
   padding: 7px 0;
@@ -669,6 +669,26 @@
   &:hover {
     border-color: v.$border-medium;
   }
+
+  &--new {
+    border-color: #ff2d2d;
+    box-shadow: 0 0 0 1px rgba(255, 45, 45, 0.35);
+
+    &:hover {
+      border-color: #ff5555;
+    }
+  }
+}
+
+.gm-console-error-log__new-badge {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: v.$radius-pill;
+  background: #ff2d2d;
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
 .gm-console-error-log__row-head {
@@ -688,6 +708,24 @@
   font-size: 11px;
   color: v.$text-muted-40;
   flex-shrink: 0;
+}
+
+.gm-console-error-log__clear-btn {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 2px 9px;
+  border-radius: v.$radius-pill;
+  border: 1px solid v.$border-medium;
+  background: v.$bg-input;
+  color: v.$text-muted-55;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover {
+    border-color: v.$success;
+    color: v.$success;
+  }
 }
 
 .gm-console-error-log__message {
@@ -731,6 +769,13 @@
 .gm-console-active-players__lvl {
   color: v.$accent;
   font-weight: 700;
+}
+
+.gm-console-active-players__doing {
+  color: v.$text-muted-55;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 // ---- Activity: live health ----
@@ -1555,7 +1600,8 @@
   }
 
   .gm-console-active-players__account,
-  .gm-console-active-players__class {
+  .gm-console-active-players__class,
+  .gm-console-active-players__doing {
     display: none;
   }
 

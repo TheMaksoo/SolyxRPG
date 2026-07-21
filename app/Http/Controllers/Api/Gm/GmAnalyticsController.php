@@ -136,6 +136,7 @@ class GmAnalyticsController extends Controller
                 'base_class' => $c->base_class,
                 'level' => $c->level,
                 'last_active_at' => $c->updated_at,
+                'last_action' => $c->last_action ?? 'Idle',
             ]);
     }
 

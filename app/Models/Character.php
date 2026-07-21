@@ -24,7 +24,7 @@ class Character extends Model
     protected $fillable = [
         'user_id', 'name', 'base_class', 'spec_class', 'profession', 'ascension',
         'avatar', 'level', 'xp', 'gold', 'gems', 'quests_completed', 'hp', 'hp_max', 'mana', 'mana_max',
-        'energy', 'energy_max', 'base_atk', 'base_def', 'skill_points', 'attribute_points', 'current_zone_id',
+        'energy', 'energy_max', 'base_atk', 'base_def', 'skill_points', 'attribute_points', 'current_zone_id', 'last_action',
         'active_title_id', 'active_color_id', 'active_banner_id', 'active_icon_id', 'tutorial_seen',
         'pvp_attempts_used', 'pvp_attempts_reset_at', 'last_daily_reward_at',
         'dungeon_attempts_used', 'dungeon_attempts_reset_at',

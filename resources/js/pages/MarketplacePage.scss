@@ -1,0 +1,329 @@
+@use '../../scss/variables' as v;
+@use '../../scss/mixins' as m;
+
+.market-header {
+  @include m.page-header;
+}
+
+.market-header__icon {
+  font-size: 28px;
+}
+
+.market-title {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.market-header__subtitle {
+  font-size: 12.5px;
+  color: v.$text-muted-45;
+  margin: 2px 0 0;
+}
+
+.market-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.market-tab {
+  padding: 8px 16px;
+  border-radius: v.$radius-pill;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: v.$bg-card;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  &--active {
+    background: v.$accent;
+  }
+}
+
+.market-tab__badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: v.$success;
+  color: #0b0b0c;
+  font-size: 11px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.market-message {
+  font-size: 13px;
+  margin-bottom: 14px;
+
+  &--error {
+    color: v.$danger;
+  }
+  &--success {
+    color: v.$success;
+  }
+}
+
+.market-grid {
+  @include m.grid-auto-fill(280px, 14px);
+}
+
+.market-card {
+  @include m.card(14px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &--pickable {
+    cursor: pointer;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+
+    &:hover {
+      border-color: v.$accent;
+      transform: translateY(-1px);
+    }
+  }
+}
+
+.market-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.market-card__glyph {
+  font-size: 20px;
+}
+
+.market-card__name {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.market-card__qty {
+  font-size: 11.5px;
+  color: v.$text-muted-45;
+}
+
+.market-card__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.market-card__stat {
+  padding: 3px 9px;
+  border-radius: v.$radius-pill;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.market-card__durability {
+  font-size: 11px;
+  color: v.$text-muted-45;
+}
+
+.market-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid v.$border-subtle;
+}
+
+.market-card__seller {
+  font-size: 11px;
+  color: v.$text-muted-45;
+}
+
+.market-card__buy-btn {
+  padding: 8px 14px;
+  border-radius: v.$radius-sm;
+  border: none;
+  background: v.$warning;
+  color: v.$bg-card;
+  font-weight: 700;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.market-card__cancel-btn {
+  padding: 7px 12px;
+  border-radius: v.$radius-sm;
+  border: 1px solid rgba(255, 106, 106, 0.45);
+  background: transparent;
+  color: #ff8b8b;
+  font-weight: 700;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.market-empty {
+  color: v.$text-muted-40;
+  font-size: 13px;
+  padding: 20px 0;
+}
+
+// ---- Sell form ----
+.market-list-form {
+  @include m.card(20px);
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.market-list-form__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.market-list-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: v.$text-muted-45;
+
+  input {
+    padding: 9px 10px;
+    border-radius: v.$radius-sm;
+    border: 1px solid v.$border-medium;
+    background: v.$bg-input;
+    color: v.$text-primary;
+    font-size: 14px;
+
+    &:disabled {
+      opacity: 0.5;
+    }
+  }
+}
+
+.market-list-form__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.market-list-form__cancel {
+  padding: 9px 12px;
+  border-radius: v.$radius-sm;
+  border: 1px solid v.$border-medium;
+  background: transparent;
+  color: v.$text-primary;
+  font-weight: 600;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.market-list-form__submit {
+  padding: 9px 14px;
+  border-radius: v.$radius-sm;
+  border: none;
+  background: v.$accent;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+// ---- My listings ----
+.market-mine__section-title {
+  font-size: 14px;
+  font-weight: 800;
+  margin: 18px 0 10px;
+
+  &:first-child {
+    margin-top: 0;
+  }
+}
+
+.market-history {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.market-history__row {
+  @include m.card(10px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.market-history__glyph {
+  font-size: 16px;
+}
+
+.market-history__name {
+  font-weight: 700;
+  flex: 1;
+}
+
+.market-history__status {
+  text-transform: capitalize;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: v.$radius-pill;
+  background: v.$bg-input;
+  color: v.$text-muted-45;
+
+  &--sold {
+    color: v.$success;
+    background: v.$success-tint-12;
+  }
+  &--expired,
+  &--cancelled {
+    color: v.$text-muted-35;
+  }
+}
+
+.market-history__price {
+  color: v.$text-muted-45;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 768px) {
+  .market-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    padding-bottom: 2px;
+  }
+
+  .market-tab {
+    flex: none;
+  }
+
+  .market-grid {
+    max-width: 100%;
+  }
+
+  .market-card__foot {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .market-card__buy-btn,
+  .market-card__cancel-btn {
+    width: 100%;
+    min-height: 40px;
+  }
+}
