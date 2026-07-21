@@ -62,7 +62,11 @@ class BattleController extends Controller
             ->where('enabled', true)
             ->where('is_boss', false)
             ->when($zoneId, fn ($q) => $q->where('zone_id', $zoneId))
-            ->where('min_level', '<=', $character->level + 10)
+            // No forward tolerance: a monster's min_level is tuned as "safe from this level on" (see
+            // CharacterController::store's starter-stat comment), so letting the pool reach ahead of the
+            // player's actual level — this used to allow +10 — could hand a level 1 character a monster
+            // built for level 10 players before they've earned any attribute points or gear to cope with it.
+            ->where('min_level', '<=', $character->level)
             ->inRandomOrder()
             ->first();
 

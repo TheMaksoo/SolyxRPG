@@ -23,6 +23,7 @@ export const NAV = [
   { path: '/gem-store', name: 'gem-store', label: 'Gem Store', icon: '💎', flagKey: 'gem_store' },
   { path: '/battle-pass', name: 'battle-pass', label: 'Battle Pass', icon: '🎫', flagKey: 'battle_pass' },
   { path: '/vip', name: 'vip', label: 'VIP', icon: '👑', flagKey: 'vip' },
+  { path: '/referrals', name: 'referrals', label: 'Invite Friends', icon: '🎁' },
   { path: '/profile', name: 'profile', label: 'Profile', icon: '👤' },
   { path: '/settings', name: 'settings', label: 'Settings', icon: '⚙' },
 ];

@@ -31,3 +31,7 @@ Schedule::command('pvp:forfeit-afk')->everyFiveMinutes();
 // buy/browse endpoints already expire past-due listings inline, this is just the backstop for
 // listings nobody looked at again before they expired.
 Schedule::command('market:expire-listings')->everyFifteenMinutes();
+
+// Backstop for referral rewards — ReferralController::index() already grants on page load, this
+// catches referrers who never check back so a milestone reward doesn't sit ungranted indefinitely.
+Schedule::command('referrals:check-milestones')->hourly();

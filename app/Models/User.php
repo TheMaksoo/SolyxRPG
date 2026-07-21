@@ -38,6 +38,7 @@ class User extends Authenticatable
             'tester_mode_disabled' => 'boolean',
             'ads_removed' => 'boolean',
             'vip_gems_granted_at' => 'datetime',
+            'referral_bonus_granted_at' => 'datetime',
             'preferences' => 'array',
         ];
     }
@@ -57,6 +58,17 @@ class User extends Authenticatable
     public function socialAccounts(): HasMany
     {
         return $this->hasMany(SocialAccount::class);
+    }
+
+    /** Accounts that signed up using this user's referral code — see ReferralService. */
+    public function referrals(): HasMany
+    {
+        return $this->hasMany(User::class, 'referred_by_user_id');
+    }
+
+    public function referrer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'referred_by_user_id');
     }
 
     public function isGm(): bool

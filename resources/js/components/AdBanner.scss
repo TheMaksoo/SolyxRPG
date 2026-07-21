@@ -76,3 +76,15 @@
   color: v.$text-muted-40;
   line-height: 1.5;
 }
+
+@media (max-width: 768px) {
+  // The sidebar variant's fixed 170px width is meant for a desktop rail column. Every page that uses
+  // it stacks that column to full-width on mobile (see DashboardPage.scss/BattlePage.scss), but a
+  // flex/grid item with an explicit width doesn't stretch to fill it — it was left-anchored in a now
+  // full-width row instead of sitting centered like the rest of the mobile layout.
+  .ad-banner--sidebar {
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+  }
+}

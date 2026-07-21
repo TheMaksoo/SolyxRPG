@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
@@ -17,10 +18,13 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        // User::firstOrCreate, not the factory's create() — re-running db:seed used to throw a
+        // duplicate-email error (or require deleting the account first), wiping out its character/
+        // progress every time. Now seeding again is a no-op for this user once it already exists.
+        User::firstOrCreate(
+            ['email' => 'test@example.com'],
+            ['name' => 'Test User', 'email_verified_at' => now(), 'password' => Hash::make('password')]
+        );
 
         $this->call([
             ClassSeeder::class,
@@ -37,6 +41,7 @@ class DatabaseSeeder extends Seeder
             GameConfigSeeder::class,
             AchievementSeeder::class,
             CosmeticSeeder::class,
+            ChangelogSeeder::class,
             // Runs last: derives the monsters/items/pets wiki categories from the rows the seeders above just created.
             WikiEntrySeeder::class,
         ]);

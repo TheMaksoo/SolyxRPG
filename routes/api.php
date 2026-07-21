@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\InboxController;
 use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\ChangelogController;
 use App\Http\Controllers\Api\KnownBugController;
+use App\Http\Controllers\Api\ReferralController;
 use App\Http\Controllers\Api\LeaderboardController;
 use App\Http\Controllers\Api\MarketplaceController;
 use App\Http\Controllers\Api\NavBadgeController;
@@ -214,6 +215,8 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
 
     Route::get('/changelog', [ChangelogController::class, 'index']);
     Route::get('/changelog/current', [ChangelogController::class, 'current']);
+
+    Route::get('/referrals', [ReferralController::class, 'index']);
 
     Route::get('/support-tickets', [SupportTicketController::class, 'index']);
     Route::post('/support-tickets', [SupportTicketController::class, 'store']);

@@ -63,6 +63,11 @@ gameChildren.push(
     component: pageImport('ChangelogPage'),
   },
   {
+    path: 'referrals',
+    name: 'referrals',
+    component: pageImport('ReferralsPage'),
+  },
+  {
     path: 'characters/:id/profile',
     name: 'public-profile',
     component: pageImport('PublicProfilePage'),

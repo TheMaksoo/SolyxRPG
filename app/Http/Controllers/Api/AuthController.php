@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\FeatureFlag;
 use App\Models\User;
+use App\Services\ReferralService;
 use App\Support\Turnstile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,7 +18,7 @@ use Stripe\StripeClient;
 
 class AuthController extends Controller
 {
-    public function register(Request $request)
+    public function register(Request $request, ReferralService $referrals)
     {
         $data = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
@@ -25,6 +26,7 @@ class AuthController extends Controller
             'password' => ['required', 'string', PasswordRule::min(8)->letters()->numbers()->uncompromised()],
             'cf_turnstile_response' => ['nullable', 'string'],
             'tos_accepted' => ['accepted'],
+            'referral_code' => ['nullable', 'string', 'max:10'],
         ])->validate();
 
         if (! Turnstile::verify($data['cf_turnstile_response'] ?? null, $request->ip())) {
@@ -37,9 +39,11 @@ class AuthController extends Controller
             'password' => Hash::make($data['password']),
         ]);
 
-        // tos_accepted_at isn't in User's #[Fillable] allow-list — set it directly rather than via create()/update().
+        // tos_accepted_at and the referral link aren't in User's #[Fillable] allow-list — set directly
+        // rather than via create()/update().
         $user->tos_accepted_at = now();
         $user->save();
+        $referrals->attach($user, $data['referral_code'] ?? null);
 
         Auth::login($user);
         $request->session()->regenerate();

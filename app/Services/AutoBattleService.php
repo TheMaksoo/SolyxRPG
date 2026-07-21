@@ -190,7 +190,9 @@ class AutoBattleService
             ->where('is_boss', false)
             ->where('is_elite', false)
             ->when($character->current_zone_id, fn ($q) => $q->where('zone_id', $character->current_zone_id))
-            ->where('min_level', '<=', $character->level + 10)
+            // Same level cap as BattleController::walk() — no forward tolerance, so an unattended pass
+            // can't accidentally queue up a monster built for a much higher level than the character.
+            ->where('min_level', '<=', $character->level)
             ->inRandomOrder()
             ->first();
     }

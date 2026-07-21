@@ -14,7 +14,7 @@ const OAUTH_ERROR_MESSAGES = {
 };
 
 const mode = ref('login'); // 'login' | 'register'
-const form = ref({ name: '', email: '', password: '' });
+const form = ref({ name: '', email: '', password: '', referral_code: '' });
 const tosAccepted = ref(false);
 const error = ref('');
 const loading = ref(false);
@@ -86,6 +86,13 @@ watch(mode, (value) => {
 });
 
 onMounted(async () => {
+  // A ?ref= link (see ReferralController's invite_url) should land straight on the signup form with
+  // the code already filled in — someone clicking an invite link is here to sign up, not log in.
+  if (route.query.ref) {
+    form.value.referral_code = String(route.query.ref).toUpperCase();
+    mode.value = 'register';
+  }
+
   if (mode.value === 'register') nextTick(renderTurnstile);
 
   if (route.query.oauth_error) {
@@ -209,6 +216,13 @@ onMounted(async () => {
             type="password"
             placeholder="Password"
             required
+            class="landing-input"
+          />
+          <input
+            v-if="mode === 'register'"
+            v-model="form.referral_code"
+            placeholder="Referral code (optional)"
+            maxlength="10"
             class="landing-input"
           />
           <div
