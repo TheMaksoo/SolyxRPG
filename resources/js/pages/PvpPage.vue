@@ -36,6 +36,16 @@ const difficultyColor = {
   Hard: '#a78bfa',
 };
 
+// Auto-clears after a few seconds (same pattern every other page's toast uses) — without this, a
+// one-time failure (e.g. a stale match_id 403ing after the app already recovered back to a working
+// lobby) left a scary red banner stuck on screen forever, even once everything below it was fine again.
+let errorClearTimer = null;
+function showError(message) {
+  clearTimeout(errorClearTimer);
+  errorMessage.value = message;
+  errorClearTimer = setTimeout(() => { errorMessage.value = ''; }, 5000);
+}
+
 async function load() {
   const { data } = await api.get('/pvp');
   record.value = data.record;
@@ -84,7 +94,7 @@ async function findMatch() {
       enterSearching();
     }
   } catch (e) {
-    errorMessage.value = e?.response?.data?.message || 'Something went wrong.';
+    showError(e?.response?.data?.message || 'Something went wrong.');
   } finally {
     loading.value = false;
   }
@@ -113,7 +123,7 @@ async function pollQueue() {
       // player staring at a spinner forever.
       stopAllPolling();
       view.value = 'lobby';
-      errorMessage.value = 'No rival nearby right now. Try again in a bit.';
+      showError('No rival nearby right now. Try again in a bit.');
       await load();
     } else {
       // 'idle' — queue row vanished without a match (e.g. left from another tab).
@@ -121,7 +131,7 @@ async function pollQueue() {
       view.value = 'lobby';
     }
   } catch (e) {
-    errorMessage.value = e?.response?.data?.message || 'Lost connection to matchmaking.';
+    showError(e?.response?.data?.message || 'Lost connection to matchmaking.');
   }
 }
 
@@ -144,7 +154,7 @@ async function challenge(row) {
     matchId.value = data.match_id;
     enterLive();
   } catch (e) {
-    errorMessage.value = e?.response?.data?.message || 'Something went wrong.';
+    showError(e?.response?.data?.message || 'Something went wrong.');
   } finally {
     loading.value = false;
   }
@@ -165,7 +175,7 @@ async function loadMatch() {
     const { data } = await api.get(`/pvp/live/${matchId.value}`);
     match.value = data;
   } catch (e) {
-    errorMessage.value = e?.response?.data?.message || 'Could not load the match.';
+    showError(e?.response?.data?.message || 'Could not load the match.');
     stopAllPolling();
     view.value = 'lobby';
     await load();
@@ -184,7 +194,7 @@ async function act(type, skillId = null, itemId = null) {
       livePollTimer = null;
     }
   } catch (e) {
-    errorMessage.value = e?.response?.data?.message || 'Action failed.';
+    showError(e?.response?.data?.message || 'Action failed.');
   } finally {
     loading.value = false;
   }

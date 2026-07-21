@@ -202,11 +202,7 @@ class PvpController extends Controller
 
     public function liveShow(Request $request, PvpLiveMatch $match)
     {
-        $character = $request->user()->character;
-        abort_unless($character, 404);
-
-        $side = $match->sideFor($character->id);
-        abort_if($side === null, 403, 'This match belongs to different characters.');
+        $character = $this->characterInMatch($request, $match);
 
         return response()->json($this->matchPayload($match, $character->id));
     }
@@ -219,11 +215,8 @@ class PvpController extends Controller
             'item_id' => ['nullable', 'exists:items,id'],
         ]);
 
-        $character = $request->user()->character;
-        abort_unless($character, 404);
-
+        $character = $this->characterInMatch($request, $match);
         $side = $match->sideFor($character->id);
-        abort_if($side === null, 403, 'This match belongs to different characters.');
         abort_if($match->status !== 'active', 422, 'This match has already ended.');
         abort_if($match->turn_character_id !== $character->id, 422, "It's not your turn.");
 
@@ -286,11 +279,7 @@ class PvpController extends Controller
     /** Either player can concede early — the other player wins, with the same bookkeeping as a real win. */
     public function liveForfeit(Request $request, PvpLiveMatch $match)
     {
-        $character = $request->user()->character;
-        abort_unless($character, 404);
-
-        $side = $match->sideFor($character->id);
-        abort_if($side === null, 403, 'This match belongs to different characters.');
+        $character = $this->characterInMatch($request, $match);
         abort_if($match->status !== 'active', 422, 'This match has already ended.');
 
         $winnerCharacterId = $match->opponentIdFor($character->id);
@@ -312,6 +301,26 @@ class PvpController extends Controller
         $match->save();
 
         return response()->json($this->matchPayload($match->fresh(), $character->id));
+    }
+
+    /** Resolves which of the REQUESTING ACCOUNT's characters (not just whichever one happens to be
+     * "active" right now — see User::character()/active_character_id) is actually a participant in this
+     * match. A live match can run for many minutes across many polls; if the account's active character
+     * changes in the meantime for any reason (switching characters in another tab, Character Select,
+     * anything), $request->user()->character alone would silently start pointing at a DIFFERENT
+     * character that was never in this match — and every subsequent poll/action would instantly 403 with
+     * "belongs to different characters" even though the match itself is perfectly fine. Checking every
+     * character on the account instead means the match stays reachable by whichever one actually queued
+     * for it, for its entire lifetime, regardless of what's active meanwhile. */
+    private function characterInMatch(Request $request, PvpLiveMatch $match): Character
+    {
+        $character = $request->user()->characters()
+            ->whereIn('id', [$match->character_a_id, $match->character_b_id])
+            ->first();
+
+        abort_if(! $character, 403, 'This match belongs to different characters.');
+
+        return $character;
     }
 
     /** Shapes a live match for one specific viewer: 'me'/'opponent' rather than 'a'/'b' so the frontend

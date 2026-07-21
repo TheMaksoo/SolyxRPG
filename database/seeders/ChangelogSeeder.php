@@ -88,6 +88,7 @@ class ChangelogSeeder extends Seeder
         ['1.11.9', 'Consistent Emoji Everywhere', "Switched every emoji in the game to Twemoji so icons look the same for everyone, regardless of device or OS.", 'misc', '2026-07-22 09:15:00'],
         ['1.11.10', 'Potions in PvP', "You can now drink a healing potion mid-PvP-match — same as in regular battles, it's a free action that doesn't cost you your turn.", 'feature', '2026-07-22 09:20:00'],
         ['1.11.11', 'PvP Matchmaking Fix', "Fixed two bugs keeping players from finding real matches: the Rivals list required an exact rank match that could leave it empty even with plenty of fair opponents around, and matchmaking's search radius wasn't widening fast enough to pair players with a bigger rating gap before giving up.", 'fix', '2026-07-22 09:30:00'],
+        ['1.11.12', 'PvP Live Match Fix', "Fixed a bug where a live PvP match could suddenly claim it \"belongs to different characters\" mid-fight and get stuck — it now always finds your fighting character correctly, no matter what else you're doing on your account at the same time.", 'fix', '2026-07-22 09:40:00'],
     ];
 
     /** Keyed on version, not create() — re-running db:seed on live must never duplicate or reset
