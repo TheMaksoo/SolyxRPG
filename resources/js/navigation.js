@@ -30,5 +30,6 @@ export const NAV = [
 export const NAV_FOOTER = [
   { path: '/wiki', name: 'wiki-link', label: 'Wiki', icon: '📖' },
   { path: '/known-bugs', name: 'known-bugs-link', label: 'Known Bugs', icon: '🐞' },
+  { path: '/changelog', name: 'changelog-link', label: 'Changelog', icon: '📜' },
   { path: '/admin', name: 'admin', label: 'GM Console', icon: '🛠' },
 ];

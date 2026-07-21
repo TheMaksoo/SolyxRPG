@@ -644,12 +644,28 @@
   .auto-battle-card__status,
   .auto-battle-card__buy {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+    text-align: center;
   }
 
   .auto-battle-card__options {
     flex-wrap: wrap;
     width: 100%;
+    justify-content: center;
+  }
+
+  .fight-view__header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 8px;
+  }
+
+  .player-panel__header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 4px;
   }
 
   .auto-battle-card__option {
@@ -691,6 +707,7 @@
 
   .adds-panel {
     gap: 8px;
+    justify-content: center;
   }
 
   .add-card {

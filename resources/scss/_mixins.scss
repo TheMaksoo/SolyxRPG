@@ -123,6 +123,15 @@
   gap: v.$space-3;
   margin-bottom: v.$space-5;
   flex-wrap: wrap;
+
+  // Applies to every page that includes this mixin (see resources/js/pages/**/*.scss) — centering the
+  // icon/title/subtitle row here once instead of in each page's own mobile breakpoint. A page with its
+  // own auto-margined header item (e.g. a "N completed" badge pushed to the right) keeps working: that
+  // item's own @media override further down the page's SCSS file still wins the cascade.
+  @media (max-width: 768px) {
+    justify-content: center;
+    text-align: center;
+  }
 }
 
 @mixin centered-column($max-width) {

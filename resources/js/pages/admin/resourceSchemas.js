@@ -164,4 +164,14 @@ export const RESOURCE_SCHEMAS = {
       { name: 'status', type: 'select', options: ['reported', 'investigating', 'fixed'] },
     ],
   },
+  changelogs: {
+    label: 'Changelog',
+    columns: ['id', 'version', 'title', 'tag', 'published_at'],
+    fields: [
+      { name: 'version', type: 'text' },
+      { name: 'title', type: 'text' },
+      { name: 'body', type: 'textarea' },
+      { name: 'tag', type: 'select', options: ['feature', 'fix', 'balance', 'misc'] },
+    ],
+  },
 };

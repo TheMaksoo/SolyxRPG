@@ -58,6 +58,11 @@ gameChildren.push(
     component: pageImport('KnownBugsPage'),
   },
   {
+    path: 'changelog',
+    name: 'changelog',
+    component: pageImport('ChangelogPage'),
+  },
+  {
     path: 'characters/:id/profile',
     name: 'public-profile',
     component: pageImport('PublicProfilePage'),

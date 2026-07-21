@@ -83,7 +83,12 @@
   .world-chat {
     width: 100%;
 
+    // Desktop pins chat to the viewport with position: sticky so it stays visible in a side rail.
+    // On mobile the chat sits stacked above other dashboard cards in a single column, so "sticky"
+    // pinned it to the top of the page while the recent-battles card scrolled up underneath it,
+    // visually overlapping. Plain static flow avoids that entirely.
     &--full-height {
+      position: static;
       height: 45vh;
     }
   }

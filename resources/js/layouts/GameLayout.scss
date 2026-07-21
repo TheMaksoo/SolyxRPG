@@ -29,73 +29,6 @@
   display: none;
 }
 
-@media (max-width: 768px) {
-  .sidebar {
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: min(280px, 82vw);
-    max-width: 82vw;
-    z-index: 41;
-    transform: translateX(-100%);
-    box-shadow: 0 0 24px rgba(0, 0, 0, 0.4);
-
-    &--open {
-      transform: translateX(0);
-    }
-  }
-
-  .sidebar-backdrop {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-    z-index: 40;
-  }
-
-  .topbar__hamburger {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 4px;
-    width: 32px;
-    height: 32px;
-    flex: none;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-
-    span {
-      display: block;
-      width: 100%;
-      height: 2px;
-      background: v.$text-body;
-      border-radius: 2px;
-    }
-  }
-
-  .topbar {
-    padding: 0 14px;
-  }
-
-  .topbar__title {
-    font-size: 0;
-
-    .topbar__title-active {
-      font-size: 14px;
-    }
-  }
-
-  .topbar__title-sep {
-    display: none;
-  }
-
-  .layout-content {
-    padding: 16px 14px;
-  }
-}
-
 .sidebar__brand {
   display: flex;
   align-items: center;
@@ -118,6 +51,15 @@
   font-size: 10px;
   color: v.$text-muted-40;
   letter-spacing: 0.1em;
+
+  &--version {
+    display: inline-block;
+    text-decoration: none;
+
+    &:hover {
+      color: v.$accent-soft;
+    }
+  }
 }
 
 .sidebar__online {
@@ -404,4 +346,122 @@ html.reduce-motion .topbar__bug-report-btn {
   max-width: v.$content-max-width;
   margin: 0 auto;
   width: 100%;
+}
+
+// This block must stay LAST in the file — every rule in here needs to win the cascade over the
+// unconditional/desktop rules above (.topbar, .sidebar, etc.) it overrides. With equal specificity,
+// CSS resolves ties by source order, so a media query declared BEFORE the rule it's meant to override
+// silently loses. That's exactly what had happened here: this block used to sit right after the file's
+// first few rules, so every one of its overrides for a selector declared further down (.topbar and
+// everything under it, which is most of the mobile-specific work) was being overridden right back by
+// the unconditional rule later in the same file — the real cause behind pages' headers appearing to
+// "overlap" the topbar on a phone, since .topbar never actually got its mobile height: auto.
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: min(280px, 82vw);
+    max-width: 82vw;
+    z-index: 41;
+    transform: translateX(-100%);
+    box-shadow: 0 0 24px rgba(0, 0, 0, 0.4);
+
+    &--open {
+      transform: translateX(0);
+    }
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 40;
+  }
+
+  .topbar__hamburger {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    width: 28px;
+    height: 28px;
+    flex: none;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+
+    span {
+      display: block;
+      width: 100%;
+      height: 2px;
+      background: v.$text-body;
+      border-radius: 2px;
+    }
+  }
+
+  // flex-wrap already let the topbar's contents wrap to extra rows on a phone, but the fixed
+  // height: 56px above clipped those wrapped rows instead of growing to fit them.
+  .topbar {
+    height: auto;
+    min-height: 48px;
+    padding: 8px 12px;
+    gap: 6px;
+    row-gap: 6px;
+    justify-content: flex-start;
+  }
+
+  .topbar__title {
+    font-size: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    .topbar__title-active {
+      font-size: 13px;
+    }
+  }
+
+  .topbar__title-sep {
+    display: none;
+  }
+
+  // Own full-width row, pushed below the actions row (order: 3) and shrunk further — sitting right
+  // under the hamburger/title row at near-identical size made it an easy accidental tap when reaching
+  // for the hamburger, so it's now the last row and the smallest element on the bar.
+  .topbar__bug-report-btn {
+    order: 3;
+    flex: 1 1 100%;
+    justify-content: center;
+    padding: 5px 8px;
+    font-size: 10.5px;
+    gap: 4px;
+    margin-top: 2px;
+  }
+
+  .topbar__actions {
+    order: 2;
+    flex: 1 1 100%;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .topbar__inbox {
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+  }
+
+  .topbar__pill {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+
+  .layout-content {
+    padding: 14px 12px;
+  }
 }

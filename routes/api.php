@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\GuildController;
 use App\Http\Controllers\Api\GuildWarController;
 use App\Http\Controllers\Api\InboxController;
 use App\Http\Controllers\Api\InventoryController;
+use App\Http\Controllers\Api\ChangelogController;
 use App\Http\Controllers\Api\KnownBugController;
 use App\Http\Controllers\Api\LeaderboardController;
 use App\Http\Controllers\Api\MarketplaceController;
@@ -211,6 +212,9 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
 
     Route::get('/known-bugs', [KnownBugController::class, 'index']);
 
+    Route::get('/changelog', [ChangelogController::class, 'index']);
+    Route::get('/changelog/current', [ChangelogController::class, 'current']);
+
     Route::get('/support-tickets', [SupportTicketController::class, 'index']);
     Route::post('/support-tickets', [SupportTicketController::class, 'store']);
     Route::post('/support-tickets/{ticket}/messages', [SupportTicketController::class, 'sendMessage']);
@@ -228,10 +232,10 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
 
     // GM console
     Route::middleware('gm')->prefix('gm')->group(function () {
-        Route::get('/{resource}', [GmContentController::class, 'index'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics|known_bugs');
-        Route::post('/{resource}', [GmContentController::class, 'store'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics|known_bugs');
-        Route::put('/{resource}/{id}', [GmContentController::class, 'update'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics|known_bugs');
-        Route::delete('/{resource}/{id}', [GmContentController::class, 'destroy'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics|known_bugs');
+        Route::get('/{resource}', [GmContentController::class, 'index'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics|known_bugs|changelogs');
+        Route::post('/{resource}', [GmContentController::class, 'store'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics|known_bugs|changelogs');
+        Route::put('/{resource}/{id}', [GmContentController::class, 'update'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics|known_bugs|changelogs');
+        Route::delete('/{resource}/{id}', [GmContentController::class, 'destroy'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics|known_bugs|changelogs');
 
         Route::get('/feature-flags', [GmFeatureFlagController::class, 'index']);
         Route::put('/feature-flags/{flag}', [GmFeatureFlagController::class, 'update']);

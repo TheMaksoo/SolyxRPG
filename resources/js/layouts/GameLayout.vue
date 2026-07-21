@@ -26,6 +26,16 @@ const visibleNav = computed(() => NAV.filter((n) => !n.flagKey || auth.featureAc
 const unreadCount = ref(0);
 const activePlayersHour = ref(null);
 const bugReportWidget = ref(null);
+const gameVersion = ref(null);
+
+async function loadGameVersion() {
+  try {
+    const { data } = await api.get('/changelog/current');
+    gameVersion.value = data.version;
+  } catch {
+    // Sidebar tag is a nice-to-have — silently skip if it fails.
+  }
+}
 
 // Settings > Preferences > "Reduce motion" — toggles a root class that CSS animations (e.g. the topbar
 // bug-report glow) key off, rather than a fake preference with no actual effect.
@@ -143,6 +153,7 @@ onMounted(() => {
   loadUnread();
   loadNavBadges();
   loadActivePlayers();
+  loadGameVersion();
   badgePollTimer = setInterval(loadNavBadges, 30000);
 });
 
@@ -165,7 +176,9 @@ onUnmounted(() => {
         <div>
           <div class="ox sidebar__brand-name">SOLYX</div>
           <div class="sidebar__brand-tag">WEB GAME</div>
-          <div class="sidebar__brand-tag">Beta version!</div>
+          <router-link to="/changelog" class="sidebar__brand-tag sidebar__brand-tag--version">
+            {{ gameVersion ? `v${gameVersion}` : 'Beta version!' }}
+          </router-link>
         </div>
       </div>
       <div v-if="activePlayersHour !== null" class="sidebar__online">

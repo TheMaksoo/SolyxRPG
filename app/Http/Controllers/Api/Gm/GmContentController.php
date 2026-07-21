@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Gm;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\Changelog;
 use App\Models\Cosmetic;
 use App\Models\Dungeon;
 use App\Models\Event;
@@ -33,6 +34,7 @@ class GmContentController extends Controller
         'events' => Event::class,
         'cosmetics' => Cosmetic::class,
         'known_bugs' => KnownBug::class,
+        'changelogs' => Changelog::class,
     ];
 
     /** Minimal required-field guard per resource — catches the most common blank-required-column 500s before they hit the DB. */
@@ -48,6 +50,7 @@ class GmContentController extends Controller
         'events' => ['name', 'type'],
         'cosmetics' => ['key', 'type', 'name', 'value', 'rarity'],
         'known_bugs' => ['title', 'description'],
+        'changelogs' => ['version', 'title', 'body'],
     ];
 
     /** resource key => [WikiSyncService sync method, wiki source_type] */

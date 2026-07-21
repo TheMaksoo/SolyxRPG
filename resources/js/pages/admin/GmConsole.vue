@@ -32,7 +32,7 @@ const initials = computed(() =>
 // data itself is untouched.
 const RESOURCE_ICONS = {
   items: '⚔', monsters: '👹', zones: '🗺', dungeons: '🏰', quests: '📜',
-  skills: '✨', recipes: '🔨', pets: '🐾', events: '📅', cosmetics: '👑', known_bugs: '🐞',
+  skills: '✨', recipes: '🔨', pets: '🐾', events: '📅', cosmetics: '👑', known_bugs: '🐞', changelogs: '📜',
 };
 
 // Real "this month" revenue metrics, fed by GET /gm/metrics (see GmMetricsController).
