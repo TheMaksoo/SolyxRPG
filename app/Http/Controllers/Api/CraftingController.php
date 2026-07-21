@@ -217,6 +217,7 @@ class CraftingController extends Controller
             );
             $this->tradeSkills->grantXp($craftingSkill, self::CRAFTING_XP_PER_CRAFT);
             $character->increment('times_crafted');
+            $this->decayEquippedHammer($character);
         });
 
         return response()->json([
@@ -320,6 +321,21 @@ class CraftingController extends Controller
         }
 
         return $tool?->item->stat_json['craft_speed_pct'] ?? 0;
+    }
+
+    /** Wears down the equipped Hammer by one use — mirrors TradeSkillController::decayEquippedTool()'s
+     * pattern for the gathering tools (Pickaxe/Axe/Sickle). The speed bonus was already being read and
+     * applied via equippedHammerSpeedPct() above, but nothing ever actually decayed the hammer itself. */
+    private function decayEquippedHammer(Character $character): void
+    {
+        $tool = Inventory::where('character_id', $character->id)
+            ->where('equipped', true)
+            ->whereHas('item', fn ($q) => $q->where('type', 'hammer'))
+            ->first();
+
+        if ($tool && $tool->durability_max !== null) {
+            $tool->update(['durability' => max(0, $tool->durability - DurabilityService::DECAY_PER_ACTION)]);
+        }
     }
 
     private function createCraftedVariant(Item $baseItem, float $multiplier, int $luck, string $rarity): Item

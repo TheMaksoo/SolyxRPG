@@ -60,4 +60,13 @@ class ReferralController extends Controller
             ] : null,
         ]);
     }
+
+    /** Fired when the player clicks "Copy" on their invite link or code — pure engagement signal for
+     * GM Console (see GmAnalyticsController::headline's referral_copies), separate from actual signups. */
+    public function trackCopy(Request $request)
+    {
+        $request->user()->increment('referral_link_copies');
+
+        return response()->json(['ok' => true]);
+    }
 }

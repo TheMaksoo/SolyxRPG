@@ -388,6 +388,11 @@
     background: rgba(255, 107, 107, 0.15);
     color: #ff6b6b;
   }
+
+  &--teal {
+    background: rgba(45, 212, 191, 0.15);
+    color: #2dd4bf;
+  }
 }
 
 .gm-console-activity-stat__value {
@@ -874,6 +879,13 @@
   font-weight: 700;
   color: v.$text-muted-55;
   margin-bottom: 10px;
+}
+
+.gm-console-activity-chart-card__footnote {
+  margin-top: 10px;
+  font-size: 11px;
+  color: v.$text-muted-45;
+  text-align: center;
 }
 
 .gm-console-activity-stat--link {

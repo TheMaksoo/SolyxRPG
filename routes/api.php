@@ -217,6 +217,7 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::get('/changelog/current', [ChangelogController::class, 'current']);
 
     Route::get('/referrals', [ReferralController::class, 'index']);
+    Route::post('/referrals/copy', [ReferralController::class, 'trackCopy']);
 
     Route::get('/support-tickets', [SupportTicketController::class, 'index']);
     Route::post('/support-tickets', [SupportTicketController::class, 'store']);

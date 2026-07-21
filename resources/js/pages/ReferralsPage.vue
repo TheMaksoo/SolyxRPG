@@ -6,6 +6,7 @@ import Skeleton from '../components/Skeleton.vue';
 const data = ref(null);
 const loading = ref(true);
 const copied = ref(false);
+const codeCopied = ref(false);
 
 async function load() {
   loading.value = true;
@@ -17,10 +18,23 @@ async function load() {
   }
 }
 
+// Fire-and-forget — a failed ping shouldn't block the clipboard copy the player actually asked for.
+function trackCopy() {
+  api.post('/referrals/copy').catch(() => {});
+}
+
 async function copyLink() {
   await navigator.clipboard.writeText(data.value.invite_url);
   copied.value = true;
+  trackCopy();
   setTimeout(() => (copied.value = false), 2000);
+}
+
+async function copyCode() {
+  await navigator.clipboard.writeText(data.value.code);
+  codeCopied.value = true;
+  trackCopy();
+  setTimeout(() => (codeCopied.value = false), 2000);
 }
 
 const progressPct = computed(() => {
@@ -85,7 +99,10 @@ onMounted(load);
           <input id="invite-url" class="invite-card__input" :value="data.invite_url" readonly @click="$event.target.select()" />
           <button class="invite-card__copy" @click="copyLink">{{ copied ? 'Copied!' : 'Copy' }}</button>
         </div>
-        <div class="invite-card__code">Or share your code: <strong>{{ data.code }}</strong></div>
+        <div class="invite-card__code">
+          Or share your code: <strong>{{ data.code }}</strong>
+          <button class="invite-card__copy-code" @click="copyCode">{{ codeCopied ? 'Copied!' : 'Copy code' }}</button>
+        </div>
       </div>
 
       <div class="progress-card">

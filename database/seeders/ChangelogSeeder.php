@@ -69,6 +69,7 @@ class ChangelogSeeder extends Seeder
         ['1.7.0', 'Invite Friends', 'Added a referral system: share your invite link or code, and every 5 friends who join and reach level 5 earns you 7 days of Gold VIP. Track your invite progress and rewards from the new Invite Friends page.', 'feature', '2026-07-21 17:00:00'],
         ['1.7.1', 'AdSense Verification', 'Added the Google AdSense site-verification script and ads.txt. No ads show yet — this just lets Google review the site; real ads go live only after approval.', 'misc', '2026-07-21 17:15:00'],
         ['1.8.0', 'Referral Fixes & Referee Bonus', 'Fixed referral codes being silently dropped on signup so they never actually linked accounts. Referred friends now also get their own reward: 300 gems the moment they reach level 5. The Invite Friends page now shows who referred you and your own progress toward that bonus.', 'fix', '2026-07-21 17:30:00'],
+        ['1.9.1', 'Crafting Cost Rebalance', 'Fixed gathering tools (pickaxes, axes, sickles, hammers) being craftable for a small fraction of their shop price — some cost as little as 1/25th what the same item sold for. They now carry a gold fee in line with equivalent-tier weapons/armor. Also fixed equipped Hammers never losing durability while crafting (their crafting-speed bonus was already applying correctly, they just never wore down).', 'fix', '2026-07-21 18:15:00'],
     ];
 
     /** Keyed on version, not create() — re-running db:seed on live must never duplicate or reset

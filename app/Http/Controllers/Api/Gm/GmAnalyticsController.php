@@ -13,6 +13,7 @@ use App\Models\PvpLiveMatch;
 use App\Models\SupportTicket;
 use App\Models\TradeSkillLog;
 use App\Models\User;
+use App\Services\ReferralService;
 use Illuminate\Http\Request;
 
 /**
@@ -35,7 +36,9 @@ class GmAnalyticsController extends Controller
                 'signups' => $this->dailyCounts(User::query(), 'created_at', $since, $days),
                 'battles' => $this->dailyCounts(Battle::query(), 'created_at', $since, $days),
                 'active_characters' => $this->dailyActiveCharacters($since, $days),
+                'referrals' => $this->dailyCounts(User::whereNotNull('referred_by_user_id'), 'created_at', $since, $days),
             ],
+            'referral_funnel' => $this->referralFunnel(),
             'content_interest' => $this->contentInterest($since),
             'class_distribution' => Character::select('base_class')
                 ->selectRaw('count(*) as count')
@@ -51,6 +54,24 @@ class GmAnalyticsController extends Controller
                 'open_tickets' => SupportTicket::whereIn('status', ['open', 'pending'])->count(),
             ],
         ]);
+    }
+
+    /** Referral breakdown for the doughnut chart (pending vs. qualified referees) plus the two
+     * "how many actually finished" totals: referrer milestone rewards paid out, and referee level-5
+     * bonuses paid out — see ReferralService for what "qualified"/a milestone/a bonus mean. */
+    private function referralFunnel(): array
+    {
+        $total = User::whereNotNull('referred_by_user_id')->count();
+        $qualified = User::whereNotNull('referred_by_user_id')
+            ->whereHas('characters', fn ($q) => $q->where('level', '>=', ReferralService::REQUIRED_LEVEL))
+            ->count();
+
+        return [
+            'pending' => $total - $qualified,
+            'qualified' => $qualified,
+            'reward_milestones_granted' => (int) User::sum('referral_rewards_claimed'),
+            'referee_bonuses_granted' => User::whereNotNull('referral_bonus_granted_at')->count(),
+        ];
     }
 
     private function headline(): array
@@ -70,6 +91,11 @@ class GmAnalyticsController extends Controller
             'dau_mau_pct' => $active30d > 0 ? round($active24h / $active30d * 100) : null,
             'battles_today' => Battle::whereDate('created_at', now()->toDateString())->count(),
             'battles_total' => Battle::count(),
+            // "Used" = actually copied their link/code (see ReferralController::trackCopy) — a top-of-
+            // funnel engagement signal, distinct from referrals_signed_up (an actual conversion). The
+            // signup/qualified breakdown lives in referralFunnel() below.
+            'referrals_used' => (int) User::sum('referral_link_copies'),
+            'referrals_signed_up' => User::whereNotNull('referred_by_user_id')->count(),
         ];
     }
 

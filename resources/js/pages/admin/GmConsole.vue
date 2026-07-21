@@ -126,6 +126,12 @@ const contentInterestChartData = computed(() => {
   return { labels: rows.map((r) => r.label), data: rows.map((r) => r.count) };
 });
 
+const referralFunnelChartData = computed(() => {
+  const funnel = analytics.value?.referral_funnel;
+  if (!funnel) return { labels: [], data: [] };
+  return { labels: ['Pending', 'Qualified (finished)'], data: [funnel.pending, funnel.qualified] };
+});
+
 function seriesChartData(key) {
   const rows = analytics.value?.daily?.[key] ?? [];
   return {
@@ -643,22 +649,22 @@ onMounted(() => {
           </div>
           <div class="gm-console-activity-stat">
             <div class="gm-console-activity-stat__head">
-              <div class="gm-console-activity-stat__label">
-                DAU / MAU
-                <InfoTooltip text="Daily active users ÷ users active in the last 30 days — a rough stickiness gauge. Higher means people who play, play often." />
-              </div>
-              <div class="gm-console-activity-stat__icon gm-console-activity-stat__icon--blue">📈</div>
-            </div>
-            <div class="ox gm-console-activity-stat__value gm-console-activity-stat__value--blue">{{ formatPct(analytics.headline.dau_mau_pct) }}</div>
-            <div class="gm-console-activity-stat__sub">{{ analytics.headline.active_30d }} active in 30d</div>
-          </div>
-          <div class="gm-console-activity-stat">
-            <div class="gm-console-activity-stat__head">
               <div class="gm-console-activity-stat__label">Battles fought</div>
               <div class="gm-console-activity-stat__icon gm-console-activity-stat__icon--red">⚔</div>
             </div>
             <div class="ox gm-console-activity-stat__value">{{ analytics.headline.battles_total }}</div>
             <div class="gm-console-activity-stat__sub">{{ analytics.headline.battles_today }} today</div>
+          </div>
+          <div class="gm-console-activity-stat">
+            <div class="gm-console-activity-stat__head">
+              <div class="gm-console-activity-stat__label">
+                Referrals used
+                <InfoTooltip text="How many times a player has copied their invite link or code — an engagement signal, not a conversion. See the Referral funnel chart below for actual signups/qualified." />
+              </div>
+              <div class="gm-console-activity-stat__icon gm-console-activity-stat__icon--teal">🎁</div>
+            </div>
+            <div class="ox gm-console-activity-stat__value">{{ analytics.headline.referrals_used }}</div>
+            <div class="gm-console-activity-stat__sub">{{ analytics.headline.referrals_signed_up }} signed up</div>
           </div>
           <div class="gm-console-activity-stat">
             <div class="gm-console-activity-stat__head">
@@ -766,6 +772,24 @@ onMounted(() => {
           <div class="gm-console-activity-chart-card">
             <div class="gm-console-activity-chart-card__title">Level distribution</div>
             <ActivityChart type="bar" color="#a78bfa" v-bind="levelChartData" />
+          </div>
+        </div>
+
+        <div class="gm-console-activity-charts">
+          <div class="gm-console-activity-chart-card">
+            <div class="gm-console-activity-chart-card__title">Referral signups</div>
+            <ActivityChart type="line" color="#2dd4bf" v-bind="seriesChartData('referrals')" />
+          </div>
+          <div v-if="analytics.referral_funnel" class="gm-console-activity-chart-card">
+            <div class="gm-console-activity-chart-card__title">
+              Referral funnel
+              <InfoTooltip text="Pending = signed up with a code but hasn't reached the required level yet. Qualified = reached it — that's a 'finished' referral, and what counts toward the referrer's reward." />
+            </div>
+            <ActivityChart type="doughnut" v-bind="referralFunnelChartData" />
+            <div class="gm-console-activity-chart-card__footnote">
+              {{ analytics.referral_funnel.reward_milestones_granted }} referrer reward{{ analytics.referral_funnel.reward_milestones_granted === 1 ? '' : 's' }} granted ·
+              {{ analytics.referral_funnel.referee_bonuses_granted }} referee bonus{{ analytics.referral_funnel.referee_bonuses_granted === 1 ? '' : 'es' }} granted
+            </div>
           </div>
         </div>
 
