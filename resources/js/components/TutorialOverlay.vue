@@ -28,9 +28,15 @@ const STEPS = [
     cta: { label: 'Open Quests', path: '/quests' },
   },
   {
+    glyph: '✦',
+    title: 'Attributes & Skills',
+    body: "Leveling up doesn't automatically raise your HP or Mana — it gives you attribute points and skill points to spend yourself, on the Skills page. Put points into HP/Mana caps, damage, crit, or dodge, and unlock active skills for combat. Nothing is spent for you.",
+    cta: { label: 'Open Skills', path: '/skills' },
+  },
+  {
     glyph: '⛏',
     title: 'Gathering & Crafting',
-    body: 'Mine ore, chop wood, forage herbs, then smelt and craft them into gear at the Crafting bench. Better tools speed up gathering — better recipes need higher gathering levels.',
+    body: 'Mine ore, chop wood, forage herbs, then smelt and craft them into gear at the Crafting bench (unlocks at level 3). Better tools speed up gathering — better recipes need higher gathering levels.',
     cta: { label: 'Open Gathering', path: '/trade-skills' },
   },
   {
@@ -44,6 +50,11 @@ const STEPS = [
     title: 'Profile — Achievements & Customization',
     body: 'Track your achievements, watch your lifetime quest count climb, and unlock titles, name colors, banners, and profile icons. Most titles are earned free by completing the matching quest — a few prestige ones cost gems.',
     cta: { label: 'Open Profile', path: '/profile' },
+  },
+  {
+    glyph: '⚔',
+    title: 'Looking ahead',
+    body: 'Once you level up further, the PvP Arena (level 20) opens for player-vs-player duels, and Guilds (level 20) let you team up with others for shared bonuses. Companions and dungeons unlock even sooner, at levels 10 and 15.',
   },
 ];
 

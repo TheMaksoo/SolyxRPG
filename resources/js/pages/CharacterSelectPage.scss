@@ -37,6 +37,12 @@
   font-size: 13px;
 }
 
+.character-select-page__skeleton {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
 .character-grid {
   @include m.grid-auto-fill(200px);
   max-width: 920px;

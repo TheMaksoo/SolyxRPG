@@ -35,6 +35,36 @@ class Character extends Model
     {
         return [
             'user_id' => 'integer',
+            // Numeric gameplay fields — without an explicit cast, Eloquent hands these back as PHP strings
+            // (Laravel's default MySQL connection emulates prepares, so every column comes back as a string
+            // regardless of its SQL type). Left uncast, JS then does string concatenation/lexicographic
+            // comparison instead of arithmetic wherever these values reach the frontend — e.g. "5" + 1 becomes
+            // "51" instead of 6, and "8" < "20" becomes true. Casting here fixes that at the source.
+            'level' => 'integer',
+            'xp' => 'integer',
+            'gold' => 'integer',
+            'gems' => 'integer',
+            'quests_completed' => 'integer',
+            'hp' => 'integer',
+            'hp_max' => 'integer',
+            'mana' => 'integer',
+            'mana_max' => 'integer',
+            'energy' => 'integer',
+            'energy_max' => 'integer',
+            'base_atk' => 'integer',
+            'base_def' => 'integer',
+            'skill_points' => 'integer',
+            'attribute_points' => 'integer',
+            'battles_won' => 'integer',
+            'battles_lost' => 'integer',
+            'bosses_slain' => 'integer',
+            'pvp_attempts_used' => 'integer',
+            'pvp_wins_today' => 'integer',
+            'dungeon_attempts_used' => 'integer',
+            'atk_buff_pct' => 'integer',
+            'atk_buff_fights_left' => 'integer',
+            'hp_regen_buff_pct' => 'integer',
+            'mana_regen_buff_pct' => 'integer',
             'tutorial_seen' => 'boolean',
             'pvp_attempts_reset_at' => 'datetime',
             'last_daily_reward_at' => 'datetime',

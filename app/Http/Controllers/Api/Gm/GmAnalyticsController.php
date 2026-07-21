@@ -44,6 +44,7 @@ class GmAnalyticsController extends Controller
             'level_distribution' => $this->levelDistribution(),
             'retention' => $this->retention(),
             'top_players' => $this->topPlayers(),
+            'active_players' => $this->activePlayers(),
             'live_health' => [
                 'errors_24h' => ErrorLog::where('created_at', '>=', now()->subDay())->count(),
                 'errors_7d' => ErrorLog::where('created_at', '>=', now()->subDays(7))->count(),
@@ -118,6 +119,24 @@ class GmAnalyticsController extends Controller
             ->sortByDesc('power')
             ->take(5)
             ->values();
+    }
+
+    /** The 100 most-recently-active characters right now — a live "who's actually online" glance,
+     * distinct from topPlayers() (which ranks by power, not recency). Capped at 100 so this never turns
+     * into an unbounded table as the player base grows. */
+    private function activePlayers()
+    {
+        return Character::with('user')
+            ->orderByDesc('updated_at')
+            ->limit(100)
+            ->get()
+            ->map(fn (Character $c) => [
+                'name' => $c->name,
+                'user_name' => $c->user?->name,
+                'base_class' => $c->base_class,
+                'level' => $c->level,
+                'last_active_at' => $c->updated_at,
+            ]);
     }
 
     /** One row per day for the last $days days (zero-filled — a day with no rows still appears as 0,

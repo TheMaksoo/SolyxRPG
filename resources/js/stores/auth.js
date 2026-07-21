@@ -28,9 +28,9 @@ export const useAuthStore = defineStore('auth', {
             }
         },
 
-        async register({ name, email, password }) {
+        async register({ name, email, password, tos_accepted, cf_turnstile_response }) {
             await ensureCsrfCookie();
-            const { data } = await api.post('/auth/register', { name, email, password });
+            const { data } = await api.post('/auth/register', { name, email, password, tos_accepted, cf_turnstile_response });
             this.user = data.user;
             this.checked = true;
         },

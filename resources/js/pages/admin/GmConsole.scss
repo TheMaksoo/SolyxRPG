@@ -315,6 +315,20 @@
   padding: 14px 16px;
 }
 
+.gm-console-activity-stat--clickable {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+
+  &:hover {
+    border-color: v.$accent;
+    transform: translateY(-1px);
+  }
+}
+
 .gm-console-activity-stat__head {
   display: flex;
   align-items: flex-start;
@@ -568,6 +582,157 @@
   color: v.$text-muted-40;
 }
 
+// ---- Activity: currently active players ----
+.gm-console-active-players {
+  display: flex;
+  flex-direction: column;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.gm-console-active-players__row {
+  display: grid;
+  grid-template-columns: 1.3fr 1.3fr 1fr 0.5fr 0.9fr;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid v.$border-subtle;
+  font-size: 12px;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.gm-console-active-players__row--header {
+  position: sticky;
+  top: 0;
+  background: v.$bg-card;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: v.$text-muted-40;
+  border-bottom: 1px solid v.$border-medium;
+  z-index: 1;
+}
+
+.gm-console-active-players__name {
+  font-weight: 700;
+}
+
+// ---- Activity: error log drill-down ----
+.gm-console-error-log__close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: v.$text-muted-40;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0 2px;
+
+  &:hover {
+    color: v.$text-primary;
+  }
+}
+
+.gm-console-error-log {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.gm-console-error-log__classes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.gm-console-error-log__class-chip {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 107, 107, 0.12);
+  color: #ff6b6b;
+}
+
+.gm-console-error-log__row {
+  padding: 10px 12px;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-md;
+  cursor: pointer;
+
+  &:hover {
+    border-color: v.$border-medium;
+  }
+}
+
+.gm-console-error-log__row-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.gm-console-error-log__class {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #ff6b6b;
+}
+
+.gm-console-error-log__when {
+  font-size: 11px;
+  color: v.$text-muted-40;
+  flex-shrink: 0;
+}
+
+.gm-console-error-log__message {
+  font-size: 12.5px;
+  color: v.$text-primary;
+  margin-bottom: 4px;
+  word-break: break-word;
+}
+
+.gm-console-error-log__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 11px;
+  color: v.$text-muted-45;
+}
+
+.gm-console-error-log__trace {
+  margin-top: 8px;
+  padding: 10px;
+  background: v.$bg-input;
+  border-radius: v.$radius-sm;
+  font-size: 10.5px;
+  color: v.$text-muted-55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.gm-console-active-players__account,
+.gm-console-active-players__ago {
+  color: v.$text-muted-45;
+}
+
+.gm-console-active-players__class {
+  text-transform: capitalize;
+  color: v.$text-muted-55;
+}
+
+.gm-console-active-players__lvl {
+  color: v.$accent;
+  font-weight: 700;
+}
+
 // ---- Activity: live health ----
 .gm-console-health {
   display: flex;
@@ -645,6 +810,16 @@
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: v.$radius-lg;
   padding: 16px;
+}
+
+.gm-console-activity-chart-card--wide {
+  grid-column: 1 / -1;
+}
+
+.gm-console-activity-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .gm-console-activity-chart-card__title {
@@ -1373,6 +1548,15 @@
   .gm-console-activity__toolbar {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .gm-console-active-players__row {
+    grid-template-columns: 1.2fr 0.5fr 1fr;
+  }
+
+  .gm-console-active-players__account,
+  .gm-console-active-players__class {
+    display: none;
   }
 
   .gm-console-bar-list__row {

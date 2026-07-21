@@ -21,6 +21,18 @@ const tabs = [
 
 // Claimed quests sink to the end of the grid — nothing left to do with them, so they shouldn't
 // compete for attention with quests that are still claimable or in progress.
+// How many quests are sitting ready-to-claim in each tab, so a player can tell "Daily" has rewards
+// waiting without switching to it first — the tab buttons themselves had no indicator at all.
+const claimableCountByTab = computed(() => {
+  const counts = {};
+  for (const row of rows.value) {
+    if (row.completed && !row.claimed) {
+      counts[row.quest.type] = (counts[row.quest.type] ?? 0) + 1;
+    }
+  }
+  return counts;
+});
+
 const filtered = computed(() =>
   rows.value
     .filter((r) => r.quest.type === tab.value)
@@ -90,6 +102,7 @@ onMounted(load);
         :class="{ 'quest-tab--active': tab === t.key }"
       >
         {{ t.label }}
+        <span v-if="claimableCountByTab[t.key]" class="quest-tab__badge">{{ claimableCountByTab[t.key] }}</span>
       </button>
     </div>
 

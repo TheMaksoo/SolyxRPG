@@ -132,6 +132,20 @@ async function sendReply(ticket) {
 // Account deletion — OAuth-only accounts have no password to verify, so they confirm by typing
 // DELETE instead (see AuthController::deleteAccount()).
 const hasPassword = computed(() => auth.user?.has_password !== false);
+
+const initials = computed(() => {
+  const name = auth.user?.name || '?';
+  return name.trim().slice(0, 2).toUpperCase();
+});
+
+const roleLabel = computed(() => {
+  const role = auth.user?.role;
+  if (role === 'owner') return 'Owner';
+  if (role === 'gm') return 'Game Master';
+  if (role === 'tester') return 'Tester';
+  return 'Player';
+});
+
 const deleteModalOpen = ref(false);
 const deletePassword = ref('');
 const deleteConfirmText = ref('');
@@ -178,31 +192,36 @@ onMounted(() => {
     </div>
 
     <div class="settings-content">
+      <div class="account-card">
+        <div class="account-card__avatar">{{ initials }}</div>
+        <div class="account-card__info">
+          <div class="account-card__name-row">
+            <span class="account-card__name">{{ auth.user?.name }}</span>
+            <span class="account-card__role" :class="`account-card__role--${auth.user?.role || 'player'}`">{{ roleLabel }}</span>
+          </div>
+          <span class="account-card__email">{{ auth.user?.email }}</span>
+        </div>
+      </div>
+
       <div class="settings-actions">
-        <router-link
-          to="/characters"
-          class="settings-action-btn"
-        >
-          Switch Character
+        <router-link to="/characters" class="settings-action-card">
+          <span class="settings-action-card__icon">🧙</span>
+          <span class="settings-action-card__label">Switch Character</span>
         </router-link>
-        <button
-          @click="replayTutorial"
-          class="settings-action-btn"
-        >
-          Replay Tutorial
+        <button type="button" @click="replayTutorial" class="settings-action-card">
+          <span class="settings-action-card__icon">🎬</span>
+          <span class="settings-action-card__label">Replay Tutorial</span>
         </button>
-        <button
-          @click="logout"
-          class="settings-action-btn"
-        >
-          Log out
+        <button type="button" @click="logout" class="settings-action-card settings-action-card--logout">
+          <span class="settings-action-card__icon">🚪</span>
+          <span class="settings-action-card__label">Log out</span>
         </button>
       </div>
       <p v-if="tutorialMessage" class="support-card__message">{{ tutorialMessage }}</p>
 
       <div class="settings-grid">
         <div class="linked-accounts-card">
-          <h3 class="ox linked-accounts-card__title">Linked Accounts</h3>
+          <h3 class="ox linked-accounts-card__title"><span class="card-title-icon">🔗</span>Linked Accounts</h3>
           <p v-if="linkMessage" class="support-card__message">{{ linkMessage }}</p>
           <div v-for="p in providers" :key="p" class="linked-account-row">
             <span class="linked-account-row__label">{{ p }}</span>
@@ -216,7 +235,7 @@ onMounted(() => {
         </div>
 
         <div class="preferences-card">
-          <h3 class="ox preferences-card__title">Preferences</h3>
+          <h3 class="ox preferences-card__title"><span class="card-title-icon">🎛</span>Preferences</h3>
           <div class="preferences-row">
             <span class="preferences-row__label">Highlight mentions in chat</span>
             <label class="toggle-switch">
@@ -245,6 +264,7 @@ onMounted(() => {
         </div>
 
         <div v-if="canToggleTester" class="customize-tester-toggle">
+          <h3 class="ox customize-tester-toggle__title"><span class="card-title-icon">🧪</span>Tester Mode</h3>
           <p class="customize-tester-note">
             <template v-if="!auth.globalTesterMode">
               Tester perks are currently OFF for everyone — a GM has "Global Tester Mode" disabled in Feature Flags.
@@ -264,7 +284,7 @@ onMounted(() => {
         </div>
 
         <div class="legal-card">
-          <h3 class="ox legal-card__title">Legal</h3>
+          <h3 class="ox legal-card__title"><span class="card-title-icon">📜</span>Legal</h3>
           <div class="legal-card__links">
             <router-link to="/terms">Terms of Service &amp; Beta Disclaimer</router-link>
             <router-link to="/privacy">Privacy Policy</router-link>
@@ -273,7 +293,7 @@ onMounted(() => {
       </div>
 
       <div class="support-card">
-        <h3 class="ox support-card__title">Contact Support</h3>
+        <h3 class="ox support-card__title"><span class="card-title-icon">💬</span>Contact Support</h3>
         <p v-if="ticketMessage" class="support-card__message">{{ ticketMessage }}</p>
         <input v-model="ticketForm.subject" placeholder="Subject" class="support-card__input" />
         <textarea v-model="ticketForm.body" rows="3" placeholder="Describe the issue…" class="support-card__textarea"></textarea>
@@ -319,7 +339,7 @@ onMounted(() => {
       </div>
 
       <div class="danger-zone-card">
-        <h3 class="ox danger-zone-card__title">Danger Zone</h3>
+        <h3 class="ox danger-zone-card__title"><span class="card-title-icon">⚠</span>Danger Zone</h3>
         <p class="danger-zone-card__note">
           Permanently deletes your account, character, inventory, and all associated data. This cannot be undone.
         </p>

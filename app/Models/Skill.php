@@ -11,7 +11,16 @@ class Skill extends Model
         'mp_cost', 'cooldown_seconds', 'cooldown_rounds', 'max_level', 'rank_levels', 'effect_json', 'class_scope',
     ];
 
-    protected $casts = ['effect_json' => 'array', 'rank_levels' => 'array'];
+    protected $casts = [
+        'effect_json' => 'array',
+        'rank_levels' => 'array',
+        'tier' => 'integer',
+        'level_req' => 'integer',
+        'mp_cost' => 'integer',
+        'cooldown_seconds' => 'integer',
+        'cooldown_rounds' => 'integer',
+        'max_level' => 'integer',
+    ];
 
     /** Character level required to unlock a given rank (1-indexed). Falls back to level_req for rank 1
      * when rank_levels isn't set, so older seed data without a spacing schedule still works. */

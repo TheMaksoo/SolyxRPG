@@ -5,6 +5,7 @@ import { useCharacterStore } from '../stores/character';
 import { useAuthStore } from '../stores/auth';
 import AdBanner from '../components/AdBanner.vue';
 import WorldChat from '../components/WorldChat.vue';
+import Skeleton from '../components/Skeleton.vue';
 
 const characterStore = useCharacterStore();
 const auth = useAuthStore();
@@ -330,7 +331,11 @@ onUnmounted(() => {
 
     <div class="battle-layout">
     <div class="battle-main">
-    <div v-if="loading && !battle" class="battle-loading">Loading…</div>
+    <div v-if="loading && !battle" class="battle-skeleton">
+      <Skeleton height="120px" />
+      <Skeleton height="220px" />
+      <Skeleton height="60px" />
+    </div>
 
     <!-- Walk into a fight -->
     <div v-else-if="!battle" class="battle-start">

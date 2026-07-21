@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCharacterStore } from '../stores/character';
+import Skeleton from '../components/Skeleton.vue';
 
 const router = useRouter();
 const store = useCharacterStore();
@@ -131,7 +132,9 @@ onMounted(load);
 
     <p v-if="error" class="character-select-page__error">{{ error }}</p>
 
-    <div v-if="loading" class="character-select-page__loading">Loading…</div>
+    <div v-if="loading" class="character-select-page__skeleton">
+      <Skeleton variant="block" height="150px" :count="3" />
+    </div>
 
     <div v-else class="character-grid">
       <div

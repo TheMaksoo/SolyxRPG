@@ -19,6 +19,84 @@
   @include m.centered-column(760px);
 }
 
+.account-card {
+  @include m.card(22px);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(135deg, rgba(232, 72, 47, 0.08), transparent 65%);
+}
+
+.account-card__avatar {
+  flex: 0 0 auto;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, v.$accent, v.$accent-hover);
+  letter-spacing: 0.02em;
+}
+
+.account-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.account-card__name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.account-card__name {
+  font-size: 16px;
+  font-weight: 700;
+  color: v.$text-primary;
+}
+
+.account-card__role {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.15);
+  color: v.$text-muted-55;
+
+  &--owner,
+  &--gm {
+    background: rgba(232, 72, 47, 0.16);
+    color: v.$accent-hover;
+  }
+
+  &--tester {
+    background: rgba(16, 185, 129, 0.15);
+    color: v.$success;
+  }
+}
+
+.account-card__email {
+  font-size: 12.5px;
+  color: v.$text-muted-45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-title-icon {
+  display: inline-flex;
+  margin-right: 6px;
+  font-size: 13px;
+}
+
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -32,6 +110,8 @@
 }
 
 .linked-accounts-card__title {
+  display: flex;
+  align-items: center;
   font-size: 13px;
   color: v.$text-muted-40;
   text-transform: uppercase;
@@ -62,10 +142,50 @@
 }
 
 .settings-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 10px;
+  margin-top: 16px;
 }
 
+.settings-action-card {
+  @include m.card(16px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  text-decoration: none;
+  color: v.$text-primary;
+  font-weight: 600;
+  font-size: 13.5px;
+  transition: border-color 0.15s, transform 0.1s;
+
+  &:hover {
+    border-color: v.$accent;
+    transform: translateY(-1px);
+  }
+
+  &--logout {
+    &:hover {
+      border-color: rgba(255, 107, 107, 0.5);
+      color: #ff6b6b;
+    }
+  }
+}
+
+.settings-action-card__icon {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  border-radius: v.$radius-sm;
+  background: rgba(232, 72, 47, 0.1);
+}
+
+// Legacy button styles still used by ticket/support/delete-modal actions.
 .settings-action-btn {
   padding: 11px 24px;
   border-radius: v.$radius-md;
@@ -105,11 +225,23 @@
 }
 
 .preferences-card__title {
+  display: flex;
+  align-items: center;
   font-size: 13px;
   color: v.$text-muted-40;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 14px;
+}
+
+.customize-tester-toggle__title {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: v.$success;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0;
 }
 
 .preferences-row {
@@ -132,6 +264,8 @@
 }
 
 .support-card__title {
+  display: flex;
+  align-items: center;
   font-size: 13px;
   color: v.$text-muted-40;
   text-transform: uppercase;
@@ -264,6 +398,8 @@
 }
 
 .legal-card__title {
+  display: flex;
+  align-items: center;
   font-size: 13px;
   color: v.$text-muted-40;
   text-transform: uppercase;
@@ -293,6 +429,8 @@
 }
 
 .danger-zone-card__title {
+  display: flex;
+  align-items: center;
   font-size: 13px;
   color: #ff6b6b;
   text-transform: uppercase;
@@ -430,8 +568,12 @@
     padding: 16px;
   }
 
+  .account-card {
+    padding: 16px;
+  }
+
   .settings-actions {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
   .settings-action-btn {

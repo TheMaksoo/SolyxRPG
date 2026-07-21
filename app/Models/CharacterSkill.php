@@ -10,7 +10,12 @@ class CharacterSkill extends Model
 {
     public $timestamps = false;
     protected $fillable = ['character_id', 'skill_id', 'unlocked_at', 'level', 'cooldown_expires_at'];
-    protected $casts = ['unlocked_at' => 'datetime', 'cooldown_expires_at' => 'datetime'];
+    protected $casts = [
+        'unlocked_at' => 'datetime',
+        'cooldown_expires_at' => 'datetime',
+        'level' => 'integer',
+        'times_used' => 'integer',
+    ];
     protected $appends = ['effect_description', 'next_rank_effect_description', 'cooldown_remaining'];
 
     public function character(): BelongsTo

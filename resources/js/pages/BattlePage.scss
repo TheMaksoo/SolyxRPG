@@ -32,6 +32,12 @@
   font-size: 13px;
 }
 
+.battle-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 // ---- "While you were away" claim summary ----
 .claim-summary {
   background: linear-gradient(160deg, rgba(74, 222, 128, 0.12), v.$bg-card);

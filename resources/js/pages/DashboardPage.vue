@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth';
 import api from '../api/client';
 import AdBanner from '../components/AdBanner.vue';
 import WorldChat from '../components/WorldChat.vue';
+import Skeleton from '../components/Skeleton.vue';
 
 /** Gear counts as "low durability" once it drops to this fraction of max — worth a repair-pack nudge. */
 const LOW_DURABILITY_PCT = 0.2;
@@ -14,6 +15,7 @@ const auth = useAuthStore();
 const daily = ref(null);
 const battlePass = ref(null);
 const leaders = ref([]);
+const recentBattles = ref([]);
 const quests = ref([]);
 const announcements = ref([]);
 const tradeSkills = ref([]);
@@ -27,10 +29,11 @@ const autoGatherSummary = ref(null);
 const unclaimedQuestCount = ref(0);
 
 async function loadRail() {
-  const [dailyRes, passRes, lbRes, questRes, annRes, tradeRes, craftRes, recipeRes, autoBattleRes, autoGatherRes] = await Promise.all([
+  const [dailyRes, passRes, lbRes, recentBattlesRes, questRes, annRes, tradeRes, craftRes, recipeRes, autoBattleRes, autoGatherRes] = await Promise.all([
     api.get('/daily'),
     api.get('/battlepass'),
     api.get('/leaderboard'),
+    api.get('/leaderboard/recent-battles'),
     api.get('/quests'),
     api.get('/announcements'),
     api.get('/trade-skills'),
@@ -42,6 +45,7 @@ async function loadRail() {
   daily.value = dailyRes.data;
   battlePass.value = passRes.data.battle_pass;
   leaders.value = lbRes.data.leaderboard.slice(0, 5);
+  recentBattles.value = recentBattlesRes.data.recent_battles;
   unclaimedQuestCount.value = questRes.data.quests.filter((q) => q.completed && !q.claimed).length;
   quests.value = questRes.data.quests.filter((q) => !q.completed).slice(0, 3);
   announcements.value = annRes.data.announcements.slice(0, 3);
@@ -64,11 +68,23 @@ async function loadRail() {
   }
 }
 
+function timeAgo(isoString) {
+  const seconds = Math.max(0, Math.round((Date.now() - new Date(isoString).getTime()) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  return `${Math.floor(seconds / 3600)}h ago`;
+}
+
 function formatDuration(totalSeconds) {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
   return `${m}:${String(s).padStart(2, '0')}`;
 }
+
+// Mirrors the sidebar's unlockLevel lock for Crafting (see navigation.js) — the dashboard's own
+// shortcut tile didn't check this at all, so it linked straight into a page the sidebar itself blocks.
+const CRAFTING_UNLOCK_LEVEL = 3;
+const craftingLocked = computed(() => (store.character?.level ?? 0) < CRAFTING_UNLOCK_LEVEL);
 
 const isGathering = computed(() => tradeSkills.value.some((s) => s.cooldown_remaining > 0));
 const isCrafting = computed(() => craftQueue.value.length > 0);
@@ -137,9 +153,11 @@ const hasUnclaimedBattlePass = computed(() => {
   return false;
 });
 
-const unspentPoints = computed(
-  () => (store.character?.attribute_points ?? 0) + (store.character?.skill_points ?? 0)
-);
+// Cast to Number — the API can return these as numeric strings, and a naive `+` between a string
+// and a number silently concatenates ("5" + 1 === "51") instead of adding.
+const unspentAttributePoints = computed(() => Number(store.character?.attribute_points ?? 0));
+const unspentSkillPoints = computed(() => Number(store.character?.skill_points ?? 0));
+const unspentPoints = computed(() => unspentAttributePoints.value + unspentSkillPoints.value);
 
 const vipTimeLeft = computed(() => {
   const user = auth.user;
@@ -173,11 +191,37 @@ onMounted(() => {
 </script>
 
 <template>
-  <div v-if="store.loading && !store.character" class="dashboard-loading">Loading…</div>
+  <div v-if="store.loading && !store.character" class="dashboard-skeleton">
+    <div class="dashboard-skeleton__col">
+      <Skeleton height="420px" />
+    </div>
+    <div class="dashboard-skeleton__col">
+      <Skeleton height="140px" />
+      <Skeleton height="90px" />
+      <Skeleton height="220px" />
+    </div>
+    <div class="dashboard-skeleton__col">
+      <Skeleton height="180px" />
+      <Skeleton height="140px" />
+    </div>
+  </div>
 
   <div v-else-if="store.character" class="dashboard">
     <div class="dashboard__chat-col">
       <WorldChat full-height />
+
+      <div class="rail-card">
+        <div class="rail-eyebrow">RECENT BATTLES</div>
+        <div v-for="b in recentBattles" :key="b.character_id + '-' + b.created_at" class="leaderboard-row">
+          <div class="leaderboard-row__left">
+            <span class="leaderboard-row__name">{{ b.name }}</span>
+            <span class="rail-recent-battle__vs">vs {{ b.monster_name || 'a monster' }}</span>
+          </div>
+          <span class="leaderboard-row__level">Lv.{{ b.level }} · {{ timeAgo(b.created_at) }}</span>
+        </div>
+        <div v-if="!recentBattles.length" class="rail-empty">Nobody's fighting right now.</div>
+      </div>
+
       <AdBanner variant="sidebar" />
     </div>
 
@@ -317,7 +361,11 @@ onMounted(() => {
           🔨 Crafting queue is empty — queue something up.
         </router-link>
         <router-link v-if="unspentPoints > 0" to="/skills" class="dashboard-alert dashboard-alert--idle">
-          ✦ {{ unspentPoints }} unspent point{{ unspentPoints > 1 ? 's' : '' }} — spend them in Skills.
+          ✦ Unspent:
+          <template v-if="unspentAttributePoints > 0">{{ unspentAttributePoints }} attribute point{{ unspentAttributePoints > 1 ? 's' : '' }}</template>
+          <template v-if="unspentAttributePoints > 0 && unspentSkillPoints > 0">, </template>
+          <template v-if="unspentSkillPoints > 0">{{ unspentSkillPoints }} skill point{{ unspentSkillPoints > 1 ? 's' : '' }}</template>
+          — spend them in Skills.
         </router-link>
         <router-link
           v-if="autoBattle && autoBattle.active"
@@ -354,11 +402,14 @@ onMounted(() => {
           ⛏ Gathering
           <span v-if="showGatherAlert" class="quick-actions__alert-badge">!</span>
         </router-link>
-        <router-link to="/crafting" class="quick-actions__secondary">
+        <router-link v-if="!craftingLocked" to="/crafting" class="quick-actions__secondary">
           🔨 Crafting
           <span v-if="hasActionableCraft" class="quick-actions__alert-badge">!</span>
           <span v-else-if="hasReadyCraft" class="quick-actions__ready-badge">✓</span>
         </router-link>
+        <button v-else type="button" class="quick-actions__secondary quick-actions__secondary--locked" disabled>
+          🔒 Crafting <span class="quick-actions__lock-lvl">Lv.{{ CRAFTING_UNLOCK_LEVEL }}</span>
+        </button>
       </div>
 
       <!-- Equipped -->

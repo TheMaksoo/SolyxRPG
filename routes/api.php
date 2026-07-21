@@ -159,6 +159,7 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::post('/guild-war/battles/{battle}/resolve', [GuildWarController::class, 'resolve']);
 
     Route::get('/leaderboard', [LeaderboardController::class, 'index']);
+    Route::get('/leaderboard/recent-battles', [LeaderboardController::class, 'recentBattles']);
 
     Route::get('/daily', [DailyController::class, 'index']);
     Route::post('/daily/claim', [DailyController::class, 'claim']);

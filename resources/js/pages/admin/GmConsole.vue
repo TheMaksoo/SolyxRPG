@@ -6,6 +6,7 @@ import { useAuthStore } from '../../stores/auth';
 import GmContentEditor from './GmContentEditor.vue';
 import ActivityChart from '../../components/admin/ActivityChart.vue';
 import InfoTooltip from '../../components/InfoTooltip.vue';
+import Skeleton from '../../components/Skeleton.vue';
 import { RESOURCE_SCHEMAS } from './resourceSchemas';
 
 const route = useRoute();
@@ -68,6 +69,33 @@ async function loadActivity() {
 
 function formatPct(v) {
   return v === null || v === undefined ? '—' : `${v}%`;
+}
+
+// Error log drill-down — the Activity tab's "Errors" cards only ever showed a bare count with nowhere
+// to click through to, so a GM seeing "1 error" had no way to find out what it actually was. This lazily
+// loads the real log rows (see GmErrorLogController) the first time the panel is opened.
+const errorLogOpen = ref(false);
+const errorLog = ref(null);
+const expandedErrorId = ref(null);
+
+async function toggleErrorLog() {
+  errorLogOpen.value = !errorLogOpen.value;
+  if (errorLogOpen.value && !errorLog.value) {
+    const { data } = await api.get('/gm/errors');
+    errorLog.value = data;
+  }
+}
+
+function toggleErrorTrace(id) {
+  expandedErrorId.value = expandedErrorId.value === id ? null : id;
+}
+
+function timeAgo(isoString) {
+  const seconds = Math.max(0, Math.round((Date.now() - new Date(isoString).getTime()) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
 }
 
 const classChartData = computed(() => {
@@ -369,7 +397,7 @@ async function loadAuditLog() {
 function switchTab(key) {
   tab.value = key;
   if (key === 'overview') loadOverview();
-  if (key === 'activity') loadActivity();
+  if (key === 'activity') { loadActivity(); loadRevenue(); }
   if (key === 'players') loadPlayers();
   if (key === 'economy') loadConfig();
   if (key === 'revenue') loadRevenue();
@@ -616,20 +644,25 @@ onMounted(() => {
           </div>
           <div class="gm-console-activity-stat">
             <div class="gm-console-activity-stat__head">
-              <div class="gm-console-activity-stat__label">Active this week</div>
-              <div class="gm-console-activity-stat__icon gm-console-activity-stat__icon--amber">🧍</div>
+              <div class="gm-console-activity-stat__label">
+                Revenue (mo)
+                <InfoTooltip text="Real VIP subscription MRR this billing period — from GmMetricsController, not a projection." />
+              </div>
+              <div class="gm-console-activity-stat__icon gm-console-activity-stat__icon--amber">💰</div>
             </div>
-            <div class="ox gm-console-activity-stat__value gm-console-activity-stat__value--amber">{{ analytics.headline.active_7d }}</div>
-            <div class="gm-console-activity-stat__sub">of {{ analytics.headline.total_characters }} characters</div>
+            <div class="ox gm-console-activity-stat__value gm-console-activity-stat__value--amber">${{ metrics ? formatCents(metrics.vip_mrr_cents) : '—' }}</div>
+            <div class="gm-console-activity-stat__sub">{{ analytics.headline.active_7d }} active this week</div>
           </div>
-          <div
-            class="gm-console-activity-stat"
+          <button
+            type="button"
+            class="gm-console-activity-stat gm-console-activity-stat--clickable"
             :class="{ 'gm-console-activity-stat--warn': analytics.live_health.errors_24h > 0 }"
+            @click="toggleErrorLog"
           >
             <div class="gm-console-activity-stat__head">
               <div class="gm-console-activity-stat__label">
                 Errors (24h)
-                <InfoTooltip text="Unhandled server errors (500s) caught automatically — not player mistakes or expected 4xx validation. Zero is healthy." />
+                <InfoTooltip text="Unhandled server errors (500s) caught automatically — not player mistakes or expected 4xx validation. Click to view the actual log. Zero is healthy." />
               </div>
               <div
                 class="gm-console-activity-stat__icon"
@@ -640,7 +673,43 @@ onMounted(() => {
               class="ox gm-console-activity-stat__value"
               :class="{ 'gm-console-activity-stat__value--warn': analytics.live_health.errors_24h > 0 }"
             >{{ analytics.live_health.errors_24h }}</div>
-            <div class="gm-console-activity-stat__sub">{{ analytics.live_health.errors_7d }} in last 7d</div>
+            <div class="gm-console-activity-stat__sub">{{ analytics.live_health.errors_7d }} in last 7d · click to view log</div>
+          </button>
+        </div>
+
+        <div v-if="errorLogOpen" class="gm-console-activity-charts">
+          <div class="gm-console-activity-chart-card gm-console-activity-chart-card--wide">
+            <div class="gm-console-activity-chart-card__title">
+              Error log
+              <button type="button" class="gm-console-error-log__close" @click="errorLogOpen = false">✕</button>
+            </div>
+            <div v-if="!errorLog" class="gm-console-empty">Loading…</div>
+            <div v-else class="gm-console-error-log">
+              <div v-if="errorLog.by_class.length" class="gm-console-error-log__classes">
+                <span v-for="row in errorLog.by_class" :key="row.exception_class" class="gm-console-error-log__class-chip">
+                  {{ row.exception_class.split('\\').pop() }} × {{ row.count }}
+                </span>
+              </div>
+              <div
+                v-for="log in errorLog.logs"
+                :key="log.id"
+                class="gm-console-error-log__row"
+                @click="toggleErrorTrace(log.id)"
+              >
+                <div class="gm-console-error-log__row-head">
+                  <span class="gm-console-error-log__class">{{ log.exception_class.split('\\').pop() }}</span>
+                  <span class="gm-console-error-log__when">{{ timeAgo(log.created_at) }}</span>
+                </div>
+                <div class="gm-console-error-log__message">{{ log.message }}</div>
+                <div class="gm-console-error-log__meta">
+                  <span v-if="log.file">{{ log.file.split('/').pop() }}:{{ log.line }}</span>
+                  <span v-if="log.method && log.url">{{ log.method }} {{ log.url }}</span>
+                  <span v-if="log.user">{{ log.user.name }}</span>
+                </div>
+                <pre v-if="expandedErrorId === log.id && log.trace" class="gm-console-error-log__trace">{{ log.trace }}</pre>
+              </div>
+              <div v-if="!errorLog.logs.length" class="gm-console-empty">No errors logged. All clear.</div>
+            </div>
           </div>
         </div>
 
@@ -770,8 +839,33 @@ onMounted(() => {
             </div>
           </div>
         </div>
+
+        <div class="gm-console-activity-charts">
+          <div class="gm-console-activity-chart-card gm-console-activity-chart-card--wide">
+            <div class="gm-console-activity-chart-card__title">
+              Currently active players
+              <InfoTooltip text="Every character, newest last-active first, capped at 100 rows — a live who's-online glance distinct from Top Players (which ranks by power, not recency)." />
+            </div>
+            <div class="gm-console-active-players">
+              <div class="gm-console-active-players__row gm-console-active-players__row--header">
+                <div>Character</div><div>Account</div><div>Class</div><div>Lvl</div><div>Last active</div>
+              </div>
+              <div v-for="p in analytics.active_players" :key="p.name" class="gm-console-active-players__row">
+                <div class="gm-console-active-players__name">{{ p.name }}</div>
+                <div class="gm-console-active-players__account">{{ p.user_name || '—' }}</div>
+                <div class="gm-console-active-players__class">{{ p.base_class }}</div>
+                <div class="ox gm-console-active-players__lvl">{{ p.level }}</div>
+                <div class="gm-console-active-players__ago">{{ timeAgo(p.last_active_at) }}</div>
+              </div>
+              <div v-if="!analytics.active_players?.length" class="gm-console-empty">No characters yet.</div>
+            </div>
+          </div>
+        </div>
       </div>
-      <p v-else class="gm-console-intro">Loading activity…</p>
+      <div v-else class="gm-console-activity-skeleton">
+        <Skeleton height="100px" :count="6" />
+        <Skeleton height="220px" :count="3" />
+      </div>
     </div>
 
     <!-- CONTENT -->

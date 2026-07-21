@@ -16,6 +16,10 @@ use Illuminate\Validation\Rule;
 
 class PvpController extends Controller
 {
+    /** Opponents more than this many levels away (either direction) never appear in the challenge list —
+     * mirrors the level-band pattern used for monster/dungeon matching elsewhere in the game. */
+    private const PVP_LEVEL_BAND = 10;
+
     public function __construct(
         private PvpMatchmakingService $matchmaking = new PvpMatchmakingService(),
         private PvpLiveCombatService $combat = new PvpLiveCombatService(),
@@ -31,32 +35,36 @@ class PvpController extends Controller
 
         $record = $character->pvpRecord()->firstOrCreate([], ['rating' => 1000]);
 
-        // Only ever list rivals who could actually accept the challenge right now — a character whose
-        // owner has lost PvP access (feature flag toggled off for them, e.g. a tester-only rollout) would
-        // otherwise show up as challengeable and then 403 the moment you hit Challenge.
+        $allRatings = PvpRecord::pluck('rating')->all();
+        // Hybrid rank merges the old fixed-tier ladder and the percentile bracket into one label: your
+        // rank name is whichever tier your live percentile against the current ladder lands in, and the
+        // outright #1 player gets a distinct crown on top of it. See PvpRecord::hybridRank() for cutoffs.
+        $hybridRank = PvpRecord::hybridRank($record->rating, $allRatings);
+
+        // Only ever list rivals who could actually accept the challenge right now and make for a fair
+        // fight: a character whose owner has lost PvP access (feature flag toggled off for them, e.g. a
+        // tester-only rollout) would otherwise show up as challengeable and then 403 the moment you hit
+        // Challenge; a character outside your hybrid tier or level band is either a guaranteed stomp or a
+        // guaranteed loss, not a real match.
         $opponents = Character::where('id', '!=', $character->id)
+            ->whereBetween('level', [max(1, $character->level - self::PVP_LEVEL_BAND), $character->level + self::PVP_LEVEL_BAND])
             ->with(['pvpRecord', 'user'])
-            ->limit(40)
+            ->limit(60)
             ->get()
             ->filter(fn (Character $c) => FeatureFlag::gate('pvp', $c->user))
-            ->take(20)
-            ->values()
             ->map(fn (Character $c) => [
                 'character' => $c,
                 'rating' => $c->pvpRecord->rating ?? 1000,
-            ]);
+            ])
+            ->filter(fn ($row) => PvpRecord::hybridRank($row['rating'], $allRatings)['base_name'] === $hybridRank['base_name'])
+            ->take(20)
+            ->values();
 
         $history = PvpMatch::where('character_id', $character->id)
             ->with('opponent')
             ->latest('created_at')
             ->limit(10)
             ->get();
-
-        $allRatings = PvpRecord::pluck('rating')->all();
-        // Hybrid rank merges the old fixed-tier ladder and the percentile bracket into one label: your
-        // rank name is whichever tier your live percentile against the current ladder lands in, and the
-        // outright #1 player gets a distinct crown on top of it. See PvpRecord::hybridRank() for cutoffs.
-        $hybridRank = PvpRecord::hybridRank($record->rating, $allRatings);
 
         $activeMatch = $this->matchmaking->activeMatchFor($character->id);
         $queueEntry = $this->matchmaking->queueEntryFor($character->id);

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Models\Battle;
 use App\Models\Character;
 use App\Http\Controllers\Controller;
 use App\Models\FeatureFlag;
@@ -61,6 +62,33 @@ class LeaderboardController extends Controller
             });
 
         return response()->json(['leaderboard' => $ranked, 'category' => $category]);
+    }
+
+    /** The 5 most-recent characters to walk into a battle, for the dashboard's "who's fighting right now"
+     * rail card — same visual treatment as the Leaderboard card, just live-activity flavored. Excludes
+     * the requesting player's own character (seeing yourself in your own feed isn't interesting) and only
+     * looks at monster fights, not PvP, since PvpLiveMatch is a different table entirely. */
+    public function recentBattles(Request $request)
+    {
+        $character = $request->user()->character;
+
+        $rows = Battle::with(['character.user', 'monster'])
+            ->when($character, fn ($q) => $q->where('character_id', '!=', $character->id))
+            ->latest('created_at')
+            ->limit(5)
+            ->get()
+            ->filter(fn (Battle $b) => $b->character !== null)
+            ->map(fn (Battle $b) => [
+                'character_id' => $b->character->id,
+                'name' => $b->character->name,
+                'level' => $b->character->level,
+                'base_class' => $b->character->base_class,
+                'monster_name' => $b->monster?->name,
+                'created_at' => $b->created_at,
+            ])
+            ->values();
+
+        return response()->json(['recent_battles' => $rows]);
     }
 
     private function valueFor(Character $c, string $category): int
