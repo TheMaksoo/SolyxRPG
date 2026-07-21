@@ -12,6 +12,7 @@ use App\Models\Cosmetic;
 use App\Models\DungeonRun;
 use App\Models\FeatureFlag;
 use App\Models\GemLedger;
+use App\Models\LegacyDiscordUser;
 use App\Models\PvpLiveMatch;
 use App\Models\User;
 use App\Services\AttributeService;
@@ -377,6 +378,10 @@ class CharacterController extends Controller
 
         $user->active_character_id = $character->id;
         $user->save();
+
+        // Covers the order where Discord was linked before this character existed (e.g. signing up
+        // via Discord OAuth creates the account first, the character second) — see LegacyDiscordUser.
+        LegacyDiscordUser::grantLegendTitleIfMatched($user);
 
         return response()->json(['character' => $character->fresh('attributes_')], 201);
     }

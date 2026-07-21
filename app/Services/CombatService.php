@@ -207,8 +207,21 @@ class CombatService
         }
 
         if ($playerDmg > 0) {
+            // Counted BEFORE applyPlayerDamage mutates hp, so an AOE hit's lifesteal is based on total
+            // damage dealt across every living target it actually hit, not just the primary monster.
+            $targetsHit = 1 + ($isAoe ? $battle->battleMonsters->where('hp', '>', 0)->count() : 0);
+
             $log = $this->applyPlayerDamage($battle, $playerDmg, $isAoe, $type, $weaponRow, $targetMonsterId, $log);
             $this->decayGear($weaponRow);
+
+            $lifestealPct = $stats['lifesteal_pct'] ?? 0;
+            if ($lifestealPct > 0) {
+                $lifestealHealed = (int) round($playerDmg * $targetsHit * $lifestealPct / 100);
+                if ($lifestealHealed > 0) {
+                    $battle->character_hp = min($stats['eff_hp_max'], $battle->character_hp + $lifestealHealed);
+                    $log[] = "Lifesteal restores {$lifestealHealed} HP.";
+                }
+            }
         }
 
         if ($this->allEnemiesDefeated($battle)) {

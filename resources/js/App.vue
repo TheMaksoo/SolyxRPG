@@ -3,6 +3,8 @@ import CookieConsent from './components/CookieConsent.vue';
 </script>
 
 <template>
-  <router-view />
-  <CookieConsent />
+  <div id="app-root" v-twemoji>
+    <router-view />
+    <CookieConsent />
+  </div>
 </template>

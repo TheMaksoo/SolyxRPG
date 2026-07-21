@@ -83,6 +83,9 @@ class ChangelogSeeder extends Seeder
         ['1.11.4', 'Repair Rolls & New Brews', "Repair packs now roll a bit better or worse each use, just like crafting — so luck plays a part in how much durability you get back. Also added a full line of brewable Mana potions and higher-grade Regen tonics (Moonpetal, Sunroot, and Phoenix tier) to Crafting, alongside the existing Health potions.", 'feature', '2026-07-21 22:00:00'],
         ['1.11.5', 'Marketplace Listing Cap & Referral Code Refresh', "Active Marketplace listings are now capped at 10 per character — VIP raises that to 15 (Bronze), 20 (Gold), or 30 (Diamond), shown right on the My Listings tab. Your listing history is trimmed to your most recent 30. Also refreshed everyone's referral code to a new, permanent format tied to your account — check the Referrals page for your new code if you'd shared the old one.", 'feature', '2026-07-21 22:15:00'],
         ['1.11.6', 'Crafting Queue Shows Stats', "Items sitting in your Crafting queue now show their stats (ATK/DEF, heal %, regen bonuses, etc.) while they're brewing, not just before you queue them.", 'fix', '2026-07-21 22:20:00'],
+        ['1.11.7', 'Legend of Solyx Title', "If you played the original Discord-bot version of Solyx, link your Discord account in Settings — if it matches our records, you'll automatically receive the exclusive \"Legend of Solyx\" title.", 'feature', '2026-07-22 09:00:00'],
+        ['1.11.8', 'Lifesteal Now Works', "Lifesteal gear was showing on the Wiki but never actually did anything in battle — fixed, and every heal-back now shows in your battle log.", 'fix', '2026-07-22 09:10:00'],
+        ['1.11.9', 'Consistent Emoji Everywhere', "Switched every emoji in the game to Twemoji so icons look the same for everyone, regardless of device or OS.", 'misc', '2026-07-22 09:15:00'],
     ];
 
     /** Keyed on version, not create() — re-running db:seed on live must never duplicate or reset

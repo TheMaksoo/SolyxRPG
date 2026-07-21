@@ -227,6 +227,7 @@ class Character extends Model
         $gearDef = 0;
         $gearLuck = 0;
         $gearDodge = 0;
+        $gearLifesteal = 0;
         $hasArmorSlotEquipped = false;
         foreach ($equipped as $slot) {
             if ($slot->durability_max !== null && $slot->durability <= 0) {
@@ -238,6 +239,7 @@ class Character extends Model
             $gearDef += $stats['def'] ?? 0;
             $gearLuck += $stats['luck'] ?? 0;
             $gearDodge += $stats['dodge_pct'] ?? 0;
+            $gearLifesteal += $stats['lifesteal_pct'] ?? 0;
             if ($slot->item->type === 'shield') {
                 // Only warriors have shield-type gear (buckler/kite shield/aegis/bulwark — see
                 // ItemSeeder) — their 2nd defensive slot alongside regular chest armor.
@@ -389,6 +391,7 @@ class Character extends Model
             'crit_damage_mult' => $critDamageMult,
             'luck' => $luck,
             'dodge_chance' => $dodgeChance,
+            'lifesteal_pct' => $gearLifesteal,
             'pet_xp_bonus_pct' => $petXpPct,
             'pet_gather_speed_pct' => $petGatherSpeedPct,
             'pet_craft_speed_pct' => $petCraftSpeedPct,

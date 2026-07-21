@@ -89,7 +89,9 @@ onMounted(async () => {
   // A ?ref= link (see ReferralController's invite_url) should land straight on the signup form with
   // the code already filled in — someone clicking an invite link is here to sign up, not log in.
   if (route.query.ref) {
-    form.value.referral_code = String(route.query.ref).toUpperCase();
+    // Codes are base64url(account id) — case-sensitive, unlike the old random-uppercase scheme, so
+    // don't touch the casing here.
+    form.value.referral_code = String(route.query.ref);
     mode.value = 'register';
   }
 

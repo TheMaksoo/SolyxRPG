@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\LegacyDiscordUser;
 use App\Models\SocialAccount;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -68,6 +69,10 @@ class SocialiteController extends Controller
                 'provider_user_id' => $providerUserId,
                 'discord_id' => $provider === 'discord' ? $providerUserId : null,
             ]);
+
+            if ($provider === 'discord') {
+                LegacyDiscordUser::grantLegendTitleIfMatched($current);
+            }
         }
 
         return redirect("/settings?linked={$provider}");
@@ -105,6 +110,10 @@ class SocialiteController extends Controller
 
             return $user;
         });
+
+        if ($provider === 'discord') {
+            LegacyDiscordUser::grantLegendTitleIfMatched($user);
+        }
 
         Auth::login($user);
         request()->session()->regenerate();

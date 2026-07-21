@@ -25,6 +25,20 @@ a {
   font-family: v.$font-display;
 }
 
+// Pure attachment point for the app-wide v-twemoji directive (see resources/js/twemoji.js) — must
+// impose zero box/layout of its own, so every page's existing flex/grid assumptions stay intact.
+#app-root {
+  display: contents;
+}
+
+// Twemoji swaps native emoji glyphs for these inline SVGs app-wide, for consistent rendering across
+// platforms/OSes — sized to sit on the text baseline like a glyph would, not a block image.
+.twemoji-icon {
+  height: 1.2em;
+  width: 1.2em;
+  vertical-align: -0.2em;
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
