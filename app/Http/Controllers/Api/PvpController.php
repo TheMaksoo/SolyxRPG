@@ -294,6 +294,14 @@ class PvpController extends Controller
         $match->last_action_at = now();
         $match->save();
 
+        // A corrupted/orphaned match row (no valid opponent on the other side — shouldn't happen for a
+        // match createLiveMatch() actually built, but Forfeit is the escape hatch and must never itself
+        // crash on bad data) skips rating/reward bookkeeping entirely rather than erroring — there's no
+        // real opponent to award a win to.
+        if ($winnerCharacterId === null) {
+            return response()->json($this->matchPayload($match->fresh(), $character->id));
+        }
+
         $reward = $this->combat->resolveMatchWin($match, $winnerCharacterId, $loserCharacterId, $log);
         $state = $match->state_json;
         $state['reward'] = $reward;
@@ -303,17 +311,26 @@ class PvpController extends Controller
         return response()->json($this->matchPayload($match->fresh(), $character->id));
     }
 
-    /** Resolves which of the REQUESTING ACCOUNT's characters (not just whichever one happens to be
-     * "active" right now — see User::character()/active_character_id) is actually a participant in this
-     * match. A live match can run for many minutes across many polls; if the account's active character
-     * changes in the meantime for any reason (switching characters in another tab, Character Select,
-     * anything), $request->user()->character alone would silently start pointing at a DIFFERENT
-     * character that was never in this match — and every subsequent poll/action would instantly 403 with
-     * "belongs to different characters" even though the match itself is perfectly fine. Checking every
-     * character on the account instead means the match stays reachable by whichever one actually queued
-     * for it, for its entire lifetime, regardless of what's active meanwhile. */
+    /** Resolves which character the requesting account is playing as in this match. Always prefers the
+     * account's currently-ACTIVE character (see User::character()/active_character_id) when it's a valid
+     * participant — that's the character the player is actually looking at/controlling right now, and
+     * the only one that matters when (as can happen while testing, or with two alts) an account's OTHER
+     * character is the opponent on the same match: falling back to "any of my characters in this match"
+     * without checking the active one first could silently hand you back your OWN opponent character
+     * instead of yourself.
+     *
+     * Only falls back to scanning every character on the account if the active one ISN'T a participant —
+     * that covers a live match running across many polls where the active character changed in the
+     * meantime for an unrelated reason (switching characters in another tab, Character Select, anything);
+     * without this fallback, $request->user()->character alone would 403 with "belongs to different
+     * characters" the moment that happened, even though the match itself is perfectly fine. */
     private function characterInMatch(Request $request, PvpLiveMatch $match): Character
     {
+        $active = $request->user()->character;
+        if ($active && $match->sideFor($active->id) !== null) {
+            return $active;
+        }
+
         $character = $request->user()->characters()
             ->whereIn('id', [$match->character_a_id, $match->character_b_id])
             ->first();
@@ -331,6 +348,13 @@ class PvpController extends Controller
     {
         $state = $match->state_json;
         $mySide = $match->sideFor($viewerCharacterId);
+        // Every caller already verifies $viewerCharacterId is a real participant before reaching here
+        // (see characterInMatch()) — this is a hard safety net, not an expected path. Silently defaulting
+        // $oppSide to 'a' whenever $mySide didn't resolve used to be exactly that: if sideFor() ever
+        // returned null for a genuine participant (a real prior bug), 'me' would render blank while
+        // 'opponent' silently became side A's data — showing the VIEWER'S OWN fighter mislabeled as their
+        // opponent instead of failing loudly, which is far more confusing to debug than a clear error.
+        abort_if($mySide === null, 500, 'Could not determine which side of this match you are.');
         $oppSide = $mySide === 'a' ? 'b' : 'a';
 
         $me = $state[$mySide] ?? null;
