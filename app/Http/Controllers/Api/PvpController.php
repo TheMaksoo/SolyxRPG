@@ -154,7 +154,7 @@ class PvpController extends Controller
 
         // Nobody suitable showed up in 5 minutes — stop searching instead of leaving the player queued
         // forever; "no rival nearby" is a real, honest answer rather than an endless spinner.
-        if (now()->diffInSeconds($entry->queued_at) >= 300) {
+        if (now()->diffInSeconds($entry->queued_at, true) >= 300) {
             $entry->delete();
 
             return response()->json(['status' => 'timeout']);
@@ -168,7 +168,7 @@ class PvpController extends Controller
         return response()->json([
             'status' => 'searching',
             'queued_at' => $entry->queued_at->toIso8601String(),
-            'elapsed_seconds' => now()->diffInSeconds($entry->queued_at),
+            'elapsed_seconds' => now()->diffInSeconds($entry->queued_at, true),
         ]);
     }
 

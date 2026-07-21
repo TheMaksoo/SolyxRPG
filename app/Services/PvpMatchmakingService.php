@@ -61,7 +61,7 @@ class PvpMatchmakingService
                 return null;
             }
 
-            $band = $this->bandFor((int) now()->diffInSeconds($mine->queued_at));
+            $band = $this->bandFor((int) now()->diffInSeconds($mine->queued_at, true));
 
             $candidate = PvpQueueEntry::where('character_id', '!=', $character->id)
                 ->whereBetween('rating', [$mine->rating - $band, $mine->rating + $band])
@@ -122,7 +122,7 @@ class PvpMatchmakingService
                 continue;
             }
 
-            $band = $this->bandFor((int) now()->diffInSeconds($entry->queued_at));
+            $band = $this->bandFor((int) now()->diffInSeconds($entry->queued_at, true));
             $opponentEntry = $entries->first(fn ($e) => $e->id !== $entry->id
                 && ! in_array($e->id, $skip, true)
                 && abs($e->rating - $entry->rating) <= $band);

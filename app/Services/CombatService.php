@@ -113,15 +113,22 @@ class CombatService
         $weaponRow = $this->equippedGear($character, 'weapon');
         $armorRow = $this->equippedGear($character, 'armor');
 
+        // A heal skill is a free action exactly like drinking a potion — it doesn't end your turn, so
+        // it's decided before the cooldown tick below (which also treats it like an item, see that
+        // comment) rather than only after the skill branch runs. $skill is fetched once here and reused
+        // in the skill branch below rather than queried twice.
+        $skill = $type === 'skill' ? Skill::findOrFail($skillId) : null;
+        $isFreeAction = $type === 'item' || ($skill && $this->skills->isHeal($skill));
+
         // Turn-based skill cooldowns: "rounds remaining" per skill id, scoped to this battle (see
         // Battle::skill_cooldowns_json) rather than real elapsed time — one act() call is one round, so
         // every ability on the map ticks down by 1 every round regardless of what action was taken.
         // Assigning it back onto $battle now means it rides along with whichever save()/update() call
-        // below ends up persisting this turn, on every return path. Using an item is a free action (see
-        // the $type !== 'item' guard around the enemy's turn below) so cooldowns don't tick for it either
-        // — drinking a potion shouldn't quietly burn a round off your other abilities.
+        // below ends up persisting this turn, on every return path. Using an item (or a heal skill —
+        // see $isFreeAction above) is a free action so cooldowns don't tick for it either — drinking a
+        // potion or topping off HP shouldn't quietly burn a round off your other abilities.
         $skillCooldowns = $battle->skill_cooldowns_json ?? [];
-        if ($type !== 'item') {
+        if (! $isFreeAction) {
             foreach ($skillCooldowns as $sid => $remaining) {
                 $skillCooldowns[$sid] = max(0, $remaining - 1);
             }
@@ -139,7 +146,6 @@ class CombatService
                 $log[] = 'Critical hit!';
             }
         } elseif ($type === 'skill') {
-            $skill = Skill::findOrFail($skillId);
             $characterSkill = $character->skills()->where('skill_id', $skill->id)->first();
             abort_unless($characterSkill, 422, 'Skill not unlocked.');
             $roundsLeft = $skillCooldowns[$skill->id] ?? 0;
@@ -209,10 +215,10 @@ class CombatService
             return $this->resolveWin($battle, $character, $log);
         }
 
-        // Using an item (potion/elixir) is a free action — it doesn't end your turn, so the enemy never
-        // gets a free swing off the back of drinking a potion. Attacks and skills still pass the turn as
-        // normal below.
-        if ($type === 'item') {
+        // Using an item (potion/elixir) or a heal skill is a free action — it doesn't end your turn, so
+        // the enemy never gets a free swing off the back of healing up. Attacks and damage skills still
+        // pass the turn as normal below.
+        if ($isFreeAction) {
             $battle->log_json = $log;
             $battle->save();
 
