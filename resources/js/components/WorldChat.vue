@@ -14,6 +14,7 @@ const auth = useAuthStore();
 const messages = ref([]);
 const body = ref('');
 const messagesEl = ref(null);
+const lastMessageId = ref(0);
 let interval = null;
 
 // World chat has no fixed roster to draw @mention suggestions from — best effort using whoever's
@@ -35,12 +36,25 @@ function scrollToBottom() {
 async function load() {
   try {
     const { data } = await api.get('/chat/world');
-    // Server already caps this at the last 100 messages — keep it capped client-side too in case
-    // that ever changes, and always pin the view to the newest message.
     messages.value = data.messages.slice(-100);
+    if (data.messages.length > 0) {
+      lastMessageId.value = data.messages[data.messages.length - 1].id;
+    }
     scrollToBottom();
   } catch {
     // silent — chat is a non-critical side panel
+  }
+}
+
+async function checkForNewMessages() {
+  try {
+    const { data } = await api.get('/status/check');
+    // Only fetch full messages if there are new ones
+    if (data.last_message_id > lastMessageId.value) {
+      await load();
+    }
+  } catch {
+    // silent
   }
 }
 

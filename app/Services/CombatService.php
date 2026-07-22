@@ -615,23 +615,28 @@ class CombatService
     private function applyDeathPenalty(Character $character): array
     {
         $goldLossPct = GameConfig::number('death_gold_loss_pct', 8);
-        $xpLossPct = GameConfig::number('death_xp_loss_pct', 5);
+        $baseLossPct = GameConfig::number('death_xp_loss_pct', 5);
 
-        $goldLost = (int) min($character->gold, round($character->gold * $goldLossPct / 100));$currentLevelXp = Character::xpForLevel($character->level);
+        $goldLost = (int) min($character->gold, round($character->gold * $goldLossPct / 100));
+
+        $currentLevelXp = Character::xpForLevel($character->level);
         $previousLevelXp = Character::xpForLevel(max(1, $character->level - 1));
-        
-        $xpThisLevel = $currentLevelXp - $previousLevelXp;
-        
-        // Lose 5% of one level's worth of XP
-        $xpLost = (int) round($xpThisLevel * $xpLossPct / 100);
+
+        // How much XP the player has earned within this level
+        $xpProgressInLevel = max(0, $character->xp - $previousLevelXp);
+
+        // Loss: 5% of YOUR PROGRESS in this level + flat amount
+        $percentageLoss = (int) round($xpProgressInLevel * $baseLossPct / 100);
+        $flatLoss = (int) round(100 * (($character->level / 100) + 1));
+        $xpLost = $percentageLoss + $flatLoss;
 
         $level = $character->level;
         $xp = $character->xp - $xpLost;
         $levelsLost = 0;
 
-        while ($xp < 0 && $level > 1) {
+        // Delevel if XP drops below what's needed for current level
+        while ($level > 1 && $xp < Character::xpForLevel($level - 1)) {
             $level--;
-            $xp += Character::xpForLevel($level);
             $levelsLost++;
         }
         $xp = max(0, $xp);

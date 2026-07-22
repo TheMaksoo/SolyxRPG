@@ -80,6 +80,7 @@ const BADGE_PATH = {
   pvp: '/pvp',
 };
 let badgePollTimer = null;
+const badgesUpdatedAt = ref(0);
 
 async function loadNavBadges() {
   const { data } = await api.get('/nav-badges');
@@ -88,6 +89,19 @@ async function loadNavBadges() {
     next[path] = data[key] ?? 0;
   }
   navBadges.value = next;
+}
+
+async function checkForBadgeUpdates() {
+  try {
+    const { data } = await api.get('/status/check');
+    // Only fetch full badges if they changed
+    if (data.badges_updated_at > badgesUpdatedAt.value) {
+      badgesUpdatedAt.value = data.badges_updated_at;
+      await loadNavBadges();
+    }
+  } catch {
+    // silent
+  }
 }
 
 function badgeFor(path) {
@@ -154,7 +168,8 @@ onMounted(() => {
   loadNavBadges();
   loadActivePlayers();
   loadGameVersion();
-  badgePollTimer = setInterval(loadNavBadges, 30000);
+  // Check every 30s instead of fetching full badges - only fetches if something changed
+  badgePollTimer = setInterval(checkForBadgeUpdates, 30000);
 });
 
 onUnmounted(() => {

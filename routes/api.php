@@ -44,6 +44,7 @@ use App\Http\Controllers\Api\ShopController;
 use App\Http\Controllers\Api\SkillController;
 use App\Http\Controllers\Api\SocialiteController;
 use App\Http\Controllers\Api\StatsController;
+use App\Http\Controllers\Api\StatusController;
 use App\Http\Controllers\Api\SupportTicketController;
 use App\Http\Controllers\Api\StoreController;
 use App\Http\Controllers\Api\TradeSkillController;
@@ -84,6 +85,7 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::delete('/me', [AuthController::class, 'deleteAccount']);
     Route::get('/announcements', [AnnouncementController::class, 'index']);
     Route::get('/nav-badges', [NavBadgeController::class, 'index']);
+    Route::get('/status/check', [StatusController::class, 'check']);
 
     Route::get('/character', [CharacterController::class, 'show']);
     Route::get('/character/activity', [CharacterController::class, 'activity']);

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\NewChatMessage;
 use App\Http\Controllers\Controller;
 use App\Models\WorldMessage;
 use Illuminate\Http\Request;
@@ -39,7 +40,12 @@ class WorldChatController extends Controller
 
         $this->prune();
 
-        return response()->json(['message_sent' => $this->withVipTier($message->load(['character.user', 'character.activeColor']))]);
+        $fullMessage = $this->withVipTier($message->load(['character.user', 'character.activeColor']));
+
+        // Broadcast to all connected clients
+        broadcast(new NewChatMessage($fullMessage));
+
+        return response()->json(['message_sent' => $fullMessage]);
     }
 
     private function prune(): void

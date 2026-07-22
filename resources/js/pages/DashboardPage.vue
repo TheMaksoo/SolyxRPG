@@ -173,8 +173,24 @@ async function claimDaily() {
 }
 
 const xpPct = computed(() => {
+  const currentXp = store.character?.xp ?? 0;
   const xpMax = store.stats?.xp_max || 1;
-  return Math.min(100, Math.round(((store.character?.xp ?? 0) / xpMax) * 100));
+  const xpMin = store.stats?.xp_min || 0;
+  const xpRange = xpMax - xpMin;
+  const xpProgress = currentXp - xpMin;
+  return Math.min(100, Math.round((xpProgress / xpRange) * 100));
+});
+
+const xpCurrentLevel = computed(() => {
+  const currentXp = store.character?.xp ?? 0;
+  const xpMin = store.stats?.xp_min || 0;
+  return Math.max(0, currentXp - xpMin);
+});
+
+const xpMaxLevel = computed(() => {
+  const xpMax = store.stats?.xp_max || 1;
+  const xpMin = store.stats?.xp_min || 0;
+  return xpMax - xpMin;
 });
 
 onMounted(() => {
@@ -292,7 +308,7 @@ onMounted(() => {
               <div class="xp-gauge__tag">LVL</div>
             </div>
           </div>
-          <div class="stat-tile__label">{{ store.character.xp }} / {{ store.stats?.xp_max ?? '—' }} XP</div>
+          <div class="stat-tile__label">{{ xpCurrentLevel.toLocaleString() }} / {{ xpMaxLevel.toLocaleString() }} XP</div>
         </div>
         <div class="stat-tile">
           <div class="ox stat-tile__value stat-tile__value--gold">{{ store.character.gold }}</div>
