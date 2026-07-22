@@ -662,17 +662,72 @@ class Character extends Model
         return true;
     }
 
-    /** Linear per-level curve — level 1 still costs 500 XP for continuity, then a flat +800 XP per
-     * level after that (level 50 costs 39,700 XP for that one level; ~1.0M cumulative to reach 50).
-     * The previous quadratic curve (150*level²+350) baked the level² term into the PER-LEVEL cost
-     * (not just the cumulative total), so the jump between consecutive high levels felt absurd —
-     * level 49→50 cost ~750x what level 1→2 did, despite a "only" ~6M cumulative total. This grows
-     * the per-level cost linearly instead (so cumulative is the quadratic curve, matching how these
-     * curves are normally built), keeping early-level pacing close to before — d=800 is chosen so
-     * cumulative XP through level 6 lands close to the old curve's ~15.7k — while the top-to-bottom
-     * per-level ratio drops to ~80x. */
     public static function xpForLevel(int $level): int
     {
-        return 500 + 800 * ($level - 1);
+        static $table = null;
+
+        if ($table === null) {
+            $table = self::buildXpTable();
+        }
+
+        if ($level <= 150) {
+            return $table[$level];
+        }
+
+        // Continue endgame scaling after 150
+        $last = $table[150];
+
+        return (int) min(
+            $last * pow(1.045, $level - 150),
+            9e18
+        );
+    }
+
+
+    private static function buildXpTable(): array
+    {
+        $table = [
+            1 => 800
+        ];
+
+        for ($level = 2; $level <= 150; $level++) {
+
+            $previous = $table[$level - 1];
+
+            $growth = self::stepFor($level);
+
+            $table[$level] = (int) round(
+                $previous + $growth
+            );
+        }
+
+        return $table;
+    }
+
+
+    private static function stepFor(int $level): int
+    {
+        return (int) round(match (true) {
+
+            // Tutorial
+            $level <= 8 =>
+                800 * pow(1.18, $level - 1),
+
+            // Unlock: stronger monsters
+            $level <= 20 =>
+                12000 * pow(1.08, $level - 8),
+
+            // Unlock: new zone
+            $level <= 35 =>
+                55000 * pow(1.075, $level - 20),
+
+            // Unlock: elite monsters
+            $level <= 50 =>
+                180000 * pow(1.07, $level - 35),
+
+            // Endgame
+            default =>
+                500000 * pow(1.045, $level - 50),
+        });
     }
 }

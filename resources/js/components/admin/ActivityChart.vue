@@ -17,7 +17,17 @@ const props = defineProps({
   datasets: { type: Array, default: null },
   // Stacks multi-series bars into one bar per label instead of side-by-side clusters.
   stacked: { type: Boolean, default: false },
+  // Logarithmic y-axis — for series that span multiple orders of magnitude (e.g. an XP curve with
+  // hard walls) where a linear scale would flatten everything except the very top of the range.
+  logScale: { type: Boolean, default: false },
 });
+
+function compactNumber(n) {
+  if (n >= 1e9) return (n / 1e9).toFixed(n % 1e9 === 0 ? 0 : 1) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(n % 1e6 === 0 ? 0 : 1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(n % 1e3 === 0 ? 0 : 1) + 'K';
+  return String(n);
+}
 
 const canvasEl = ref(null);
 let chart = null;
@@ -41,9 +51,10 @@ function build() {
         data: d.data,
         borderColor: d.color,
         backgroundColor: props.type === 'line' ? `${d.color}22` : d.color,
-        fill: props.type === 'line',
+        fill: d.fill ?? (props.type === 'line'),
         tension: 0.35,
-        pointRadius: 0,
+        pointRadius: d.pointRadius ?? 0,
+        showLine: d.showLine ?? true,
         borderWidth: props.type === 'line' ? 2 : 0,
         borderRadius: props.type === 'bar' ? 4 : 0,
         tooltipLabels: d.tooltipLabels ?? null,
@@ -85,7 +96,9 @@ function build() {
           ? {}
           : {
               x: { stacked: props.stacked, grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 10 } } },
-              y: { stacked: props.stacked, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 10 } }, beginAtZero: true },
+              y: props.logScale
+                ? { type: 'logarithmic', grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 10 }, callback: compactNumber } }
+                : { stacked: props.stacked, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 10 } }, beginAtZero: true },
             },
       cutout: props.type === 'doughnut' ? '65%' : undefined,
     },
@@ -94,7 +107,7 @@ function build() {
 
 onMounted(build);
 onUnmounted(() => { if (chart) chart.destroy(); });
-watch(() => [props.labels, props.data, props.tooltipLabels, props.datasets, props.stacked], build, { deep: true });
+watch(() => [props.labels, props.data, props.tooltipLabels, props.datasets, props.stacked, props.logScale], build, { deep: true });
 </script>
 
 <template>

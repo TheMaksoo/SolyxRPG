@@ -41,7 +41,7 @@ const metrics = ref(null);
 function formatCents(cents) {
   return ((cents || 0) / 100).toFixed(2);
 }
-const TAB_KEYS = ['overview', 'activity', 'content', 'players', 'economy', 'revenue', 'flags', 'tickets', 'broadcast', 'audit'];
+const TAB_KEYS = ['overview', 'activity', 'content', 'players', 'economy', 'progression', 'revenue', 'flags', 'tickets', 'broadcast', 'audit'];
 // Supports deep-linking straight to a tab (e.g. /admin?tab=tickets from the Settings page's
 // "manage tickets" link) while still defaulting to the overview tab otherwise.
 const tab = ref(TAB_KEYS.includes(route.query.tab) ? route.query.tab : 'overview');
@@ -51,6 +51,7 @@ const TABS = [
   { key: 'content', label: 'Content' },
   { key: 'players', label: 'Players' },
   { key: 'economy', label: 'Economy' },
+  { key: 'progression', label: 'Progression' },
   { key: 'revenue', label: 'Revenue' },
   { key: 'flags', label: 'Feature Flags' },
   { key: 'tickets', label: 'Tickets' },
@@ -491,6 +492,68 @@ async function loadAuditLog() {
   auditLogs.value = data.logs;
 }
 
+// Progression tab — per-level XP curve straight from Character::xpForLevel() (see GmProgressionController),
+// so tuning the formula there shows up here with no separate curve to keep in sync. Split into the same
+// brackets the formula itself uses (see WALL_LEVELS) so each mini-chart is scaled to its own segment
+// instead of the level-8/20/35/50 walls flattening everything around them.
+const progression = ref(null);
+const WALL_LEVELS = [8, 20, 35, 50];
+const PROGRESSION_SEGMENTS = [
+  { label: 'Tutorial', from: 1, to: 8, color: '#4fd1c5' },
+  { label: 'Early Game', from: 8, to: 20, color: '#60a5fa' },
+  { label: 'Mid Game', from: 20, to: 35, color: '#fbbf24' },
+  { label: 'Pre-Endgame', from: 35, to: 50, color: '#fb923c' },
+  { label: 'Endgame', from: 50, to: 160, color: '#e8482f' },
+];
+async function loadProgression() {
+  const { data } = await api.get('/gm/xp-curve');
+  progression.value = data;
+}
+function segmentPoints(seg) {
+  if (!progression.value) return [];
+  return progression.value.costs.slice(seg.from - 1, seg.to);
+}
+function segmentLabels(seg) {
+  return Array.from({ length: seg.to - seg.from + 1 }, (_, i) => `Lv${seg.from + i}`);
+}
+function wallMultiplier(level) {
+  if (!progression.value) return 0;
+  const cost = progression.value.costs[level - 1];
+  const prev = progression.value.costs[level - 2] || 1;
+  return Math.round(cost / prev);
+}
+function formatXp(n) {
+  if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return String(n);
+}
+
+// Full 1-160 curve on one log-scale chart — one dataset per segment (null outside its own range, so
+// each keeps its own color instead of one flat line) plus a standalone "wall" dataset marking the 4
+// gate levels with a bigger dot, so the jumps are visible at a glance instead of just implied by a
+// color change.
+const overviewLabels = computed(() => Array.from({ length: 160 }, (_, i) => `Lv${i + 1}`));
+const overviewDatasets = computed(() => {
+  if (!progression.value) return [];
+  const costs = progression.value.costs;
+  const segmentSets = PROGRESSION_SEGMENTS.map((seg) => ({
+    label: seg.label,
+    color: seg.color,
+    data: costs.map((v, i) => (i + 1 >= seg.from && i + 1 <= seg.to ? v : null)),
+  }));
+  const wallSet = {
+    label: 'Wall',
+    color: '#ffffff',
+    fill: false,
+    showLine: false,
+    pointRadius: 4,
+    data: costs.map((v, i) => (WALL_LEVELS.includes(i + 1) ? v : null)),
+    tooltipLabels: costs.map((v, i) => (WALL_LEVELS.includes(i + 1) ? `Lv${i + 1} wall — ${formatXp(v)} XP` : null)),
+  };
+  return [...segmentSets, wallSet];
+});
+
 function switchTab(key) {
   tab.value = key;
   if (key === 'overview') loadOverview();
@@ -501,6 +564,7 @@ function switchTab(key) {
   if (key === 'flags') loadFlags();
   if (key === 'tickets') loadTickets();
   if (key === 'audit') loadAuditLog();
+  if (key === 'progression') loadProgression();
 }
 
 onMounted(() => {
@@ -1106,6 +1170,51 @@ onMounted(() => {
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- PROGRESSION -->
+    <div v-else-if="tab === 'progression'">
+      <p class="gm-console-intro">Live XP curve, straight from Character::xpForLevel() — tune the formula there and this updates automatically.</p>
+      <div v-if="progression" class="gm-console-revenue-grid">
+        <div v-for="lvl in WALL_LEVELS" :key="lvl" class="gm-console-revenue-tile gm-console-revenue-tile--total">
+          <div class="gm-console-revenue-tile__label">Level {{ lvl }} wall</div>
+          <div class="ox gm-console-revenue-tile__value">{{ formatXp(progression.costs[lvl - 1]) }} XP</div>
+          <div class="gm-console-config-tile__readout">{{ wallMultiplier(lvl) }}× the level before it</div>
+        </div>
+      </div>
+      <div v-if="progression" class="gm-console-progression-card gm-console-progression-card--overview">
+        <div class="gm-console-progression-card__head">
+          <span class="ox">Full curve, levels 1–160 (log scale)</span>
+          <span class="gm-console-progression-card__range">White dots mark the walls</span>
+        </div>
+        <ActivityChart
+          type="line"
+          :labels="overviewLabels"
+          :datasets="overviewDatasets"
+          :log-scale="true"
+          :height="260"
+        />
+      </div>
+      <div v-if="progression" class="gm-console-progression-grid">
+        <div v-for="seg in PROGRESSION_SEGMENTS" :key="seg.label" class="gm-console-progression-card">
+          <div class="gm-console-progression-card__head">
+            <span class="ox">{{ seg.label }}</span>
+            <span class="gm-console-progression-card__range">Lv {{ seg.from }}–{{ seg.to }}</span>
+          </div>
+          <ActivityChart
+            type="line"
+            :labels="segmentLabels(seg)"
+            :data="segmentPoints(seg)"
+            :color="seg.color"
+            :height="120"
+          />
+          <div class="gm-console-progression-card__foot">
+            <span>Starts <strong>{{ formatXp(segmentPoints(seg)[0]) }}</strong></span>
+            <span>Ends <strong>{{ formatXp(segmentPoints(seg).at(-1)) }}</strong></span>
+          </div>
+        </div>
+      </div>
+      <p v-else class="gm-console-intro">Loading progression curve…</p>
     </div>
 
     <!-- TICKETS -->

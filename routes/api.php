@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\Gm\GmAnalyticsController;
 use App\Http\Controllers\Api\Gm\GmErrorLogController;
 use App\Http\Controllers\Api\Gm\GmMetricsController;
 use App\Http\Controllers\Api\Gm\GmPlayerController;
+use App\Http\Controllers\Api\Gm\GmProgressionController;
 use App\Http\Controllers\Api\Gm\GmTicketController;
 use App\Http\Controllers\Api\GuildController;
 use App\Http\Controllers\Api\GuildWarController;
@@ -268,5 +269,7 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
         Route::post('/broadcast', [GmBroadcastController::class, 'store']);
 
         Route::get('/audit-log', [GmAuditLogController::class, 'index']);
+
+        Route::get('/xp-curve', [GmProgressionController::class, 'xpCurve']);
     });
 });
