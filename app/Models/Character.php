@@ -716,19 +716,19 @@ class Character extends Model
 
             // Unlock: stronger monsters
             $level <= 20 =>
-                ($base * 8 )* pow(1.08, $level - 8),
+                ($base * 8 )* pow(1.05, $level - 8),
 
             // Unlock: new zone
             $level <= 35 =>
-                ($base * 20) * pow(1.075, $level - 20),
+                ($base * 20) * pow(1.025, $level - 20),
 
             // Unlock: elite monsters
             $level <= 50 =>
-                ($base * 35) * pow(1.07, $level - 35),
+                ($base * 35) * pow(1.0125, $level - 35),
 
             // Endgame
             default =>
-                ($base * 50) * pow(1.045, $level - 50),
+                ($base * 50) * pow(1.0075, $level - 50),
         });
     }
 }
