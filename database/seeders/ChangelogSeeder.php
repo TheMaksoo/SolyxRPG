@@ -92,6 +92,7 @@ class ChangelogSeeder extends Seeder
         ['1.12.0', 'Gem Economy Overhaul', "Complete gem economy rebalancing: gem packs now grant more gems for the price (with +10% bonus displayed as a ribbon), Auto-Attack 60min pass is now €0.99, and all rare/epic/legendary/mythic items repriced to match new rates (Rare: 250+ gems, Epic: 500+, Legendary: 2000+, Mythic: 4000+).", 'feature', '2026-07-22 10:00:00'],
         ['1.12.1', 'Level & XP System Rework', "Levels are now calculated from your XP in real-time on the Dashboard (always accurate), while the stored level is kept only for database queries. Fixed XP display showing 0/0 for level 1 characters. Also added a one-time level recalculation — if your stored level didn't match your XP, it's been corrected and your attribute/skill points adjusted accordingly (negative points = debt that clears as you level back up).", 'feature', '2026-07-22 10:10:00'],
         ['1.12.2', 'Battle Log Improvements', "Battle logs now properly update with XP gains after every fight, and character data refreshes immediately after battle completion so the Dashboard always shows current stats.", 'fix', '2026-07-22 10:15:00'],
+        ['1.12.3', 'Gear Durability Warnings', "Battle now alerts you when equipped gear is broken (0% durability - red alert) or running low (≤20% - orange alert). Warnings update automatically when you repair gear, no page reload needed.", 'feature', '2026-07-22 10:20:00'],
     ];
 
     /** Keyed on version, not create() — re-running db:seed on live must never duplicate or reset
