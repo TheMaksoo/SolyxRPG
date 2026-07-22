@@ -204,7 +204,7 @@ class CharacterController extends Controller
             'character' => $vipGemsGranted > 0 ? $character->fresh(['attributes_', 'zone', 'inventory.item', 'skills.skill', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon']) : $character,
             'stats' => $character->effectiveStats() + [
                 'xp_max' => Character::xpForLevel($character->level),
-                'xp_min' => Character::xpForLevel(max(1, $character->level - 1)),
+                'xp_min' => $character->level > 1 ? Character::xpForLevel($character->level - 1) : 0,
             ],
             'regen_per_tick' => $character->regenPerTick(),
             'mana_regen_per_tick' => $character->manaRegenPerTick(),

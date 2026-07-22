@@ -84,6 +84,31 @@ class Character extends Model
         ];
     }
 
+    protected $appends = ['calculated_level', 'calculated_xp_min', 'calculated_xp_max'];
+
+    /** Calculate level from cumulative XP — always accurate even if stored level drifts. */
+    public function getCalculatedLevelAttribute(): int
+    {
+        $level = 1;
+        while ($level < self::MAX_LEVEL && $this->xp >= self::xpForLevel($level)) {
+            $level++;
+        }
+
+        return $level;
+    }
+
+    /** XP min for calculated level - used for XP bar display. */
+    public function getCalculatedXpMinAttribute(): int
+    {
+        return $this->calculated_level > 1 ? self::xpForLevel($this->calculated_level - 1) : 0;
+    }
+
+    /** XP max for calculated level - used for XP bar display. */
+    public function getCalculatedXpMaxAttribute(): int
+    {
+        return self::xpForLevel($this->calculated_level);
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

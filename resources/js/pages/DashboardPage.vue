@@ -174,8 +174,8 @@ async function claimDaily() {
 
 const xpPct = computed(() => {
   const currentXp = store.character?.xp ?? 0;
-  const xpMax = store.stats?.xp_max || 1;
-  const xpMin = store.stats?.xp_min || 0;
+  const xpMax = store.character?.calculated_xp_max ?? 1;
+  const xpMin = store.character?.calculated_xp_min ?? 0;
   const xpRange = xpMax - xpMin;
   const xpProgress = currentXp - xpMin;
   return Math.min(100, Math.round((xpProgress / xpRange) * 100));
@@ -183,13 +183,13 @@ const xpPct = computed(() => {
 
 const xpCurrentLevel = computed(() => {
   const currentXp = store.character?.xp ?? 0;
-  const xpMin = store.stats?.xp_min || 0;
+  const xpMin = store.character?.calculated_xp_min ?? 0;
   return Math.max(0, currentXp - xpMin);
 });
 
 const xpMaxLevel = computed(() => {
-  const xpMax = store.stats?.xp_max || 1;
-  const xpMin = store.stats?.xp_min || 0;
+  const xpMax = store.character?.calculated_xp_max ?? 1;
+  const xpMin = store.character?.calculated_xp_min ?? 0;
   return xpMax - xpMin;
 });
 
@@ -304,7 +304,7 @@ onMounted(() => {
         <div class="stat-tile">
           <div class="xp-gauge" :style="{ '--xp-pct': xpPct }">
             <div class="xp-gauge__inner">
-              <div class="ox xp-gauge__level">{{ store.character.level }}</div>
+              <div class="ox xp-gauge__level">{{ store.character.calculated_level }}</div>
               <div class="xp-gauge__tag">LVL</div>
             </div>
           </div>
