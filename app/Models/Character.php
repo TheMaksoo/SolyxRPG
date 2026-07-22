@@ -707,27 +707,28 @@ class Character extends Model
 
     private static function stepFor(int $level): int
     {
+        $base = 1000;
         return (int) round(match (true) {
 
-            // Tutorial
+                // Tutorial
             $level <= 8 =>
-                800 * pow(1.18, $level - 1),
+                $base * pow(1.18, $level - 1),
 
             // Unlock: stronger monsters
             $level <= 20 =>
-                12000 * pow(1.08, $level - 8),
+                ($base * 8 )* pow(1.08, $level - 8),
 
             // Unlock: new zone
             $level <= 35 =>
-                55000 * pow(1.075, $level - 20),
+                ($base * 20) * pow(1.075, $level - 20),
 
             // Unlock: elite monsters
             $level <= 50 =>
-                180000 * pow(1.07, $level - 35),
+                ($base * 35) * pow(1.07, $level - 35),
 
             // Endgame
             default =>
-                500000 * pow(1.045, $level - 50),
+                ($base * 50) * pow(1.045, $level - 50),
         });
     }
 }
