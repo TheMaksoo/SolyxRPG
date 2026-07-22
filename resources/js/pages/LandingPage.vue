@@ -15,6 +15,7 @@ const OAUTH_ERROR_MESSAGES = {
 
 const mode = ref('login'); // 'login' | 'register'
 const form = ref({ name: '', email: '', password: '', referral_code: '' });
+const showPassword = ref(false);
 const tosAccepted = ref(false);
 const error = ref('');
 const loading = ref(false);
@@ -213,13 +214,23 @@ onMounted(async () => {
             required
             class="landing-input"
           />
-          <input
-            v-model="form.password"
-            type="password"
-            placeholder="Password"
-            required
-            class="landing-input"
-          />
+          <div class="landing-password-wrapper">
+            <input
+              v-model="form.password"
+              :type="showPassword ? 'text' : 'password'"
+              placeholder="Password"
+              required
+              class="landing-input"
+            />
+            <button
+              type="button"
+              @click="showPassword = !showPassword"
+              class="landing-password-toggle"
+              :aria-label="showPassword ? 'Hide password' : 'Show password'"
+            >
+              {{ showPassword ? '👁️' : '👁️‍🗨️' }}
+            </button>
+          </div>
           <input
             v-if="mode === 'register'"
             v-model="form.referral_code"

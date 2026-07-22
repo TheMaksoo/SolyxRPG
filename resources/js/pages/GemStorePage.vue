@@ -151,8 +151,9 @@ onMounted(async () => {
     <div class="gem-store-section-eyebrow">GEM PACKAGES</div>
     <div class="gem-packs">
       <div v-for="(pack, sku) in packs" :key="sku" class="gem-pack">
+        <div v-if="pack.bonus" class="gem-pack__bonus-tag">+{{ pack.bonus }}</div>
         <div class="gem-pack__icon">◆</div>
-        <div class="ox gem-pack__label">{{ pack.gems }} Gems</div>
+        <div class="ox gem-pack__label">{{ pack.gems - (pack.bonus || 0) }} Gems</div>
         <button @click="checkout(sku)" class="gem-pack__buy">
           {{ formatCents(pack.price_cents) }}
         </button>
@@ -209,7 +210,7 @@ onMounted(async () => {
           {{ minutes }}m · 💎{{ autoBattle.costs[minutes] ?? '—' }}
         </button>
         <button class="auto-battle-store-card__option auto-battle-store-card__option--cash" @click="checkout('auto_battle_60')">
-          60m · {{ formatCents(100) }}
+          60m · {{ formatCents(99) }}
         </button>
       </div>
     </div>

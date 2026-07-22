@@ -477,6 +477,7 @@ class CharacterController extends Controller
             $character->decrement('skill_points');
         }
 
+        $character->refresh();
         $character->load(['attributes_', 'skills.skill', 'zone', 'inventory.item']);
         return response()->json(['character' => $character]);
     }

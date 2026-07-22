@@ -33,14 +33,13 @@ class AutoBattleService
         return self::DURATIONS;
     }
 
-    /** Gem prices scale so the 60-minute pass is the best per-minute value — $1 cash-equivalent (~70 gems at the
-     * entry pack's ~68/$ rate); 30 min costs 60% of that, 15 min costs 30% less than the 30-minute price, so cost
-     * per minute rises as duration shrinks. The 60-minute pass is also the only one with a real-money option
-     * (see StoreController's `auto_battle_60` SKU). */
+    /** Gem prices scale so the 60-minute pass is the best per-minute value — ~100 gems (~€0.50 base rate,
+     * €0.99 via real money); 30 min costs proportionally more per minute, and 15 min is the worst value.
+     * The 60-minute pass is also the only one with a real-money option (see StoreController's `auto_battle_60` SKU). */
     public function costFor(int $minutes): int
     {
         $fallback = match ($minutes) {
-            15 => 30, 30 => 42, 60 => 70, default => 0,
+            15 => 35, 30 => 60, 60 => 100, default => 0,
         };
 
         return (int) GameConfig::number("auto_battle_gem_cost_{$minutes}", $fallback);

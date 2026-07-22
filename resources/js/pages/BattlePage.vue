@@ -236,6 +236,11 @@ async function act(type, extra = {}) {
         dungeonRun.value = data.dungeon_run;
       }
     }
+
+    // Fetch fresh character data to ensure dashboard XP and all stats update
+    if (data.result && (data.result.outcome === 'won' || data.result.outcome === 'lost')) {
+      characterStore.fetch();
+    }
   } catch (e) {
     error.value = e.response?.data?.message || 'Action failed.';
     if (e.response?.status === 403 || e.response?.status === 404) {
@@ -336,7 +341,7 @@ onUnmounted(() => {
             {{ minutes }}m · 💎{{ autoBattle.costs[minutes] ?? '—' }}
           </button>
           <button class="auto-battle-card__option auto-battle-card__option--cash" @click="buyAutoBattleCash">
-            60m · $1.00
+            60m · €0.99
           </button>
         </div>
       </div>
@@ -486,7 +491,7 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div class="battle-log">
+        <div v-twemoji class="battle-log">
           <div
             v-for="(line, i) in displayedBattleLog"
             :key="i"
@@ -499,7 +504,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Battle log (visible behind result overlay) -->
-      <div v-else class="battle-log-background">
+      <div v-else v-twemoji class="battle-log-background">
         <div
           v-for="(line, i) in displayedBattleLog"
           :key="i"
@@ -585,7 +590,7 @@ onUnmounted(() => {
         <button class="result-battle-log__toggle" @click="battleLogExpanded = !battleLogExpanded">
           {{ battleLogExpanded ? '▼' : '▶' }} Battle Log ({{ battle.log_json.length }} rounds)
         </button>
-        <div v-if="battleLogExpanded" class="result-battle-log__content">
+        <div v-if="battleLogExpanded" v-twemoji class="result-battle-log__content">
           <div
             v-for="(line, i) in fullBattleLog"
             :key="i"

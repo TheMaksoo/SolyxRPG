@@ -33,11 +33,11 @@ class AutoGatherService
         return self::DURATIONS;
     }
 
-    /** Same fallback gem prices as Auto-Attack's tiers — tunable independently via its own GameConfig keys. */
+    /** Same gem prices as Auto-Attack — tunable independently via its own GameConfig keys. */
     public function costFor(int $minutes): int
     {
         $fallback = match ($minutes) {
-            15 => 30, 30 => 42, 60 => 70, default => 0,
+            15 => 35, 30 => 60, 60 => 100, default => 0,
         };
 
         return (int) GameConfig::number("auto_gather_gem_cost_{$minutes}", $fallback);

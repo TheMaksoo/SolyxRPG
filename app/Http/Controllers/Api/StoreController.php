@@ -14,19 +14,20 @@ use Stripe\Webhook;
 
 class StoreController extends Controller
 {
-    /** SKU catalog — cents + gem/effect payload. Not DB-backed; edit here to change pricing. */
+    /** SKU catalog — cents + gem/effect payload. Not DB-backed; edit here to change pricing.
+     * Base rate: 100 gems = 50 cents. Each pack includes a +10% bonus. */
     private const GEM_PACKS = [
-        'gems_340' => ['label' => '340 Gems', 'price_cents' => 499, 'gems' => 340],
-        'gems_900' => ['label' => '900 Gems', 'price_cents' => 999, 'gems' => 900],
-        'gems_2000' => ['label' => '2000 Gems', 'price_cents' => 1999, 'gems' => 2000],
-        'gems_8000' => ['label' => '8000 Gems', 'price_cents' => 6999, 'gems' => 8000],
+        'gems_340' => ['label' => '1000 Gems', 'price_cents' => 499, 'gems' => 1000, 'bonus' => 100],
+        'gems_900' => ['label' => '2000 Gems', 'price_cents' => 999, 'gems' => 2000, 'bonus' => 200],
+        'gems_2000' => ['label' => '4000 Gems', 'price_cents' => 1999, 'gems' => 4000, 'bonus' => 400],
+        'gems_8000' => ['label' => '14000 Gems', 'price_cents' => 6999, 'gems' => 14000, 'bonus' => 1400],
     ];
 
     private const OTHER_SKUS = [
         'remove_ads' => ['label' => 'Remove Ads', 'price_cents' => 499],
         'pass_ashfall' => ['label' => 'Ashfall Season Pass (Premium)', 'price_cents' => 599],
         // The only Auto-Attack duration sold for real money — 15/30 min stay gems-only (see AutoBattleService).
-        'auto_battle_60' => ['label' => '1 Hour Auto-Attack', 'price_cents' => 100],
+        'auto_battle_60' => ['label' => '1 Hour Auto-Attack', 'price_cents' => 99],
     ];
 
     public function gems(Request $request)
