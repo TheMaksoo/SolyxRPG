@@ -701,22 +701,20 @@ class CombatService
     private function grantXp(Character $character, int $xpGain): int
     {
         $xp = $character->xp + $xpGain;
-        $level = $character->level;
-        $levelsGained = 0;
+        $oldLevel = $character->level;
         $attrPoints = $character->attribute_points;
         $skillPoints = $character->skill_points;
 
-        $xpMax = Character::xpForLevel($level);
-        while ($level < Character::MAX_LEVEL && $xp >= $xpMax) {
-            $xp -= $xpMax;
+        // Calculate correct level from cumulative XP
+        $level = 1;
+        while ($level < Character::MAX_LEVEL && $xp >= Character::xpForLevel($level)) {
             $level++;
-            $attrPoints += 3;
-            $skillPoints += 1;
-            $levelsGained++;
-            $xpMax = Character::xpForLevel($level);
         }
-        if ($level >= Character::MAX_LEVEL) {
-            $xp = 0;
+
+        $levelsGained = $level - $oldLevel;
+        if ($levelsGained > 0) {
+            $attrPoints += $levelsGained * 3;
+            $skillPoints += $levelsGained;
         }
 
         $character->update([
