@@ -24,6 +24,23 @@ class ShopController extends Controller
         $tab = $request->query('tab');
         $character = $request->user()->character;
 
+        // Rarity tier unlock levels
+        $tierLevels = ['common' => 1, 'rare' => 15, 'epic' => 20, 'legendary' => 35, 'mythic' => 50];
+        $currentTier = null;
+        $nextTier = null;
+
+        if ($character) {
+            // Find current craftable tier and next tier
+            foreach ($tierLevels as $tier => $level) {
+                if ($character->calculated_level >= $level) {
+                    $currentTier = $tier;
+                } elseif ($nextTier === null) {
+                    $nextTier = $tier;
+                    break;
+                }
+            }
+        }
+
         $items = Item::query()
             ->where('enabled', true)
             ->when($tab, fn ($q) => $q->where('type', $tab))
@@ -31,8 +48,35 @@ class ShopController extends Controller
                 $character,
                 fn ($q) => $q->where(fn ($q2) => $q2->whereNull('class_key')->orWhere('class_key', $character->base_class))
             )
+            // Show current tier + next tier only
+            ->when(
+                $character && $currentTier,
+                fn ($q) => $q->where(function ($q2) use ($currentTier, $nextTier) {
+                    $q2->where('rarity', $currentTier);
+                    if ($nextTier) {
+                        $q2->orWhere('rarity', $nextTier);
+                    }
+                })
+            )
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->map(function ($item) use ($character, $tierLevels) {
+                // Add computed fields for display logic
+                $item->is_unlocked = $character && $character->calculated_level >= $item->min_level;
+                $item->can_buy_with_gold = $item->is_unlocked && $item->price_gold !== null;
+                $item->can_buy_with_gems = $item->price_gems !== null;
+
+                // For next-tier items, only show gem price even if they have gold price
+                if (!$item->is_unlocked && $item->rarity !== 'legendary' && $item->rarity !== 'mythic') {
+                    $item->display_price_gold = null;
+                    $item->display_price_gems = $item->price_gems;
+                } else {
+                    $item->display_price_gold = $item->is_unlocked ? $item->price_gold : null;
+                    $item->display_price_gems = $item->price_gems;
+                }
+
+                return $item;
+            });
 
         return response()->json(['items' => $items]);
     }
@@ -49,20 +93,36 @@ class ShopController extends Controller
             return response()->json(['message' => 'That item is not usable by your class.'], 422);
         }
 
-        if ($character->level < $item->min_level) {
-            return response()->json(['message' => "Requires level {$item->min_level}."], 422);
-        }
-
         if ($item->price_gold === null && $item->price_gems === null) {
             return response()->json(['message' => 'This item is not purchasable.'], 422);
         }
 
-        if ($item->price_gold !== null) {
+        // Tier-based pricing enforcement
+        $tierLevels = ['common' => 1, 'rare' => 15, 'epic' => 20, 'legendary' => 35, 'mythic' => 50];
+        $currentTier = null;
+        foreach ($tierLevels as $tier => $level) {
+            if ($character->calculated_level >= $level) {
+                $currentTier = $tier;
+            }
+        }
+
+        $isUnlocked = $character->calculated_level >= $item->min_level;
+        $canBuyWithGold = $isUnlocked && $item->price_gold !== null && $item->rarity === $currentTier;
+
+        // Legendary and mythic always require gems
+        if ($item->rarity === 'legendary' || $item->rarity === 'mythic') {
+            $canBuyWithGold = false;
+        }
+
+        if ($canBuyWithGold) {
             if ($character->gold < $item->price_gold) {
                 return response()->json(['message' => 'Not enough gold.'], 422);
             }
             $character->decrement('gold', $item->price_gold);
         } else {
+            if ($item->price_gems === null) {
+                return response()->json(['message' => 'This item is not purchasable with gems.'], 422);
+            }
             if ($character->gems < $item->price_gems) {
                 return response()->json(['message' => 'Not enough gems.'], 422);
             }
