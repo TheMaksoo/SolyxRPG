@@ -477,7 +477,7 @@ class CharacterController extends Controller
             $character->decrement('skill_points');
         }
 
-        return response()->json(['character' => $character->fresh('skills.skill')]);
+        return response()->json(['character' => $character->fresh(['attributes_', 'skills.skill', 'zone', 'inventory.item'])]);
     }
 
     public function chooseProfession(Request $request)

@@ -15,6 +15,8 @@ const loading = ref(true);
 const error = ref('');
 const notice = ref('');
 const dungeonRun = ref(null);
+const battleLogExpanded = ref(false);
+const rewardBreakdownExpanded = ref(false);
 
 const autoBattle = ref({ active: false, seconds_remaining: 0, costs: {}, gems: 0 });
 const autoBattleMessage = ref('');
@@ -358,8 +360,9 @@ onUnmounted(() => {
     </div>
 
     <!-- Fight view -->
-    <div v-else-if="battle.status === 'active'" class="fight-view">
-      <div class="fight-view__main" :class="{ 'is-loading': loading }">
+    <div v-else-if="battle" class="fight-view">
+      <!-- Active battle UI -->
+      <div v-if="battle.status === 'active'" class="fight-view__main" :class="{ 'is-loading': loading }">
         <div class="fight-view__header">
           <div class="fight-view__zone">
             {{ currentZoneName }}
@@ -494,11 +497,30 @@ onUnmounted(() => {
           </div>
         </div>
       </div>
+
+      <!-- Battle log (visible behind result overlay) -->
+      <div v-else class="battle-log-background">
+        <div
+          v-for="(line, i) in displayedBattleLog"
+          :key="i"
+          class="battle-log__line"
+          :style="{ color: logColor(line) }"
+        >
+          {{ line }}
+        </div>
+      </div>
+
       <AdBanner variant="sidebar" />
     </div>
+    <!-- End fight view -->
 
-    <!-- Result view -->
-    <div v-else class="result-view">
+    </div>
+    <!-- End battle-main -->
+
+    <!-- Result overlay -->
+    <div v-if="result" class="result-overlay">
+      <div class="result-backdrop"></div>
+      <div class="result-view">
       <div class="result-icon">{{ resultIcon }}</div>
       <div class="ox result-title" :style="{ color: resultColor }">{{ resultTitle }}</div>
       <div v-if="result?.outcome === 'won'" class="result-subtitle">
@@ -518,6 +540,55 @@ onUnmounted(() => {
         </div>
       </div>
 
+      <!-- Reward breakdown (collapsible) -->
+      <div v-if="result?.outcome === 'won' && result.breakdown" class="result-reward-breakdown">
+        <button class="result-reward-breakdown__toggle" @click="rewardBreakdownExpanded = !rewardBreakdownExpanded">
+          {{ rewardBreakdownExpanded ? '▼' : '▶' }} Reward Breakdown
+        </button>
+        <div v-if="rewardBreakdownExpanded" class="reward-breakdown">
+          <div class="reward-breakdown__section">
+            <div class="reward-breakdown__label">🪙 Gold Breakdown</div>
+            <div class="reward-breakdown__line">Base: {{ result.breakdown.gold.base }}g</div>
+            <div v-if="result.breakdown.gold.grade_mult > 1" class="reward-breakdown__line">Grade: ×{{ result.breakdown.gold.grade_mult }}</div>
+            <div v-if="result.breakdown.gold.luck_pct" class="reward-breakdown__line reward-breakdown__line--luck">Luck: +{{ result.breakdown.gold.luck_pct }}%</div>
+            <div v-if="result.breakdown.gold.vip_pct" class="reward-breakdown__line">VIP: +{{ result.breakdown.gold.vip_pct }}%</div>
+            <div v-if="result.breakdown.gold.guild_pct" class="reward-breakdown__line">Guild: +{{ result.breakdown.gold.guild_pct }}%</div>
+          </div>
+          <div class="reward-breakdown__section">
+            <div class="reward-breakdown__label">✦ XP Breakdown</div>
+            <div class="reward-breakdown__line">Base: {{ result.breakdown.xp.base }} xp</div>
+            <div v-if="result.breakdown.xp.grade_mult > 1" class="reward-breakdown__line">Grade: ×{{ result.breakdown.xp.grade_mult }}</div>
+            <div v-if="result.breakdown.xp.luck_pct" class="reward-breakdown__line reward-breakdown__line--luck">Luck: +{{ result.breakdown.xp.luck_pct }}%</div>
+            <div v-if="result.breakdown.xp.vip_pct" class="reward-breakdown__line">VIP: +{{ result.breakdown.xp.vip_pct }}%</div>
+            <div v-if="result.breakdown.xp.guild_pct" class="reward-breakdown__line">Guild: +{{ result.breakdown.xp.guild_pct }}%</div>
+            <div v-if="result.breakdown.xp.pet_pct" class="reward-breakdown__line">Pet: +{{ result.breakdown.xp.pet_pct }}%</div>
+          </div>
+          <div v-if="result.breakdown.gems" class="reward-breakdown__section">
+            <div class="reward-breakdown__label">💎 Gems Breakdown</div>
+            <div class="reward-breakdown__line">Base: {{ result.breakdown.gems.base }} gems</div>
+            <div v-if="result.breakdown.gems.grade_mult > 1" class="reward-breakdown__line">Grade: ×{{ result.breakdown.gems.grade_mult }}</div>
+            <div v-if="result.breakdown.gems.luck_pct" class="reward-breakdown__line reward-breakdown__line--luck">Luck: +{{ result.breakdown.gems.luck_pct }}%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Battle log (collapsible) -->
+      <div v-if="battle?.log_json" class="result-battle-log">
+        <button class="result-battle-log__toggle" @click="battleLogExpanded = !battleLogExpanded">
+          {{ battleLogExpanded ? '▼' : '▶' }} Battle Log ({{ battle.log_json.length }} rounds)
+        </button>
+        <div v-if="battleLogExpanded" class="result-battle-log__content">
+          <div
+            v-for="(line, i) in fullBattleLog"
+            :key="i"
+            class="result-battle-log__line"
+            :style="{ color: logColor(line) }"
+          >
+            {{ line }}
+          </div>
+        </div>
+      </div>
+
       <div v-if="result?.outcome === 'lost' && (result.gold_lost || result.xp_lost)" class="reward-chips">
         <div v-if="result.gold_lost" class="reward-chip--loss">-{{ result.gold_lost }} Gold</div>
         <div v-if="result.xp_lost" class="reward-chip--loss">-{{ result.xp_lost }} XP</div>
@@ -533,6 +604,7 @@ onUnmounted(() => {
       </div>
     </div>
     </div>
+    <!-- End result overlay -->
 
     <WorldChat />
     </div>

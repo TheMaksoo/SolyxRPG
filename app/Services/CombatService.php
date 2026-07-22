@@ -43,6 +43,22 @@ class CombatService
         $startingHp = (int) min($stats['eff_hp_max'], max(1, $character->hp));
         $monsterHp = (int) round($monster->hp * $this->grades->hpMult($grade));
 
+        // Carry over skill cooldowns from the character's most recent battle so cooldowns persist
+        // across fights instead of resetting every time. Each cooldown ticks down by 1 (walking into
+        // a new fight counts as one round passing).
+        $previousBattle = Battle::where('character_id', $character->id)
+            ->orderByDesc('id')
+            ->first();
+        $cooldowns = [];
+        if ($previousBattle && $previousBattle->skill_cooldowns_json) {
+            foreach ($previousBattle->skill_cooldowns_json as $skillId => $rounds) {
+                $remaining = max(0, $rounds - 1);
+                if ($remaining > 0) {
+                    $cooldowns[$skillId] = $remaining;
+                }
+            }
+        }
+
         $battle = Battle::create([
             'character_id' => $character->id,
             'monster_id' => $monster->id,
@@ -52,6 +68,7 @@ class CombatService
             'monster_hp_max' => $monsterHp,
             'status' => 'active',
             'log_json' => [],
+            'skill_cooldowns_json' => $cooldowns,
         ]);
 
         foreach (array_values($extraMonsters) as $i => $extra) {
@@ -448,6 +465,39 @@ class CombatService
         $xpGain = (int) round($allMonsters->sum('xp') * $xpMult * $gradeRewardMult * (1 + ($luckBonus * $xpFactor) + $petXpBonus + $vipGoldXpBonus + $guildXpBonus + $guildXpUpgradeBonus));
         $gemGain = (int) round($allMonsters->sum('gems') * $gemMult * $gradeRewardMult * (1 + ($luckBonus * $gemFactor)));
 
+        // Reward breakdown for result popup
+        $baseGold = (int) round($allMonsters->sum('gold'));
+        $baseXp = (int) round($allMonsters->sum('xp'));
+        $baseGems = (int) round($allMonsters->sum('gems'));
+
+        $rewardBreakdown = [
+            'gold' => [
+                'base' => $baseGold,
+                'grade_mult' => $gradeRewardMult,
+                'luck_pct' => (int) round($luckBonus * 100),
+                'vip_pct' => (int) round($vipGoldXpBonus * 100),
+                'guild_pct' => (int) round(($guildXpBonus + $guildGoldFindBonus) * 100),
+                'total' => $goldGain,
+            ],
+            'xp' => [
+                'base' => $baseXp,
+                'grade_mult' => $gradeRewardMult,
+                'luck_pct' => (int) round($luckBonus * $xpFactor * 100),
+                'vip_pct' => (int) round($vipGoldXpBonus * 100),
+                'guild_pct' => (int) round(($guildXpBonus + $guildXpUpgradeBonus) * 100),
+                'pet_pct' => (int) round($petXpBonus * 100),
+                'total' => $xpGain,
+            ],
+        ];
+        if ($gemGain > 0) {
+            $rewardBreakdown['gems'] = [
+                'base' => $baseGems,
+                'grade_mult' => $gradeRewardMult,
+                'luck_pct' => (int) round($luckBonus * $gemFactor * 100),
+                'total' => $gemGain,
+            ];
+        }
+
         $character->decrementAtkBuffFight();
         $character->increment('gold', $goldGain);
         $character->increment('gems', $gemGain);
@@ -470,9 +520,6 @@ class CombatService
         $this->battlePass->addXp($character, (int) round($xpGain * 0.3));
         $this->grantPartyShare($character, $goldGain, $xpGain, $gemGain);
 
-        $gradeLabel = $battle->grade !== 'common' ? $this->grades->meta($battle->grade)['label'].' ' : '';
-        $defeatedNames = $allMonsters->pluck('name')->implode(', ');
-        $log[] = "Defeated {$gradeLabel}{$defeatedNames}! +{$goldGain}g +{$xpGain}xp".($gemGain ? " +{$gemGain} gems" : '').($luck > 0 ? " (Luck +".(int) round($luckBonus * 100)."%)" : '');
         foreach ($petResults as $petResult) {
             $log[] = "{$petResult['name']} gained companion XP.".($petResult['leveled_up'] ? " Now level {$petResult['level']}!" : '');
         }
@@ -489,6 +536,7 @@ class CombatService
                 'gold' => $goldGain,
                 'xp' => $xpGain,
                 'gems' => $gemGain,
+                'breakdown' => $rewardBreakdown,
                 'leveled_up' => $leveledUp,
                 'pets' => $petResults,
                 'character' => $freshCharacter,
