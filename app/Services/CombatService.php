@@ -615,10 +615,15 @@ class CombatService
     private function applyDeathPenalty(Character $character): array
     {
         $goldLossPct = GameConfig::number('death_gold_loss_pct', 8);
-        $xpLossPct = GameConfig::number('death_xp_loss_pct', 15);
+        $xpLossPct = GameConfig::number('death_xp_loss_pct', 5);
 
-        $goldLost = (int) min($character->gold, round($character->gold * $goldLossPct / 100));
-        $xpLost = (int) round(Character::xpForLevel($character->level) * $xpLossPct / 100);
+        $goldLost = (int) min($character->gold, round($character->gold * $goldLossPct / 100));$currentLevelXp = Character::xpForLevel($character->level);
+        $previousLevelXp = Character::xpForLevel(max(1, $character->level - 1));
+        
+        $xpThisLevel = $currentLevelXp - $previousLevelXp;
+        
+        // Lose 5% of one level's worth of XP
+        $xpLost = (int) round($xpThisLevel * $xpLossPct / 100);
 
         $level = $character->level;
         $xp = $character->xp - $xpLost;

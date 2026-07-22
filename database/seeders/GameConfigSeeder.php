@@ -15,7 +15,7 @@ class GameConfigSeeder extends Seeder
             'drop_rate' => '15',
             'gem_mult' => '1',
             'death_gold_loss_pct' => '8',
-            'death_xp_loss_pct' => '15',
+            'death_xp_loss_pct' => '5',
             'vip_luck_bronze' => '2',
             'vip_luck_gold' => '6',
             'vip_luck_diamond' => '12',
