@@ -143,11 +143,11 @@ function logColor(line) {
 // outcome/reward line (per CombatService::simulate()'s log format — "Defeated ... +Ng +Nxp", "You were
 // defeated and revived...", or "You fled the battle...") plus a round-count summary — the full log
 // (fullBattleLog) stays available underneath either way.
-const fullBattleLog = computed(() => [...(battle.value?.log_json || [])].reverse());
+const fullBattleLog = computed(() => battle.value?.log_json || []);
 const compactBattleLog = computed(() => {
   const log = battle.value?.log_json || [];
   const keyLines = log.filter((line) => /^Defeated |^You were defeated|^You fled the battle/i.test(line));
-  return [...keyLines, `${log.length} round${log.length === 1 ? '' : 's'} total`].reverse();
+  return [...keyLines, `${log.length} round${log.length === 1 ? '' : 's'} total`];
 });
 const displayedBattleLog = computed(() =>
   auth.user?.preferences?.compact_battle_log ? compactBattleLog.value : fullBattleLog.value
@@ -540,6 +540,14 @@ onUnmounted(() => {
         </div>
       </div>
 
+      <div v-if="result?.outcome === 'lost' && (result.gold_lost || result.xp_lost)" class="reward-chips">
+        <div v-if="result.gold_lost" class="reward-chip--loss">-{{ result.gold_lost }} Gold</div>
+        <div v-if="result.xp_lost" class="reward-chip--loss">-{{ result.xp_lost }} XP</div>
+        <div v-if="result.levels_lost" class="reward-chip--loss reward-chip--loss-level">
+          Lost level{{ result.levels_lost > 1 ? 's' : '' }}! -{{ result.levels_lost * 3 }} attr · -{{ result.levels_lost }} skill pts
+        </div>
+      </div>
+
       <!-- Reward breakdown (collapsible) -->
       <div v-if="result?.outcome === 'won' && result.breakdown" class="result-reward-breakdown">
         <button class="result-reward-breakdown__toggle" @click="rewardBreakdownExpanded = !rewardBreakdownExpanded">
@@ -586,14 +594,6 @@ onUnmounted(() => {
           >
             {{ line }}
           </div>
-        </div>
-      </div>
-
-      <div v-if="result?.outcome === 'lost' && (result.gold_lost || result.xp_lost)" class="reward-chips">
-        <div v-if="result.gold_lost" class="reward-chip--loss">-{{ result.gold_lost }} Gold</div>
-        <div v-if="result.xp_lost" class="reward-chip--loss">-{{ result.xp_lost }} XP</div>
-        <div v-if="result.levels_lost" class="reward-chip--loss reward-chip--loss-level">
-          Lost level{{ result.levels_lost > 1 ? 's' : '' }}! -{{ result.levels_lost * 3 }} attr · -{{ result.levels_lost }} skill pts
         </div>
       </div>
 

@@ -632,10 +632,6 @@ class CombatService
         $character->increment('battles_lost');
         $battle->character_hp = $reviveHp;
 
-        $log[] = 'You were defeated and revived at 40% HP.';
-        if ($penalty['gold_lost'] > 0 || $penalty['xp_lost'] > 0) {
-            $log[] = "Lost {$penalty['gold_lost']}g and {$penalty['xp_lost']} xp.";
-        }
         if ($penalty['levels_lost'] > 0) {
             $log[] = "Dropped to level {$character->level}! Lost ".($penalty['levels_lost'] * 3)." attribute pts and {$penalty['levels_lost']} skill pts.";
         }
