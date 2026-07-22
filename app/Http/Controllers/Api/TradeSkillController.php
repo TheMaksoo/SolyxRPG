@@ -172,12 +172,19 @@ class TradeSkillController extends Controller
             }
         }
 
+        $affected = Character::where('id', $character->id)
+            ->where('energy', '>=', $energyCost)
+            ->decrement('energy', $energyCost);
+
+        if ($affected === 0) {
+            // Race condition: energy was depleted by another request
+            return response()->json(['message' => "Not enough energy — need {$energyCost}."], 422);
+        }
+
         $outputItem = Item::where('key', $targetKey)->firstOrFail();
         $inventory = Inventory::firstOrNew(['character_id' => $character->id, 'item_id' => $outputItem->id, 'equipped' => false]);
         $inventory->qty = ($inventory->qty ?? 0) + $qty;
         $inventory->save();
-
-        $character->decrement('energy', $energyCost);
         $character->increment(self::STAT_COLUMN_BY_SKILL[$skillKey]);
         $this->decayEquippedTool($character, $skillKey);
         $this->quests->progress($character, 'materials_gathered');

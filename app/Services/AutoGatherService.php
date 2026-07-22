@@ -175,11 +175,19 @@ class AutoGatherService
                 }
             }
 
+            $affected = Character::where('id', $character->id)
+                ->where('energy', '>=', $target['energy_cost'])
+                ->decrement('energy', $target['energy_cost']);
+
+            if ($affected === 0) {
+                // Race condition: energy was depleted by another request
+                $stoppedReason = 'energy';
+                break;
+            }
+
             $inventory = Inventory::firstOrNew(['character_id' => $character->id, 'item_id' => $outputItem->id, 'equipped' => false]);
             $inventory->qty = ($inventory->qty ?? 0) + $qty;
             $inventory->save();
-
-            $character->decrement('energy', $target['energy_cost']);
 
             if ($this->tradeSkills->grantXp($row, $target['xp'])) {
                 $totals['leveled_up'] = true;
