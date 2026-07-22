@@ -31,6 +31,27 @@
   color: rgba(255, 255, 255, 0.6);
 }
 
+.shop-info {
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 18px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: v.$radius-sm;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  line-height: 1.6;
+}
+
+.shop-info__label {
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 600;
+}
+
+.shop-info__separator {
+  margin: 0 8px;
+  opacity: 0.3;
+}
+
 .shop-tabs {
   display: flex;
   gap: 8px;
@@ -190,6 +211,17 @@
 
   .shop-title {
     font-size: 22px;
+  }
+
+  .shop-info {
+    font-size: 12px;
+    padding: 9px 12px;
+    margin-bottom: 14px;
+  }
+
+  .shop-info__separator {
+    display: block;
+    margin: 4px 0;
   }
 
   .shop-tabs {

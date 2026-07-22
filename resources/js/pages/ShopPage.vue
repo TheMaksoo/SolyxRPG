@@ -61,9 +61,36 @@ async function load() {
   items.value = data.items;
 }
 
-// Grouped by rarity within the active type tab (common -> mythic) so higher-tier gear reads as a
-// clear progression instead of one flat unsorted grid — mirrors CraftingPage's section treatment.
+// Consumables are grouped by type (HP/MP/Regen), other items by rarity
 const groupedByRarity = computed(() => {
+  if (tab.value === 'consumable') {
+    // Group consumables by heal type, ordered by rarity within each group
+    const hpItems = filtered.value
+      .filter((i) => i.stat_json?.heal_hp_pct !== undefined)
+      .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
+
+    const mpItems = filtered.value
+      .filter((i) => i.stat_json?.heal_mp_pct !== undefined && i.stat_json?.heal_hp_pct === undefined)
+      .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
+
+    const regenItems = filtered.value
+      .filter((i) => (i.stat_json?.hp_regen_pct_buff !== undefined || i.stat_json?.mana_regen_pct_buff !== undefined))
+      .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
+
+    const otherItems = filtered.value
+      .filter((i) => !i.stat_json?.heal_hp_pct && !i.stat_json?.heal_mp_pct && !i.stat_json?.hp_regen_pct_buff && !i.stat_json?.mana_regen_pct_buff)
+      .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
+
+    const groups = [];
+    if (hpItems.length) groups.push({ rarity: 'hp', label: '❤️ HP Healing', color: '#ef4444', items: hpItems });
+    if (mpItems.length) groups.push({ rarity: 'mp', label: '💧 MP Healing', color: '#3b82f6', items: mpItems });
+    if (regenItems.length) groups.push({ rarity: 'regen', label: '🌿 Regen Buffs', color: '#10b981', items: regenItems });
+    if (otherItems.length) groups.push({ rarity: 'other', label: '✨ Other', color: null, items: otherItems });
+
+    return groups;
+  }
+
+  // Default grouping by rarity for non-consumables
   const groups = RARITY_ORDER.map((rarity) => ({
     rarity,
     label: RARITY_LABELS[rarity],
@@ -106,6 +133,12 @@ onMounted(load);
       <div v-if="characterStore.character" class="shop-header__currency">
         {{ characterStore.character.gold }}g · {{ characterStore.character.gems }}◆
       </div>
+    </div>
+
+    <div class="shop-info">
+      <span class="shop-info__label">💎 Level unlock:</span> Buy with gems once you reach the item's required level.
+      <span class="shop-info__separator">·</span>
+      <span class="shop-info__label">🔨 Crafting unlock:</span> Buy with gold once you reach the tier's crafting level.
     </div>
 
     <div class="shop-tabs">

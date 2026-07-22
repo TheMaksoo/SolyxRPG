@@ -68,6 +68,17 @@ const hpPct = (hp, max) => (max > 0 ? Math.max(0, Math.min(100, Math.round((hp /
 
 const currentZoneName = computed(() => characterStore.character?.zone?.name ?? 'the wilds');
 
+// Re-check durability when character inventory changes
+watch(() => characterStore.character?.inventory, () => {
+  if (battle.value) {
+    const hasLowDurability = checkLowDurabilityGear();
+    // Clear notice if no low durability and current notice is a durability warning
+    if (!hasLowDurability && notice.value && (notice.value.includes('BROKEN') || notice.value.includes('Low durability'))) {
+      notice.value = '';
+    }
+  }
+}, { deep: true });
+
 // "Adds" fighting alongside the primary monster in a multi-enemy boss encounter — empty for a normal 1v1
 // fight, so none of this UI appears unless a dungeon boss actually brought friends.
 const extraMonsters = computed(() => battle.value?.battle_monsters ?? []);
@@ -180,28 +191,94 @@ const resultColor = computed(() => (result.value?.outcome === 'won' ? '#4ade80' 
 async function resumeOrBrowse() {
   loading.value = true;
   try {
+    // Ensure character data with inventory is loaded
+    if (!characterStore.character?.inventory) {
+      await characterStore.fetch();
+    }
+
     const { data } = await api.get('/battle/active');
     if (data.battle) {
       battle.value = data.battle;
       dungeonRun.value = data.dungeon_run;
-      notice.value = dungeonRun.value
-        ? `Resumed your dungeon run — stage ${dungeonRun.value.stage} / ${dungeonRun.value.total_stages}.`
-        : 'Resumed your battle in progress.';
+
+      // Check for low durability gear (returns true if warning was set)
+      const hasLowDurability = checkLowDurabilityGear();
+
+      // Only show dungeon/battle notice if no durability warning
+      if (!hasLowDurability) {
+        notice.value = dungeonRun.value
+          ? `Resumed your dungeon run — stage ${dungeonRun.value.stage} / ${dungeonRun.value.total_stages}.`
+          : 'Resumed your battle in progress.';
+      }
     }
   } finally {
     loading.value = false;
   }
 }
 
+function checkLowDurabilityGear() {
+  if (!characterStore.character?.inventory) {
+    return false;
+  }
+
+  const equippedGear = characterStore.character.inventory.filter(inv => inv.equipped && inv.durability_max);
+
+  const brokenGear = [];
+  const lowDurabilityGear = [];
+
+  equippedGear.forEach(inv => {
+    const pct = (inv.durability / inv.durability_max) * 100;
+
+    if (pct === 0) {
+      brokenGear.push(inv);
+    } else if (pct <= 20) {
+      lowDurabilityGear.push(inv);
+    }
+  });
+
+  if (brokenGear.length > 0 || lowDurabilityGear.length > 0) {
+    let warning = '⚠️ ';
+
+    if (brokenGear.length > 0) {
+      const brokenNames = brokenGear.map(inv => inv.item.name).join(', ');
+      warning += `BROKEN: ${brokenNames}`;
+    }
+
+    if (lowDurabilityGear.length > 0) {
+      if (brokenGear.length > 0) warning += ' | ';
+      const lowNames = lowDurabilityGear.map(inv => inv.item.name).join(', ');
+      warning += `Low durability: ${lowNames}`;
+    }
+
+    warning += '. Visit Inventory to repair.';
+
+    notice.value = warning;
+    return true;
+  }
+  return false;
+}
+
 async function walk() {
   error.value = '';
   loading.value = true;
   try {
+    // Ensure character data with inventory is loaded
+    if (!characterStore.character?.inventory) {
+      await characterStore.fetch();
+    }
+
     const { data } = await api.post('/battle/walk');
     battle.value = data.battle;
     result.value = null;
     dungeonRun.value = null;
-    notice.value = data.grade?.label && data.grade.label !== 'Common' ? `You encounter a ${data.grade.label} foe!` : '';
+
+    // Check for low durability gear (returns true if warning was set)
+    const hasLowDurability = checkLowDurabilityGear();
+
+    // Only show grade notice if no durability warning
+    if (!hasLowDurability) {
+      notice.value = data.grade?.label && data.grade.label !== 'Common' ? `You encounter a ${data.grade.label} foe!` : '';
+    }
   } catch (e) {
     error.value = e.response?.data?.message || 'Could not find an enemy.';
   } finally {
@@ -298,7 +375,7 @@ onUnmounted(() => {
       <h1 class="ox battle-title">Battle</h1>
     </div>
 
-    <p v-if="notice" class="battle-notice">{{ notice }}</p>
+    <p v-if="notice" class="battle-notice" :class="{ 'battle-notice--warning': notice.includes('⚠️') && !notice.includes('BROKEN'), 'battle-notice--danger': notice.includes('BROKEN') }">{{ notice }}</p>
     <p v-if="error" class="battle-error">{{ error }}</p>
 
     <div v-if="autoBattleSummary" class="claim-summary">

@@ -46,11 +46,52 @@ function sectionKeyFor(type) {
 // scanning a long list — every other section (tools, potions, repair packs) is either class-agnostic
 // or already small enough not to need it.
 const CLASS_ORDER = ['warrior', 'mage', 'rogue', 'ranger'];
-const GROUPED_SECTIONS = ['weapon', 'armor'];
+const GROUPED_SECTIONS = ['weapon', 'armor', 'consumable'];
 
 const sections = computed(() =>
   SECTIONS.map((section) => {
     const sectionRecipes = recipes.value.filter((r) => sectionKeyFor(r.result_item.type) === section.key);
+
+    // Group consumables by heal type (HP/MP/Regen)
+    if (section.key === 'consumable') {
+      const groups = [
+        {
+          key: 'hp',
+          label: '❤️ HP Healing',
+          recipes: sectionRecipes.filter((r) => r.result_item.stat_json?.heal_hp_pct !== undefined),
+        },
+        {
+          key: 'mp',
+          label: '💧 MP Healing',
+          recipes: sectionRecipes.filter((r) =>
+            r.result_item.stat_json?.heal_mp_pct !== undefined &&
+            r.result_item.stat_json?.heal_hp_pct === undefined
+          ),
+        },
+        {
+          key: 'regen',
+          label: '🌿 Regen Buffs',
+          recipes: sectionRecipes.filter((r) =>
+            r.result_item.stat_json?.hp_regen_pct_buff !== undefined ||
+            r.result_item.stat_json?.mana_regen_pct_buff !== undefined
+          ),
+        },
+        {
+          key: 'other',
+          label: '✨ Other',
+          recipes: sectionRecipes.filter((r) =>
+            !r.result_item.stat_json?.heal_hp_pct &&
+            !r.result_item.stat_json?.heal_mp_pct &&
+            !r.result_item.stat_json?.hp_regen_pct_buff &&
+            !r.result_item.stat_json?.mana_regen_pct_buff
+          ),
+        },
+      ].filter((g) => g.recipes.length);
+
+      return { ...section, recipes: sectionRecipes, groups };
+    }
+
+    // Group weapons/armor by class
     if (!GROUPED_SECTIONS.includes(section.key)) {
       return { ...section, recipes: sectionRecipes, groups: null };
     }

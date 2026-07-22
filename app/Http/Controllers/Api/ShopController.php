@@ -43,36 +43,37 @@ class ShopController extends Controller
 
         $items = Item::query()
             ->where('enabled', true)
+            ->where(fn ($q) => $q->whereNotNull('price_gold')->orWhereNotNull('price_gems'))
             ->when($tab, fn ($q) => $q->where('type', $tab))
             ->when(
                 $character,
                 fn ($q) => $q->where(fn ($q2) => $q2->whereNull('class_key')->orWhere('class_key', $character->base_class))
             )
-            // Show current tier + next tier only
-            ->when(
-                $character && $currentTier,
-                fn ($q) => $q->where(function ($q2) use ($currentTier, $nextTier) {
-                    $q2->where('rarity', $currentTier);
-                    if ($nextTier) {
-                        $q2->orWhere('rarity', $nextTier);
-                    }
-                })
-            )
+            ->orderBy('rarity')
             ->orderBy('name')
             ->get()
-            ->map(function ($item) use ($character, $tierLevels) {
-                // Add computed fields for display logic
-                $item->is_unlocked = $character && $character->calculated_level >= $item->min_level;
-                $item->can_buy_with_gold = $item->is_unlocked && $item->price_gold !== null;
-                $item->can_buy_with_gems = $item->price_gems !== null;
+            ->map(function ($item) use ($character, $currentTier, $nextTier, $tierLevels) {
+                // Determine if this item's tier is unlocked for crafting/gold purchase
+                $itemTierLevel = $tierLevels[$item->rarity] ?? 999;
+                $currentTierLevel = $currentTier ? ($tierLevels[$currentTier] ?? 0) : 0;
+                $isTierUnlocked = $itemTierLevel <= $currentTierLevel;
 
-                // For next-tier items, only show gem price even if they have gold price
-                if (!$item->is_unlocked && $item->rarity !== 'legendary' && $item->rarity !== 'mythic') {
+                // Level unlock (min_level): allows buying with gems
+                // Crafting unlock (tier): allows buying with gold
+                $item->is_unlocked = $character && $character->calculated_level >= $item->min_level;
+                $item->can_buy_with_gold = $isTierUnlocked && $item->price_gold !== null;
+                $item->can_buy_with_gems = $item->is_unlocked && $item->price_gems !== null;
+
+                // Display prices based on unlock status
+                if ($isTierUnlocked && $item->price_gold) {
+                    $item->display_price_gold = $item->price_gold;
+                    $item->display_price_gems = $item->price_gems;
+                } elseif ($item->is_unlocked && $item->price_gems) {
                     $item->display_price_gold = null;
                     $item->display_price_gems = $item->price_gems;
                 } else {
-                    $item->display_price_gold = $item->is_unlocked ? $item->price_gold : null;
-                    $item->display_price_gems = $item->price_gems;
+                    $item->display_price_gold = null;
+                    $item->display_price_gems = null;
                 }
 
                 return $item;
@@ -97,32 +98,40 @@ class ShopController extends Controller
             return response()->json(['message' => 'This item is not purchasable.'], 422);
         }
 
-        // Tier-based pricing enforcement
+        // Determine current tier
         $tierLevels = ['common' => 1, 'rare' => 15, 'epic' => 20, 'legendary' => 35, 'mythic' => 50];
         $currentTier = null;
+
         foreach ($tierLevels as $tier => $level) {
             if ($character->calculated_level >= $level) {
                 $currentTier = $tier;
             }
         }
 
-        $isUnlocked = $character->calculated_level >= $item->min_level;
-        $canBuyWithGold = $isUnlocked && $item->price_gold !== null && $item->rarity === $currentTier;
+        // Determine if this item's tier is unlocked for crafting/gold purchase
+        $itemTierLevel = $tierLevels[$item->rarity] ?? 999;
+        $currentTierLevel = $currentTier ? ($tierLevels[$currentTier] ?? 0) : 0;
+        $isTierUnlocked = $itemTierLevel <= $currentTierLevel;
 
-        // Legendary and mythic always require gems
-        if ($item->rarity === 'legendary' || $item->rarity === 'mythic') {
-            $canBuyWithGold = false;
+        // Level unlock (min_level): allows buying with gems
+        // Crafting unlock (tier): allows buying with gold
+        $canBuyWithGold = $isTierUnlocked && $item->price_gold !== null;
+        $canBuyWithGems = $character->calculated_level >= $item->min_level && $item->price_gems !== null;
+
+        if (!$canBuyWithGold && !$canBuyWithGems) {
+            if ($character->calculated_level < $item->min_level) {
+                return response()->json(['message' => "Requires level {$item->min_level}."], 422);
+            }
+            return response()->json(['message' => 'This item is not purchasable.'], 422);
         }
 
+        // Prefer gold if available, otherwise use gems
         if ($canBuyWithGold) {
             if ($character->gold < $item->price_gold) {
                 return response()->json(['message' => 'Not enough gold.'], 422);
             }
             $character->decrement('gold', $item->price_gold);
         } else {
-            if ($item->price_gems === null) {
-                return response()->json(['message' => 'This item is not purchasable with gems.'], 422);
-            }
             if ($character->gems < $item->price_gems) {
                 return response()->json(['message' => 'Not enough gems.'], 422);
             }
