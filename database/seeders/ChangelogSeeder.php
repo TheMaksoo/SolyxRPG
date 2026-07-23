@@ -97,6 +97,7 @@ class ChangelogSeeder extends Seeder
         ['1.12.5', 'Economy Balance', "Rebalanced monster economy rewards with lower gold gains and reduced gem payouts, Consumable healing was also adjusted by tier (including support for flat+percent healing where intended)", 'balance', '2026-07-23 12:00:00'],
         ['1.12.6', 'Referral Code Update', "Referees only need 2 referrals to receive 7 days of Gold VIP and referrals now grant 500 gems to the referred friend (up from 300) when they reach level 5, and the Invite Friends page now shows your own progress toward that bonus.", 'feature', '2026-07-23 12:30:00'],
         ['1.12.7', 'landing page stats', "Added total quests and total items to the landing page stats, alongside adventurers, playable classes, and zones/dungeons.", 'feature', '2026-07-23 12:45:00'],
+        ['1.12.8', 'Store Payment Method Update', "Store now uses Stripe's automatic payment methods instead of hardcoding card-only payments, allowing for more payment options in the future.", 'feature', '2026-07-23 13:00:00'],
     ];
 
     /** Keyed on version, not create() — re-running db:seed on live must never duplicate or reset
