@@ -115,7 +115,13 @@ const usableConsumables = computed(() => {
   const inv = characterStore.character?.inventory ?? [];
   return inv.filter((i) => {
     const stats = i.item?.stat_json ?? {};
-    return i.item?.type === 'consumable' && i.qty > 0 && (stats.heal_hp_pct || stats.heal_mp_pct || stats.atk_pct_buff);
+    return i.item?.type === 'consumable' && i.qty > 0 && (
+      stats.heal_hp_pct ||
+      stats.heal_mp_pct ||
+      stats.heal_hp_flat ||
+      stats.heal_mp_flat ||
+      stats.atk_pct_buff
+    );
   });
 });
 
@@ -133,6 +139,8 @@ function useConsumable(row) {
 function consumableLabel(row) {
   const stats = row.item?.stat_json ?? {};
   const parts = [];
+  if (stats.heal_hp_flat) parts.push(`+${stats.heal_hp_flat} HP`);
+  if (stats.heal_mp_flat) parts.push(`+${stats.heal_mp_flat} MP`);
   if (stats.heal_hp_pct) parts.push(`+${stats.heal_hp_pct}% HP`);
   if (stats.heal_mp_pct) parts.push(`+${stats.heal_mp_pct}% MP`);
   if (stats.atk_pct_buff) parts.push(`+${stats.atk_pct_buff}% ATK`);

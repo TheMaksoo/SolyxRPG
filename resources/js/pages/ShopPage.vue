@@ -66,11 +66,15 @@ const groupedByRarity = computed(() => {
   if (tab.value === 'consumable') {
     // Group consumables by heal type, ordered by rarity within each group
     const hpItems = filtered.value
-      .filter((i) => i.stat_json?.heal_hp_pct !== undefined)
+      .filter((i) => i.stat_json?.heal_hp_pct !== undefined || i.stat_json?.heal_hp_flat !== undefined)
       .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
 
     const mpItems = filtered.value
-      .filter((i) => i.stat_json?.heal_mp_pct !== undefined && i.stat_json?.heal_hp_pct === undefined)
+      .filter((i) =>
+        (i.stat_json?.heal_mp_pct !== undefined || i.stat_json?.heal_mp_flat !== undefined) &&
+        i.stat_json?.heal_hp_pct === undefined &&
+        i.stat_json?.heal_hp_flat === undefined
+      )
       .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
 
     const regenItems = filtered.value
@@ -78,7 +82,14 @@ const groupedByRarity = computed(() => {
       .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
 
     const otherItems = filtered.value
-      .filter((i) => !i.stat_json?.heal_hp_pct && !i.stat_json?.heal_mp_pct && !i.stat_json?.hp_regen_pct_buff && !i.stat_json?.mana_regen_pct_buff)
+      .filter((i) =>
+        !i.stat_json?.heal_hp_pct &&
+        !i.stat_json?.heal_hp_flat &&
+        !i.stat_json?.heal_mp_pct &&
+        !i.stat_json?.heal_mp_flat &&
+        !i.stat_json?.hp_regen_pct_buff &&
+        !i.stat_json?.mana_regen_pct_buff
+      )
       .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
 
     const groups = [];

@@ -138,7 +138,12 @@ class PvpLiveCombatService
             ->whereHas('item', fn ($q) => $q->where('type', 'consumable'))
             ->with('item')
             ->get()
-            ->filter(fn (Inventory $row) => ($row->item->stat_json['heal_hp_pct'] ?? 0) > 0 || ($row->item->stat_json['heal_mp_pct'] ?? 0) > 0)
+            ->filter(fn (Inventory $row) =>
+                ($row->item->stat_json['heal_hp_pct'] ?? 0) > 0 ||
+                ($row->item->stat_json['heal_mp_pct'] ?? 0) > 0 ||
+                ($row->item->stat_json['heal_hp_flat'] ?? 0) > 0 ||
+                ($row->item->stat_json['heal_mp_flat'] ?? 0) > 0
+            )
             ->map(fn (Inventory $row) => [
                 'item_id' => $row->item_id,
                 'name' => $row->item->name,
@@ -146,6 +151,8 @@ class PvpLiveCombatService
                 'qty' => $row->qty,
                 'heal_hp_pct' => $row->item->stat_json['heal_hp_pct'] ?? 0,
                 'heal_mp_pct' => $row->item->stat_json['heal_mp_pct'] ?? 0,
+                'heal_hp_flat' => $row->item->stat_json['heal_hp_flat'] ?? 0,
+                'heal_mp_flat' => $row->item->stat_json['heal_mp_flat'] ?? 0,
             ])
             ->values()
             ->all();
@@ -161,10 +168,12 @@ class PvpLiveCombatService
 
         $healHpPct = $inventory->item->stat_json['heal_hp_pct'] ?? 0;
         $healMpPct = $inventory->item->stat_json['heal_mp_pct'] ?? 0;
-        abort_if($healHpPct <= 0 && $healMpPct <= 0, 422, 'That item cannot be used in a PvP match.');
+        $healHpFlat = $inventory->item->stat_json['heal_hp_flat'] ?? 0;
+        $healMpFlat = $inventory->item->stat_json['heal_mp_flat'] ?? 0;
+        abort_if($healHpPct <= 0 && $healMpPct <= 0 && $healHpFlat <= 0 && $healMpFlat <= 0, 422, 'That item cannot be used in a PvP match.');
 
-        $healed = (int) round($atk['hp_max'] * $healHpPct / 100);
-        $healedMp = (int) round($atk['mana_max'] * $healMpPct / 100);
+        $healed = (int) round($atk['hp_max'] * $healHpPct / 100) + (int) $healHpFlat;
+        $healedMp = (int) round($atk['mana_max'] * $healMpPct / 100) + (int) $healMpFlat;
         $atk['hp'] = min($atk['hp_max'], $atk['hp'] + $healed);
         $atk['mana'] = min($atk['mana_max'], $atk['mana'] + $healedMp);
 

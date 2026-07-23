@@ -251,7 +251,7 @@ class AutoBattleService
         return ['type' => 'fled', 'gold' => 0, 'xp' => 0, 'gems' => 0];
     }
 
-    /** The highest-heal_hp_pct consumable currently owned, or null if out of healing items entirely. */
+    /** The strongest HP-healing consumable currently owned, including flat and percent-based heals. */
     private function bestHealingPotion(Character $character): ?Inventory
     {
         return Inventory::where('character_id', $character->id)
@@ -259,8 +259,14 @@ class AutoBattleService
             ->whereHas('item', fn ($q) => $q->where('type', 'consumable'))
             ->with('item')
             ->get()
-            ->filter(fn (Inventory $row) => ($row->item->stat_json['heal_hp_pct'] ?? 0) > 0)
-            ->sortByDesc(fn (Inventory $row) => $row->item->stat_json['heal_hp_pct'])
+            ->filter(fn (Inventory $row) =>
+                ($row->item->stat_json['heal_hp_pct'] ?? 0) > 0 ||
+                ($row->item->stat_json['heal_hp_flat'] ?? 0) > 0
+            )
+            ->sortByDesc(fn (Inventory $row) =>
+                (($row->item->stat_json['heal_hp_pct'] ?? 0) * 100000) +
+                ($row->item->stat_json['heal_hp_flat'] ?? 0)
+            )
             ->first();
     }
 

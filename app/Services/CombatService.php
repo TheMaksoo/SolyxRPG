@@ -199,9 +199,11 @@ class CombatService
             $item = $inventory->item;
             $healHpPct = $item->stat_json['heal_hp_pct'] ?? 0;
             $healMpPct = $item->stat_json['heal_mp_pct'] ?? 0;
+            $healHpFlat = $item->stat_json['heal_hp_flat'] ?? 0;
+            $healMpFlat = $item->stat_json['heal_mp_flat'] ?? 0;
             $atkPctBuff = $item->stat_json['atk_pct_buff'] ?? 0;
-            $healed = (int) round($stats['eff_hp_max'] * $healHpPct / 100);
-            $healedMp = (int) round($stats['eff_mp_max'] * $healMpPct / 100);
+            $healed = (int) round($stats['eff_hp_max'] * $healHpPct / 100) + (int) $healHpFlat;
+            $healedMp = (int) round($stats['eff_mp_max'] * $healMpPct / 100) + (int) $healMpFlat;
             $battle->character_hp = min($stats['eff_hp_max'], $battle->character_hp + $healed);
             if ($healedMp > 0) {
                 $character->mana = min($stats['eff_mp_max'], $character->mana + $healedMp);

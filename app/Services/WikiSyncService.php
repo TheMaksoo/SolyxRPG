@@ -402,6 +402,12 @@ class WikiSyncService
 
         $chips = [];
 
+        if (isset($statJson['heal_hp_flat'])) {
+            $chips[] = $this->chip("Restore {$statJson['heal_hp_flat']} HP", '#4ade80', true);
+        }
+        if (isset($statJson['heal_mp_flat'])) {
+            $chips[] = $this->chip("Restore {$statJson['heal_mp_flat']} MP", '#38bdf8', true);
+        }
         if (isset($statJson['heal_hp_pct'])) {
             $chips[] = $this->chip("Restore {$statJson['heal_hp_pct']}% HP", '#4ade80', true);
         }

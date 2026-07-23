@@ -58,14 +58,19 @@ const sections = computed(() =>
         {
           key: 'hp',
           label: '❤️ HP Healing',
-          recipes: sectionRecipes.filter((r) => r.result_item.stat_json?.heal_hp_pct !== undefined),
+          recipes: sectionRecipes.filter((r) =>
+            r.result_item.stat_json?.heal_hp_pct !== undefined ||
+            r.result_item.stat_json?.heal_hp_flat !== undefined
+          ),
         },
         {
           key: 'mp',
           label: '💧 MP Healing',
           recipes: sectionRecipes.filter((r) =>
-            r.result_item.stat_json?.heal_mp_pct !== undefined &&
-            r.result_item.stat_json?.heal_hp_pct === undefined
+            (r.result_item.stat_json?.heal_mp_pct !== undefined ||
+              r.result_item.stat_json?.heal_mp_flat !== undefined) &&
+            r.result_item.stat_json?.heal_hp_pct === undefined &&
+            r.result_item.stat_json?.heal_hp_flat === undefined
           ),
         },
         {
@@ -81,7 +86,9 @@ const sections = computed(() =>
           label: '✨ Other',
           recipes: sectionRecipes.filter((r) =>
             !r.result_item.stat_json?.heal_hp_pct &&
+            !r.result_item.stat_json?.heal_hp_flat &&
             !r.result_item.stat_json?.heal_mp_pct &&
+            !r.result_item.stat_json?.heal_mp_flat &&
             !r.result_item.stat_json?.hp_regen_pct_buff &&
             !r.result_item.stat_json?.mana_regen_pct_buff
           ),

@@ -26,6 +26,8 @@ const STAT_LABELS = {
   gather_speed_pct: 'Gather Speed',
   craft_speed_pct: 'Craft Speed',
   gather_yield_bonus: 'Gather Yield',
+  heal_hp_flat: 'HP Recovery',
+  heal_mp_flat: 'MP Recovery',
   heal_hp_pct: 'HP Recovery',
   heal_mp_pct: 'MP Recovery',
   hp_regen_pct_buff: 'HP Regen',
