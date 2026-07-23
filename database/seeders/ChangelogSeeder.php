@@ -95,6 +95,7 @@ class ChangelogSeeder extends Seeder
         ['1.12.3', 'Shop Tier System & Unlock Clarity', "Shop now shows all item tiers at once instead of hiding higher tiers. Two unlock systems work together: Level unlock (item min_level) lets you buy with gems, Crafting unlock (tier level) lets you buy with gold. Consumables are now organized by type (HP/MP/Regen) in both Shop and Crafting. All craftable consumables (herbal, sage, moonpetal, sunroot, phoenix) are now purchasable with proper tier-based pricing.", 'feature', '2026-07-22 10:20:00'],
         ['1.12.4', 'Gear Durability Warnings', "Battle now alerts you when equipped gear is broken (0% durability - red alert) or running low (≤20% - orange alert). Warnings update automatically when you repair gear, no page reload needed.", 'feature', '2026-07-22 10:25:00'],
         ['1.12.5', 'Economy Balance', "Rebalanced monster economy rewards with lower gold gains and reduced gem payouts, Consumable healing was also adjusted by tier (including support for flat+percent healing where intended)", 'balance', '2026-07-23 12:00:00'],
+        ['1.12.6', 'Referral Code Update', "Referees only need 2 referrals to receive 7 days of Gold VIP and referrals now grant 500 gems to the referred friend (up from 300) when they reach level 5, and the Invite Friends page now shows your own progress toward that bonus.", 'feature', '2026-07-23 12:30:00'],
     ];
 
     /** Keyed on version, not create() — re-running db:seed on live must never duplicate or reset

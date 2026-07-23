@@ -15,13 +15,13 @@ class ReferralService
 {
     public const REQUIRED_LEVEL = 5;
 
-    public const REFERRALS_PER_REWARD = 5;
+    public const REFERRALS_PER_REWARD = 2;
 
     public const REWARD_VIP_DAYS = 7;
 
     public const REWARD_VIP_TIER = 'gold';
 
-    public const REFEREE_BONUS_GEMS = 300;
+    public const REFEREE_BONUS_GEMS = 500;
 
     /** Every account gets a stable code lazily on first need rather than at registration, so accounts
      * created before this feature shipped still get one the first time they open the Referrals page.
