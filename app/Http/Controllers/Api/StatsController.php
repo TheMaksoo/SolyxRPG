@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Character;
 use App\Models\Dungeon;
+use App\Models\Item;
+use App\Models\Quest;
 use App\Models\Zone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
@@ -34,6 +36,8 @@ class StatsController extends Controller
             'adventurers' => Character::count(),
             'zones_dungeons' => Zone::where('enabled', true)->count() + Dungeon::count(),
             'classes' => self::PLAYABLE_CLASSES,
+            'quests' => Quest::count(),
+            'items' => Item::count(),
         ]);
 
         return response()->json($data);

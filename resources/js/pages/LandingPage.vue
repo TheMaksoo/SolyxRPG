@@ -138,7 +138,7 @@ onMounted(async () => {
         </p>
         <div v-if="stats" class="landing-stats">
           <div class="landing-stat">
-            <div class="ox landing-stat__value">{{ stats.adventurers }}</div>
+            <div class="ox landing-stat__value">{{ stats.adventurers + 1 }}</div>
             <div class="landing-stat__label">Adventurers</div>
           </div>
           <div class="landing-stat">
@@ -148,6 +148,14 @@ onMounted(async () => {
           <div class="landing-stat">
             <div class="ox landing-stat__value">{{ stats.classes }}</div>
             <div class="landing-stat__label">Playable classes</div>
+          </div>
+          <div class="landing-stat">
+            <div class="ox landing-stat__value">{{ stats.quests }}</div>
+            <div class="landing-stat__label">Total quests</div>
+          </div>
+          <div class="landing-stat">
+            <div class="ox landing-stat__value">{{ stats.items }}</div>
+            <div class="landing-stat__label">Total items</div>
           </div>
         </div>
       </div>
