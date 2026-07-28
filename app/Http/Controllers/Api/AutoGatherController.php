@@ -63,4 +63,31 @@ class AutoGatherController extends Controller
             'seconds_remaining' => max(0, $character->auto_gather_expires_at->getTimestamp() - now()->getTimestamp()),
         ]);
     }
+
+    public function switch(Request $request)
+    {
+        $character = $request->user()->character;
+        abort_unless($character, 404);
+
+        $data = $request->validate([
+            'skill' => ['required', Rule::in(['mining', 'woodchopping', 'foraging', 'smelting'])],
+            'target' => ['required', 'string'],
+        ]);
+
+        try {
+            $this->autoGather->switchTarget($character, $data['skill'], $data['target']);
+        } catch (\RuntimeException|\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        $character->refresh();
+        $expiresAt = $character->auto_gather_expires_at;
+
+        return response()->json([
+            'skill' => $character->auto_gather_skill,
+            'target' => $character->auto_gather_target,
+            'expires_at' => $expiresAt,
+            'seconds_remaining' => max(0, $expiresAt->getTimestamp() - now()->getTimestamp()),
+        ]);
+    }
 }

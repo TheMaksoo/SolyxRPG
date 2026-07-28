@@ -5,19 +5,27 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
-.dashboard-skeleton {
-  display: flex;
-  gap: 24px;
-  flex-wrap: wrap;
-  align-items: flex-start;
+// Applied to real content the moment it replaces a skeleton (rows, cards, stat values) so data
+// eases in instead of snapping into place — same treatment covers a live row updating later on.
+.dash-fade-in {
+  animation: dash-fade-in 0.35s ease both;
 }
 
-.dashboard-skeleton__col {
-  flex: 1;
-  min-width: 280px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+@keyframes dash-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-fade-in {
+    animation: none;
+  }
 }
 
 .dashboard {
@@ -30,48 +38,6 @@
 .dashboard__main {
   flex: 1;
   min-width: 320px;
-}
-
-.claim-summary {
-  background: linear-gradient(160deg, rgba(74, 222, 128, 0.12), v.$bg-card);
-  border: 1px solid rgba(74, 222, 128, 0.3);
-  border-radius: v.$radius-lg;
-  padding: 14px 18px;
-  margin-bottom: 16px;
-}
-
-.claim-summary__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.claim-summary__title {
-  font-size: 14.5px;
-  font-weight: 800;
-  color: v.$success;
-}
-
-.claim-summary__close {
-  @include m.btn-reset;
-  color: v.$text-muted-45;
-  font-size: 13px;
-}
-
-.claim-summary__rows {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.claim-summary__chip {
-  font-size: 12.5px;
-  font-weight: 700;
-  background: rgba(74, 222, 128, 0.12);
-  border: 1px solid rgba(74, 222, 128, 0.25);
-  border-radius: v.$radius-pill;
-  padding: 5px 12px;
 }
 
 .dashboard__rail {
@@ -89,59 +55,6 @@
   gap: 12px;
 }
 
-// ---- Daily reward banner ----
-.daily-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  flex-wrap: wrap;
-  background: linear-gradient(100deg, rgba(v.$accent, 0.16), rgba(v.$accent, 0.03));
-  border: 1px solid v.$accent-tint-25;
-  border-radius: v.$radius-lg;
-  padding: 14px 18px;
-  margin-bottom: 18px;
-}
-
-.daily-banner__info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.daily-banner__icon {
-  font-size: 24px;
-}
-
-.daily-banner__title {
-  font-weight: 700;
-  font-size: 14px;
-}
-
-.daily-banner__subtitle {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.daily-banner__link {
-  color: v.$accent-soft;
-}
-
-.daily-banner__claim {
-  @include m.btn-reset;
-  background: v.$accent;
-  color: #fff;
-  border-radius: 9px;
-  padding: 10px 18px;
-  font-weight: 700;
-  font-size: 13px;
-
-  &:disabled {
-    background: rgba(255, 255, 255, 0.08);
-    cursor: not-allowed;
-  }
-}
-
 // ---- Zone card ----
 .zone-card {
   @include m.card(18px);
@@ -149,6 +62,12 @@
   gap: 16px;
   margin-bottom: 16px;
   color: inherit;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    border-color: v.$border-medium;
+    transform: translateY(-1px);
+  }
 }
 
 .zone-card__art {
@@ -256,6 +175,27 @@
     font-size: 22px;
     color: v.$purple;
   }
+
+  // Same subtle pulse language as BattlePage's stat-bar-fill--regenerating — a quiet signal that this
+  // number is actively climbing toward max, not just a static readout.
+  &--regenerating {
+    animation: stat-tile-value-pulse 2.6s ease-in-out infinite;
+  }
+}
+
+@keyframes stat-tile-value-pulse {
+  0%, 100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(0.88);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-tile__value--regenerating {
+    animation: none;
+  }
 }
 
 .stat-tile__label {
@@ -271,10 +211,37 @@
 
 // ---- Alerts ----
 .dashboard-alerts {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-bottom: 16px;
+}
+
+// TransitionGroup hooks for .dashboard-alerts — rows ease in/out and its still-visible siblings
+// glide into their new position instead of the list snapping straight to its new height.
+.alert-enter-active,
+.alert-leave-active,
+.alert-move {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.alert-enter-from,
+.alert-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+.alert-leave-active {
+  position: absolute;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alert-enter-active,
+  .alert-leave-active,
+  .alert-move {
+    transition: none;
+  }
 }
 
 .dashboard-alert {
@@ -317,12 +284,6 @@
     color: #baf5d3;
     border: 1px solid rgba(56, 217, 137, 0.3);
   }
-
-  &--auto-battle-paused {
-    background: v.$accent-tint-15;
-    color: v.$accent-soft;
-    border: 1px solid v.$accent-tint-30;
-  }
 }
 
 .auto-battle-pulse {
@@ -352,17 +313,6 @@
   }
 }
 
-.auto-battle-pulse--paused {
-  .auto-battle-pulse__dot {
-    background: v.$accent-soft;
-  }
-
-  .auto-battle-pulse__ring {
-    animation: none;
-    opacity: 0;
-  }
-}
-
 @keyframes auto-battle-ping {
   0% {
     transform: scale(1);
@@ -372,85 +322,6 @@
     transform: scale(2.4);
     opacity: 0;
   }
-}
-
-// ---- Quick actions ----
-.quick-actions {
-  @include m.grid-auto-fit(160px, 12px);
-  margin-bottom: 20px;
-}
-
-.quick-actions__primary {
-  background: v.$accent;
-  color: #fff;
-  border: none;
-  border-radius: 11px;
-  padding: 15px;
-  font-size: 15px;
-  font-weight: 700;
-  text-align: center;
-}
-
-.quick-actions__secondary {
-  position: relative;
-  background: v.$bg-card;
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 11px;
-  padding: 15px;
-  font-size: 15px;
-  font-weight: 600;
-  text-align: center;
-}
-
-.quick-actions__secondary--locked {
-  width: 100%;
-  font-family: inherit;
-  color: v.$text-muted-40;
-  cursor: not-allowed;
-  opacity: 0.6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.quick-actions__lock-lvl {
-  font-size: 11px;
-  font-weight: 700;
-  color: v.$text-muted-45;
-}
-
-.quick-actions__alert-badge {
-  position: absolute;
-  top: -7px;
-  right: -7px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: v.$danger;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 800;
-  display: grid;
-  place-items: center;
-  box-shadow: 0 0 0 2px v.$bg-page, 0 2px 6px rgba(0, 0, 0, 0.4);
-}
-
-.quick-actions__ready-badge {
-  position: absolute;
-  top: -7px;
-  right: -7px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: v.$success;
-  color: v.$bg-page;
-  font-size: 12px;
-  font-weight: 800;
-  display: grid;
-  place-items: center;
-  box-shadow: 0 0 0 2px v.$bg-page, 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 // ---- Right rail ----
@@ -684,15 +555,8 @@
     width: 100%;
   }
 
-  .claim-summary,
-  .daily-banner,
   .zone-card {
     padding: 14px;
-  }
-
-  .daily-banner__claim {
-    min-height: 44px;
-    padding: 10px 16px;
   }
 
   .zone-card__art {
@@ -714,17 +578,6 @@
     padding: 14px;
   }
 
-  .quick-actions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .quick-actions__primary,
-  .quick-actions__secondary {
-    min-height: 44px;
-    padding: 13px;
-    font-size: 14px;
-  }
-
   .rail-card,
   .battlepass-card {
     padding: 14px;
@@ -738,9 +591,5 @@
 @media (max-width: 480px) {
   .stat-tiles {
     grid-template-columns: 1fr 1fr;
-  }
-
-  .quick-actions {
-    grid-template-columns: 1fr;
   }
 }

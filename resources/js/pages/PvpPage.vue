@@ -1,40 +1,34 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import api from '../api/client';
 import { useCharacterStore } from '../stores/character';
+import { usePvpQueueStore } from '../stores/pvpQueue';
+import VipBadge from '../components/VipBadge.vue';
 
 const characterStore = useCharacterStore();
+const pvpQueue = usePvpQueueStore();
 
-// ---- Lobby state (rank card + opponent list + history) ----
+// ---- Lobby state (rank card + leaderboard + history) ----
 const record = ref(null);
 const rank = ref(null);
 const rankProgress = ref(null);
 const rankLadder = ref([]);
-const opponents = ref([]);
+const leaderboard = ref([]);
+const myRankPosition = ref(null);
 const history = ref([]);
 const loading = ref(false);
 const errorMessage = ref('');
 
-// 'lobby' | 'searching' | 'live'
-const view = ref('lobby');
-
-// ---- Queue state ----
-const queuedAt = ref(null);
-const elapsedSeconds = ref(0);
-let queuePollTimer = null;
-let queueTickTimer = null;
+// 'lobby' | 'live' — searching is no longer a separate view (League-of-Legends style): while queued,
+// the lobby stays fully visible and only the Find Match button swaps for a small inline timer, driven by
+// the global pvpQueue store (see stores/pvpQueue.js) rather than local state, since the search itself
+// keeps running when this page isn't even mounted.
+const view = computed(() => (matchId.value ? 'live' : 'lobby'));
 
 // ---- Live match state ----
 const matchId = ref(null);
 const match = ref(null);
 let livePollTimer = null;
-
-// Mirrors $success / $warning / $purple in resources/scss/_variables.scss.
-const difficultyColor = {
-  Easy: '#4ade80',
-  Medium: '#eab308',
-  Hard: '#a78bfa',
-};
 
 // Auto-clears after a few seconds (same pattern every other page's toast uses) — without this, a
 // one-time failure (e.g. a stale match_id 403ing after the app already recovered back to a working
@@ -52,14 +46,13 @@ async function load() {
   rank.value = data.rank;
   rankProgress.value = data.rank_progress;
   rankLadder.value = data.rank_ladder;
-  opponents.value = data.opponents;
+  leaderboard.value = data.leaderboard;
+  myRankPosition.value = data.my_rank_position;
   history.value = data.history;
 
   if (data.active_match_id) {
     matchId.value = data.active_match_id;
     enterLive();
-  } else if (data.queued) {
-    enterSearching();
   }
 }
 
@@ -70,101 +63,50 @@ function syncCharacter(character) {
 }
 
 function stopAllPolling() {
-  clearInterval(queuePollTimer);
-  clearInterval(queueTickTimer);
   clearInterval(livePollTimer);
-  queuePollTimer = null;
-  queueTickTimer = null;
   livePollTimer = null;
 }
 
 // ---- Queue flow ----
+// Joining/polling/cancelling the search itself all live in the pvpQueue store (see stores/pvpQueue.js)
+// so the search survives navigating away from this page entirely — this component only reacts to it.
 
 async function findMatch() {
   loading.value = true;
   errorMessage.value = '';
   try {
-    const { data } = await api.post('/pvp/queue/join');
-    if (data.status === 'matched') {
-      matchId.value = data.match_id;
+    const result = await pvpQueue.findMatch();
+    if (result.matched) {
+      matchId.value = result.matchId;
       enterLive();
-    } else {
-      queuedAt.value = data.queued_at;
-      elapsedSeconds.value = Math.max(0, Math.floor(data.elapsed_seconds ?? 0));
-      enterSearching();
     }
   } catch (e) {
     showError(e?.response?.data?.message || 'Something went wrong.');
   } finally {
     loading.value = false;
-  }
-}
-
-function enterSearching() {
-  stopAllPolling();
-  view.value = 'searching';
-  queueTickTimer = setInterval(() => {
-    elapsedSeconds.value += 1;
-  }, 1000);
-  queuePollTimer = setInterval(pollQueue, 2500);
-}
-
-async function pollQueue() {
-  try {
-    const { data } = await api.get('/pvp/queue/status');
-    if (data.status === 'matched') {
-      matchId.value = data.match_id;
-      enterLive();
-    } else if (data.status === 'searching') {
-      queuedAt.value = data.queued_at;
-      elapsedSeconds.value = Math.max(0, Math.floor(data.elapsed_seconds ?? elapsedSeconds.value));
-    } else if (data.status === 'timeout') {
-      // Searched for over an hour with nobody found — stop, and say so plainly instead of leaving the
-      // player staring at a spinner forever.
-      stopAllPolling();
-      view.value = 'lobby';
-      showError('No rival nearby right now. Try again in a bit.');
-      await load();
-    } else {
-      // 'idle' — queue row vanished without a match (e.g. left from another tab).
-      stopAllPolling();
-      view.value = 'lobby';
-    }
-  } catch (e) {
-    showError(e?.response?.data?.message || 'Lost connection to matchmaking.');
   }
 }
 
 async function cancelSearch() {
   loading.value = true;
   try {
-    await api.post('/pvp/queue/leave');
+    await pvpQueue.cancelSearch();
   } finally {
     loading.value = false;
-    stopAllPolling();
-    view.value = 'lobby';
   }
 }
 
-async function challenge(row) {
-  loading.value = true;
-  errorMessage.value = '';
-  try {
-    const { data } = await api.post(`/pvp/challenge/${row.character.id}`);
-    matchId.value = data.match_id;
-    enterLive();
-  } catch (e) {
-    showError(e?.response?.data?.message || 'Something went wrong.');
-  } finally {
-    loading.value = false;
-  }
-}
+// Fires when a match is found by the background poll while this page is already open (e.g. sitting in
+// the lobby or off doing something else in another tab of the same page) — re-running load() is enough
+// since it already promotes an active_match_id straight into the live view.
+watch(() => pvpQueue.matchFoundId, (id) => {
+  if (id && !matchId.value) load();
+});
 
 // ---- Live match flow ----
 
 function enterLive() {
   stopAllPolling();
-  view.value = 'live';
   loadMatch();
   livePollTimer = setInterval(loadMatch, 2500);
 }
@@ -177,7 +119,7 @@ async function loadMatch() {
   } catch (e) {
     showError(e?.response?.data?.message || 'Could not load the match.');
     stopAllPolling();
-    view.value = 'lobby';
+    matchId.value = null;
     await load();
   }
 }
@@ -218,7 +160,6 @@ async function forfeit() {
 
 async function backToLobby() {
   stopAllPolling();
-  view.value = 'lobby';
   match.value = null;
   matchId.value = null;
   await load();
@@ -230,7 +171,7 @@ const hpPct = (hp, max) => (max > 0 ? Math.max(0, Math.min(100, Math.round((hp /
 // poll landing after cancelSearch()/a clock hiccup previously let a negative or fractional value slip
 // through and render as garbage like "-1:-10.86...". This can never display anything but a clean mm:ss.
 const searchDuration = computed(() => {
-  const total = Math.max(0, Math.floor(elapsedSeconds.value || 0));
+  const total = Math.max(0, Math.floor(pvpQueue.elapsedSeconds || 0));
   const m = Math.floor(total / 60);
   const s = total % 60;
   return `${m}:${String(s).padStart(2, '0')}`;
@@ -279,10 +220,19 @@ onUnmounted(stopAllPolling);
               <div v-if="record.win_streak > 0" class="rank-card__streak">🔥 {{ record.win_streak }} win streak</div>
             </div>
             <div class="rank-card__attempts-wrap">
-              <button @click="findMatch" :disabled="loading" class="btn-find-match">
-                Find match
-              </button>
-              <div class="rank-card__attempts">Queues you against a live opponent near your rating</div>
+              <template v-if="pvpQueue.searching">
+                <div class="searching-pill" title="Feel free to browse the rest of the game — we'll bring you back the moment an opponent's found.">
+                  <span class="searching-pill__dot"></span>
+                  Searching… <span class="ox searching-pill__timer">{{ searchDuration }}</span>
+                  <button type="button" class="searching-pill__cancel" @click="cancelSearch" :disabled="loading" aria-label="Cancel search">✕</button>
+                </div>
+              </template>
+              <template v-else>
+                <button @click="findMatch" :disabled="loading" class="btn-find-match">
+                  Find match
+                </button>
+                <div class="rank-card__attempts">You can leave this page while searching</div>
+              </template>
             </div>
           </div>
 
@@ -311,28 +261,41 @@ onUnmounted(stopAllPolling);
           </div>
         </div>
 
-        <div class="challenge-eyebrow">CHALLENGE A RIVAL</div>
-        <div class="opponents-grid">
-          <div v-for="row in opponents" :key="row.character.id" class="opponent-card">
-            <div class="opponent-card__top">
-              <div class="opponent-card__info">
-                <router-link :to="{ name: 'public-profile', params: { id: row.character.id } }" class="opponent-card__name opponent-card__name--link">{{ row.character.name }}</router-link>
-                <div class="opponent-card__meta">{{ row.character.base_class }} · Lv.{{ row.character.level }}</div>
-              </div>
-              <span
-                v-if="row.difficulty"
-                class="opponent-card__difficulty"
-                :style="{ color: difficultyColor[row.difficulty], background: difficultyColor[row.difficulty] + '1f' }"
-              >{{ row.difficulty }}</span>
-            </div>
-            <div class="opponent-card__bottom">
-              <span class="opponent-card__rating">{{ row.rating }} rating <span class="opponent-card__bracket" :style="{ color: row.rank?.color }">· {{ row.rank?.name }}</span></span>
-              <button @click="challenge(row)" :disabled="loading" class="btn-challenge">
-                Challenge
-              </button>
-            </div>
+        <div class="leaderboard-eyebrow">PVP LEADERBOARD</div>
+        <div class="leaderboard-mini">
+          <div
+            v-for="row in leaderboard"
+            :key="row.character_id"
+            class="leaderboard-mini-row"
+            :class="{ 'leaderboard-mini-row--me': row.is_me }"
+            :style="row.banner ? { background: row.banner } : null"
+          >
+            <span class="ox leaderboard-mini-row__rank">#{{ row.rank }}</span>
+            <router-link :to="{ name: 'public-profile', params: { id: row.character_id } }" class="leaderboard-mini-row__name">
+              <span v-if="row.icon" class="leaderboard-mini-row__icon">{{ row.icon }}</span>
+              <span class="leaderboard-mini-row__name-text" :style="row.name_color ? { color: row.name_color } : null">{{ row.name }}</span>
+              <span v-if="row.title" class="leaderboard-mini-row__title-badge">{{ row.title }}</span>
+              <VipBadge :tier="row.vip_tier" />
+              <span v-if="row.is_me" class="leaderboard-mini-row__you-tag">YOU</span>
+            </router-link>
+            <span class="leaderboard-mini-row__meta">{{ row.base_class }} · Lv.{{ row.level }}</span>
+            <span class="ox leaderboard-mini-row__rating">{{ row.rating }}</span>
           </div>
-          <div v-if="!opponents.length" class="opponents-empty">No other players yet.</div>
+          <div v-if="!leaderboard.length" class="opponents-empty">No ranked players yet.</div>
+          <div
+            v-else-if="myRankPosition && !leaderboard.some((row) => row.is_me)"
+            class="leaderboard-mini-row leaderboard-mini-row--me leaderboard-mini-row--gap"
+          >
+            <span class="ox leaderboard-mini-row__rank">#{{ myRankPosition }}</span>
+            <span class="leaderboard-mini-row__name">
+              <span v-if="characterStore.character?.active_icon?.value" class="leaderboard-mini-row__icon">{{ characterStore.character.active_icon.value }}</span>
+              <span class="leaderboard-mini-row__name-text" :style="characterStore.character?.active_color?.value ? { color: characterStore.character.active_color.value } : null">{{ characterStore.character?.name }}</span>
+              <span v-if="characterStore.character?.active_title?.value" class="leaderboard-mini-row__title-badge">{{ characterStore.character.active_title.value }}</span>
+              <span class="leaderboard-mini-row__you-tag">YOU</span>
+            </span>
+            <span class="leaderboard-mini-row__meta">{{ characterStore.character?.base_class }} · Lv.{{ characterStore.character?.level }}</span>
+            <span class="ox leaderboard-mini-row__rating">{{ record?.rating }}</span>
+          </div>
         </div>
       </div>
 
@@ -362,15 +325,6 @@ onUnmounted(stopAllPolling);
           <div class="season-reward-card__body">Reach Diamond for the Gladiator title & exclusive rewards.</div>
         </div>
       </div>
-    </div>
-
-    <!-- ============ SEARCHING ============ -->
-    <div v-else-if="view === 'searching'" class="searching-view">
-      <div class="searching-view__art">⚔</div>
-      <div class="ox searching-view__title">Searching for an opponent…</div>
-      <div class="searching-view__timer">{{ searchDuration }}</div>
-      <p class="searching-view__hint">Widening the search the longer you wait.</p>
-      <button class="btn-cancel-search" @click="cancelSearch" :disabled="loading">Cancel</button>
     </div>
 
     <!-- ============ LIVE MATCH ============ -->

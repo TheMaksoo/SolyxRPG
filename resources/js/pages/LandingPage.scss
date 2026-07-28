@@ -134,6 +134,10 @@
   flex: none;
   width: 380px;
   max-width: 100%;
+  // Reserved to roughly match the register form (its tallest state, incl. the Turnstile widget) so
+  // toggling login/register — or Turnstile injecting its iframe a moment after mount — doesn't
+  // shift the page around the card (was the single biggest CLS contributor on this page).
+  min-height: 660px;
   background: v.$bg-card;
   border: 1px solid v.$border-subtle;
   border-radius: v.$radius-xl;
@@ -389,6 +393,7 @@
 
   .landing-auth-card {
     width: 100%;
+    min-height: 560px;
     padding: 22px 18px;
   }
 

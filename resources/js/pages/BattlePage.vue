@@ -1,14 +1,23 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import api from '../api/client';
 import { useCharacterStore } from '../stores/character';
 import { useAuthStore } from '../stores/auth';
+import { useAutoBattleStore } from '../stores/autoBattle';
+import { useGameTick } from '../composables/gameTick';
+import { useRegen } from '../composables/regen';
 import AdBanner from '../components/AdBanner.vue';
 import WorldChat from '../components/WorldChat.vue';
 import Skeleton from '../components/Skeleton.vue';
 
+const { tickCount } = useGameTick();
+const AUTO_BATTLE_POLL_TICKS = 20;
+
 const characterStore = useCharacterStore();
 const auth = useAuthStore();
+// The topbar's Auto-Battle pill (see stores/autoBattle.js + GameLayout.vue) polls independently, but
+// buying/refreshing here shouldn't make it wait up to 20s to notice — nudge it to refresh right away.
+const autoBattleStore = useAutoBattleStore();
 const battle = ref(null);
 const result = ref(null);
 const loading = ref(true);
@@ -21,8 +30,11 @@ const rewardBreakdownExpanded = ref(false);
 const autoBattle = ref({ active: false, seconds_remaining: 0, costs: {}, gems: 0 });
 const autoBattleMessage = ref('');
 const autoBattleSummary = ref(null);
-let autoBattleTimer = null;
-let autoBattlePollTimer = null;
+
+// Counts completed rounds in the current fight — reset on a fresh encounter, +1 per action taken.
+// Battle itself doesn't persist a round number (log_json is lines, not rounds), so this is tracked
+// client-side against the same events that already drive everything else.
+const roundCount = ref(0);
 
 function formatDuration(totalSeconds) {
   const m = Math.floor(totalSeconds / 60);
@@ -37,6 +49,9 @@ async function loadAutoBattle() {
     autoBattleSummary.value = data.summary;
     characterStore.fetch();
   }
+  // Feeds the topbar's Auto-Battle pill (see stores/autoBattle.js) with data this page already fetched —
+  // that store never hits /auto-battle itself, since reading it also ticks fights forward server-side.
+  autoBattleStore.setExpiresAt(data.active ? data.expires_at : null);
 }
 
 async function buyAutoBattleCash() {
@@ -51,20 +66,43 @@ async function buyAutoBattleCash() {
 async function buyAutoBattle(minutes) {
   try {
     const { data } = await api.post('/auto-battle/purchase', { minutes });
-    autoBattle.value = { ...autoBattle.value, active: true, paused: false, seconds_remaining: data.seconds_remaining, gems: data.gems };
-    autoBattleMessage.value = `Auto-Attack started — ${minutes} minutes added.`;
+    autoBattle.value = { ...autoBattle.value, active: true, seconds_remaining: data.seconds_remaining, gems: data.gems };
+    autoBattleMessage.value = `Training started — ${minutes} minutes added.`;
     characterStore.fetch();
+    autoBattleStore.setExpiresAt(data.expires_at);
   } catch (e) {
-    autoBattleMessage.value = e.response?.data?.message || 'Could not start auto-attack.';
+    autoBattleMessage.value = e.response?.data?.message || 'Could not start training.';
   }
 }
 
 const monster = computed(() => battle.value?.monster ?? null);
-const playerHpMax = computed(() => characterStore.stats?.eff_hp_max ?? battle.value?.character_hp ?? 1);
-// eff_mp_max (attribute-scaled) rather than the raw mana_max column — otherwise the bar under-reports
-// capacity for any character who's put attribute points into Mana Cap.
-const playerMpMax = computed(() => characterStore.stats?.eff_mp_max ?? characterStore.character?.mana_max ?? 1);
 const hpPct = (hp, max) => (max > 0 ? Math.max(0, Math.min(100, Math.round((hp / max) * 100))) : 0);
+
+// Shared HP/MP/energy regen projection (composables/regen.js) — same singleton state Dashboard reads,
+// so the two pages never disagree and switching between them never resets or re-seeds the projection.
+// displayHp already prefers the live in-combat projection once setBattleHp has been called below, so
+// Dashboard's HP tile shows that exact same number while you're mid-fight instead of sitting frozen on
+// the stale pre-battle value. hpMax/mpMax also come from here rather than being recomputed locally, so
+// there's exactly one cached "last known effective max" instead of two that could drift apart.
+const { displayHp, localMana, setBattleHp, clearBattleHp, hpBarPct, mpBarPct, hpMax: playerHpMax, mpMax: playerMpMax } = useRegen();
+
+// Battle tracks its own character_hp snapshot, separate from Character::hp, because HP regen keeps
+// ticking mid-fight too (see CombatService::regenInBattle — same real-elapsed-time × regenPerTick()
+// formula as out-of-combat regen, just applied to the battle's own counter instead of the character
+// record). Feed it into the shared composable rather than projecting it locally, so every page reading
+// displayHp (not just this one) sees the live in-combat value.
+watch(() => (battle.value?.status === 'active' ? battle.value.character_hp : null), (hp) => {
+  if (hp == null) {
+    clearBattleHp();
+  } else {
+    setBattleHp(battle.value.id, hp);
+  }
+}, { immediate: true });
+
+const displayCharacterHp = computed(() => Math.round(displayHp.value));
+const displayCharacterMana = computed(() => Math.round(localMana.value));
+const isRegeneratingHp = computed(() => displayCharacterHp.value < playerHpMax.value);
+const isRegeneratingMana = computed(() => displayCharacterMana.value < playerMpMax.value);
 
 const currentZoneName = computed(() => characterStore.character?.zone?.name ?? 'the wilds');
 
@@ -196,6 +234,53 @@ const resultIcon = computed(() => (result.value?.outcome === 'won' ? '🏆' : '�
 const resultTitle = computed(() => (result.value?.outcome === 'won' ? 'Victory!' : 'Defeated'));
 const resultColor = computed(() => (result.value?.outcome === 'won' ? '#4ade80' : '#ff6a4d'));
 
+const playerAtk = computed(() => characterStore.stats?.eff_atk ?? 0);
+const playerDef = computed(() => characterStore.stats?.eff_def ?? 0);
+
+const phaseLabel = computed(() => {
+  if (!battle.value) return 'Idle';
+  if (battle.value.status !== 'active') return result.value?.outcome === 'won' ? 'Victory' : 'Defeated';
+  return 'In combat';
+});
+const phaseDotColor = computed(() => {
+  if (battle.value?.status === 'active') return '#eab308';
+  if (result.value?.outcome === 'won') return '#4ade80';
+  if (result.value) return '#e8482f';
+  return 'rgba(255,255,255,.25)';
+});
+
+// Same primary button throughout (see template) — only its label/icon change with context, so
+// starting the next fight never means hunting for a differently-labeled control.
+const primaryLabel = computed(() => {
+  if (battle.value?.status === 'active') return '⚔ Attack';
+  if (result.value?.outcome === 'won') return '↺ Fight again';
+  if (result.value?.outcome === 'lost') return '♥ Continue';
+  return '🚶 Walk';
+});
+
+/** Blue/violet/green tone per skill effect — matches the reward/consumable color language elsewhere
+ * (heal = green, AOE = violet, plain damage = blue) instead of every skill button looking identical. */
+function skillTone(skill) {
+  if (skill.effect_json?.heal_hp_pct || skill.effect_json?.heal_hp_flat) return 'green';
+  if (skill.effect_json?.aoe) return 'violet';
+  return 'blue';
+}
+
+/** Real quick links to jump to after a fight resolves — not fictional "same foe" replays, just the
+ * places a player actually goes right after combat. Shown alongside the full-width Walk button. */
+const postBattleTiles = computed(() => {
+  const tiles = [
+    { to: '/dashboard', glyph: '⌂', name: 'Dashboard', meta: 'Overview', tone: 'neutral' },
+    { to: '/inventory', glyph: '▦', name: 'Inventory', meta: 'Gear & loot', tone: 'violet' },
+    { to: '/quests', glyph: '✎', name: 'Quests', meta: 'Track progress', tone: 'green' },
+    { to: '/shop', glyph: '◉', name: 'Shop', meta: 'Buy & sell', tone: 'neutral' },
+  ];
+  if (result.value?.leveled_up) {
+    tiles.unshift({ to: '/skills', glyph: '🌟', name: 'Skill Tree', meta: 'Spend points', tone: 'red' });
+  }
+  return tiles;
+});
+
 async function resumeOrBrowse() {
   loading.value = true;
   try {
@@ -208,6 +293,9 @@ async function resumeOrBrowse() {
     if (data.battle) {
       battle.value = data.battle;
       dungeonRun.value = data.dungeon_run;
+      // No exact round count is persisted server-side (log_json is lines, not rounds) — this is the
+      // closest available approximation for a fight resumed mid-way rather than started fresh here.
+      roundCount.value = data.battle.log_json?.length ?? 0;
 
       // Check for low durability gear (returns true if warning was set)
       const hasLowDurability = checkLowDurabilityGear();
@@ -279,6 +367,7 @@ async function walk() {
     battle.value = data.battle;
     result.value = null;
     dungeonRun.value = null;
+    roundCount.value = 0;
 
     // Check for low durability gear (returns true if warning was set)
     const hasLowDurability = checkLowDurabilityGear();
@@ -309,10 +398,15 @@ async function act(type, extra = {}) {
       characterStore.stats = updatedStats;
     }
 
+    // Items are a free action (see CombatService::act()'s $type==='item' branch) — they don't end
+    // the turn, so they shouldn't advance the round counter either.
+    if (type !== 'item') roundCount.value += 1;
+
     if (data.dungeon_run?.next_battle) {
       dungeonRun.value = data.dungeon_run;
       battle.value = data.dungeon_run.next_battle;
       result.value = null;
+      roundCount.value = 0;
       notice.value = `Stage cleared! Entering stage ${data.dungeon_run.stage} / ${data.dungeon_run.total_stages}.`;
     } else {
       battle.value = data.battle;
@@ -351,6 +445,7 @@ async function flee() {
     battle.value = null;
     result.value = null;
     dungeonRun.value = null;
+    roundCount.value = 0;
   } catch (e) {
     error.value = e.response?.data?.message || 'Could not flee.';
   } finally {
@@ -358,21 +453,22 @@ async function flee() {
   }
 }
 
-onMounted(() => {
-  resumeOrBrowse();
-  if (!characterStore.stats) characterStore.fetch();
-
-  loadAutoBattle();
-  autoBattleTimer = setInterval(() => {
-    if (autoBattle.value.paused) return;
-    if (autoBattle.value.seconds_remaining > 0) autoBattle.value.seconds_remaining -= 1;
-  }, 1000);
-  autoBattlePollTimer = setInterval(loadAutoBattle, 20000);
+// Note: the one periodic "game save" push (HP/MP/energy, including the battle's own HP counter via
+// activeBattleId — see setBattleHp above) is entirely driven by useRegen() itself (composables/regen.js).
+// This tick watcher only covers what's specific to this page: auto-battle countdown/polling.
+watch(tickCount, (count) => {
+  if (autoBattle.value.seconds_remaining > 0) autoBattle.value.seconds_remaining -= 1;
+  if (count % AUTO_BATTLE_POLL_TICKS === 0) loadAutoBattle();
 });
 
-onUnmounted(() => {
-  clearInterval(autoBattleTimer);
-  clearInterval(autoBattlePollTimer);
+onMounted(() => {
+  resumeOrBrowse();
+  // Always refreshed (not just when missing) — this is also where regenPerTick/manaRegenPerTick come
+  // from, and a stale value from whatever page was visited last is exactly the kind of thing that would
+  // make the regen animation silently never fire.
+  characterStore.fetch();
+
+  loadAutoBattle();
 });
 </script>
 
@@ -381,53 +477,62 @@ onUnmounted(() => {
     <div class="battle-header">
       <div class="battle-header__icon">⚔</div>
       <h1 class="ox battle-title">Battle</h1>
+      <span class="battle-header__zone">{{ currentZoneName }}</span>
     </div>
 
-    <p v-if="notice" class="battle-notice" :class="{ 'battle-notice--warning': notice.includes('⚠️') && !notice.includes('BROKEN'), 'battle-notice--danger': notice.includes('BROKEN') }">{{ notice }}</p>
+    <div
+      v-if="notice && (notice.includes('BROKEN') || notice.includes('Low durability'))"
+      class="battle-alert-bar"
+      :class="{ 'battle-alert-bar--danger': notice.includes('BROKEN') }"
+    >
+      <span class="battle-alert-bar__icon">⚠</span>
+      <span class="battle-alert-bar__text">{{ notice.replace('⚠️ ', '') }}</span>
+      <router-link to="/inventory" class="battle-alert-bar__cta">Repair →</router-link>
+    </div>
+    <p v-else-if="notice" class="battle-notice">{{ notice }}</p>
     <p v-if="error" class="battle-error">{{ error }}</p>
 
-    <div v-if="autoBattleSummary" class="claim-summary">
-      <div class="claim-summary__header">
-        <span class="ox claim-summary__title">🎉 While you were away</span>
-        <button class="claim-summary__close" @click="autoBattleSummary = null">✕</button>
+    <div class="battle-top-row">
+      <div v-if="autoBattleSummary" class="claim-summary">
+        <div class="claim-summary__header">
+          <span class="ox claim-summary__title">🎉 While you were away</span>
+          <button class="claim-summary__close" @click="autoBattleSummary = null">✕</button>
+        </div>
+        <div class="claim-summary__rows">
+          <span class="claim-summary__chip">⚔ {{ autoBattleSummary.fights }} fought</span>
+          <span class="claim-summary__chip">🏆 {{ autoBattleSummary.wins }} won</span>
+          <span v-if="autoBattleSummary.losses" class="claim-summary__chip">💀 {{ autoBattleSummary.losses }} lost</span>
+          <span v-if="autoBattleSummary.fled" class="claim-summary__chip">🏃 {{ autoBattleSummary.fled }} fled</span>
+          <span class="claim-summary__chip">🪙 +{{ autoBattleSummary.gold }} gold</span>
+          <span class="claim-summary__chip">✦ +{{ autoBattleSummary.xp }} xp</span>
+          <span v-if="autoBattleSummary.gems" class="claim-summary__chip">💎 +{{ autoBattleSummary.gems }} gems</span>
+        </div>
       </div>
-      <div class="claim-summary__rows">
-        <span class="claim-summary__chip">⚔ {{ autoBattleSummary.fights }} fought</span>
-        <span class="claim-summary__chip">🏆 {{ autoBattleSummary.wins }} won</span>
-        <span v-if="autoBattleSummary.losses" class="claim-summary__chip">💀 {{ autoBattleSummary.losses }} lost</span>
-        <span v-if="autoBattleSummary.fled" class="claim-summary__chip">🏃 {{ autoBattleSummary.fled }} fled</span>
-        <span class="claim-summary__chip">🪙 +{{ autoBattleSummary.gold }} gold</span>
-        <span class="claim-summary__chip">✦ +{{ autoBattleSummary.xp }} xp</span>
-        <span v-if="autoBattleSummary.gems" class="claim-summary__chip">💎 +{{ autoBattleSummary.gems }} gems</span>
-      </div>
-    </div>
 
-    <div class="auto-battle-card">
-      <p v-if="autoBattleMessage" class="auto-battle-card__summary">{{ autoBattleMessage }}</p>
-      <div v-if="autoBattle.active" class="auto-battle-card__status" :class="{ 'auto-battle-card__status--paused': autoBattle.paused }">
-        <span class="auto-battle-card__label">{{ autoBattle.paused ? '⏸ Auto-Attack paused' : '🤖 Auto-Attack active' }}</span>
-        <span class="auto-battle-card__timer">
-          {{ formatDuration(autoBattle.seconds_remaining) }} remaining
-          <template v-if="autoBattle.paused"> — resumes when you leave this battle</template>
-        </span>
-      </div>
-      <div class="auto-battle-card__buy">
-        <span class="auto-battle-card__label">
-          {{ autoBattle.active ? '🤖 Buy more time' : '🤖 Auto-Attack — fights for you (attacks above 50% HP, heals at 30%)' }}
-        </span>
-        <div class="auto-battle-card__options">
-          <button
-            v-for="minutes in [15, 30, 60]"
-            :key="minutes"
-            class="auto-battle-card__option"
-            :disabled="(characterStore.character?.gems ?? 0) < (autoBattle.costs[minutes] ?? 0)"
-            @click="buyAutoBattle(minutes)"
-          >
-            {{ minutes }}m · 💎{{ autoBattle.costs[minutes] ?? '—' }}
-          </button>
-          <button class="auto-battle-card__option auto-battle-card__option--cash" @click="buyAutoBattleCash">
-            60m · €0.99
-          </button>
+      <div class="auto-battle-card">
+        <p v-if="autoBattleMessage" class="auto-battle-card__summary">{{ autoBattleMessage }}</p>
+        <div v-if="autoBattle.active" class="auto-battle-card__status">
+          <span class="auto-battle-card__label">🤖 Training active</span>
+          <span class="auto-battle-card__timer">{{ formatDuration(autoBattle.seconds_remaining) }} remaining</span>
+        </div>
+        <div class="auto-battle-card__buy">
+          <span class="auto-battle-card__label">
+            {{ autoBattle.active ? '🤖 Buy more time' : '🤖 Training — fights for you, fully risk-free' }}
+          </span>
+          <div class="auto-battle-card__options">
+            <button
+              v-for="minutes in [15, 30, 60]"
+              :key="minutes"
+              class="auto-battle-card__option"
+              :disabled="(characterStore.character?.gems ?? 0) < (autoBattle.costs[minutes] ?? 0)"
+              @click="buyAutoBattle(minutes)"
+            >
+              {{ minutes }}m · 💎{{ autoBattle.costs[minutes] ?? '—' }}
+            </button>
+            <button class="auto-battle-card__option auto-battle-card__option--cash" @click="buyAutoBattleCash">
+              60m · €0.99
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -440,46 +545,131 @@ onUnmounted(() => {
       <Skeleton height="60px" />
     </div>
 
-    <!-- Walk into a fight -->
-    <div v-else-if="!battle" class="battle-start">
-      <div class="battle-start__art">🚶</div>
-      <p class="battle-start__intro">
-        You're in <strong>{{ currentZoneName }}</strong>. Take a walk to find a fight.
-      </p>
-      <button class="btn-walk btn-walk--large" @click="walk" :disabled="loading">🚶 Walk</button>
-    </div>
-
-    <!-- Fight view -->
-    <div v-else-if="battle" class="fight-view">
-      <!-- Active battle UI -->
-      <div v-if="battle.status === 'active'" class="fight-view__main" :class="{ 'is-loading': loading }">
+    <!-- Fight view — one persistent screen for idle (no enemy yet), active combat, and a just-defeated
+    enemy with rewards. Nothing here swaps to a different layout or overlay; only what's inside each
+    panel changes. -->
+    <div v-else class="fight-view">
+      <div class="fight-view__main" :class="{ 'is-loading': loading }">
         <div class="fight-view__header">
-          <div class="fight-view__zone">
-            {{ currentZoneName }}
-            <span v-if="dungeonRun" class="fight-view__stage">· Stage {{ dungeonRun.stage }} / {{ dungeonRun.total_stages }}</span>
+          <div class="fight-view__status">
+            <span class="fight-view__dot" :style="{ background: phaseDotColor }"></span>
+            <span class="fight-view__phase" :style="{ color: phaseDotColor }">{{ phaseLabel }}</span>
+            <span v-if="battle" class="fight-view__sep">·</span>
+            <span v-if="battle" class="fight-view__round">Round {{ roundCount }}</span>
+            <span v-if="dungeonRun" class="fight-view__sep">·</span>
+            <span v-if="dungeonRun" class="fight-view__stage">Stage {{ dungeonRun.stage }} / {{ dungeonRun.total_stages }}</span>
           </div>
-          <button class="flee-btn" @click="flee" :disabled="loading">Flee ↩</button>
+          <button
+            class="flee-btn"
+            :class="{ 'flee-btn--hidden': battle?.status !== 'active' }"
+            @click="flee"
+            :disabled="loading || battle?.status !== 'active'"
+          >
+            Flee ↩
+          </button>
         </div>
 
         <div
           class="monster-panel"
-          :class="{ 'monster-panel--targetable': hasAdds, 'monster-panel--selected': hasAdds && !selectedTargetId }"
-          @click="hasAdds && selectTarget(null)"
+          :class="{
+            'monster-panel--targetable': hasAdds && battle?.status === 'active',
+            'monster-panel--selected': hasAdds && battle?.status === 'active' && !selectedTargetId,
+            'monster-panel--result': result,
+          }"
+          @click="hasAdds && battle?.status === 'active' && selectTarget(null)"
         >
-          <div class="monster-art">{{ monster?.glyph }}</div>
-          <div class="ox monster-name">
-            {{ monster?.name }}
-            <span v-if="rankMeta" class="monster-name__grade" :style="{ color: rankMeta.color, borderColor: rankMeta.color }">{{ rankMeta.label }}</span>
-            <span v-if="battle.grade !== 'common'" class="monster-name__grade" :style="{ color: gradeMeta.color, borderColor: gradeMeta.color }">{{ gradeMeta.label }}</span>
-          </div>
-          <div class="stat-block">
-            <div class="stat-label-row">
-              <span class="hp">HP</span><span>{{ battle.monster_hp }} / {{ monsterHpMax }}</span>
+          <!-- Same panel, same slot: once the fight resolves, the victory/defeat screen replaces the
+          monster display in place rather than appearing as extra content further down the page — the
+          rest of the layout (player panel, action grid, log) never shifts. -->
+          <template v-if="result">
+            <div class="reward-banner__head">
+              <span class="reward-banner__icon">{{ resultIcon }}</span>
+              <span class="ox reward-banner__title" :style="{ color: resultColor }">{{ resultTitle }}</span>
             </div>
-            <div class="stat-bar-track">
-              <div class="stat-bar-fill--hp" :style="{ width: hpPct(battle.monster_hp, monsterHpMax) + '%' }"></div>
+
+            <div v-if="result.outcome === 'won'" class="reward-chips">
+              <div class="reward-chip--gold">+{{ result.gold }} Gold</div>
+              <div class="reward-chip--xp">+{{ result.xp }} XP</div>
+              <div v-if="result.gems" class="reward-chip--gems">+{{ result.gems }} Gems</div>
+              <div v-if="result.leveled_up" class="reward-chip--level">
+                Level up! +{{ result.leveled_up * 3 }} attr · +{{ result.leveled_up }} skill pts
+              </div>
+              <div v-if="dungeonRun?.completed" class="reward-chip--gold">
+                Dungeon cleared!<span v-if="dungeonRun.bonus?.gold"> +{{ dungeonRun.bonus.gold }}g</span><span v-if="dungeonRun.bonus?.gems"> +{{ dungeonRun.bonus.gems }} gems</span>
+              </div>
             </div>
-          </div>
+
+            <div v-else class="reward-chips">
+              <div class="reward-banner__subtitle">Revived at 40% HP.</div>
+              <div v-if="result.gold_lost" class="reward-chip--loss">-{{ result.gold_lost }} Gold</div>
+              <div v-if="result.xp_lost" class="reward-chip--loss">-{{ result.xp_lost }} XP</div>
+              <div v-if="result.levels_lost" class="reward-chip--loss reward-chip--loss-level">
+                Lost level{{ result.levels_lost > 1 ? 's' : '' }}! -{{ result.levels_lost * 3 }} attr · -{{ result.levels_lost }} skill pts
+              </div>
+            </div>
+
+            <!-- Reward breakdown (collapsible) -->
+            <div v-if="result.outcome === 'won' && result.breakdown" class="result-reward-breakdown">
+              <button class="result-reward-breakdown__toggle" @click="rewardBreakdownExpanded = !rewardBreakdownExpanded">
+                {{ rewardBreakdownExpanded ? '▼' : '▶' }} Reward Breakdown
+              </button>
+              <div v-if="rewardBreakdownExpanded" class="reward-breakdown">
+                <div class="reward-breakdown__section">
+                  <div class="reward-breakdown__label">🪙 Gold Breakdown</div>
+                  <div class="reward-breakdown__line">Base: {{ result.breakdown.gold.base }}g</div>
+                  <div v-if="result.breakdown.gold.grade_mult > 1" class="reward-breakdown__line">Grade: ×{{ result.breakdown.gold.grade_mult }}</div>
+                  <div v-if="result.breakdown.gold.luck_pct" class="reward-breakdown__line reward-breakdown__line--luck">Luck: +{{ result.breakdown.gold.luck_pct }}%</div>
+                  <div v-if="result.breakdown.gold.vip_pct" class="reward-breakdown__line">VIP: +{{ result.breakdown.gold.vip_pct }}%</div>
+                  <div v-if="result.breakdown.gold.guild_pct" class="reward-breakdown__line">Guild: +{{ result.breakdown.gold.guild_pct }}%</div>
+                </div>
+                <div class="reward-breakdown__section">
+                  <div class="reward-breakdown__label">✦ XP Breakdown</div>
+                  <div class="reward-breakdown__line">Base: {{ result.breakdown.xp.base }} xp</div>
+                  <div v-if="result.breakdown.xp.grade_mult > 1" class="reward-breakdown__line">Grade: ×{{ result.breakdown.xp.grade_mult }}</div>
+                  <div v-if="result.breakdown.xp.luck_pct" class="reward-breakdown__line reward-breakdown__line--luck">Luck: +{{ result.breakdown.xp.luck_pct }}%</div>
+                  <div v-if="result.breakdown.xp.vip_pct" class="reward-breakdown__line">VIP: +{{ result.breakdown.xp.vip_pct }}%</div>
+                  <div v-if="result.breakdown.xp.guild_pct" class="reward-breakdown__line">Guild: +{{ result.breakdown.xp.guild_pct }}%</div>
+                  <div v-if="result.breakdown.xp.pet_pct" class="reward-breakdown__line">Pet: +{{ result.breakdown.xp.pet_pct }}%</div>
+                </div>
+                <div v-if="result.breakdown.gems" class="reward-breakdown__section">
+                  <div class="reward-breakdown__label">💎 Gems Breakdown</div>
+                  <div class="reward-breakdown__line">Base: {{ result.breakdown.gems.base }} gems</div>
+                  <div v-if="result.breakdown.gems.grade_mult > 1" class="reward-breakdown__line">Grade: ×{{ result.breakdown.gems.grade_mult }}</div>
+                  <div v-if="result.breakdown.gems.luck_pct" class="reward-breakdown__line reward-breakdown__line--luck">Luck: +{{ result.breakdown.gems.luck_pct }}%</div>
+                </div>
+              </div>
+            </div>
+
+          </template>
+
+          <template v-else-if="monster">
+            <div class="monster-art-stage" :class="{ 'monster-art-stage--active': battle.status === 'active' }">
+              <div class="monster-art-ring" :style="{ borderColor: gradeMeta.color }"></div>
+              <div class="monster-art">{{ monster.glyph }}</div>
+            </div>
+            <div class="ox monster-name">
+              {{ monster.name }}
+              <span v-if="rankMeta" class="monster-name__grade" :style="{ color: rankMeta.color, borderColor: rankMeta.color }">{{ rankMeta.label }}</span>
+              <span v-if="battle.grade !== 'common'" class="monster-name__grade" :style="{ color: gradeMeta.color, borderColor: gradeMeta.color }">{{ gradeMeta.label }}</span>
+              <span class="monster-name__level">Lv.{{ monster.min_level }}</span>
+            </div>
+            <div class="stat-block stat-block--monster">
+              <div class="stat-label-row stat-label-row--tight">
+                <span class="hp">HP</span><span>{{ battle.monster_hp }} / {{ monsterHpMax }}</span>
+              </div>
+              <div class="stat-bar-track">
+                <div class="stat-bar-fill--hp" :style="{ width: hpPct(battle.monster_hp, monsterHpMax) + '%' }"></div>
+              </div>
+            </div>
+          </template>
+
+          <template v-else>
+            <div class="monster-art-stage monster-art-stage--empty">
+              <div class="monster-art">❔</div>
+            </div>
+            <div class="ox monster-name">No enemy nearby</div>
+            <p class="monster-panel__hint">Take a walk to find a fight in {{ currentZoneName }}.</p>
+          </template>
         </div>
 
         <div v-if="hasAdds" class="adds-panel">
@@ -488,7 +678,7 @@ onUnmounted(() => {
             :key="add.id"
             class="add-card"
             :class="{ 'add-card--dead': add.hp <= 0, 'add-card--selected': selectedTargetId === add.id }"
-            @click="add.hp > 0 && selectTarget(add.id)"
+            @click="battle?.status === 'active' && add.hp > 0 && selectTarget(add.id)"
           >
             <div class="add-card__name">{{ add.hp > 0 ? add.monster?.name : `${add.monster?.name} (defeated)` }}</div>
             <div class="stat-bar-track add-card__bar">
@@ -500,56 +690,113 @@ onUnmounted(() => {
 
         <div class="player-panel">
           <div class="player-panel__header">
-            <div class="ox player-panel__name">{{ characterStore.character?.name }}</div>
-            <div class="player-panel__meta">
-              {{ characterStore.character?.base_class }} · Lv.{{ characterStore.character?.level }}
+            <div class="player-panel__identity">
+              <span class="ox player-panel__name">{{ characterStore.character?.name }}</span>
+              <span class="player-panel__meta">{{ characterStore.character?.base_class }} · Lv.{{ characterStore.character?.level }}</span>
+            </div>
+            <div class="player-panel__combat-stats">
+              <span><span class="ox player-panel__stat-value player-panel__stat-value--atk">{{ playerAtk }}</span> ATK</span>
+              <span><span class="ox player-panel__stat-value player-panel__stat-value--def">{{ playerDef }}</span> DEF</span>
             </div>
           </div>
-          <div class="stat-block stat-block--player">
-            <div class="stat-label-row">
-              <span class="hp">HP</span><span>{{ battle.character_hp }} / {{ playerHpMax }}</span>
+          <div class="player-stats-row">
+            <div class="stat-block stat-block--player">
+              <div class="stat-label-row">
+                <span class="hp">HP</span><span>{{ displayCharacterHp }} / {{ playerHpMax }}</span>
+              </div>
+              <div class="stat-bar-track">
+                <div
+                  class="stat-bar-fill--hp"
+                  :class="{ 'stat-bar-fill--regenerating': isRegeneratingHp }"
+                  :style="{ width: hpBarPct + '%' }"
+                ></div>
+              </div>
             </div>
-            <div class="stat-bar-track">
-              <div class="stat-bar-fill--hp" :style="{ width: hpPct(battle.character_hp, playerHpMax) + '%' }"></div>
-            </div>
-          </div>
-          <div class="stat-block stat-block--last">
-            <div class="stat-label-row">
-              <span class="mp">MP</span><span>{{ characterStore.character?.mana }} / {{ playerMpMax }}</span>
-            </div>
-            <div class="stat-bar-track">
-              <div class="stat-bar-fill--mp" :style="{ width: hpPct(characterStore.character?.mana ?? 0, playerMpMax) + '%' }"></div>
+            <div class="stat-block stat-block--last">
+              <div class="stat-label-row">
+                <span class="mp">MP</span><span>{{ displayCharacterMana }} / {{ playerMpMax }}</span>
+              </div>
+              <div class="stat-bar-track">
+                <div
+                  class="stat-bar-fill--mp"
+                  :class="{ 'stat-bar-fill--regenerating': isRegeneratingMana }"
+                  :style="{ width: mpBarPct + '%' }"
+                ></div>
+              </div>
             </div>
           </div>
         </div>
 
-        <div v-if="hasAdds" class="target-hint">
+        <div v-if="hasAdds && battle?.status === 'active'" class="target-hint">
           Targeting: <strong>{{ selectedTargetId ? extraMonsters.find((m) => m.id === selectedTargetId)?.monster?.name : monster?.name }}</strong>
           <span v-if="activeSkillRows.some((r) => r.skill.effect_json?.aoe)"> — AOE skills hit everyone regardless</span>
         </div>
 
-        <div class="actions-grid">
-          <button class="btn-attack" @click="act('attack', { target_monster_id: selectedTargetId })" :disabled="loading">⚔ Attack</button>
+        <!-- Same full-width primary button always — Attack mid-fight, and Walk/Fight again/Continue
+        once there's no live fight to act in, so starting the next encounter never requires jumping to
+        a different part of the screen or a differently-sized button. -->
+        <button
+          v-if="battle?.status === 'active'"
+          class="btn-attack"
+          @click="act('attack', { target_monster_id: selectedTargetId })"
+          :disabled="loading"
+        >
+          {{ primaryLabel }}
+        </button>
+        <button v-else class="btn-attack" @click="walk" :disabled="loading">{{ primaryLabel }}</button>
+
+        <!-- Skills while actually fighting — full-width rows, color-coded by effect (blue = damage,
+        violet = AOE, green = heal/support), with Consumables as its own centered button below rather
+        than crowded into the same grid. -->
+        <div v-if="battle?.status === 'active'" class="skill-list">
           <button
             v-for="row in activeSkillRows"
             :key="row.skill.id"
-            class="btn-skill"
+            class="skill-row"
+            :class="`skill-row--${skillTone(row.skill)}`"
             @click="act('skill', { skill_id: row.skill.id, target_monster_id: selectedTargetId })"
             :disabled="loading || characterStore.character?.mana < row.skill.mp_cost || (skillCooldowns[row.skill.id] ?? 0) > 0"
           >
-            <template v-if="(skillCooldowns[row.skill.id] ?? 0) > 0">{{ row.skill.glyph }} {{ row.skill.name }} — {{ skillCooldowns[row.skill.id] }} round{{ skillCooldowns[row.skill.id] > 1 ? 's' : '' }}</template>
+            <span class="skill-row__glyph">{{ row.skill.glyph }}</span>
+            <span class="skill-row__body">
+              <span class="skill-row__name">{{ row.skill.name }}</span>
+              <!-- Exact, rank-scaled numbers combat actually uses (CharacterSkill::effect_description) —
+              e.g. "1.9x ATK damage on use" or "Restores 20% max HP on use" — not just the raw MP cost. -->
+              <span v-if="row.effect_description" class="skill-row__info">{{ row.effect_description }}</span>
+            </span>
+            <template v-if="(skillCooldowns[row.skill.id] ?? 0) > 0">
+              <span class="skill-row__meta">{{ skillCooldowns[row.skill.id] }} round{{ skillCooldowns[row.skill.id] > 1 ? 's' : '' }}</span>
+            </template>
             <template v-else>
-              {{ row.skill.glyph }} {{ row.skill.name }} ({{ row.skill.mp_cost }} MP){{ row.skill.effect_json?.aoe ? ' · AOE' : '' }}{{ row.skill.effect_json?.heal_hp_pct ? ' · Heal' : '' }}
+              <span class="skill-row__meta">{{ row.skill.mp_cost }} MP{{ row.skill.effect_json?.aoe ? ' · AOE' : '' }}</span>
             </template>
           </button>
+        </div>
+        <div v-if="battle?.status === 'active'" class="consumables-row">
           <button
-            class="btn-item"
+            class="btn-consumables"
             @click="consumableGridOpen = true"
             :disabled="loading || !usableConsumables.length"
           >
             🧪 Consumables{{ usableConsumables.length ? ` (${usableConsumables.length})` : '' }}
           </button>
           <p v-if="!usableConsumables.length" class="no-consumables-hint">No usable potions or elixirs.</p>
+        </div>
+
+        <!-- Quick links once the fight's resolved (or before the first one) — real destinations, not
+        a re-fight of "the same foe" which the game doesn't actually track as a distinct action. -->
+        <div v-else class="action-tiles">
+          <router-link
+            v-for="t in postBattleTiles"
+            :key="t.to"
+            :to="t.to"
+            class="action-tile"
+            :class="`action-tile--${t.tone}`"
+          >
+            <div class="action-tile__glyph">{{ t.glyph }}</div>
+            <div class="action-tile__name">{{ t.name }}</div>
+            <div class="action-tile__meta">{{ t.meta }}</div>
+          </router-link>
         </div>
 
         <div v-if="consumableGridOpen" class="consumable-modal-overlay" @click.self="consumableGridOpen = false">
@@ -576,7 +823,7 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div v-twemoji class="battle-log">
+        <div v-if="battle?.log_json?.length" v-twemoji class="battle-log">
           <div
             v-for="(line, i) in displayedBattleLog"
             :key="i"
@@ -588,113 +835,12 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Battle log (visible behind result overlay) -->
-      <div v-else v-twemoji class="battle-log-background">
-        <div
-          v-for="(line, i) in displayedBattleLog"
-          :key="i"
-          class="battle-log__line"
-          :style="{ color: logColor(line) }"
-        >
-          {{ line }}
-        </div>
-      </div>
-
       <AdBanner variant="sidebar" />
     </div>
     <!-- End fight view -->
 
     </div>
     <!-- End battle-main -->
-
-    <!-- Result overlay -->
-    <div v-if="result" class="result-overlay">
-      <div class="result-backdrop"></div>
-      <div class="result-view">
-      <div class="result-icon">{{ resultIcon }}</div>
-      <div class="ox result-title" :style="{ color: resultColor }">{{ resultTitle }}</div>
-      <div v-if="result?.outcome === 'won'" class="result-subtitle">
-        You defeated <span v-if="battle?.grade !== 'common'" :style="{ color: gradeMeta.color }">{{ gradeMeta.label }}</span> {{ monster?.name }}.
-      </div>
-      <div v-else class="result-subtitle">Revived at 40% HP.</div>
-
-      <div v-if="result?.outcome === 'won'" class="reward-chips">
-        <div class="reward-chip--gold">+{{ result.gold }} Gold</div>
-        <div class="reward-chip--xp">+{{ result.xp }} XP</div>
-        <div v-if="result.gems" class="reward-chip--gems">+{{ result.gems }} Gems</div>
-        <div v-if="result.leveled_up" class="reward-chip--level">
-          Level up! +{{ result.leveled_up * 3 }} attr · +{{ result.leveled_up }} skill pts
-        </div>
-        <div v-if="dungeonRun?.completed" class="reward-chip--gold">
-          Dungeon cleared!<span v-if="dungeonRun.bonus?.gold"> +{{ dungeonRun.bonus.gold }}g</span><span v-if="dungeonRun.bonus?.gems"> +{{ dungeonRun.bonus.gems }} gems</span>
-        </div>
-      </div>
-
-      <div v-if="result?.outcome === 'lost' && (result.gold_lost || result.xp_lost)" class="reward-chips">
-        <div v-if="result.gold_lost" class="reward-chip--loss">-{{ result.gold_lost }} Gold</div>
-        <div v-if="result.xp_lost" class="reward-chip--loss">-{{ result.xp_lost }} XP</div>
-        <div v-if="result.levels_lost" class="reward-chip--loss reward-chip--loss-level">
-          Lost level{{ result.levels_lost > 1 ? 's' : '' }}! -{{ result.levels_lost * 3 }} attr · -{{ result.levels_lost }} skill pts
-        </div>
-      </div>
-
-      <!-- Reward breakdown (collapsible) -->
-      <div v-if="result?.outcome === 'won' && result.breakdown" class="result-reward-breakdown">
-        <button class="result-reward-breakdown__toggle" @click="rewardBreakdownExpanded = !rewardBreakdownExpanded">
-          {{ rewardBreakdownExpanded ? '▼' : '▶' }} Reward Breakdown
-        </button>
-        <div v-if="rewardBreakdownExpanded" class="reward-breakdown">
-          <div class="reward-breakdown__section">
-            <div class="reward-breakdown__label">🪙 Gold Breakdown</div>
-            <div class="reward-breakdown__line">Base: {{ result.breakdown.gold.base }}g</div>
-            <div v-if="result.breakdown.gold.grade_mult > 1" class="reward-breakdown__line">Grade: ×{{ result.breakdown.gold.grade_mult }}</div>
-            <div v-if="result.breakdown.gold.luck_pct" class="reward-breakdown__line reward-breakdown__line--luck">Luck: +{{ result.breakdown.gold.luck_pct }}%</div>
-            <div v-if="result.breakdown.gold.vip_pct" class="reward-breakdown__line">VIP: +{{ result.breakdown.gold.vip_pct }}%</div>
-            <div v-if="result.breakdown.gold.guild_pct" class="reward-breakdown__line">Guild: +{{ result.breakdown.gold.guild_pct }}%</div>
-          </div>
-          <div class="reward-breakdown__section">
-            <div class="reward-breakdown__label">✦ XP Breakdown</div>
-            <div class="reward-breakdown__line">Base: {{ result.breakdown.xp.base }} xp</div>
-            <div v-if="result.breakdown.xp.grade_mult > 1" class="reward-breakdown__line">Grade: ×{{ result.breakdown.xp.grade_mult }}</div>
-            <div v-if="result.breakdown.xp.luck_pct" class="reward-breakdown__line reward-breakdown__line--luck">Luck: +{{ result.breakdown.xp.luck_pct }}%</div>
-            <div v-if="result.breakdown.xp.vip_pct" class="reward-breakdown__line">VIP: +{{ result.breakdown.xp.vip_pct }}%</div>
-            <div v-if="result.breakdown.xp.guild_pct" class="reward-breakdown__line">Guild: +{{ result.breakdown.xp.guild_pct }}%</div>
-            <div v-if="result.breakdown.xp.pet_pct" class="reward-breakdown__line">Pet: +{{ result.breakdown.xp.pet_pct }}%</div>
-          </div>
-          <div v-if="result.breakdown.gems" class="reward-breakdown__section">
-            <div class="reward-breakdown__label">💎 Gems Breakdown</div>
-            <div class="reward-breakdown__line">Base: {{ result.breakdown.gems.base }} gems</div>
-            <div v-if="result.breakdown.gems.grade_mult > 1" class="reward-breakdown__line">Grade: ×{{ result.breakdown.gems.grade_mult }}</div>
-            <div v-if="result.breakdown.gems.luck_pct" class="reward-breakdown__line reward-breakdown__line--luck">Luck: +{{ result.breakdown.gems.luck_pct }}%</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Battle log (collapsible) -->
-      <div v-if="battle?.log_json" class="result-battle-log">
-        <button class="result-battle-log__toggle" @click="battleLogExpanded = !battleLogExpanded">
-          {{ battleLogExpanded ? '▼' : '▶' }} Battle Log ({{ battle.log_json.length }} rounds)
-        </button>
-        <div v-if="battleLogExpanded" v-twemoji class="result-battle-log__content">
-          <div
-            v-for="(line, i) in fullBattleLog"
-            :key="i"
-            class="result-battle-log__line"
-            :style="{ color: logColor(line) }"
-          >
-            {{ line }}
-          </div>
-        </div>
-      </div>
-
-      <div class="result-actions">
-        <button class="btn-walk" @click="walk">🚶 Walk</button>
-        <router-link v-if="result?.leveled_up" to="/skills" class="btn-skill-tree-link">🌟 Skill Tree</router-link>
-        <router-link to="/dashboard" class="btn-dashboard-link">Dashboard</router-link>
-      </div>
-    </div>
-    </div>
-    <!-- End result overlay -->
 
     <WorldChat />
     </div>

@@ -29,7 +29,7 @@ class BattleController extends Controller
         $character = $request->user()->character;
         abort_unless($character, 404);
 
-        $battle = Battle::where('character_id', $character->id)->where('status', 'active')->with(['monster', 'battleMonsters.monster'])->first();
+        $battle = Battle::where('character_id', $character->id)->where('status', 'active')->where('is_auto', false)->with(['monster', 'battleMonsters.monster'])->first();
         $dungeonRun = null;
         if ($battle) {
             $this->combat->regenInBattle($battle, $character);
@@ -51,7 +51,7 @@ class BattleController extends Controller
         $character = $request->user()->character;
         abort_unless($character, 404);
 
-        if (Battle::where('character_id', $character->id)->where('status', 'active')->exists()) {
+        if (Battle::where('character_id', $character->id)->where('status', 'active')->where('is_auto', false)->exists()) {
             return response()->json(['message' => 'You have a battle in progress. Resume it or flee first.'], 422);
         }
 

@@ -61,7 +61,7 @@ class DungeonController extends Controller
             ->where('status', 'active')
             ->exists();
 
-        if (! $hasRunForThisDungeon && Battle::where('character_id', $character->id)->where('status', 'active')->exists()) {
+        if (! $hasRunForThisDungeon && Battle::where('character_id', $character->id)->where('status', 'active')->where('is_auto', false)->exists()) {
             return response()->json(['message' => 'You have a battle in progress. Resume it or flee first.'], 422);
         }
 

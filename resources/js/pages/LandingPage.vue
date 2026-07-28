@@ -129,7 +129,14 @@ onMounted(async () => {
 
     <div class="landing-hero">
       <div class="landing-hero__pitch">
-        <img src="/images/solyx-logo.png" alt="Solyx" class="landing-hero__logo" />
+        <img
+          src="/images/solyx-logo.png"
+          alt="Solyx"
+          class="landing-hero__logo"
+          width="150"
+          height="137"
+          fetchpriority="high"
+        />
         <h1 class="ox landing-hero__title">Solyx <span class="landing-hero__title-accent">Web Game</span></h1>
         <h6>Beta version!</h6>
         <p class="landing-hero__tagline">
@@ -162,7 +169,7 @@ onMounted(async () => {
 
       <div class="landing-auth-card">
         <div class="landing-auth-card__header">
-          <img src="/images/solyx-logo.png" alt="Solyx" class="landing-auth-card__logo" />
+          <img src="/images/solyx-logo.png" alt="Solyx" class="landing-auth-card__logo" width="76" height="70" />
           <div class="ox landing-auth-card__title">{{ mode === 'register' ? 'Create your account' : 'Enter Solyx' }}</div>
           <div class="landing-auth-card__subtitle">Log in or create your account</div>
         </div>

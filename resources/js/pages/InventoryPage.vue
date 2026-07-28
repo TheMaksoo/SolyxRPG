@@ -30,33 +30,61 @@ const SLOT_DEFS = [
 
 const equipped = computed(() => inventory.value.filter((i) => i.equipped));
 
-// Consumables/repair packs are what you reach for constantly mid-session, so they surface first;
-// raw gathering materials are the least time-sensitive (you're not about to "use" a stack of Stone),
-// so they sink to the bottom.
-const BAG_TYPE_PRIORITY = {
-  consumable: 0,
-  repair_pack: 0,
-  weapon: 1,
-  armor: 1,
-  shield: 1,
-  quiver: 1,
-  pickaxe: 1,
-  axe: 1,
-  sickle: 1,
-  hammer: 1,
-  cosmetic: 2,
-  material: 3,
-};
 const bagQuery = ref('');
-const bag = computed(() => {
-  const q = bagQuery.value.trim().toLowerCase();
-  return inventory.value
-    .filter((i) => !i.equipped)
-    .filter((i) => !q || i.item.name.toLowerCase().includes(q) || i.item.type.toLowerCase().includes(q))
-    .slice()
-    .sort((a, b) => (BAG_TYPE_PRIORITY[a.item.type] ?? 4) - (BAG_TYPE_PRIORITY[b.item.type] ?? 4));
-});
 const repairPacks = computed(() => inventory.value.filter((i) => i.item.type === 'repair_pack'));
+
+// Same category scheme Shop and Crafting already use, in the same order — what your class can actually
+// equip (weapons/armor/quiver/tools) surfaces first, then things you consume, then everything else.
+const BAG_SECTIONS = [
+  { key: 'weapon', label: 'Weapons', glyph: '⚔', types: ['weapon'] },
+  { key: 'armor', label: 'Armor', glyph: '🛡', types: ['armor', 'shield'] },
+  { key: 'quiver', label: 'Quivers', glyph: '🎯', types: ['quiver'] },
+  { key: 'tools', label: 'Tools', glyph: '⛏', types: ['pickaxe', 'axe', 'sickle', 'hammer'] },
+  { key: 'consumable', label: 'Consumables', glyph: '🧪', types: ['consumable'] },
+  { key: 'repair_pack', label: 'Repair Packs', glyph: '🧰', types: ['repair_pack'] },
+  { key: 'cosmetic', label: 'Cosmetics', glyph: '👑', types: ['cosmetic'] },
+  { key: 'material', label: 'Materials', glyph: '🪨', types: ['material'] },
+];
+const GEAR_SECTIONS = new Set(['weapon', 'armor', 'quiver', 'tools']);
+
+const bagSections = computed(() => {
+  const q = bagQuery.value.trim().toLowerCase();
+  const rows = inventory.value
+    .filter((i) => !i.equipped)
+    .filter((i) => !q || i.item.name.toLowerCase().includes(q) || i.item.type.toLowerCase().includes(q));
+
+  return BAG_SECTIONS.map((section) => {
+    const sectionRows = rows.filter((r) => section.types.includes(r.item.type));
+    if (!sectionRows.length) return null;
+
+    // Gear your class can actually wear sorts ahead of gear made for another class — that other-class
+    // gear still shows up (for repairing or listing on the Marketplace), it just sinks to the back.
+    if (GEAR_SECTIONS.has(section.key)) {
+      const sorted = [...sectionRows].sort((a, b) => Number(isMyClass(b.item)) - Number(isMyClass(a.item)));
+      return { ...section, rows: sectionRows, groups: [{ key: 'all', label: null, rows: sorted }] };
+    }
+
+    // Consumables split by heal type (HP/MP/Regen/Other), same grouping Shop and Crafting use.
+    if (section.key === 'consumable') {
+      const hp = sectionRows.filter((r) => r.item.stat_json?.heal_hp_pct !== undefined || r.item.stat_json?.heal_hp_flat !== undefined);
+      const mp = sectionRows.filter((r) =>
+        (r.item.stat_json?.heal_mp_pct !== undefined || r.item.stat_json?.heal_mp_flat !== undefined) &&
+        r.item.stat_json?.heal_hp_pct === undefined && r.item.stat_json?.heal_hp_flat === undefined
+      );
+      const regen = sectionRows.filter((r) => r.item.stat_json?.hp_regen_pct_buff !== undefined || r.item.stat_json?.mana_regen_pct_buff !== undefined);
+      const other = sectionRows.filter((r) => !hp.includes(r) && !mp.includes(r) && !regen.includes(r));
+      const groups = [
+        { key: 'hp', label: '❤️ HP Healing', rows: hp },
+        { key: 'mp', label: '💧 MP Healing', rows: mp },
+        { key: 'regen', label: '🌿 Regen Buffs', rows: regen },
+        { key: 'other', label: '✨ Other', rows: other },
+      ].filter((g) => g.rows.length);
+      return { ...section, rows: sectionRows, groups };
+    }
+
+    return { ...section, rows: sectionRows, groups: [{ key: 'all', label: null, rows: sectionRows }] };
+  }).filter(Boolean);
+});
 
 const slots = computed(() =>
   SLOT_DEFS.filter((slot) => !slot.classes || slot.classes.includes(store.character?.base_class)).map((slot) => ({
@@ -328,84 +356,95 @@ onMounted(load);
         class="inventory-bag-search"
       />
     </div>
-    <div v-if="bagQuery && !bag.length" class="inventory-bag-empty">No items match "{{ bagQuery }}".</div>
-    <div class="inventory-bag-grid">
-      <div
-        v-for="row in bag"
-        :key="row.id"
-        class="inventory-bag-card"
-      >
-        <div class="inventory-bag-card__header">
-          <span class="inventory-bag-card__icon">{{ row.item.glyph }}</span>
-          <span class="ox inventory-bag-card__name">{{ row.item.name }}</span>
-          <span v-if="row.qty > 1" class="inventory-bag-card__qty">×{{ row.qty }}</span>
-        </div>
-        <div class="inventory-bag-card__chips">
-          <div class="inventory-rarity-chip inventory-rarity-chip--inline" :style="rarityChipStyle(row.item.rarity)">{{ RARITY_LABELS[row.item.rarity] }}</div>
-          <span v-if="row.item.roll_pct != null" class="roll-chip" :class="{ 'is-good': row.item.roll_pct > 0, 'is-bad': row.item.roll_pct < 0 }">{{ row.item.roll_pct > 0 ? '+' : '' }}{{ row.item.roll_pct }}% roll</span>
-        </div>
-        <div v-if="formatStats(row.item.stat_json).length" class="inventory-card__stats">
-          {{ formatStats(row.item.stat_json).join(' · ') }}
-        </div>
-        <div v-if="hasDurability(row)" class="durability">
-          <div class="durability__track">
-            <div class="durability__fill" :class="{ 'is-broken': row.durability <= 0 }" :style="{ width: durabilityPct(row) + '%' }"></div>
+    <div v-if="bagQuery && !bagSections.length" class="inventory-bag-empty">No items match "{{ bagQuery }}".</div>
+
+    <div v-for="section in bagSections" :key="section.key" class="bag-section">
+      <div class="ox bag-section-eyebrow">
+        {{ section.glyph }} {{ section.label }}
+        <span class="bag-section-eyebrow__count">{{ section.rows.length }}</span>
+      </div>
+
+      <div v-for="group in section.groups" :key="group.key">
+        <div v-if="group.label" class="bag-section-group-label">{{ group.label }}</div>
+        <div class="inventory-bag-grid">
+          <div
+            v-for="row in group.rows"
+            :key="row.id"
+            class="inventory-bag-card"
+          >
+            <div class="inventory-bag-card__header">
+              <span class="inventory-bag-card__icon">{{ row.item.glyph }}</span>
+              <span class="ox inventory-bag-card__name">{{ row.item.name }}</span>
+              <span v-if="row.qty > 1" class="inventory-bag-card__qty">×{{ row.qty }}</span>
+            </div>
+            <div class="inventory-bag-card__chips">
+              <div class="inventory-rarity-chip inventory-rarity-chip--inline" :style="rarityChipStyle(row.item.rarity)">{{ RARITY_LABELS[row.item.rarity] }}</div>
+              <span v-if="row.item.roll_pct != null" class="roll-chip" :class="{ 'is-good': row.item.roll_pct > 0, 'is-bad': row.item.roll_pct < 0 }">{{ row.item.roll_pct > 0 ? '+' : '' }}{{ row.item.roll_pct }}% roll</span>
+            </div>
+            <div v-if="formatStats(row.item.stat_json).length" class="inventory-card__stats">
+              {{ formatStats(row.item.stat_json).join(' · ') }}
+            </div>
+            <div v-if="hasDurability(row)" class="durability">
+              <div class="durability__track">
+                <div class="durability__fill" :class="{ 'is-broken': row.durability <= 0 }" :style="{ width: durabilityPct(row) + '%' }"></div>
+              </div>
+              <div class="durability__label">
+                {{ row.durability <= 0 ? 'Broken — repair to use its stats again' : `${row.durability} / ${row.durability_max} durability (${durabilityPct(row)}%)` }}
+              </div>
+            </div>
+            <div class="inventory-bag-card__footer">
+              <select
+                v-if="hasDurability(row) && row.durability < row.durability_max"
+                v-model="selectedPack[row.id]"
+                class="repair-row__select repair-row__select--full"
+              >
+                <option :value="null" disabled selected>Repair pack…</option>
+                <option v-for="pack in repairPacks" :key="pack.item_id" :value="pack.item_id">
+                  {{ pack.item.name }} ×{{ pack.qty }}
+                </option>
+              </select>
+              <button
+                v-if="hasDurability(row) && row.durability < row.durability_max"
+                @click="repair(row)"
+                :disabled="loading || !repairPacks.length"
+                class="inventory-bag-card__equip-btn inventory-bag-card__equip-btn--repair"
+              >
+                Repair
+              </button>
+              <button
+                v-if="isUsable(row.item)"
+                @click="use(row)"
+                :disabled="loading"
+                class="inventory-bag-card__equip-btn"
+              >
+                Use
+              </button>
+              <button
+                v-if="EQUIPPABLE_TYPES.includes(row.item.type) && isMyClass(row.item)"
+                @click="equip(row)"
+                :disabled="loading"
+                class="inventory-bag-card__equip-btn"
+              >
+                Equip
+              </button>
+              <router-link
+                v-else-if="EQUIPPABLE_TYPES.includes(row.item.type) && !isMyClass(row.item)"
+                :to="{ path: '/market', query: { tab: 'sell', list_item: row.id } }"
+                class="inventory-bag-card__equip-btn inventory-bag-card__equip-btn--sell"
+              >
+                Sell on Market
+              </router-link>
+            </div>
+            <button
+              @click="askScrap(row)"
+              :disabled="loading"
+              class="inventory-bag-card__scrap-btn"
+              title="Scrap"
+            >
+              <span class="inventory-bag-card__scrap-icon">♻</span>
+            </button>
           </div>
-          <div class="durability__label">
-            {{ row.durability <= 0 ? 'Broken — repair to use its stats again' : `${row.durability} / ${row.durability_max} durability (${durabilityPct(row)}%)` }}
-          </div>
         </div>
-        <div class="inventory-bag-card__footer">
-          <select
-            v-if="hasDurability(row) && row.durability < row.durability_max"
-            v-model="selectedPack[row.id]"
-            class="repair-row__select repair-row__select--full"
-          >
-            <option :value="null" disabled selected>Repair pack…</option>
-            <option v-for="pack in repairPacks" :key="pack.item_id" :value="pack.item_id">
-              {{ pack.item.name }} ×{{ pack.qty }}
-            </option>
-          </select>
-          <button
-            v-if="hasDurability(row) && row.durability < row.durability_max"
-            @click="repair(row)"
-            :disabled="loading || !repairPacks.length"
-            class="inventory-bag-card__equip-btn inventory-bag-card__equip-btn--repair"
-          >
-            Repair
-          </button>
-          <button
-            v-if="isUsable(row.item)"
-            @click="use(row)"
-            :disabled="loading"
-            class="inventory-bag-card__equip-btn"
-          >
-            Use
-          </button>
-          <button
-            v-if="EQUIPPABLE_TYPES.includes(row.item.type) && isMyClass(row.item)"
-            @click="equip(row)"
-            :disabled="loading"
-            class="inventory-bag-card__equip-btn"
-          >
-            Equip
-          </button>
-          <router-link
-            v-else-if="EQUIPPABLE_TYPES.includes(row.item.type) && !isMyClass(row.item)"
-            :to="{ path: '/market', query: { tab: 'sell', list_item: row.id } }"
-            class="inventory-bag-card__equip-btn inventory-bag-card__equip-btn--sell"
-          >
-            Sell on Market
-          </router-link>
-        </div>
-        <button
-          @click="askScrap(row)"
-          :disabled="loading"
-          class="inventory-bag-card__scrap-btn"
-          title="Scrap"
-        >
-          <span class="inventory-bag-card__scrap-icon">♻</span>
-        </button>
       </div>
     </div>
 

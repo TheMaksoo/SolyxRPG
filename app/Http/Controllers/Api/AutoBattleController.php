@@ -20,14 +20,13 @@ class AutoBattleController extends Controller
         $character->refresh();
 
         $expiresAt = $character->auto_battle_expires_at;
-        $pausedAt = $character->auto_battle_paused_at;
         $secondsRemaining = $expiresAt
-            ? max(0, $expiresAt->getTimestamp() - ($pausedAt ?? now())->getTimestamp())
+            ? max(0, $expiresAt->getTimestamp() - now()->getTimestamp())
             : 0;
 
         return response()->json([
             'active' => (bool) $expiresAt,
-            'paused' => (bool) $pausedAt,
+            'paused' => false,
             'expires_at' => $expiresAt,
             'seconds_remaining' => $secondsRemaining,
             'summary' => $summary,

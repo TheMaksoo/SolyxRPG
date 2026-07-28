@@ -88,6 +88,7 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::get('/status/check', [StatusController::class, 'check']);
 
     Route::get('/character', [CharacterController::class, 'show']);
+    Route::post('/character/save-tick', [CharacterController::class, 'saveTick'])->middleware('throttle:regen-sync');
     Route::get('/character/activity', [CharacterController::class, 'activity']);
     Route::post('/character', [CharacterController::class, 'store']);
     Route::post('/character/attributes', [CharacterController::class, 'spendAttribute']);
@@ -121,6 +122,7 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
 
     Route::get('/auto-gather', [AutoGatherController::class, 'show']);
     Route::post('/auto-gather/purchase', [AutoGatherController::class, 'purchase']);
+    Route::post('/auto-gather/switch', [AutoGatherController::class, 'switch']);
 
     Route::get('/dungeons', [DungeonController::class, 'index']);
     Route::post('/dungeons/{dungeon}/enter', [DungeonController::class, 'enter']);
@@ -144,11 +146,14 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::post('/crafting/jobs/{job}/collect', [CraftingController::class, 'collect']);
 
     Route::get('/trade-skills', [TradeSkillController::class, 'index']);
+    Route::get('/trade-skills/cooldowns', [TradeSkillController::class, 'cooldowns']);
+    Route::post('/trade-skills/gather-batch', [TradeSkillController::class, 'gatherBatch']);
     Route::post('/trade-skills/{skillKey}/gather', [TradeSkillController::class, 'gather']);
 
     Route::get('/pets', [PetController::class, 'index']);
     Route::post('/pets/{pet}/unlock', [PetController::class, 'unlock']);
     Route::post('/pets/{pet}/activate', [PetController::class, 'activate']);
+    Route::post('/pets/{pet}/rank-up', [PetController::class, 'rankUp']);
 
     Route::get('/guild', [GuildController::class, 'index']);
     Route::post('/guild', [GuildController::class, 'store']);
@@ -166,6 +171,7 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::post('/guild-war/battles/{battle}/resolve', [GuildWarController::class, 'resolve']);
 
     Route::get('/leaderboard', [LeaderboardController::class, 'index']);
+    Route::get('/leaderboard/my-ranks', [LeaderboardController::class, 'myRanks']);
     Route::get('/leaderboard/recent-battles', [LeaderboardController::class, 'recentBattles']);
 
     Route::get('/market', [MarketplaceController::class, 'index']);
@@ -205,7 +211,6 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::post('/pvp/queue/join', [PvpController::class, 'queueJoin']);
     Route::post('/pvp/queue/leave', [PvpController::class, 'queueLeave']);
     Route::get('/pvp/queue/status', [PvpController::class, 'queueStatus']);
-    Route::post('/pvp/challenge/{opponent}', [PvpController::class, 'challenge']);
     Route::get('/pvp/live/{match}', [PvpController::class, 'liveShow']);
     Route::post('/pvp/live/{match}/action', [PvpController::class, 'liveAction']);
     Route::post('/pvp/live/{match}/forfeit', [PvpController::class, 'liveForfeit']);

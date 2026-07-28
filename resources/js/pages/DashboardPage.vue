@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useCharacterStore } from '../stores/character';
 import { useAuthStore } from '../stores/auth';
+import { useRegen } from '../composables/regen';
 import api from '../api/client';
 import AdBanner from '../components/AdBanner.vue';
 import WorldChat from '../components/WorldChat.vue';
@@ -12,6 +13,12 @@ const LOW_DURABILITY_PCT = 0.2;
 
 const store = useCharacterStore();
 const auth = useAuthStore();
+// Shared HP/MP/energy regen projection (composables/regen.js) — same singleton state Battle reads, so
+// the two pages never disagree and navigating between them never resets or re-seeds the projection.
+// displayHp (not localHp) is what shows here — it automatically switches to the live in-combat HP
+// whenever BattlePage reports an active battle, so this tile shows the exact same number Battle does
+// even while a fight is in progress, instead of sitting frozen on the stale pre-battle HP.
+const { displayHp, localMana, localEnergy, hpMax, mpMax, energyMax, isRegeneratingHp, isRegeneratingMana, isRegeneratingEnergy } = useRegen();
 const daily = ref(null);
 const battlePass = ref(null);
 const leaders = ref([]);
@@ -22,11 +29,10 @@ const tradeSkills = ref([]);
 const craftQueue = ref([]);
 const craftRecipes = ref([]);
 const craftMaxSlots = ref(0);
+const unclaimedQuestCount = ref(0);
+const railLoaded = ref(false);
 const autoBattle = ref(null);
 const autoGather = ref(null);
-const autoBattleSummary = ref(null);
-const autoGatherSummary = ref(null);
-const unclaimedQuestCount = ref(0);
 
 async function loadRail() {
   const [dailyRes, passRes, lbRes, recentBattlesRes, questRes, annRes, tradeRes, craftRes, recipeRes, autoBattleRes, autoGatherRes] = await Promise.all([
@@ -55,17 +61,7 @@ async function loadRail() {
   craftRecipes.value = recipeRes.data.recipes;
   autoBattle.value = autoBattleRes.data;
   autoGather.value = autoGatherRes.data;
-  // The GET endpoints above already lazily tick Auto-Attack/Auto-Gather forward and apply any
-  // gains — surfacing their summaries here means gold/xp/items/level-ups land without ever
-  // needing to open the Battle or Trade Skills tabs.
-  if (autoBattleRes.data.summary) {
-    autoBattleSummary.value = autoBattleRes.data.summary;
-    store.fetch();
-  }
-  if (autoGatherRes.data.summary) {
-    autoGatherSummary.value = autoGatherRes.data.summary;
-    store.fetch();
-  }
+  railLoaded.value = true;
 }
 
 function timeAgo(isoString) {
@@ -81,33 +77,13 @@ function formatDuration(totalSeconds) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-// Mirrors the sidebar's unlockLevel lock for Crafting (see navigation.js) — the dashboard's own
-// shortcut tile didn't check this at all, so it linked straight into a page the sidebar itself blocks.
-const CRAFTING_UNLOCK_LEVEL = 3;
-const craftingLocked = computed(() => (store.character?.level ?? 0) < CRAFTING_UNLOCK_LEVEL);
-
-const isGathering = computed(() => tradeSkills.value.some((s) => s.cooldown_remaining > 0));
 const isCrafting = computed(() => craftQueue.value.length > 0);
-const hasReadyCraft = computed(() => craftQueue.value.some((job) => job.is_ready));
 
 /** True if the queue actually has a free slot and at least one recipe is both level-unlocked and
  * affordable right now — nudging "queue something up" is pointless if nothing's actually craftable. */
 const hasActionableCraft = computed(
   () => craftQueue.value.length < craftMaxSlots.value && craftRecipes.value.some((r) => r.can_craft)
 );
-
-/** True if at least one trade skill target is actually doable right now — unlocked, off cooldown, affordable,
- * and (for Smelting) backed by enough ore. Nudging the player to "go gather" is pointless if nothing's doable. */
-const hasActionableTradeSkill = computed(() => {
-  const energy = store.character?.energy ?? 0;
-  return tradeSkills.value.some(
-    (skill) =>
-      skill.cooldown_remaining === 0 &&
-      skill.targets.some((t) => t.unlocked && t.has_input && energy >= t.energy_cost)
-  );
-});
-
-const showGatherAlert = computed(() => !isGathering.value && !autoGather.value?.active && hasActionableTradeSkill.value);
 
 /** Fully broken gear contributes zero stats while still equipped (see Character::effectiveStats) — this is the
  * most urgent durability state, distinct from merely "running low". */
@@ -166,12 +142,6 @@ const vipTimeLeft = computed(() => {
   };
 });
 
-async function claimDaily() {
-  await api.post('/daily/claim');
-  const { data } = await api.get('/daily');
-  daily.value = data;
-}
-
 const xpPct = computed(() => {
   const currentXp = store.character?.xp ?? 0;
   const xpMax = store.character?.calculated_xp_max ?? 1;
@@ -200,176 +170,179 @@ onMounted(() => {
 </script>
 
 <template>
-  <div v-if="store.loading && !store.character" class="dashboard-skeleton">
-    <div class="dashboard-skeleton__col">
-      <Skeleton height="420px" />
-    </div>
-    <div class="dashboard-skeleton__col">
-      <Skeleton height="140px" />
-      <Skeleton height="90px" />
-      <Skeleton height="220px" />
-    </div>
-    <div class="dashboard-skeleton__col">
-      <Skeleton height="180px" />
-      <Skeleton height="140px" />
-    </div>
-  </div>
-
-  <div v-else-if="store.character" class="dashboard">
+  <!-- Every card shell below is always rendered — loading and loaded states differ only in what's
+  inside a card, never in the card's own box (padding/width/border). That's what actually stops the
+  page from jumping: there's no separate "skeleton dashboard" tree with its own guessed heights being
+  swapped for a completely different "real dashboard" tree, so there's nothing to mismatch. -->
+  <div class="dashboard">
     <div class="dashboard__chat-col">
       <WorldChat full-height />
 
       <div class="rail-card">
         <div class="rail-eyebrow">RECENT BATTLES</div>
-        <div v-for="b in recentBattles" :key="b.character_id + '-' + b.created_at" class="leaderboard-row">
-          <div class="leaderboard-row__left">
-            <span class="leaderboard-row__name">{{ b.name }}</span>
-            <span class="rail-recent-battle__vs">vs {{ b.monster_name || 'a monster' }}</span>
+        <template v-if="railLoaded">
+          <div v-for="b in recentBattles" :key="b.character_id + '-' + b.created_at" class="leaderboard-row dash-fade-in">
+            <div class="leaderboard-row__left">
+              <span class="leaderboard-row__name">{{ b.name }}</span>
+              <span class="rail-recent-battle__vs">vs {{ b.monster_name || 'a monster' }}</span>
+            </div>
+            <span class="leaderboard-row__level">Lv.{{ b.level }} · {{ timeAgo(b.created_at) }}</span>
           </div>
-          <span class="leaderboard-row__level">Lv.{{ b.level }} · {{ timeAgo(b.created_at) }}</span>
-        </div>
-        <div v-if="!recentBattles.length" class="rail-empty">Nobody's fighting right now.</div>
+          <div v-if="!recentBattles.length" class="rail-empty dash-fade-in">Nobody's fighting right now.</div>
+        </template>
+        <template v-else>
+          <Skeleton v-for="i in 5" :key="i" height="16px" style="margin: 8px 0" />
+        </template>
+      </div>
+
+      <div class="rail-card">
+        <div class="rail-eyebrow">ANNOUNCEMENTS</div>
+        <template v-if="railLoaded">
+          <div v-for="an in announcements" :key="an.id" class="announcement-row dash-fade-in">
+            <div class="announcement-row__icon">📣</div>
+            <div class="announcement-row__content">
+              <div class="announcement-row__text">{{ an.body }}</div>
+              <div class="announcement-row__author">{{ an.gm?.name }}</div>
+            </div>
+          </div>
+          <div v-if="!announcements.length" class="rail-empty dash-fade-in">No announcements yet.</div>
+        </template>
+        <template v-else>
+          <Skeleton v-for="i in 3" :key="i" height="30px" style="margin: 8px 0" />
+        </template>
       </div>
 
       <AdBanner variant="sidebar" />
     </div>
 
     <div class="dashboard__main">
-      <div v-if="autoBattleSummary" class="claim-summary">
-        <div class="claim-summary__header">
-          <span class="ox claim-summary__title">🎉 While you were away — Auto-Attack</span>
-          <button class="claim-summary__close" @click="autoBattleSummary = null">✕</button>
-        </div>
-        <div class="claim-summary__rows">
-          <span class="claim-summary__chip">⚔ {{ autoBattleSummary.fights }} fought</span>
-          <span class="claim-summary__chip">🏆 {{ autoBattleSummary.wins }} won</span>
-          <span v-if="autoBattleSummary.losses" class="claim-summary__chip">💀 {{ autoBattleSummary.losses }} lost</span>
-          <span v-if="autoBattleSummary.fled" class="claim-summary__chip">🏃 {{ autoBattleSummary.fled }} fled</span>
-          <span class="claim-summary__chip">🪙 +{{ autoBattleSummary.gold }} gold</span>
-          <span class="claim-summary__chip">✦ +{{ autoBattleSummary.xp }} xp</span>
-          <span v-if="autoBattleSummary.gems" class="claim-summary__chip">💎 +{{ autoBattleSummary.gems }} gems</span>
-        </div>
-      </div>
-
-      <div v-if="autoGatherSummary" class="claim-summary">
-        <div class="claim-summary__header">
-          <span class="ox claim-summary__title">🎉 While you were away — Auto-Gather</span>
-          <button class="claim-summary__close" @click="autoGatherSummary = null">✕</button>
-        </div>
-        <div class="claim-summary__rows">
-          <span class="claim-summary__chip">{{ autoGatherSummary.actions }} actions</span>
-          <span class="claim-summary__chip">+{{ autoGatherSummary.qty }} {{ autoGatherSummary.target_label }}</span>
-          <span class="claim-summary__chip">✦ +{{ autoGatherSummary.xp }} xp</span>
-          <span v-if="autoGatherSummary.leveled_up" class="claim-summary__chip">⭐ {{ autoGatherSummary.skill_label }} leveled up!</span>
-          <span v-if="autoGatherSummary.stopped_reason === 'energy'" class="claim-summary__chip">⚡ ran out of energy</span>
-          <span v-if="autoGatherSummary.stopped_reason === 'materials'" class="claim-summary__chip">📦 ran out of materials</span>
-        </div>
-      </div>
-
-      <!-- Daily reward banner -->
-      <div v-if="daily" class="daily-banner">
-        <div class="daily-banner__info">
-          <div class="daily-banner__icon">🎁</div>
-          <div>
-            <div class="daily-banner__title">Daily reward — Day {{ daily.streak }} streak</div>
-            <div class="daily-banner__subtitle">
-              Day {{ daily.cycle_day }} of {{ daily.cycle_length }} this month —
-              <router-link to="/daily" class="daily-banner__link">see the full calendar</router-link>
-            </div>
-          </div>
-        </div>
-        <button @click="claimDaily" :disabled="!daily.can_claim" class="daily-banner__claim">
-          {{ daily.can_claim ? 'Claim' : 'Claimed' }}
-        </button>
-      </div>
-
       <!-- Zone card -->
       <router-link to="/world-map" class="zone-card">
-        <div class="zone-card__art">
-          {{ store.character.zone?.glyph ?? '🗺' }}
-        </div>
-        <div class="zone-card__body">
-          <div class="ox zone-card__name">{{ store.character.zone?.name ?? 'No zone selected' }}</div>
-          <div class="zone-card__desc">
-            {{ store.character.zone ? `Danger: ${store.character.zone.danger}` : 'Pick a zone in World Map to start fighting' }}
+        <template v-if="store.character">
+          <div class="zone-card__art dash-fade-in">
+            {{ store.character.zone?.glyph ?? '🗺' }}
           </div>
-          <span v-if="store.character.zone" class="zone-card__badge"
-            >Recommended Lv.{{ store.character.zone.min_level }}+</span
-          >
-        </div>
+          <div class="zone-card__body dash-fade-in">
+            <div class="ox zone-card__name">{{ store.character.zone?.name ?? 'No zone selected' }}</div>
+            <div class="zone-card__desc">
+              {{ store.character.zone ? `Danger: ${store.character.zone.danger}` : 'Pick a zone in World Map to start fighting' }}
+            </div>
+            <span v-if="store.character.zone" class="zone-card__badge"
+              >Recommended Lv.{{ store.character.zone.min_level }}+</span
+            >
+          </div>
+        </template>
+        <template v-else>
+          <Skeleton variant="block" width="80px" height="80px" />
+          <div class="zone-card__body">
+            <Skeleton height="20px" width="60%" style="margin-bottom: 8px" />
+            <Skeleton height="13px" width="85%" />
+          </div>
+        </template>
       </router-link>
 
       <!-- Stat tiles -->
       <div class="stat-tiles">
         <div class="stat-tile">
-          <div class="xp-gauge" :style="{ '--xp-pct': xpPct }">
-            <div class="xp-gauge__inner">
-              <div class="ox xp-gauge__level">{{ store.character.calculated_level }}</div>
-              <div class="xp-gauge__tag">LVL</div>
+          <template v-if="store.character">
+            <div class="xp-gauge dash-fade-in" :style="{ '--xp-pct': xpPct }">
+              <div class="xp-gauge__inner">
+                <div class="ox xp-gauge__level">{{ store.character.calculated_level }}</div>
+                <div class="xp-gauge__tag">LVL</div>
+              </div>
             </div>
-          </div>
-          <div class="stat-tile__label">{{ xpCurrentLevel.toLocaleString() }} / {{ xpMaxLevel.toLocaleString() }} XP</div>
+            <div class="stat-tile__label">{{ xpCurrentLevel.toLocaleString() }} / {{ xpMaxLevel.toLocaleString() }} XP</div>
+          </template>
+          <template v-else>
+            <Skeleton variant="circle" width="66px" height="66px" style="margin: 0 auto 6px" />
+            <Skeleton height="12px" width="70%" style="margin: 0 auto" />
+          </template>
         </div>
         <div class="stat-tile">
-          <div class="ox stat-tile__value stat-tile__value--gold">{{ store.character.gold }}</div>
-          <div class="stat-tile__label">Gold</div>
+          <template v-if="store.character">
+            <div class="ox stat-tile__value stat-tile__value--gold dash-fade-in">{{ store.character.gold }}</div>
+            <div class="stat-tile__label">Gold</div>
+          </template>
+          <template v-else>
+            <Skeleton height="30px" width="60%" style="margin: 0 auto 6px" />
+            <Skeleton height="12px" width="50%" style="margin: 0 auto" />
+          </template>
         </div>
         <div class="stat-tile">
-          <div class="ox stat-tile__value stat-tile__value--hp">{{ store.character.hp }}/{{ store.stats?.eff_hp_max ?? store.character.hp_max }}</div>
-          <div class="stat-tile__label">HP</div>
-          <div class="stat-tile__regen">💚 healing +{{ store.regenPerTick }}/5s</div>
+          <template v-if="store.character">
+            <div
+              class="ox stat-tile__value stat-tile__value--hp dash-fade-in"
+              :class="{ 'stat-tile__value--regenerating': isRegeneratingHp }"
+            >{{ Math.round(displayHp) }}/{{ hpMax }}</div>
+            <div class="stat-tile__label">HP</div>
+            <div class="stat-tile__regen">💚 healing +{{ store.regenPerTick }}/5s</div>
+          </template>
+          <template v-else>
+            <Skeleton height="24px" width="65%" style="margin: 0 auto 6px" />
+            <Skeleton height="12px" width="40%" style="margin: 0 auto 4px" />
+            <Skeleton height="10px" width="75%" style="margin: 0 auto" />
+          </template>
         </div>
         <div class="stat-tile">
-          <div class="ox stat-tile__value stat-tile__value--mana">{{ store.character.mana }}/{{ store.stats?.eff_mp_max ?? store.character.mana_max }}</div>
-          <div class="stat-tile__label">Mana</div>
-          <div class="stat-tile__regen">💧 regen +{{ store.manaRegenPerTick }}/5s</div>
+          <template v-if="store.character">
+            <div
+              class="ox stat-tile__value stat-tile__value--mana dash-fade-in"
+              :class="{ 'stat-tile__value--regenerating': isRegeneratingMana }"
+            >{{ Math.round(localMana) }}/{{ mpMax }}</div>
+            <div class="stat-tile__label">Mana</div>
+            <div class="stat-tile__regen">💧 regen +{{ store.manaRegenPerTick }}/5s</div>
+          </template>
+          <template v-else>
+            <Skeleton height="24px" width="65%" style="margin: 0 auto 6px" />
+            <Skeleton height="12px" width="40%" style="margin: 0 auto 4px" />
+            <Skeleton height="10px" width="75%" style="margin: 0 auto" />
+          </template>
         </div>
         <div class="stat-tile">
-          <div class="ox stat-tile__value stat-tile__value--energy">{{ store.character.energy }}/{{ store.stats?.eff_energy_max ?? store.character.energy_max }}</div>
-          <div class="stat-tile__label">Energy</div>
-          <div class="stat-tile__regen">⚡ regen +{{ store.energyRegenPerTick }}/5s</div>
+          <template v-if="store.character">
+            <div
+              class="ox stat-tile__value stat-tile__value--energy dash-fade-in"
+              :class="{ 'stat-tile__value--regenerating': isRegeneratingEnergy }"
+            >{{ Math.round(localEnergy) }}/{{ energyMax }}</div>
+            <div class="stat-tile__label">Energy</div>
+            <div class="stat-tile__regen">⚡ regen +{{ store.energyRegenPerTick }}/5s</div>
+          </template>
+          <template v-else>
+            <Skeleton height="24px" width="65%" style="margin: 0 auto 6px" />
+            <Skeleton height="12px" width="40%" style="margin: 0 auto 4px" />
+            <Skeleton height="10px" width="75%" style="margin: 0 auto" />
+          </template>
         </div>
       </div>
 
-      <!-- Alerts -->
-      <div
-        v-if="
-          showGatherAlert ||
-          hasActionableCraft ||
-          brokenGear.length ||
-          nearBrokenGear.length ||
-          unspentPoints > 0 ||
-          (autoBattle && autoBattle.active) ||
-          unclaimedQuestCount > 0 ||
-          (daily && daily.can_claim) ||
-          hasUnclaimedBattlePass
-        "
-        class="dashboard-alerts"
-      >
-        <router-link v-if="daily && daily.can_claim" to="/daily" class="dashboard-alert dashboard-alert--reward">
+      <AdBanner variant="inline" />
+
+      <!-- Alerts — kept last in this column so it can grow/shrink as its rows resolve (quests,
+      gear durability, unspent points, live Training/Auto-Gather timers, etc.) without shifting
+      anything above it around. TransitionGroup eases each row in/out and slides its neighbors over
+      smoothly instead of the list snapping to its new size the instant a row appears or clears. -->
+      <TransitionGroup tag="div" name="alert" class="dashboard-alerts">
+        <router-link v-if="daily && daily.can_claim" key="daily" to="/daily" class="dashboard-alert dashboard-alert--reward">
           🎁 Your daily reward is ready to claim.
         </router-link>
-        <router-link v-if="unclaimedQuestCount > 0" to="/quests" class="dashboard-alert dashboard-alert--reward">
+        <router-link v-if="unclaimedQuestCount > 0" key="quests" to="/quests" class="dashboard-alert dashboard-alert--reward">
           ❖ {{ unclaimedQuestCount }} completed quest{{ unclaimedQuestCount > 1 ? 's' : '' }} ready to claim.
         </router-link>
-        <router-link v-if="hasUnclaimedBattlePass" to="/battle-pass" class="dashboard-alert dashboard-alert--reward">
+        <router-link v-if="hasUnclaimedBattlePass" key="battlepass" to="/battle-pass" class="dashboard-alert dashboard-alert--reward">
           🎫 Battle Pass rewards ready to claim.
         </router-link>
-        <router-link v-if="brokenGear.length" :to="repairLinkTarget" class="dashboard-alert dashboard-alert--broken">
+        <router-link v-if="brokenGear.length" key="broken" :to="repairLinkTarget" class="dashboard-alert dashboard-alert--broken">
           🔴 {{ brokenGear.map((row) => row.item.name).join(', ') }}
           {{ brokenGear.length > 1 ? 'are' : 'is' }} broken and giving you nothing until repaired!
         </router-link>
-        <router-link v-if="nearBrokenGear.length" :to="repairLinkTarget" class="dashboard-alert dashboard-alert--danger">
+        <router-link v-if="nearBrokenGear.length" key="near-broken" :to="repairLinkTarget" class="dashboard-alert dashboard-alert--danger">
           ⚠ {{ nearBrokenGear.map((row) => row.item.name).join(', ') }}
           {{ nearBrokenGear.length > 1 ? 'are' : 'is' }} almost broken — repair soon.
         </router-link>
-        <router-link v-if="showGatherAlert" to="/trade-skills" class="dashboard-alert dashboard-alert--idle">
-          ⛏ No gathering in progress — head to Gathering.
-        </router-link>
-        <router-link v-if="hasActionableCraft" to="/crafting" class="dashboard-alert dashboard-alert--idle">
+        <router-link v-if="hasActionableCraft" key="craft" to="/crafting" class="dashboard-alert dashboard-alert--idle">
           🔨 Crafting queue is empty — queue something up.
         </router-link>
-        <router-link v-if="unspentPoints > 0" to="/skills" class="dashboard-alert dashboard-alert--idle">
+        <router-link v-if="unspentPoints > 0" key="points" to="/skills" class="dashboard-alert dashboard-alert--idle">
           ✦ Unspent:
           <template v-if="unspentAttributePoints > 0">{{ unspentAttributePoints }} attribute point{{ unspentAttributePoints > 1 ? 's' : '' }}</template>
           <template v-if="unspentAttributePoints > 0 && unspentSkillPoints > 0">, </template>
@@ -378,19 +351,20 @@ onMounted(() => {
         </router-link>
         <router-link
           v-if="autoBattle && autoBattle.active"
+          key="training"
           to="/battle"
           class="dashboard-alert dashboard-alert--auto-battle"
-          :class="{ 'dashboard-alert--auto-battle-paused': autoBattle.paused }"
         >
-          <span class="auto-battle-pulse" :class="{ 'auto-battle-pulse--paused': autoBattle.paused }">
+          <span class="auto-battle-pulse">
             <span class="auto-battle-pulse__ring"></span>
             <span class="auto-battle-pulse__dot"></span>
           </span>
-          {{ autoBattle.paused ? 'Auto-Attack paused' : 'Auto-Attack active' }} —
+          Training active —
           {{ formatDuration(autoBattle.seconds_remaining) }} remaining
         </router-link>
         <router-link
           v-if="autoGather && autoGather.active"
+          key="gathering"
           to="/trade-skills"
           class="dashboard-alert dashboard-alert--auto-battle"
         >
@@ -400,28 +374,7 @@ onMounted(() => {
           </span>
           Auto-{{ autoGather.skill }} active — {{ formatDuration(autoGather.seconds_remaining) }} remaining
         </router-link>
-      </div>
-
-      <!-- Quick actions -->
-      <div class="quick-actions">
-        <router-link to="/battle" class="quick-actions__primary">⚔ Fight Monster</router-link>
-        <router-link to="/quests" class="quick-actions__secondary">❖ Quests</router-link>
-        <router-link to="/shop" class="quick-actions__secondary">◉ Shop</router-link>
-        <router-link to="/trade-skills" class="quick-actions__secondary">
-          ⛏ Gathering
-          <span v-if="showGatherAlert" class="quick-actions__alert-badge">!</span>
-        </router-link>
-        <router-link v-if="!craftingLocked" to="/crafting" class="quick-actions__secondary">
-          🔨 Crafting
-          <span v-if="hasActionableCraft" class="quick-actions__alert-badge">!</span>
-          <span v-else-if="hasReadyCraft" class="quick-actions__ready-badge">✓</span>
-        </router-link>
-        <button v-else type="button" class="quick-actions__secondary quick-actions__secondary--locked" disabled>
-          🔒 Crafting <span class="quick-actions__lock-lvl">Lv.{{ CRAFTING_UNLOCK_LEVEL }}</span>
-        </button>
-      </div>
-
-      <AdBanner variant="inline" />
+      </TransitionGroup>
     </div>
 
     <!-- Right rail -->
@@ -443,56 +396,60 @@ onMounted(() => {
 
       <div class="rail-card">
         <div class="rail-eyebrow">LEADERBOARD</div>
-        <div
-          v-for="l in leaders"
-          :key="l.character_id"
-          class="leaderboard-row"
-          :style="l.banner ? { background: l.banner } : null"
-        >
-          <div class="leaderboard-row__left">
-            <span class="ox leaderboard-row__rank">{{ l.rank }}</span>
-            <span v-if="l.icon" class="leaderboard-row__icon">{{ l.icon }}</span>
-            <span class="leaderboard-row__name" :style="l.name_color ? { color: l.name_color } : null">{{ l.name }}</span>
-            <span v-if="l.title" class="leaderboard-row__title-badge">{{ l.title }}</span>
+        <template v-if="railLoaded">
+          <div
+            v-for="l in leaders"
+            :key="l.character_id"
+            class="leaderboard-row dash-fade-in"
+            :style="l.banner ? { background: l.banner } : null"
+          >
+            <div class="leaderboard-row__left">
+              <span class="ox leaderboard-row__rank">{{ l.rank }}</span>
+              <span v-if="l.icon" class="leaderboard-row__icon">{{ l.icon }}</span>
+              <span class="leaderboard-row__name" :style="l.name_color ? { color: l.name_color } : null">{{ l.name }}</span>
+              <span v-if="l.title" class="leaderboard-row__title-badge">{{ l.title }}</span>
+            </div>
+            <span class="leaderboard-row__level">Lv.{{ l.level }}</span>
           </div>
-          <span class="leaderboard-row__level">Lv.{{ l.level }}</span>
-        </div>
-        <div v-if="!leaders.length" class="rail-empty">No ranked characters yet.</div>
+          <div v-if="!leaders.length" class="rail-empty dash-fade-in">No ranked characters yet.</div>
+        </template>
+        <template v-else>
+          <Skeleton v-for="i in 5" :key="i" height="16px" style="margin: 8px 0" />
+        </template>
       </div>
 
       <router-link to="/trade-skills" class="rail-card rail-card--link">
         <div class="rail-eyebrow">TRADE SKILLS</div>
-        <div v-for="skill in tradeSkills" :key="skill.key" class="trade-skill-row">
-          <span class="trade-skill-row__name">{{ skill.glyph }} {{ skill.label }}</span>
-          <span class="trade-skill-row__level">Lv.{{ skill.level }}</span>
-        </div>
+        <template v-if="railLoaded">
+          <div v-for="skill in tradeSkills" :key="skill.key" class="trade-skill-row dash-fade-in">
+            <span class="trade-skill-row__name">{{ skill.glyph }} {{ skill.label }}</span>
+            <span class="trade-skill-row__level">Lv.{{ skill.level }}</span>
+          </div>
+        </template>
+        <!-- Always exactly 4 trade skills, so this skeleton's size is an exact match, not a guess. -->
+        <template v-else>
+          <Skeleton v-for="i in 4" :key="i" height="14px" style="margin: 7px 0" />
+        </template>
       </router-link>
 
       <div class="rail-card">
         <div class="rail-eyebrow">ACTIVE QUESTS</div>
-        <div v-for="row in quests" :key="row.quest.id" class="quest-item">
-          <div class="quest-item__name">{{ row.quest.name }}</div>
-          <div class="quest-item__track">
-            <div
-              class="quest-item__fill"
-              :style="{ width: Math.min(100, Math.round((row.progress / (row.quest.goal_json.target ?? 1)) * 100)) + '%' }"
-            ></div>
+        <template v-if="railLoaded">
+          <div v-for="row in quests" :key="row.quest.id" class="quest-item dash-fade-in">
+            <div class="quest-item__name">{{ row.quest.name }}</div>
+            <div class="quest-item__track">
+              <div
+                class="quest-item__fill"
+                :style="{ width: Math.min(100, Math.round((row.progress / (row.quest.goal_json.target ?? 1)) * 100)) + '%' }"
+              ></div>
+            </div>
+            <div class="quest-item__progress">{{ row.progress }} / {{ row.quest.goal_json.target ?? 1 }}</div>
           </div>
-          <div class="quest-item__progress">{{ row.progress }} / {{ row.quest.goal_json.target ?? 1 }}</div>
-        </div>
-        <div v-if="!quests.length" class="rail-empty">No active quests.</div>
-      </div>
-
-      <div class="rail-card">
-        <div class="rail-eyebrow">ANNOUNCEMENTS</div>
-        <div v-for="an in announcements" :key="an.id" class="announcement-row">
-          <div class="announcement-row__icon">📣</div>
-          <div class="announcement-row__content">
-            <div class="announcement-row__text">{{ an.body }}</div>
-            <div class="announcement-row__author">{{ an.gm?.name }}</div>
-          </div>
-        </div>
-        <div v-if="!announcements.length" class="rail-empty">No announcements yet.</div>
+          <div v-if="!quests.length" class="rail-empty dash-fade-in">No active quests.</div>
+        </template>
+        <template v-else>
+          <Skeleton v-for="i in 3" :key="i" height="40px" style="margin: 8px 0" />
+        </template>
       </div>
     </div>
   </div>

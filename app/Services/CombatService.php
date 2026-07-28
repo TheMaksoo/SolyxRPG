@@ -554,7 +554,8 @@ class CombatService
         $results = [];
 
         foreach ($character->activePets() as $pet) {
-            if ($xpGain <= 0 || $pet->level >= CharacterPet::MAX_LEVEL) {
+            $maxLevel = $pet->maxLevel();
+            if ($xpGain <= 0 || $pet->level >= $maxLevel) {
                 continue;
             }
 
@@ -563,13 +564,13 @@ class CombatService
             $leveledUp = false;
 
             $xpMax = CharacterPet::xpForLevel($level);
-            while ($level < CharacterPet::MAX_LEVEL && $xp >= $xpMax) {
+            while ($level < $maxLevel && $xp >= $xpMax) {
                 $xp -= $xpMax;
                 $level++;
                 $leveledUp = true;
                 $xpMax = CharacterPet::xpForLevel($level);
             }
-            if ($level >= CharacterPet::MAX_LEVEL) {
+            if ($level >= $maxLevel) {
                 $xp = 0;
             }
 
@@ -631,6 +632,7 @@ class CombatService
 
         $character->hp = $reviveHp;
         $character->decrementAtkBuffFight();
+        $character->save();
         $character->increment('battles_lost');
         $battle->character_hp = $reviveHp;
 

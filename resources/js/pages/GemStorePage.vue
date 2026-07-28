@@ -20,6 +20,8 @@ const autoGather = ref({ active: false, seconds_remaining: 0, costs: {}, granted
 const autoGatherMessage = ref('');
 const autoGatherSkill = ref('mining');
 const autoGatherTarget = ref('');
+const autoGatherBuying = ref(false);
+const autoBattleBuying = ref(false);
 
 const GATHER_SKILLS = ['mining', 'woodchopping', 'foraging', 'smelting'];
 
@@ -81,6 +83,8 @@ async function loadAutoGather() {
 }
 
 async function buyAutoGather(minutes) {
+  if (autoGatherBuying.value) return;
+  autoGatherBuying.value = true;
   try {
     const { data } = await api.post('/auto-gather/purchase', {
       skill: autoGatherSkill.value,
@@ -99,17 +103,23 @@ async function buyAutoGather(minutes) {
     characterStore.fetch();
   } catch (e) {
     autoGatherMessage.value = e.response?.data?.message || 'Could not start Auto-Gather.';
+  } finally {
+    autoGatherBuying.value = false;
   }
 }
 
 async function buyAutoBattle(minutes) {
+  if (autoBattleBuying.value) return;
+  autoBattleBuying.value = true;
   try {
     const { data } = await api.post('/auto-battle/purchase', { minutes });
     autoBattle.value = { ...autoBattle.value, active: true, seconds_remaining: data.seconds_remaining, gems: data.gems };
-    autoBattleMessage.value = `Auto-Attack started — ${minutes} minutes added.`;
+    autoBattleMessage.value = `Training started — ${minutes} minutes added.`;
     characterStore.fetch();
   } catch (e) {
-    autoBattleMessage.value = e.response?.data?.message || 'Could not start auto-attack.';
+    autoBattleMessage.value = e.response?.data?.message || 'Could not start training.';
+  } finally {
+    autoBattleBuying.value = false;
   }
 }
 
@@ -189,9 +199,9 @@ onMounted(async () => {
       <div class="auto-battle-store-card__info">
         <div class="auto-battle-store-card__icon">🤖</div>
         <div>
-          <div class="auto-battle-store-card__title">Auto-Attack</div>
+          <div class="auto-battle-store-card__title">Training</div>
           <div class="auto-battle-store-card__desc">
-            Fights for you while you're away — attacks above 50% HP, heals at 30%.
+            Fights for you using your stats while you're away — fully risk-free: no HP, mana, potions, or gear durability are ever spent.
           </div>
         </div>
       </div>
@@ -221,7 +231,7 @@ onMounted(async () => {
         <div>
           <div class="auto-gather-store-card__title">Auto-Gather</div>
           <div class="auto-gather-store-card__desc">
-            Gathers resources for you while you're away — same price as Auto-Attack, double the duration.
+            Gathers resources for you while you're away — same price as Training, double the duration.
           </div>
         </div>
       </div>

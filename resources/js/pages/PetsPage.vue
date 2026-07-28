@@ -36,6 +36,21 @@ async function activate(row) {
   }
 }
 
+const rankingUp = ref(null);
+async function rankUp(row) {
+  if (rankingUp.value) return;
+  message.value = '';
+  rankingUp.value = row.pet.id;
+  try {
+    await api.post(`/pets/${row.pet.id}/rank-up`);
+    await load();
+  } catch (e) {
+    message.value = e.response?.data?.message || 'Could not rank up that companion.';
+  } finally {
+    rankingUp.value = null;
+  }
+}
+
 onMounted(load);
 </script>
 
@@ -64,14 +79,15 @@ onMounted(load);
         </div>
         <div v-if="row.owned" class="pet-card__level-block">
           <div class="pet-card__level-row">
-            <span>Lv.{{ row.level }}</span>
-            <span v-if="row.level < row.max_level">{{ row.xp }} / {{ row.xp_needed }} xp</span>
-            <span v-else>MAX</span>
+            <span>Rank {{ row.rank }} · Lv.{{ row.level }}</span>
+            <span v-if="!row.can_rank_up">{{ row.xp }} / {{ row.xp_needed }} xp</span>
+            <span v-else-if="row.rank >= row.max_rank">MAX RANK</span>
+            <span v-else>READY TO RANK UP</span>
           </div>
           <div class="pet-card__xp-track">
             <div
               class="pet-card__xp-fill"
-              :style="{ width: (row.level >= row.max_level ? 100 : Math.round((row.xp / row.xp_needed) * 100)) + '%' }"
+              :style="{ width: (row.can_rank_up ? 100 : Math.round((row.xp / row.xp_needed) * 100)) + '%' }"
             ></div>
           </div>
         </div>
@@ -82,6 +98,14 @@ onMounted(load);
         >
           <template v-if="row.pet.unlock_gold">Unlock — {{ row.pet.unlock_gold }}🪙</template>
           <template v-else>Unlock — {{ row.pet.unlock_gems }}◆</template>
+        </button>
+        <button
+          v-else-if="row.can_rank_up"
+          @click="rankUp(row)"
+          :disabled="rankingUp === row.pet.id"
+          class="pet-card__btn--rank-up"
+        >
+          {{ rankingUp === row.pet.id ? 'Ranking up…' : `Rank Up — ${row.rank_up_cost.gold}🪙${row.rank_up_cost.gems ? ` + ${row.rank_up_cost.gems}◆` : ''}` }}
         </button>
         <button
           v-else-if="!row.active"

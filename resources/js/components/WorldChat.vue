@@ -68,7 +68,10 @@ async function send() {
 
 onMounted(() => {
   load();
-  interval = setInterval(load, 5000);
+  // Poll the cheap check every 5s, not a full reload — checkForNewMessages() hits /status/check
+  // (a lightweight "is there anything new" probe already shared with other panels) and only escalates
+  // to the full /chat/world fetch when there's actually a new message to show.
+  interval = setInterval(checkForNewMessages, 5000);
 });
 
 onUnmounted(() => {

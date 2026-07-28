@@ -38,6 +38,15 @@ const gameChildren = NAV.map((n) => ({
   component: pageImport(PAGE_COMPONENT[n.path]),
 }));
 
+// Lets the sidebar warm a page's JS chunk on hover/focus, before the click actually happens — the
+// dynamic import() is cached by the browser, so by the time the nav click fires the route change no
+// longer has to wait on a network fetch + parse, which was the biggest contributor to slow sidebar
+// nav clicks (INP). Safe to call repeatedly; import() of an already-fetched module is a cheap no-op.
+export function preloadRoute(path) {
+  const name = PAGE_COMPONENT[path];
+  if (name) pageImport(name)();
+}
+
 // GM console lives under GameLayout too, for now (its own layout can split
 // off once the real admin panel is built).
 gameChildren.push(

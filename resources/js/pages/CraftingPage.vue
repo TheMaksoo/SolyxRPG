@@ -4,8 +4,12 @@ import { useRoute } from 'vue-router';
 import api from '../api/client';
 import Toast from '../components/Toast.vue';
 import { formatStats } from '../rarity';
+import { useCraftingQueueStore } from '../stores/craftingQueue';
 
 const route = useRoute();
+// The topbar's crafting pill (see stores/craftingQueue.js + GameLayout.vue) polls independently, but
+// queuing/collecting here shouldn't make it wait for its own poll cycle — nudge it to refresh right away.
+const craftingQueueStore = useCraftingQueueStore();
 
 const recipes = ref([]);
 const queue = ref([]);
@@ -146,6 +150,7 @@ async function craft(recipe) {
     await api.post(`/crafting/${recipe.id}/craft`);
     showMessage(`Queued ${recipe.result_item.name}.`, 'success');
     await load();
+    craftingQueueStore.refresh();
   } catch (e) {
     showMessage(e.response?.data?.message || 'Missing materials.', 'error');
   }
@@ -165,6 +170,7 @@ async function collect(job) {
     const rarityLabel = rarityOdds.value[job.rarity]?.label ?? job.rarity;
     showMessage(`Collected ${data.crafted_item.item.name} (${rarityLabel})!`, 'success');
     await load();
+    craftingQueueStore.refresh();
   } catch (e) {
     showMessage(e.response?.data?.message || 'Not ready yet.', 'error');
   }

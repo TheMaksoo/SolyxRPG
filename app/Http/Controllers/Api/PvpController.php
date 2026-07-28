@@ -16,9 +16,9 @@ use Illuminate\Validation\Rule;
 
 class PvpController extends Controller
 {
-    /** Opponents more than this many levels away (either direction) never appear in the challenge list —
-     * mirrors the level-band pattern used for monster/dungeon matching elsewhere in the game. */
-    private const PVP_LEVEL_BAND = 10;
+    /** How many top rows the arena's leaderboard card shows before falling back to "your position" below
+     * the cut — matches the size of a quick glance card rather than the full page in /leaderboard. */
+    private const LEADERBOARD_SIZE = 10;
 
     public function __construct(
         private PvpMatchmakingService $matchmaking = new PvpMatchmakingService(),
@@ -41,27 +41,30 @@ class PvpController extends Controller
         // outright #1 player gets a distinct crown on top of it. See PvpRecord::hybridRank() for cutoffs.
         $hybridRank = PvpRecord::hybridRank($record->rating, $allRatings);
 
-        // Only ever list rivals who could actually accept the challenge right now: a character whose
-        // owner has lost PvP access (feature flag toggled off for them, e.g. a tester-only rollout)
-        // would otherwise show up as challengeable and then 403 the moment you hit Challenge, and a
-        // character outside the level band is either a guaranteed stomp or a guaranteed loss. Sorted by
-        // rating proximity (closest first) rather than requiring an exact same hybrid-tier match — with
-        // a small population, ratings can be spread across every tier with nobody sharing one, which
-        // used to mean an empty rivals list even with plenty of fair, level-appropriate opponents around;
-        // the per-row Easy/Medium/Hard difficulty badge already communicates how fair each pick is.
-        $opponents = Character::where('id', '!=', $character->id)
-            ->whereBetween('level', [max(1, $character->level - self::PVP_LEVEL_BAND), $character->level + self::PVP_LEVEL_BAND])
-            ->with(['pvpRecord', 'user'])
-            ->limit(60)
+        // Top of the rating ladder, right on the arena page — direct challenges are gone (matchmaking-only
+        // now), so this is the closest thing to "who am I up against" the lobby has left. Same cosmetic
+        // fields as the main /leaderboard (title/name color/banner/icon/VIP badge) so a player's flexed
+        // customizations show up here too, not just on the general boards.
+        $leaderboard = PvpRecord::with(['character.user', 'character.activeTitle', 'character.activeColor', 'character.activeBanner', 'character.activeIcon'])
+            ->orderByDesc('rating')
+            ->limit(self::LEADERBOARD_SIZE)
             ->get()
-            ->filter(fn (Character $c) => FeatureFlag::gate('pvp', $c->user))
-            ->map(fn (Character $c) => [
-                'character' => $c,
-                'rating' => $c->pvpRecord->rating ?? 1000,
-            ])
-            ->sortBy(fn ($row) => abs($row['rating'] - $record->rating))
-            ->take(20)
-            ->values();
+            ->filter(fn (PvpRecord $r) => $r->character !== null)
+            ->values()
+            ->map(fn (PvpRecord $r, int $i) => [
+                'rank' => $i + 1,
+                'character_id' => $r->character->id,
+                'name' => $r->character->name,
+                'level' => $r->character->level,
+                'base_class' => $r->character->base_class,
+                'rating' => $r->rating,
+                'is_me' => $r->character_id === $character->id,
+                'title' => $r->character->activeTitle?->value,
+                'name_color' => $r->character->activeColor?->value,
+                'banner' => $r->character->activeBanner?->value,
+                'icon' => $r->character->activeIcon?->value,
+                'vip_tier' => $r->character->user?->hasActiveVip() ? $r->character->user->vip_tier : 'none',
+            ]);
 
         $history = PvpMatch::where('character_id', $character->id)
             ->with('opponent')
@@ -81,15 +84,8 @@ class PvpController extends Controller
                 'color' => $t['color'],
                 'is_current' => $t['name'] === $hybridRank['base_name'],
             ], PvpRecord::PVP_TIERS),
-            'opponents' => $opponents->map(fn ($row) => [
-                ...$row,
-                'rank' => PvpRecord::hybridRank($row['rating'], $allRatings),
-                'difficulty' => match (true) {
-                    $row['rating'] > $record->rating + 75 => 'Hard',
-                    $row['rating'] < $record->rating - 75 => 'Easy',
-                    default => 'Medium',
-                },
-            ]),
+            'leaderboard' => $leaderboard,
+            'my_rank_position' => $hybridRank['rank_position'],
             'history' => $history,
             'active_match_id' => $activeMatch?->id,
             'queued' => $queueEntry !== null,
@@ -175,28 +171,6 @@ class PvpController extends Controller
         ]);
     }
 
-    /** Direct challenge entry point — creates a live match against a specific opponent right away instead
-     * of going through the queue-pairing step. Kept as the "Challenge" button's target since players
-     * already know that entry point from the old instant-sim arena. */
-    public function challenge(Request $request, Character $opponent)
-    {
-        abort_unless(FeatureFlag::gate('pvp', $request->user()), 403, 'PvP Arena is not currently available.');
-
-        $character = $request->user()->character;
-        abort_unless($character, 404);
-        abort_if($character->id === $opponent->id, 422, 'Cannot challenge yourself.');
-
-        abort_if($this->matchmaking->activeMatchFor($character->id), 422, 'You are already in an active PvP match.');
-        abort_if($this->matchmaking->activeMatchFor($opponent->id), 422, 'That player is already in a match.');
-
-        $this->matchmaking->leaveQueue($character->id);
-
-        $match = $this->matchmaking->createLiveMatch($character, $opponent);
-        $character->update(['last_action' => "PvP vs {$opponent->name}"]);
-        $opponent->update(['last_action' => "PvP vs {$character->name}"]);
-
-        return response()->json(['status' => 'matched', 'match_id' => $match->id]);
-    }
 
     // ---- Live match play ----
 

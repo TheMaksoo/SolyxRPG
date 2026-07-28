@@ -210,8 +210,96 @@ class CharacterController extends Controller
             'mana_regen_per_tick' => $character->manaRegenPerTick(),
             'energy_regen_per_tick' => $character->energyRegenPerTick(),
             'attribute_costs' => $this->attributeService->allCosts($character->attributes_ ?? new CharacterAttribute()),
-            'in_combat' => Battle::where('character_id', $character->id)->where('status', 'active')->exists(),
+            'in_combat' => Battle::where('character_id', $character->id)->where('status', 'active')->where('is_auto', false)->exists(),
             'vip_gems_granted' => $vipGemsGranted,
+        ]);
+    }
+
+    /** The one periodic "game save" the client pushes (every ~5 real seconds, see composables/regen.js) —
+     * everything else touching a character (show(), battle fetches, etc.) only ever reads/recomputes its
+     * own state, never a client-reported one. The client already knows its own HP/MP/energy exactly (it's
+     * computing the same real-elapsed-time × rate formula the server does, continuously rather than in
+     * discrete ticks), so rather than have the server *re-derive* a number and risk it disagreeing with
+     * what's on screen, the client pushes what it's showing and the server just clamps it to what could
+     * legitimately have regenerated (Character::maxPlausibleValue) and persists it. This is what makes a
+     * reload reflect exactly what was on screen a moment before, instead of the server's own independent
+     * (differently-rounded) recompute silently overwriting it. */
+    public function saveTick(Request $request)
+    {
+        $character = $request->user()->character;
+        abort_unless($character, 404);
+
+        $data = $request->validate([
+            'hp' => ['sometimes', 'integer', 'min:0'],
+            'mana' => ['sometimes', 'integer', 'min:0'],
+            'energy' => ['sometimes', 'integer', 'min:0'],
+            'battle_id' => ['sometimes', 'nullable', 'integer'],
+        ]);
+
+        $stats = $character->effectiveStats();
+
+        $battle = ! empty($data['battle_id'])
+            ? Battle::where('id', $data['battle_id'])
+                ->where('character_id', $character->id)
+                ->where('status', 'active')
+                ->where('is_auto', false)
+                ->first()
+            : null;
+
+        if ($battle && array_key_exists('hp', $data)) {
+            // In an active manual battle, the client's hp is the battle's own live HP counter (Battle::
+            // character_hp) — Character::hp stays frozen for the whole fight (see resolveWin/resolveLoss).
+            $ceiling = $character->maxPlausibleValue($battle->character_hp, $battle->updated_at, $stats['eff_hp_max'], $character->regenPerTick());
+            $newHp = min($data['hp'], $ceiling);
+            if ($newHp !== $battle->character_hp) {
+                $battle->character_hp = $newHp;
+                $battle->save();
+            }
+        } elseif (array_key_exists('hp', $data)) {
+            // Deliberately not applyPassiveRegen() here — that would advance last_regen_at itself and
+            // collapse the ceiling to ~0 elapsed time before maxPlausibleValue ever sees the real gap,
+            // right back to the server silently overriding the client's more precise number.
+            $ceiling = $character->maxPlausibleValue($character->hp, $character->last_regen_at, $stats['eff_hp_max'], $character->regenPerTick());
+            $character->hp = min($data['hp'], $ceiling);
+        }
+
+        if (array_key_exists('mana', $data)) {
+            if ($battle) {
+                // Mana regen is paused for the whole of an active manual battle, same as passive HP regen
+                // (see Character::applyPassiveRegen) — only real drains (skill costs, items) can move it
+                // here, so the ceiling can't grow above whatever's already saved.
+                $character->mana = min($data['mana'], $character->mana);
+            } else {
+                $ceiling = $character->maxPlausibleValue($character->mana, $character->last_mana_regen_at, $stats['eff_mp_max'], $character->manaRegenPerTick());
+                $character->mana = min($data['mana'], $ceiling);
+            }
+        }
+        if (array_key_exists('energy', $data)) {
+            $ceiling = $character->maxPlausibleValue($character->energy, $character->last_energy_regen_at, $stats['eff_energy_max'], $character->energyRegenPerTick());
+            $character->energy = min($data['energy'], $ceiling);
+        }
+
+        $character->last_regen_at = now();
+        $character->last_mana_regen_at = now();
+        $character->last_energy_regen_at = now();
+        $character->save();
+
+        if ($character->registerSyncCall()) {
+            Log::warning('Character exceeded daily save-tick budget — possible tick-speed manipulation', [
+                'character_id' => $character->id,
+                'user_id' => $request->user()->id,
+                'sync_calls_today' => $character->sync_calls_today,
+            ]);
+        }
+
+        return response()->json([
+            'hp' => $character->hp,
+            'mana' => $character->mana,
+            'energy' => $character->energy,
+            'battle_hp' => $battle?->character_hp,
+            'regen_per_tick' => $character->regenPerTick(),
+            'mana_regen_per_tick' => $character->manaRegenPerTick(),
+            'energy_regen_per_tick' => $character->energyRegenPerTick(),
         ]);
     }
 

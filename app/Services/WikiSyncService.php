@@ -153,7 +153,7 @@ class WikiSyncService
             ->map(fn ($value, $key) => $this->chip('+'.$value.'% '.(self::PET_STAT_LABELS[$key] ?? $key), '#ff8163'))
             ->values()
             ->all();
-        $stats[] = $this->chip('Levels up to '.CharacterPet::MAX_LEVEL.' (bonus scales with level)', '#cbd5e1', true);
+        $stats[] = $this->chip('Levels up to '.CharacterPet::BASE_MAX_LEVEL.' per rank, up to Rank '.CharacterPet::MAX_RANK.' (bonus scales with level and rank)', '#cbd5e1', true);
 
         WikiEntry::updateOrCreate(
             ['source_type' => 'pet', 'source_id' => $pet->id],

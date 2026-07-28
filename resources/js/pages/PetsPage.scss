@@ -116,6 +116,34 @@
     font-size: 12.5px;
     cursor: pointer;
   }
+
+  &--rank-up {
+    width: 100%;
+    padding: 9px;
+    border-radius: v.$radius-sm;
+    border: 1px solid rgba(234, 179, 8, 0.4);
+    background: rgba(234, 179, 8, 0.15);
+    color: v.$warning;
+    font-weight: 700;
+    font-size: 12.5px;
+    cursor: pointer;
+    animation: rank-up-pulse 2s ease-in-out infinite;
+
+    &:disabled {
+      cursor: default;
+      opacity: 0.7;
+      animation: none;
+    }
+  }
+}
+
+@keyframes rank-up-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(234, 179, 8, 0); }
+  50% { box-shadow: 0 0 10px rgba(234, 179, 8, 0.35); }
+}
+
+html.reduce-motion .pet-card__btn--rank-up {
+  animation: none;
 }
 
 .pet-card__status--active {

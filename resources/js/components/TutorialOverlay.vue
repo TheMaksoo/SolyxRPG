@@ -18,7 +18,7 @@ const STEPS = [
   {
     glyph: '⚔',
     title: 'Battle',
-    body: 'Head to the World Map, pick a zone, and fight monsters for gold, XP, and gems. Away from your keyboard? Buy an Auto-Attack pass and it fights for you.',
+    body: 'Head to the World Map, pick a zone, and fight monsters for gold, XP, and gems. Away from your keyboard? Buy a Training pass and it fights for you.',
     cta: { label: 'Open World Map', path: '/world-map' },
   },
   {
@@ -42,7 +42,7 @@ const STEPS = [
   {
     glyph: '◉',
     title: 'Shop & Gem Store',
-    body: 'The Shop sells gear and consumables for gold. The Gem Store is where premium currency goes — cosmetics, Auto-Attack/Auto-Gather passes, the Battle Pass, and more. Gems never affect combat stats.',
+    body: 'The Shop sells gear and consumables for gold. The Gem Store is where premium currency goes — cosmetics, Auto-Battle/Auto-Gather passes, the Battle Pass, and more. Gems never affect combat stats.',
     cta: { label: 'Open Shop', path: '/shop' },
   },
   {

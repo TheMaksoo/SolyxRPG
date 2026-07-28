@@ -35,6 +35,41 @@
   }
 }
 
+.bag-section {
+  margin-bottom: 20px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.bag-section-eyebrow {
+  @include m.section-eyebrow;
+  margin-bottom: 10px;
+}
+
+.bag-section-eyebrow__count {
+  font-size: 10.5px;
+  color: v.$text-muted-40;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: v.$radius-pill;
+  padding: 1px 7px;
+  margin-left: 4px;
+}
+
+.bag-section-group-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: v.$text-muted-45;
+  margin: 12px 0 8px;
+
+  &:first-child {
+    margin-top: 0;
+  }
+}
+
 .inventory-bag-search {
   background: v.$bg-input;
   border: 1px solid v.$border-medium;

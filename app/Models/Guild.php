@@ -93,4 +93,12 @@ class Guild extends Model
     {
         return $this->hasMany(GuildMessage::class)->latest('created_at');
     }
+
+    /** Combined power of every member's character — callers should eager-load
+     * members.character.attributes_/inventory.item/pets.pet first (effectiveStats() needs them),
+     * or this falls back to a per-member query for each. */
+    public function power(): int
+    {
+        return $this->members->sum(fn (GuildMember $m) => $m->character?->effectiveStats()['power'] ?? 0);
+    }
 }

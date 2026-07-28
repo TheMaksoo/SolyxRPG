@@ -62,27 +62,39 @@ class TradeSkillController extends Controller
             $xp = $row->xp ?? 0;
             $tool = $this->equippedToolBonus($character, $key);
             $speedPoints = $character->attributes_?->{self::SPEED_ATTR_BY_SKILL[$key] ?? ''} ?? 0;
-            $actionSeconds = $this->tradeSkills->actionSeconds($key, $level, $speedPoints, $tool['speed_pct'] + $petGatherSpeedPct);
+            $speedPct = $tool['speed_pct'] + $petGatherSpeedPct;
 
+            // The shared per-skill cooldown was set by whichever target was worked last, so its remaining
+            // time must be computed off THAT target's own (tier-scaled) action_seconds, not a flat
+            // skill-wide number — higher tiers take longer, and the cooldown has to reflect the tier that
+            // was actually gathered.
+            $lastActionSeconds = $row?->last_action_target
+                ? $this->tradeSkills->actionSeconds($key, $row->last_action_target, $level, $speedPoints, $speedPct)
+                : 0;
             $cooldownRemaining = 0;
-            if ($row?->last_action_at && $actionSeconds > 0) {
-                $cooldownRemaining = max(0, $actionSeconds - (now()->getTimestamp() - $row->last_action_at->getTimestamp()));
+            if ($row?->last_action_at && $lastActionSeconds > 0) {
+                $cooldownRemaining = max(0, $lastActionSeconds - (now()->getTimestamp() - $row->last_action_at->getTimestamp()));
             }
 
-            $targets = collect($meta['targets'])->map(function (array $t, string $targetKey) use ($key, $level, $tool, $luckBonusPct, $ownedByKey, $actionSeconds) {
+            $targets = collect($meta['targets'])->map(function (array $t, string $targetKey) use ($key, $level, $tool, $luckBonusPct, $ownedByKey, $speedPoints, $speedPct, $rows) {
                 $yieldQty = $this->tradeSkills->yieldQty($key, $targetKey, $level, $tool['yield_bonus'], $luckBonusPct);
                 $requiredInputQty = isset($t['input_key']) ? $t['input_qty'] * $yieldQty : null;
                 $inputOwnedQty = isset($t['input_key']) ? ($ownedByKey[$t['input_key']] ?? 0) : null;
+                // Smelting's bars each also require a specific Mining level (see SKILLS['smelting']) on top
+                // of Smelting's own unlock_level — look up the OTHER skill's row, not this one's.
+                $otherSkillLevel = isset($t['requires_skill']) ? ($rows->get($t['requires_skill'])->level ?? 1) : 1;
 
                 return [
                     'key' => $targetKey,
                     'label' => $t['label'],
                     'unlock_level' => $t['unlock_level'],
-                    'unlocked' => $level >= $t['unlock_level'],
+                    'unlocked' => $this->tradeSkills->targetUnlocked($t, $level, $otherSkillLevel),
+                    'requires_skill' => $t['requires_skill'] ?? null,
+                    'requires_skill_level' => $t['requires_skill_level'] ?? null,
                     'yield_qty' => $yieldQty,
                     'xp' => $t['xp'],
                     'energy_cost' => $t['energy_cost'],
-                    'action_seconds' => $actionSeconds,
+                    'action_seconds' => $this->tradeSkills->actionSeconds($key, $targetKey, $level, $speedPoints, $speedPct),
                     'input_key' => $t['input_key'] ?? null,
                     'input_qty' => $t['input_qty'] ?? null,
                     'owned_qty' => $ownedByKey[$targetKey] ?? 0,
@@ -97,7 +109,6 @@ class TradeSkillController extends Controller
                 'label' => $meta['label'],
                 'glyph' => $meta['glyph'],
                 'description' => $meta['description'],
-                'action_seconds' => $actionSeconds,
                 'level' => $level,
                 'xp' => $xp,
                 'xp_max' => $this->tradeSkills->xpForLevel($level),
@@ -115,6 +126,51 @@ class TradeSkillController extends Controller
         ]);
     }
 
+    /** Lightweight per-skill cooldown snapshot for the topbar pill (see stores/gatherCooldowns.js) — skips
+     * the target/inventory lookups index() does since only each skill's own remaining cooldown is needed,
+     * so it stays cheap to poll from any page, not just Gathering itself. */
+    public function cooldowns(Request $request)
+    {
+        abort_unless(FeatureFlag::gate('trade_skills', $request->user()), 403, 'Gathering is not currently available.');
+
+        $character = $request->user()->character;
+        abort_unless($character, 404);
+
+        $rows = $character->tradeSkills()->get()->keyBy('skill_key');
+        $petGatherSpeedPct = $character->effectiveStats()['pet_gather_speed_pct'] ?? 0;
+
+        $cooldowns = collect($this->tradeSkills->all())
+            ->map(function (array $meta, string $key) use ($character, $rows, $petGatherSpeedPct) {
+                $row = $rows->get($key);
+                if (! $row?->last_action_target || ! $row?->last_action_at) {
+                    return null;
+                }
+
+                $level = $row->level ?? 1;
+                $tool = $this->equippedToolBonus($character, $key);
+                $speedPoints = $character->attributes_?->{self::SPEED_ATTR_BY_SKILL[$key] ?? ''} ?? 0;
+                $speedPct = $tool['speed_pct'] + $petGatherSpeedPct;
+                $actionSeconds = $this->tradeSkills->actionSeconds($key, $row->last_action_target, $level, $speedPoints, $speedPct);
+                $remaining = max(0, $actionSeconds - (now()->getTimestamp() - $row->last_action_at->getTimestamp()));
+
+                if ($remaining <= 0) {
+                    return null;
+                }
+
+                return [
+                    'skill' => $key,
+                    'label' => $meta['label'],
+                    'glyph' => $meta['glyph'],
+                    'target_label' => $meta['targets'][$row->last_action_target]['label'] ?? $row->last_action_target,
+                    'seconds_remaining' => $remaining,
+                ];
+            })
+            ->filter()
+            ->values();
+
+        return response()->json(['cooldowns' => $cooldowns]);
+    }
+
     public function gather(Request $request, string $skillKey)
     {
         $character = $request->user()->character;
@@ -126,7 +182,68 @@ class TradeSkillController extends Controller
 
         $meta = $this->tradeSkills->meta($skillKey);
         $data = $request->validate(['target' => ['required', Rule::in(array_keys($meta['targets']))]]);
-        $targetKey = $data['target'];
+
+        $outcome = $this->performGather($character, $skillKey, $data['target']);
+        if (isset($outcome['error'])) {
+            return response()->json(['message' => $outcome['error']], 422);
+        }
+
+        return response()->json($outcome['payload']);
+    }
+
+    /** Runs several gather actions in one request — the client queues clicks locally (see the shared
+     * game-tick composable) and flushes them here every few ticks instead of one HTTP round-trip per
+     * click, cutting request volume. Each action is validated and applied in order exactly as it would
+     * be one at a time, so the same cooldown/energy/material rules still apply between queued actions. */
+    public function gatherBatch(Request $request)
+    {
+        $character = $request->user()->character;
+        abort_unless($character, 404);
+
+        $data = $request->validate([
+            'actions' => ['required', 'array', 'min:1', 'max:5'],
+            'actions.*.skill' => ['required', Rule::in(['mining', 'woodchopping', 'smelting', 'foraging'])],
+            'actions.*.target' => ['required', 'string'],
+        ]);
+
+        $character->applyPassiveRegen();
+
+        $results = [];
+        foreach ($data['actions'] as $action) {
+            $skillKey = $action['skill'];
+            $targetKey = $action['target'];
+            $meta = $this->tradeSkills->meta($skillKey);
+
+            if (! $meta || ! isset($meta['targets'][$targetKey])) {
+                $results[] = ['skill' => $skillKey, 'target' => $targetKey, 'error' => 'Unknown skill or target.'];
+
+                continue;
+            }
+
+            $outcome = $this->performGather($character, $skillKey, $targetKey);
+            $results[] = ['skill' => $skillKey, 'target' => $targetKey, ...(
+                isset($outcome['error'])
+                    ? ['error' => $outcome['error']]
+                    : ['gained' => $outcome['payload']['gained'], 'leveled_up' => $outcome['payload']['leveled_up']]
+            )];
+
+            $character->refresh();
+        }
+
+        return response()->json([
+            'results' => $results,
+            'energy' => $character->energy,
+            'inventory' => $character->inventory()->with('item')->get(),
+        ]);
+    }
+
+    /** One gather action against an already-loaded, already-regen'd character. Returns
+     * `['error' => string]` or `['payload' => [...]]` — never throws/aborts, so callers (single-action
+     * `gather()` and the batch loop above) can turn a failure into a per-action result instead of a
+     * hard HTTP error that would abort the rest of a batch. */
+    private function performGather(Character $character, string $skillKey, string $targetKey): array
+    {
+        $meta = $this->tradeSkills->meta($skillKey);
         $target = $meta['targets'][$targetKey];
 
         $row = CharacterTradeSkill::firstOrCreate(
@@ -135,24 +252,33 @@ class TradeSkillController extends Controller
         );
 
         if ($row->level < $target['unlock_level']) {
-            return response()->json(['message' => "Requires {$meta['label']} level {$target['unlock_level']}."], 422);
+            return ['error' => "Requires {$meta['label']} level {$target['unlock_level']}."];
+        }
+
+        if (isset($target['requires_skill'])) {
+            $otherLevel = $character->tradeSkills()->where('skill_key', $target['requires_skill'])->value('level') ?? 1;
+            if ($otherLevel < $target['requires_skill_level']) {
+                $otherLabel = $this->tradeSkills->meta($target['requires_skill'])['label'] ?? $target['requires_skill'];
+
+                return ['error' => "Requires {$otherLabel} level {$target['requires_skill_level']}."];
+            }
         }
 
         $tool = $this->equippedToolBonus($character, $skillKey);
         $speedPoints = $character->attributes_?->{self::SPEED_ATTR_BY_SKILL[$skillKey] ?? ''} ?? 0;
         $petGatherSpeedPct = $character->effectiveStats()['pet_gather_speed_pct'] ?? 0;
-        $actionSeconds = $this->tradeSkills->actionSeconds($skillKey, $row->level, $speedPoints, $tool['speed_pct'] + $petGatherSpeedPct);
+        $actionSeconds = $this->tradeSkills->actionSeconds($skillKey, $targetKey, $row->level, $speedPoints, $tool['speed_pct'] + $petGatherSpeedPct);
 
         if ($row->last_action_at && $actionSeconds > 0) {
             $remaining = $actionSeconds - (now()->getTimestamp() - $row->last_action_at->getTimestamp());
             if ($remaining > 0) {
-                return response()->json(['message' => "Not ready yet — {$remaining}s remaining.", 'remaining' => $remaining], 422);
+                return ['error' => "Not ready yet — {$remaining}s remaining."];
             }
         }
 
         $energyCost = $target['energy_cost'];
         if ($character->energy < $energyCost) {
-            return response()->json(['message' => "Not enough energy — need {$energyCost}."], 422);
+            return ['error' => "Not enough energy — need {$energyCost}."];
         }
 
         $luckBonusPct = $this->luckBonusPct($character);
@@ -164,7 +290,7 @@ class TradeSkillController extends Controller
             $owned = Inventory::where('character_id', $character->id)->where('item_id', $inputItem->id)->first();
             $requiredQty = $target['input_qty'] * $qty;
             if (! $owned || $owned->qty < $requiredQty) {
-                return response()->json(['message' => "Not enough {$inputItem->name} — need {$requiredQty}."], 422);
+                return ['error' => "Not enough {$inputItem->name} — need {$requiredQty}."];
             }
             $owned->decrement('qty', $requiredQty);
             if ($owned->fresh()->qty <= 0) {
@@ -178,7 +304,7 @@ class TradeSkillController extends Controller
 
         if ($affected === 0) {
             // Race condition: energy was depleted by another request
-            return response()->json(['message' => "Not enough energy — need {$energyCost}."], 422);
+            return ['error' => "Not enough energy — need {$energyCost}."];
         }
 
         $outputItem = Item::where('key', $targetKey)->firstOrFail();
@@ -196,13 +322,15 @@ class TradeSkillController extends Controller
 
         $this->logAction($character, $skillKey, $targetKey, $qty, $target['xp']);
 
-        return response()->json([
-            'trade_skill' => $row->fresh(),
-            'gained' => ['item' => $outputItem->only(['key', 'name', 'glyph']), 'qty' => $qty, 'xp' => $target['xp']],
-            'leveled_up' => $leveledUp,
-            'energy' => $character->fresh()->energy,
-            'inventory' => $character->inventory()->with('item')->get(),
-        ]);
+        return [
+            'payload' => [
+                'trade_skill' => $row->fresh(),
+                'gained' => ['item' => $outputItem->only(['key', 'name', 'glyph']), 'qty' => $qty, 'xp' => $target['xp']],
+                'leveled_up' => $leveledUp,
+                'energy' => $character->fresh()->energy,
+                'inventory' => $character->inventory()->with('item')->get(),
+            ],
+        ];
     }
 
     /** Owned quantity of every material/target/input item across all trade skills, keyed by item key, in one query. */

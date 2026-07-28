@@ -86,6 +86,27 @@
 .energy-bar__label {
   font-size: 12px;
   color: v.$text-muted-45;
+
+  // Same subtle pulse language as Dashboard's stat-tile__value--regenerating — a quiet signal that this
+  // number is actively climbing toward max, not just a static readout.
+  &--regenerating {
+    animation: energy-bar-label-pulse 2.6s ease-in-out infinite;
+  }
+}
+
+@keyframes energy-bar-label-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .energy-bar__label--regenerating {
+    animation: none;
+  }
 }
 
 // ---- Auto-Gather card ----
@@ -176,6 +197,13 @@
 
 .trade-skill-card {
   @include m.card(18px);
+}
+
+// Crafting has no target list of its own (it levels passively from the Crafting page) — spanning the
+// full grid row instead of sitting in one narrow column avoids a lopsided card next to a wall of empty
+// space whenever it lands at the end of a row.
+.trade-skill-card--full {
+  grid-column: 1 / -1;
 }
 
 .trade-skill-card__head {

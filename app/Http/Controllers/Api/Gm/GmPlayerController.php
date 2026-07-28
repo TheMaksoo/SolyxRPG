@@ -172,7 +172,8 @@ class GmPlayerController extends Controller
         Battle::where('character_id', $character->id)->where('status', 'active')->update(['status' => 'lost']);
 
         $character->auto_battle_expires_at = null;
-        $character->auto_battle_paused_at = null;
+        $character->auto_gather_skill = null;
+        $character->auto_gather_target = null;
         $character->auto_gather_expires_at = null;
         $character->auto_gather_last_tick_at = null;
         $character->save();

@@ -35,3 +35,13 @@ Schedule::command('market:expire-listings')->everyFifteenMinutes();
 // Backstop for referral rewards — ReferralController::index() already grants on page load, this
 // catches referrers who never check back so a milestone reward doesn't sit ungranted indefinitely.
 Schedule::command('referrals:check-milestones')->hourly();
+
+// Records a daily (and, on Mondays, weekly) baseline+rank snapshot for every tracked leaderboard
+// category — this is what makes the Leaderboard's Weekly/Daily range tabs and Δ rank-change column
+// real rather than fake, without needing to load the whole characters table on every live request.
+Schedule::command('leaderboard:snapshot-daily')->dailyAt('00:10');
+
+// Ends the active leaderboard season once its end date has passed: pays out rewards ranked by Power,
+// archives the top 10 into the Hall of Fame, and starts the next season. A no-op most days (see
+// LeaderboardSeasonRollover) — scheduled daily so a season never runs more than a day past its end.
+Schedule::command('leaderboard:season-rollover')->dailyAt('00:20');

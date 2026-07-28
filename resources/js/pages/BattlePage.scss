@@ -15,27 +15,55 @@
   margin: 0;
 }
 
+.battle-header__zone {
+  font-size: 13px;
+  color: v.$text-muted-40;
+  align-self: baseline;
+}
+
+// Plain informational notices (resumed a fight, encountered a rare grade, stage cleared, fled) —
+// simple colored text, no icon/CTA chrome. Durability warnings get the richer .battle-alert-bar
+// below instead, since those are the ones worth an inline "Repair" action.
 .battle-notice {
   color: v.$success;
   font-size: 13px;
   margin-bottom: 14px;
+}
 
-  &--warning {
-    color: #f59e0b;
-    background: rgba(245, 158, 11, 0.1);
-    border: 1px solid rgba(245, 158, 11, 0.3);
-    padding: 10px 14px;
-    border-radius: v.$radius-sm;
-  }
+// Durability warning bar — icon + message + a direct "Repair" link, all on one line.
+.battle-alert-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(232, 72, 47, 0.07);
+  border: 1px solid rgba(232, 72, 47, 0.25);
+  border-radius: v.$radius-md;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 12.5px;
+  color: #ff8163;
 
   &--danger {
-    color: #ef4444;
     background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    padding: 10px 14px;
-    border-radius: v.$radius-sm;
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
     font-weight: 600;
   }
+}
+
+.battle-alert-bar__icon {
+  font-size: 13px;
+  flex: none;
+}
+
+.battle-alert-bar__text {
+  min-width: 0;
+}
+
+.battle-alert-bar__cta {
+  font-weight: 600;
+  margin-left: auto;
+  white-space: nowrap;
 }
 
 .battle-error {
@@ -55,13 +83,22 @@
   gap: 14px;
 }
 
+// Side by side when both the "while you were away" summary and the Training card are present;
+// either one alone just takes the full row.
+.battle-top-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
 // ---- "While you were away" claim summary ----
 .claim-summary {
+  flex: 1 1 320px;
   background: linear-gradient(160deg, rgba(74, 222, 128, 0.12), v.$bg-card);
   border: 1px solid rgba(74, 222, 128, 0.3);
   border-radius: v.$radius-lg;
   padding: 14px 18px;
-  margin-bottom: 16px;
 }
 
 .claim-summary__header {
@@ -101,7 +138,7 @@
 // ---- Auto-Attack card ----
 .auto-battle-card {
   @include m.card(14px 18px);
-  margin-bottom: 16px;
+  flex: 1 1 340px;
 }
 
 .auto-battle-card__summary {
@@ -178,37 +215,6 @@
   min-width: 0;
 }
 
-// ---- Walk into a fight ----
-.battle-start {
-  @include m.centered-column(480px);
-  @include m.fade-in;
-  text-align: center;
-  margin-top: 60px;
-}
-
-.battle-start__art {
-  font-size: 48px;
-  margin-bottom: 12px;
-}
-
-.battle-start__intro {
-  color: v.$text-muted-55;
-  margin: 0 0 22px;
-
-  strong {
-    color: v.$text-primary;
-  }
-}
-
-.btn-walk {
-  @include m.btn-primary;
-
-  &--large {
-    padding: 16px 32px;
-    font-size: 15px;
-  }
-}
-
 // ---- Fight view ----
 .fight-view {
   @include m.centered-column(1010px);
@@ -234,9 +240,30 @@
   margin-bottom: 16px;
 }
 
-.fight-view__zone {
-  font-size: 13px;
-  color: v.$text-muted-55;
+.fight-view__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.fight-view__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.fight-view__phase {
+  font-weight: 600;
+}
+
+.fight-view__sep {
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.fight-view__round {
+  color: v.$text-muted-40;
 }
 
 .fight-view__stage {
@@ -246,6 +273,12 @@
 
 .flee-btn {
   @include m.btn-ghost;
+
+  // Kept in place (not removed from the DOM) outside an active fight, just invisible — so the
+  // header's height/alignment never shifts depending on whether there's something to flee from.
+  &--hidden {
+    visibility: hidden;
+  }
 }
 
 .monster-panel,
@@ -256,6 +289,14 @@
 
 .monster-panel {
   text-align: center;
+  @include m.fade-in;
+  // Reserved so the panel is the same size whether it's showing the monster mid-fight or the
+  // victory/defeat screen once resolved — without this, the page's overall height (and everything
+  // below) shifts a little depending on which of the two is naturally shorter.
+  min-height: 390px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 
   &--targetable {
     cursor: pointer;
@@ -265,6 +306,19 @@
   &--selected {
     border-color: v.$accent;
   }
+
+  // Once the fight resolves, this same panel switches from showing the monster to showing the
+  // victory/defeat screen — same slot, same box, just a different accent so it still reads as "this
+  // panel changed" rather than an identical-looking monster card.
+  &--result {
+    border-color: v.$accent-tint-30;
+  }
+}
+
+.monster-panel__hint {
+  color: v.$text-muted-55;
+  font-size: 13px;
+  margin: 8px 0 0;
 }
 
 .adds-panel {
@@ -318,20 +372,70 @@
 .no-consumables-hint {
   font-size: 11.5px;
   color: v.$text-muted-40;
-  grid-column: 1 / -1;
   text-align: center;
   margin: 4px 0 0;
 }
 
+// Circular art stage with a pulsing grade-colored ring behind it and a slow floaty bob while a fight
+// is actually live — a plain static box read as inert even mid-combat.
+.monster-art-stage {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  margin: 0 auto 16px;
+
+  &--active {
+    animation: monster-floaty 3.4s ease-in-out infinite;
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
+
+  &--empty {
+    opacity: 0.5;
+  }
+}
+
+.monster-art-ring {
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  border: 1px solid rgba(232, 72, 47, 0.3);
+  animation: monster-ring-pulse 2.6s ease-in-out infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
 .monster-art {
   width: 100%;
-  max-width: 280px;
-  height: 150px;
-  margin: 0 auto 16px;
-  border-radius: v.$radius-md;
+  height: 100%;
+  border-radius: 50%;
   @include m.art-placeholder;
   position: relative;
-  font-size: 60px;
+  font-size: 72px;
+}
+
+@keyframes monster-floaty {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+@keyframes monster-ring-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.8;
+  }
 }
 
 .monster-name {
@@ -350,18 +454,44 @@
   vertical-align: middle;
 }
 
+.monster-name__level {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: v.$text-muted-40;
+  vertical-align: middle;
+}
+
 .stat-block {
   max-width: 340px;
   margin: 12px auto 0;
 
-  &--player {
-    margin: 0;
-    margin-bottom: 10px;
+  // The monster's own HP — much wider than the old fixed 340px cap, so it actually reads as the
+  // focal stat of the panel instead of a narrow strip floating in the middle of a wide card.
+  &--monster {
+    max-width: none;
+    width: 80%;
   }
 
+  &--player,
   &--last {
+    max-width: none;
+    width: 100%;
     margin: 0;
   }
+}
+
+// HP and Mana side by side again, split down the middle, with room between them.
+.player-stats-row {
+  display: flex;
+  gap: 16px;
+}
+
+// Label and value kept close together (not spread to the bar's opposite edges) — matters once the
+// bar itself is 80% wide, where space-between would otherwise pin "HP" and "62/165" awkwardly far apart.
+.stat-label-row--tight {
+  justify-content: flex-start;
+  gap: 10px;
 }
 
 .stat-label-row {
@@ -389,6 +519,52 @@
   &--mp {
     @include m.stat-bar-fill(#0284c7, v.$info-strong);
   }
+  // Layered on top of --hp/--mp while regen is actively ticking (out of combat, not yet at max): a
+  // brightness pulse plus a light sweep crossing the fill — the actual per-tick HP/MP gain is often
+  // just 1-2 points, too small a width change to read as "regenerating" on its own, so this is the
+  // part that actually carries the "recovering" feeling second to second.
+  &--regenerating {
+    position: relative;
+    overflow: hidden;
+    animation: regen-pulse 2.6s ease-in-out infinite;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(100deg, transparent 25%, rgba(0, 0, 0, 0.28) 50%, transparent 75%);
+      background-size: 200% 100%;
+      animation: regen-sweep 2.6s linear infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+
+      &::after {
+        animation: none;
+        display: none;
+      }
+    }
+  }
+}
+
+@keyframes regen-pulse {
+  0%,
+  100% {
+    filter: brightness(1) saturate(1);
+  }
+  50% {
+    filter: brightness(0.88) saturate(0.95);
+  }
+}
+
+@keyframes regen-sweep {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 .player-panel {
@@ -400,6 +576,14 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+  gap: 12px;
+}
+
+.player-panel__identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
 .player-panel__name {
@@ -407,22 +591,43 @@
 }
 
 .player-panel__meta {
-  font-size: 12px;
+  font-size: 11px;
   color: v.$text-muted-40;
+  white-space: nowrap;
 }
 
-.actions-grid {
-  @include m.grid-auto-fit(150px, 10px);
-  margin-bottom: 16px;
+.player-panel__combat-stats {
+  display: flex;
+  gap: 14px;
+  font-size: 11px;
+  color: v.$text-muted-40;
+  flex: none;
 }
 
+.player-panel__stat-value {
+  font-weight: 700;
+
+  &--atk {
+    color: #ff8163;
+  }
+
+  &--def {
+    color: #5cc7f5;
+  }
+}
+
+// Full-width primary action — Attack mid-fight, Walk/Fight again/Continue otherwise (see template):
+// always the same element/classes, so it never resizes or moves between states.
 .btn-attack {
   @include m.btn-reset;
+  display: block;
+  width: 100%;
   background: v.$accent;
   color: #fff;
   border-radius: v.$radius-md;
   padding: 14px;
   font-weight: 700;
+  margin-bottom: 16px;
 
   &:disabled {
     opacity: 0.6;
@@ -430,32 +635,170 @@
   }
 }
 
-.btn-skill {
+// Skills/Consumables while fighting, or quick-link tiles once resolved — same fixed-tile grid either
+// way, color-coded by tone instead of every tile looking the same.
+.action-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 9px;
+  margin-bottom: 16px;
+}
+
+$action-tile-tones: (
+  'red': (#ff8163, rgba(232, 72, 47, 0.28)),
+  'blue': (#5cc7f5, rgba(56, 189, 248, 0.24)),
+  'violet': (#a78bfa, rgba(167, 139, 250, 0.24)),
+  'green': (#4ade80, rgba(34, 197, 94, 0.24)),
+  'neutral': (rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.09)),
+);
+
+.action-tile {
   @include m.btn-reset;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 76px;
+  padding: 8px 6px;
+  text-align: center;
   background: v.$bg-card;
-  color: v.$info;
-  border: 1px solid v.$info-tint-25;
   border-radius: v.$radius-md;
-  padding: 14px;
-  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
 
   &:disabled {
-    opacity: 0.6;
+    opacity: 0.42;
     cursor: default;
+  }
+
+  @each $tone, $c in $action-tile-tones {
+    &--#{$tone} {
+      color: nth($c, 1);
+      border-color: nth($c, 2);
+    }
   }
 }
 
-.btn-item {
+.action-tile__glyph {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.action-tile__name {
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.action-tile__meta {
+  font-size: 10px;
+  color: v.$text-muted-40;
+  line-height: 1;
+}
+
+// Skills — one full-width row each, same tone language as the action tiles (blue/violet/green).
+.skill-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.skill-row {
   @include m.btn-reset;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  background: v.$bg-card;
+  border-radius: v.$radius-md;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.85);
+  text-align: left;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  @each $tone, $c in $action-tile-tones {
+    &--#{$tone} {
+      border-color: nth($c, 2);
+
+      .skill-row__glyph,
+      .skill-row__name {
+        color: nth($c, 1);
+      }
+    }
+  }
+}
+
+.skill-row__glyph {
+  font-size: 20px;
+  flex: none;
+}
+
+.skill-row__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.skill-row__name {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+// The exact rank-scaled effect (e.g. "1.9x ATK damage on use") — the numbers combat actually uses,
+// not just the MP cost.
+.skill-row__info {
+  font-size: 11.5px;
+  color: v.$text-muted-45;
+}
+
+.skill-row__meta {
+  margin-left: auto;
+  font-size: 12px;
+  color: v.$text-muted-40;
+  flex: none;
+  white-space: nowrap;
+}
+
+// Consumables — its own centered button below the skill list, not crowded into the same row.
+.consumables-row {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.btn-consumables {
+  @include m.btn-reset;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: v.$bg-card;
   color: v.$success;
   border: 1px solid rgba(34, 197, 94, 0.3);
   border-radius: v.$radius-md;
-  padding: 14px;
+  padding: 10px 20px;
   font-weight: 700;
+  font-size: 13px;
 
   &:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: default;
   }
 }
@@ -570,53 +913,31 @@
   font-family: monospace;
 }
 
-// ---- Result overlay ----
-.result-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 1000;
+// ---- Rewards ----
+// Rendered directly inside .monster-panel (see --result modifier above) once the fight resolves,
+// rather than as a separate card — so the victory/defeat screen occupies exactly the space the
+// monster used to, instead of adding new content that pushes the rest of the page down.
+.reward-banner__head {
   display: flex;
   align-items: center;
   justify-content: center;
-  @include m.fade-in;
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
-.result-backdrop {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(4px);
+.reward-banner__icon {
+  font-size: 30px;
 }
 
-// ---- Result view ----
-.result-view {
-  position: relative;
-  z-index: 1;
-  max-width: 520px;
-  width: 90%;
-  text-align: center;
-  @include m.card(36px);
-}
-
-.result-icon {
-  font-size: 48px;
-  margin-bottom: 8px;
-}
-
-.result-title {
-  font-size: 28px;
+.reward-banner__title {
+  font-size: 20px;
   font-weight: 800;
 }
 
-.result-subtitle {
+.reward-banner__subtitle {
   color: v.$text-muted-55;
-  margin: 8px 0 22px;
+  width: 100%;
+  margin-bottom: 4px;
 }
 
 .reward-chips {
@@ -646,29 +967,6 @@
   &--loss-level {
     font-weight: 700;
   }
-}
-
-.result-actions {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.btn-dashboard-link {
-  @include m.btn-secondary;
-  display: inline-flex;
-  align-items: center;
-}
-
-.btn-skill-tree-link {
-  @include m.btn-secondary;
-  display: inline-flex;
-  align-items: center;
-  border-color: v.$accent;
-  color: v.$accent-soft;
 }
 
 // ---- Reward breakdown ----
@@ -856,16 +1154,18 @@
     min-width: 120px;
   }
 
-  .actions-grid {
+  .action-tiles {
     gap: 8px;
   }
 
-  .btn-attack,
-  .btn-skill,
-  .btn-item {
+  .btn-attack {
     padding: 12px 10px;
     font-size: 13px;
     min-height: 40px;
+  }
+
+  .action-tile {
+    height: 66px;
   }
 
   .consumable-modal-overlay {
@@ -895,30 +1195,15 @@
     font-size: 12px;
   }
 
-  .result-view {
-    padding: 20px;
-    margin-top: 24px;
+  .reward-banner__title {
+    font-size: 18px;
   }
 
-  .result-title {
-    font-size: 22px;
-  }
-
-  .result-actions {
-    flex-direction: column;
-  }
-
-  .btn-dashboard-link,
-  .btn-skill-tree-link,
-  .result-actions .btn-walk {
-    justify-content: center;
-    min-height: 40px;
-  }
 }
 
 @media (max-width: 480px) {
-  .actions-grid {
-    grid-template-columns: 1fr;
+  .action-tiles {
+    grid-template-columns: repeat(3, 1fr);
   }
 
   .adds-panel {
@@ -928,15 +1213,4 @@
   .add-card {
     min-width: 0;
   }
-}
-
-.battle-log-background {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 24px;
-  max-height: 400px;
-  overflow-y: auto;
-  margin: 20px;
-  opacity: 0.7;
 }

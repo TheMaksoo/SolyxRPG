@@ -42,11 +42,21 @@ const tabs = [
 // Higher rarities are gated by level (see items.min_level) — below that level the item is a mystery
 // rather than a fully-revealed thing you simply can't afford yet, so the rarer tiers stay something to
 // look forward to instead of a wall of unaffordable-but-fully-spoiled gear.
-const filtered = computed(() =>
-  items.value
-    .filter((i) => i.type === tab.value)
-    .map((i) => ({ ...i, mystery: (auth.user?.character?.level ?? 0) < i.min_level }))
-);
+//
+// Grouped by type once here (recomputes only when the catalog or character level changes), so
+// switching tabs is a cheap lookup instead of re-scanning/re-mapping the entire item catalog on every
+// click — that full rescan on every tab click was the slow part of the shop-tab interaction.
+const itemsByType = computed(() => {
+  const map = {};
+  const level = auth.user?.character?.level ?? 0;
+  for (const i of items.value) {
+    if (!map[i.type]) map[i.type] = [];
+    map[i.type].push({ ...i, mystery: level < i.min_level });
+  }
+  return map;
+});
+
+const filtered = computed(() => itemsByType.value[tab.value] ?? []);
 
 function canAfford(item) {
   const character = characterStore.character;

@@ -14,6 +14,15 @@ class Character extends Model
     /** Both HP and mana regen tick out-of-combat on this same interval. */
     private const REGEN_TICK_SECONDS = 5;
 
+    /** A generous ceiling on how many regen-sync calls (see CharacterController::saveTick) a single
+     * character can rack up in a day. A well-behaved client on the real 1-tick-per-second clock, syncing
+     * every 5 ticks, tops out around 86400/5 = 17280/day — this leaves headroom for reconnects, multiple
+     * tabs, and clock drift, so crossing it is a strong signal of a modified client running its tick loop
+     * faster than real time, not normal play. Regen itself can't actually be sped up this way (it's
+     * computed from real elapsed wall-clock time in regenResource(), never from a client-reported tick
+     * count) — this is a defense-in-depth signal for review, not a gate on the regen math. */
+    public const MAX_DAILY_SYNC_CALLS = 20000;
+
     /** There's no real level cap — this just bounds CombatService::grantXp()'s multi-level-up loop so a
      * pathological xp value can't spin forever. AchievementSeeder's "Transcendent" milestone at level 150
      * is a flavor milestone, not a ceiling: with xpForLevel()'s linear curve, content past level 60 is
@@ -78,9 +87,10 @@ class Character extends Model
             'mana_regen_buff_expires_at' => 'datetime',
             'auto_battle_expires_at' => 'datetime',
             'auto_battle_last_tick_at' => 'datetime',
-            'auto_battle_paused_at' => 'datetime',
             'auto_gather_expires_at' => 'datetime',
             'auto_gather_last_tick_at' => 'datetime',
+            'sync_calls_today' => 'integer',
+            'sync_calls_reset_at' => 'datetime',
         ];
     }
 
@@ -143,6 +153,11 @@ class Character extends Model
     public function pets(): HasMany
     {
         return $this->hasMany(CharacterPet::class);
+    }
+
+    public function dungeonRuns(): HasMany
+    {
+        return $this->hasMany(DungeonRun::class);
     }
 
     public function dailyClaim(): HasOne
@@ -280,7 +295,7 @@ class Character extends Model
         $petCraftSpeedPct = 0;
         foreach ($this->activePets() as $activePet) {
             $bonus = $activePet->pet->bonus_json ?? [];
-            $mult = $activePet->levelMultiplier();
+            $mult = $activePet->bonusMultiplier();
             $petAtkPct += ($bonus['atk_pct'] ?? 0) * $mult;
             $petDefPct += ($bonus['def_pct'] ?? 0) * $mult;
             $petCritPct += ($bonus['crit_pct'] ?? 0) * $mult;
@@ -635,11 +650,11 @@ class Character extends Model
         return ($expiresAt && $expiresAt->isFuture()) ? (float) $this->$pctAttr : 0;
     }
 
-    /** Energy restored per regen tick: base 1, +1 per 15 levels, +1 per 3 points invested in Energy Regen, plus VIP bonuses. Regens even mid-battle — it only gates trade skills. */
+    /** Energy restored per regen tick: base 0.5 (half the old base of 1), +1 per 15 levels, +1 per 3 points invested in Energy Regen, plus VIP bonuses. Regens even mid-battle — it only gates trade skills. */
     public function energyRegenPerTick(): int
     {
         $attr = $this->attributes_ ?? new CharacterAttribute();
-        $base = 1 + intdiv($this->level, 15) + intdiv($attr->energy_regen ?? 0, 3) + ($this->user?->vipEnergyFlatBonus() ?? 0);
+        $base = 0.5 + intdiv($this->level, 15) + intdiv($attr->energy_regen ?? 0, 3) + ($this->user?->vipEnergyFlatBonus() ?? 0);
         $pct = $this->user?->vipEnergyPctBonus() ?? 0;
 
         return max(1, (int) round($base * (1 + $pct / 100)));
@@ -651,14 +666,62 @@ class Character extends Model
         $stats = $this->effectiveStats();
         $dirty = $this->regenResource('energy', 'last_energy_regen_at', $stats['eff_energy_max'], self::REGEN_TICK_SECONDS, $this->energyRegenPerTick());
 
-        if (! Battle::where('character_id', $this->id)->where('status', 'active')->exists()) {
+        if (! Battle::where('character_id', $this->id)->where('status', 'active')->where('is_auto', false)->exists()) {
             $dirty = $this->regenResource('hp', 'last_regen_at', $stats['eff_hp_max'], self::REGEN_TICK_SECONDS, $this->regenPerTick()) || $dirty;
             $dirty = $this->regenResource('mana', 'last_mana_regen_at', $stats['eff_mp_max'], self::REGEN_TICK_SECONDS, $this->manaRegenPerTick()) || $dirty;
+        } else {
+            // Passive regen is intentionally paused for the whole of an active manual battle (in-combat
+            // HP instead ticks battle.character_hp via CombatService::regenInBattle) — advance both anchor
+            // timestamps to now rather than leaving them frozen at whatever they were before the fight
+            // started. Otherwise the entire fight's duration reads as "owed" regen time the instant the
+            // battle ends and this branch runs again, granting a one-shot catch-up that snaps HP/mana back
+            // toward full — exactly the jarring jump this method exists to avoid in the first place.
+            $this->last_regen_at = now();
+            $this->last_mana_regen_at = now();
+            $dirty = true;
         }
 
         if ($dirty) {
             $this->save();
         }
+    }
+
+    /** Records one client tick-sync call against this character's rolling daily budget, resetting the
+     * counter the moment it's stale rather than needing a scheduled job to zero it out at midnight.
+     * Returns true once the count has blown past MAX_DAILY_SYNC_CALLS — the caller decides what to do
+     * with that (currently: log it for GM review). Never blocks or throttles the request itself; that's
+     * handled separately by the regen-sync route's rate limiter. */
+    public function registerSyncCall(): bool
+    {
+        $todayStart = now()->startOfDay();
+        if (! $this->sync_calls_reset_at || $this->sync_calls_reset_at->lt($todayStart)) {
+            $this->sync_calls_today = 0;
+            $this->sync_calls_reset_at = $todayStart;
+        }
+
+        $this->sync_calls_today += 1;
+        $this->save();
+
+        return $this->sync_calls_today > self::MAX_DAILY_SYNC_CALLS;
+    }
+
+    /** The most a resource could legitimately be worth right now, given real elapsed time since it was
+     * last anchored and its per-tick rate — used by CharacterController::saveTick() to clamp a client-
+     * pushed HP/mana/energy value. The client computes its own display continuously (a real number,
+     * e.g. 137.4) while this ceiling is computed in discrete REGEN_TICK_SECONDS chunks like the rest of
+     * this class — so a well-behaved client's rounded value is always <= this ceiling (never rejected),
+     * while a tampered client claiming more than real elapsed time could produce gets capped here. */
+    public function maxPlausibleValue(int $current, ?\Illuminate\Support\Carbon $lastAt, int $max, int $perTick): int
+    {
+        if ($current >= $max) {
+            return $max;
+        }
+
+        $last = $lastAt ?? $this->updated_at ?? now();
+        $elapsedSeconds = max(0, now()->getTimestamp() - $last->getTimestamp());
+        $ticks = intdiv($elapsedSeconds, self::REGEN_TICK_SECONDS);
+
+        return min($max, $current + $ticks * $perTick);
     }
 
     /** Advances one resource's regen clock/value in place. Returns whether anything changed (needs a save). */

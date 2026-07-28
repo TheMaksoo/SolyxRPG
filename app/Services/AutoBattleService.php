@@ -88,35 +88,17 @@ class AutoBattleService
      * purchase), following the same lazy-tick-on-read pattern as Character's HP/energy regen. Called whenever
      * the character is read (e.g. the Battle page loads) rather than from any background job — this game has none.
      *
+     * Runs regardless of whether the character is also mid manual-battle — it never pauses or credits back time,
+     * so playing manually has zero effect on it. Each simulated fight is tagged `is_auto` on its Battle row (see
+     * `simulateFight()`/tick loop below) so BattleController's "the active battle" lookups can ignore it and never
+     * collide with — or get confused for — the player's own manual fight.
+     *
      * Returns a summary of what happened (for a "while you were away" notice), or null if nothing ran.
      */
     public function tick(Character $character): ?array
     {
         if (! $character->auto_battle_expires_at) {
             return null;
-        }
-
-        if (Battle::where('character_id', $character->id)->where('status', 'active')->exists()) {
-            // A manual battle is running — freeze the pass entirely (remaining time is preserved, not spent)
-            // rather than let it silently drain while the player is fighting by hand.
-            if (! $character->auto_battle_paused_at) {
-                $character->auto_battle_paused_at = now();
-                $character->save();
-            }
-
-            return null;
-        }
-
-        if ($character->auto_battle_paused_at) {
-            // Resuming from a pause: shift both the tick clock and the expiry forward by however long the
-            // manual battle lasted, so the paused span costs the pass nothing.
-            $pausedFor = now()->getTimestamp() - $character->auto_battle_paused_at->getTimestamp();
-            if ($pausedFor > 0) {
-                $character->auto_battle_last_tick_at = $character->auto_battle_last_tick_at?->copy()->addSeconds($pausedFor);
-                $character->auto_battle_expires_at = $character->auto_battle_expires_at->copy()->addSeconds($pausedFor);
-            }
-            $character->auto_battle_paused_at = null;
-            $character->save();
         }
 
         $now = now();
@@ -144,6 +126,7 @@ class AutoBattleService
 
             $grade = $this->grades->roll($character->level);
             $battle = $this->combat->start($character, $monster, $grade);
+            $battle->update(['is_auto' => true]);
             $outcome = $this->simulateFight($battle, $character);
 
             $totals['fights']++;
@@ -197,12 +180,92 @@ class AutoBattleService
     }
 
     /**
+     * Auto-Battle is "Training" — fully risk-free. It uses the character's real effective stats to decide
+     * win/loss and still grants real gold/xp/gem rewards on a win, but nothing a fight would normally cost
+     * (HP, mana, potions, gear durability, or a loss's death penalty) is ever left persisted on the real
+     * character. Snapshots everything a fight could touch, plays it out through the same CombatService used
+     * by manual battles, then restores whatever a real fight would have spent.
+     */
+    private function simulateFight(Battle $battle, Character $character): array
+    {
+        $snapshot = $this->snapshotTrainingState($character);
+        $outcome = $this->playFightRounds($battle, $character);
+        $this->restoreTrainingState($character, $snapshot, $outcome['type'] === 'losses');
+
+        return $outcome;
+    }
+
+    /** Captures every real character/inventory field a simulated fight could touch, so it can be undone after. */
+    private function snapshotTrainingState(Character $character): array
+    {
+        $character->refresh();
+
+        return [
+            'hp' => $character->hp,
+            'mana' => $character->mana,
+            'atk_buff_pct' => $character->atk_buff_pct,
+            'atk_buff_fights_left' => $character->atk_buff_fights_left,
+            'gold' => $character->gold,
+            'xp' => $character->xp,
+            'level' => $character->level,
+            'attribute_points' => $character->attribute_points,
+            'skill_points' => $character->skill_points,
+            'gear_durability' => Inventory::where('character_id', $character->id)
+                ->where('equipped', true)
+                ->whereHas('item', fn ($q) => $q->whereIn('type', ['weapon', 'armor']))
+                ->pluck('durability', 'id'),
+            'inventory_qty' => Inventory::where('character_id', $character->id)
+                ->where('equipped', false)
+                ->pluck('qty', 'item_id'),
+        ];
+    }
+
+    /** Undoes HP/mana/buff/gear-durability/potion spend from the fight that just ran. When $revertProgress is
+     * true (the fight was lost), also undoes the death penalty's gold/xp/level loss — a lost training bout
+     * costs nothing, it just earns no reward. */
+    private function restoreTrainingState(Character $character, array $snapshot, bool $revertProgress): void
+    {
+        $character->refresh();
+        $character->hp = $snapshot['hp'];
+        $character->mana = $snapshot['mana'];
+        $character->atk_buff_pct = $snapshot['atk_buff_pct'];
+        $character->atk_buff_fights_left = $snapshot['atk_buff_fights_left'];
+
+        if ($revertProgress) {
+            $character->gold = $snapshot['gold'];
+            $character->xp = $snapshot['xp'];
+            $character->level = $snapshot['level'];
+            $character->attribute_points = $snapshot['attribute_points'];
+            $character->skill_points = $snapshot['skill_points'];
+        }
+
+        $character->save();
+
+        foreach ($snapshot['gear_durability'] as $inventoryId => $durability) {
+            Inventory::where('id', $inventoryId)->update(['durability' => $durability]);
+        }
+
+        foreach ($snapshot['inventory_qty'] as $itemId => $qty) {
+            Inventory::updateOrCreate(
+                ['character_id' => $character->id, 'item_id' => $itemId, 'equipped' => false],
+                ['qty' => $qty]
+            );
+        }
+
+        // Delete any consumable rows the fight created that didn't exist beforehand (shouldn't normally happen).
+        Inventory::where('character_id', $character->id)
+            ->where('equipped', false)
+            ->whereNotIn('item_id', array_keys($snapshot['inventory_qty']->all()))
+            ->delete();
+    }
+
+    /**
      * Plays out one fight round-by-round: attacks normally, but at or below 30% HP drinks the best healing potion
      * on hand (or flees if it has none, rather than risk a death spiral across many unattended fights). There's no
      * "do nothing" action in this game's turn model, so there's no separate cautious band between 30-50% HP —
      * every round is either an attack or a heal.
      */
-    private function simulateFight(Battle $battle, Character $character): array
+    private function playFightRounds(Battle $battle, Character $character): array
     {
         $hpMax = max(1, $character->effectiveStats()['eff_hp_max']);
 

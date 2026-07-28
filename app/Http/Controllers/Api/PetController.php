@@ -38,11 +38,11 @@ class PetController extends Controller
 
         $pets = Pet::where('enabled', true)->orderBy('sort_order')->get()->map(function (Pet $pet) use ($owned) {
             $ownedPet = $owned->get($pet->id);
-            $levelMult = $ownedPet ? $ownedPet->levelMultiplier() : 1.0;
+            $bonusMult = $ownedPet ? $ownedPet->bonusMultiplier() : 1.0;
 
             $bonuses = collect($pet->bonus_json ?? [])->map(fn ($value, $key) => [
                 'label' => self::STAT_LABELS[$key] ?? $key,
-                'pct' => round($value * $levelMult, 1),
+                'pct' => round($value * $bonusMult, 1),
             ])->values();
 
             return [
@@ -50,9 +50,15 @@ class PetController extends Controller
                 'owned' => $owned->has($pet->id),
                 'active' => $ownedPet?->active ?? false,
                 'level' => $ownedPet?->level,
+                'rank' => $ownedPet?->rank ?? 0,
+                'max_rank' => CharacterPet::MAX_RANK,
                 'xp' => $ownedPet?->xp,
                 'xp_needed' => $ownedPet ? CharacterPet::xpForLevel($ownedPet->level) : null,
-                'max_level' => CharacterPet::MAX_LEVEL,
+                'max_level' => $ownedPet?->maxLevel() ?? CharacterPet::BASE_MAX_LEVEL,
+                'can_rank_up' => $ownedPet?->canRankUp() ?? false,
+                'rank_up_cost' => $ownedPet && $ownedPet->rank < CharacterPet::MAX_RANK
+                    ? ['gold' => $ownedPet->goldCostForNextRank(), 'gems' => $ownedPet->gemCostForNextRank()]
+                    : null,
                 'bonuses' => $bonuses,
             ];
         });
@@ -92,6 +98,44 @@ class PetController extends Controller
         $this->achievements->check($character->fresh());
 
         return response()->json(['character' => $character->fresh()]);
+    }
+
+    /** Resets a maxed-out pet's level back to 1 in exchange for a permanent bonus increase (see
+     * CharacterPet::rankMultiplier) and a higher level cap — costs gold (always) plus a small gem top-up
+     * for pets that were originally unlocked with gems, compounding 10% per rank already reached. */
+    public function rankUp(Request $request, Pet $pet)
+    {
+        $character = $request->user()->character;
+        abort_unless($character, 404);
+
+        $owned = $character->pets()->where('pet_id', $pet->id)->with('pet')->firstOrFail();
+
+        if (! $owned->canRankUp()) {
+            return response()->json(['message' => "This companion must reach level {$owned->maxLevel()} before it can rank up."], 422);
+        }
+
+        $goldCost = $owned->goldCostForNextRank();
+        $gemCost = $owned->gemCostForNextRank();
+
+        if ($character->gold < $goldCost) {
+            return response()->json(['message' => "Not enough gold — Rank Up costs {$goldCost} gold.".($gemCost > 0 ? " and {$gemCost} gems." : '')], 422);
+        }
+        if ($gemCost > 0 && $character->gems < $gemCost) {
+            return response()->json(['message' => "Not enough gems — Rank Up costs {$gemCost} gems on top of {$goldCost} gold."], 422);
+        }
+
+        $character->decrement('gold', $goldCost);
+        if ($gemCost > 0) {
+            $character->decrement('gems', $gemCost);
+            GemLedger::log($character, -$gemCost, "pet_rank_up:{$pet->key}");
+        }
+
+        $owned->update(['rank' => $owned->rank + 1, 'level' => 1, 'xp' => 0]);
+
+        return response()->json([
+            'character' => $character->fresh(),
+            'pet' => $owned->fresh(),
+        ]);
     }
 
     /** Toggles a pet active/inactive. Multiple pets can be active at once — how many depends on level and VIP

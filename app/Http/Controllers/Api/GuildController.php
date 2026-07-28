@@ -38,7 +38,7 @@ class GuildController extends Controller
             'messages.character.activeColor',
         ])->first();
 
-        $power = $guild->members->sum(fn ($m) => $m->character?->effectiveStats()['power'] ?? 0);
+        $power = $guild->power();
         $guildRank = Guild::orderByDesc('level')->orderByDesc('xp')->pluck('id')->search($guild->id);
         $guildRank = $guildRank === false ? null : $guildRank + 1;
         $displayWarStatus = ($guild->last_activity_at && $guild->last_activity_at->gt(now()->subHours(48))) ? 'active' : 'quiet';

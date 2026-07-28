@@ -88,5 +88,24 @@ export const useCharacterStore = defineStore('character', {
             this.character = data.character;
             return data.applied;
         },
+
+        // The one periodic "game save" push (composables/regen.js calls this every ~5 real seconds) —
+        // sends what the client already knows it's showing (it computes the same regen formula the
+        // server does, just continuously) so the server persists that exact value (clamped to what
+        // could legitimately have regenerated, see Character::maxPlausibleValue) instead of silently
+        // overwriting it with its own independently-rounded recompute. Every other character-related
+        // request only ever reads/fetches; this is the only one that writes on a normal timer.
+        async syncRegen(payload = {}) {
+            const { data } = await api.post('/character/save-tick', payload);
+            if (this.character) {
+                this.character.hp = data.hp;
+                this.character.mana = data.mana;
+                this.character.energy = data.energy;
+            }
+            this.regenPerTick = data.regen_per_tick ?? this.regenPerTick;
+            this.manaRegenPerTick = data.mana_regen_per_tick ?? this.manaRegenPerTick;
+            this.energyRegenPerTick = data.energy_regen_per_tick ?? this.energyRegenPerTick;
+            return data;
+        },
     },
 });

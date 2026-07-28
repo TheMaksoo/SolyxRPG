@@ -92,8 +92,8 @@ class GuildWarController extends Controller
             ]);
         }
 
-        $guildPower = $this->guildPower($guild);
-        $opponentPower = $this->guildPower($opponent);
+        $guildPower = $guild->power();
+        $opponentPower = $opponent->power();
 
         $battle = GuildWarBattle::create([
             'guild_a_id' => $guild->id,
@@ -186,11 +186,6 @@ class GuildWarController extends Controller
         if (! $guild->guild_war_points_reset_at || $guild->guild_war_points_reset_at->lt($mondayThisWeek)) {
             $guild->update(['guild_war_points' => 0, 'guild_war_points_reset_at' => now()]);
         }
-    }
-
-    private function guildPower(Guild $guild): int
-    {
-        return $guild->members->sum(fn ($m) => $m->character?->effectiveStats()['power'] ?? 0);
     }
 
     private function leaderboardRank(Guild $guild): ?int

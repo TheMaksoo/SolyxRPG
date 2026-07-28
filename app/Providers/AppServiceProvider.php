@@ -38,5 +38,13 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(5)->by($email.'|'.$request->ip());
         });
+
+        // The battle page's client tick loop syncs regen every 5 (real) seconds, so ~12/min is normal —
+        // 20/min leaves room for a reconnect or a second tab without opening the door to a client whose
+        // tick loop has been sped up to hammer the endpoint. Keyed by user, not IP, so it still caps a
+        // single account across devices/proxies.
+        RateLimiter::for('regen-sync', function ($request) {
+            return Limit::perMinute(20)->by($request->user()?->id ?: $request->ip());
+        });
     }
 }
