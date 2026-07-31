@@ -218,6 +218,10 @@ class StoreController extends Controller
         $user->save();
 
         $this->recordSpend($user->id, $session->amount_total ?? 0);
+        Purchase::firstOrCreate(
+            ['stripe_session_id' => $session->id],
+            ['user_id' => $user->id, 'sku' => "vip_{$user->vip_tier}_{$period}", 'amount_cents' => $session->amount_total ?? 0, 'status' => 'completed']
+        );
     }
 
     /** One-time Lifetime VIP purchase — no subscription, no recurring billing, no expiry. */
@@ -234,6 +238,10 @@ class StoreController extends Controller
         $user->save();
 
         $this->recordSpend($user->id, $session->amount_total ?? 0);
+        Purchase::firstOrCreate(
+            ['stripe_session_id' => $session->id],
+            ['user_id' => $user->id, 'sku' => 'vip_lifetime', 'amount_cents' => $session->amount_total ?? 0, 'status' => 'completed']
+        );
     }
 
     /** Running lifetime real-money total per account — every checkout.session.completed and recurring
@@ -289,6 +297,12 @@ class StoreController extends Controller
         $user->save();
 
         $this->recordSpend($userId, $invoice->amount_paid ?? 0);
+        // Invoices (not checkout sessions) drive renewals, so they need their own unique key —
+        // prefixed to guarantee no collision with a 'cs_...' checkout session id.
+        Purchase::firstOrCreate(
+            ['stripe_session_id' => 'inv_'.$invoice->id],
+            ['user_id' => $userId, 'sku' => "vip_{$vipTier}_renewal", 'amount_cents' => $invoice->amount_paid ?? 0, 'status' => 'completed']
+        );
     }
 
     private function fulfil(Purchase $purchase): void

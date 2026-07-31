@@ -252,6 +252,47 @@ async function loadRevenue() {
   metrics.value = data;
 }
 
+// Revenue dashboard tab — real monetization analytics fed by GET /gm/revenue (see GmRevenueController).
+// Every figure here is derived from completed Purchase rows + character activity, not a projection.
+const revenue = ref(null);
+const revenueRange = ref('30d');
+const revenueSort = ref('rev');
+async function loadRevenueDashboard() {
+  const { data } = await api.get('/gm/revenue', { params: { range: revenueRange.value, sort: revenueSort.value } });
+  revenue.value = data;
+}
+function setRevenueRange(range) {
+  revenueRange.value = range;
+  loadRevenueDashboard();
+}
+function setRevenueSort(sort) {
+  revenueSort.value = sort;
+  loadRevenueDashboard();
+}
+function formatEuro(cents) {
+  return '€' + ((cents || 0) / 100).toFixed(2);
+}
+const revenueStreamChartData = computed(() => {
+  if (!revenue.value) return { labels: [], datasets: [] };
+  return {
+    labels: revenue.value.daily.map((d) => d.date.slice(5)),
+    datasets: revenue.value.streams.map((s) => ({
+      label: s.label,
+      color: s.color,
+      data: revenue.value.daily.map((d) => d[s.key] ?? 0),
+    })),
+  };
+});
+const arpdauChartData = computed(() => ({
+  labels: revenue.value ? revenue.value.arpdau.map((d) => d.date.slice(5)) : [],
+  data: revenue.value ? revenue.value.arpdau.map((d) => d.value) : [],
+}));
+const revenueFunnel = computed(() => {
+  if (!revenue.value) return [];
+  const top = revenue.value.funnel[0]?.value || 0;
+  return revenue.value.funnel.map((f) => ({ ...f, pct: top > 0 ? Math.round((f.value / top) * 100) : 0 }));
+});
+
 const openBugReportCount = computed(
   () => tickets.value.filter((t) => t.category === 'bug' && ['open', 'pending'].includes(t.status)).length
 );
@@ -578,7 +619,7 @@ function switchTab(key) {
   if (key === 'activity') { loadActivity(); loadRevenue(); }
   if (key === 'players') loadPlayers();
   if (key === 'economy') loadConfig();
-  if (key === 'revenue') loadRevenue();
+  if (key === 'revenue') loadRevenueDashboard();
   if (key === 'flags') loadFlags();
   if (key === 'tickets') loadTickets();
   if (key === 'audit') loadAuditLog();
@@ -766,41 +807,185 @@ onMounted(() => {
 
     <!-- REVENUE -->
     <div v-else-if="tab === 'revenue'">
-      <div class="gm-console-flags-header">
-        <div class="gm-console-section-label">REVENUE — {{ metrics?.period?.label || 'THIS MONTH' }}</div>
-      </div>
-      <div v-if="metrics" class="gm-console-revenue-panel">
-        <p class="gm-console-revenue-panel__disclaimer">
-          Gem pack, season pass, and other one-time figures are exact — summed from completed purchases this month.
-          VIP MRR is an <strong>estimate based on current active subscribers</strong> (active count × current tier price) —
-          there's no per-charge VIP ledger to compute an exact figure.
-        </p>
-        <div class="gm-console-revenue-grid">
-          <div class="gm-console-revenue-tile">
-            <div class="gm-console-revenue-tile__label">Gem Pack Revenue ({{ metrics.gem_packs_sold_count }} sold)</div>
-            <div class="ox gm-console-revenue-tile__value">${{ formatCents(metrics.gem_pack_revenue_cents) }}</div>
+      <div v-if="revenue" class="gm-revenue">
+        <div class="gm-revenue__header">
+          <div>
+            <div class="gm-console-section-label">REVENUE</div>
+            <p class="gm-revenue__hint">
+              {{ revenue.window.from }} – {{ revenue.window.to }} · figures in EUR · every purchase, VIP charge, and
+              Founder Pack sale, exact — no estimates.
+            </p>
           </div>
-          <div class="gm-console-revenue-tile">
-            <div class="gm-console-revenue-tile__label">Season Pass Revenue ({{ metrics.season_passes_sold_count }} sold)</div>
-            <div class="ox gm-console-revenue-tile__value">${{ formatCents(metrics.season_pass_revenue_cents) }}</div>
+          <div class="gm-console-activity__range">
+            <button
+              v-for="r in [['7d', '7 days'], ['30d', '30 days'], ['season', 'Season'], ['ltd', 'All time']]"
+              :key="r[0]"
+              class="gm-console-activity__range-btn"
+              :class="{ 'is-active': revenueRange === r[0] }"
+              @click="setRevenueRange(r[0])"
+            >{{ r[1] }}</button>
           </div>
-          <div class="gm-console-revenue-tile">
-            <div class="gm-console-revenue-tile__label">Other SKU Revenue</div>
-            <div class="ox gm-console-revenue-tile__value">${{ formatCents(metrics.other_revenue_cents) }}</div>
+        </div>
+
+        <div class="gm-console-activity-stats">
+          <div class="gm-console-activity-stat">
+            <div class="gm-console-activity-stat__label">Net revenue</div>
+            <div class="ox gm-console-activity-stat__value">{{ formatEuro(revenue.kpis.net_revenue_cents) }}</div>
           </div>
-          <div class="gm-console-revenue-tile gm-console-revenue-tile--total">
-            <div class="gm-console-revenue-tile__label">Total One-Time Revenue</div>
-            <div class="ox gm-console-revenue-tile__value">${{ formatCents(metrics.total_one_time_revenue_cents) }}</div>
+          <div class="gm-console-activity-stat">
+            <div class="gm-console-activity-stat__label">Paying users</div>
+            <div class="ox gm-console-activity-stat__value">{{ revenue.kpis.paying_users }}</div>
           </div>
-          <div class="gm-console-revenue-tile">
-            <div class="gm-console-revenue-tile__label">Active VIP — Bronze / Gold / Diamond</div>
-            <div class="ox gm-console-revenue-tile__value">
-              {{ metrics.active_vip_counts.bronze }} / {{ metrics.active_vip_counts.gold }} / {{ metrics.active_vip_counts.diamond }}
+          <div class="gm-console-activity-stat">
+            <div class="gm-console-activity-stat__label">ARPPU</div>
+            <div class="ox gm-console-activity-stat__value gm-console-activity-stat__value--amber">{{ formatEuro(revenue.kpis.arppu_cents) }}</div>
+          </div>
+          <div class="gm-console-activity-stat">
+            <div class="gm-console-activity-stat__label">Transactions</div>
+            <div class="ox gm-console-activity-stat__value">{{ revenue.kpis.transactions }}</div>
+          </div>
+          <div class="gm-console-activity-stat">
+            <div class="gm-console-activity-stat__label">Avg transaction</div>
+            <div class="ox gm-console-activity-stat__value">{{ formatEuro(revenue.kpis.avg_transaction_cents) }}</div>
+          </div>
+        </div>
+
+        <div class="gm-revenue__cols">
+          <div class="gm-revenue__col gm-revenue__col--main">
+
+            <div class="gm-console-panel gm-revenue-card">
+              <div class="gm-revenue-card__head">
+                <div>
+                  <div class="gm-console-section-label">Revenue by stream</div>
+                  <p class="gm-revenue-card__sub">Daily, stacked · {{ revenue.window.days }}-day window</p>
+                </div>
+              </div>
+              <ActivityChart
+                type="bar"
+                stacked
+                :labels="revenueStreamChartData.labels"
+                :datasets="revenueStreamChartData.datasets"
+                :height="220"
+              />
             </div>
+
+            <div class="gm-console-panel gm-revenue-card">
+              <div class="gm-revenue-card__head">
+                <div>
+                  <div class="gm-console-section-label">Most profitable</div>
+                  <p class="gm-revenue-card__sub">Ranked this window.</p>
+                </div>
+                <div class="gm-console-activity__range">
+                  <button
+                    v-for="s in [['rev', 'Revenue'], ['buyers', 'Buyers'], ['trend', 'Growth']]"
+                    :key="s[0]"
+                    class="gm-console-activity__range-btn"
+                    :class="{ 'is-active': revenueSort === s[0] }"
+                    @click="setRevenueSort(s[0])"
+                  >{{ s[1] }}</button>
+                </div>
+              </div>
+              <div class="gm-revenue-ranked">
+                <div v-for="(s, i) in revenue.streams" :key="s.key" class="gm-revenue-ranked__row">
+                  <span class="ox gm-revenue-ranked__rank">{{ i + 1 }}</span>
+                  <div class="gm-revenue-ranked__body">
+                    <div class="gm-revenue-ranked__name">
+                      <span class="gm-revenue-ranked__dot" :style="{ background: s.color }"></span>{{ s.label }}
+                    </div>
+                    <div class="gm-revenue-ranked__bar">
+                      <div
+                        class="gm-revenue-ranked__bar-fill"
+                        :style="{
+                          width: (revenue.streams[0].revenue_cents > 0 ? (s.revenue_cents / revenue.streams[0].revenue_cents * 100) : 0) + '%',
+                          background: s.color,
+                        }"
+                      ></div>
+                    </div>
+                    <div class="gm-revenue-ranked__note">{{ s.buyers }} buyer{{ s.buyers === 1 ? '' : 's' }} · {{ s.transactions }} txn{{ s.transactions === 1 ? '' : 's' }}</div>
+                  </div>
+                  <span class="ox gm-revenue-ranked__rev">{{ formatEuro(s.revenue_cents) }}</span>
+                  <span class="ox gm-revenue-ranked__trend" :class="s.trend_pct >= 0 ? 'is-up' : 'is-down'">
+                    {{ s.trend_pct >= 0 ? '▲' : '▼' }} {{ Math.abs(s.trend_pct) }}%
+                  </span>
+                </div>
+                <p v-if="!revenue.streams.some((s) => s.revenue_cents > 0)" class="gm-console-empty gm-console-empty--panel">
+                  No completed purchases in this window yet.
+                </p>
+              </div>
+            </div>
+
+            <div class="gm-console-panel gm-revenue-card">
+              <div class="gm-console-section-label">Price ladder — what they get</div>
+              <p class="gm-revenue-card__sub">Every purchasable in Solyx, all-time buyers and revenue.</p>
+              <div class="gm-revenue-products">
+                <div v-for="p in revenue.products" :key="p.key" class="gm-revenue-product">
+                  <div class="gm-revenue-product__head">
+                    <div>
+                      <div class="gm-revenue-product__name">{{ p.label }}</div>
+                      <div class="gm-revenue-product__kind">{{ p.kind }}</div>
+                    </div>
+                    <span class="ox gm-revenue-product__price">{{ formatEuro(p.price_cents) }}</span>
+                  </div>
+                  <div class="gm-revenue-product__foot">
+                    <span>{{ p.buyers }} buyer{{ p.buyers === 1 ? '' : 's' }} · {{ formatEuro(p.revenue_cents) }} all-time</span>
+                    <span v-if="p.tag" class="gm-revenue-product__tag">{{ p.tag }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
-          <div class="gm-console-revenue-tile gm-console-revenue-tile--total">
-            <div class="gm-console-revenue-tile__label">Est. VIP MRR</div>
-            <div class="ox gm-console-revenue-tile__value">${{ formatCents(metrics.vip_mrr_cents) }}</div>
+
+          <div class="gm-revenue__col gm-revenue__col--side">
+
+            <div class="gm-console-panel gm-revenue-card">
+              <div class="gm-console-section-label">Mix this window</div>
+              <div class="gm-revenue-mix-bar">
+                <div v-for="m in revenue.mix" :key="m.label" class="gm-revenue-mix-bar__seg" :style="{ width: m.pct + '%', background: m.color }"></div>
+              </div>
+              <div class="gm-revenue-mix-list">
+                <div v-for="m in revenue.mix" :key="m.label" class="gm-revenue-mix-list__row">
+                  <span class="gm-revenue-mix-list__dot" :style="{ background: m.color }"></span>
+                  <span class="gm-revenue-mix-list__label">{{ m.label }}</span>
+                  <span class="ox gm-revenue-mix-list__pct">{{ m.pct }}%</span>
+                </div>
+                <p v-if="!revenue.mix.length" class="gm-console-empty">No revenue yet.</p>
+              </div>
+            </div>
+
+            <div class="gm-console-panel gm-revenue-card">
+              <div class="gm-console-section-label">ARPDAU trend</div>
+              <p class="gm-revenue-card__sub">Avg revenue per daily active character.</p>
+              <ActivityChart type="line" color="#eab308" :labels="arpdauChartData.labels" :data="arpdauChartData.data" :height="140" />
+            </div>
+
+            <div class="gm-console-panel gm-revenue-card">
+              <div class="gm-console-section-label">Conversion funnel</div>
+              <div class="gm-revenue-funnel">
+                <div v-for="f in revenueFunnel" :key="f.label" class="gm-revenue-funnel__row">
+                  <div class="gm-revenue-funnel__labels">
+                    <span>{{ f.label }}</span>
+                    <span class="ox">{{ f.value }}</span>
+                  </div>
+                  <div class="gm-revenue-funnel__bar"><div class="gm-revenue-funnel__bar-fill" :style="{ width: f.pct + '%' }"></div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="gm-console-panel gm-revenue-card gm-revenue-watchlist">
+              <div class="gm-console-section-label">Watch list</div>
+              <div v-if="revenue.alerts.length" class="gm-revenue-watchlist__list">
+                <div v-for="(a, i) in revenue.alerts" :key="i" class="gm-revenue-watchlist__row">
+                  <span class="gm-revenue-watchlist__dot" :style="{ background: a.dot }"></span>
+                  <div>
+                    <div class="gm-revenue-watchlist__text">{{ a.text }}</div>
+                    <div class="gm-revenue-watchlist__meta">{{ a.meta }}</div>
+                  </div>
+                </div>
+              </div>
+              <p v-else class="gm-console-empty">No notable swings this window.</p>
+            </div>
+
           </div>
         </div>
       </div>

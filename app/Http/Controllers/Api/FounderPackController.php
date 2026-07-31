@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\FeatureFlag;
+use App\Models\Purchase;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Stripe\StripeClient;
@@ -129,5 +130,10 @@ class FounderPackController extends Controller
         $user->is_founder = true;
         $user->founder_purchased_at = now();
         $user->save();
+
+        Purchase::firstOrCreate(
+            ['stripe_session_id' => $session->id],
+            ['user_id' => $user->id, 'sku' => 'founder_pack', 'amount_cents' => $session->amount_total ?? self::PRICE_CENTS, 'status' => 'completed']
+        );
     }
 }

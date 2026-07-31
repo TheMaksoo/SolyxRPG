@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\Gm\GmAnalyticsController;
 use App\Http\Controllers\Api\Gm\GmErrorLogController;
 use App\Http\Controllers\Api\Gm\GmMetricsController;
 use App\Http\Controllers\Api\Gm\GmPlayerController;
+use App\Http\Controllers\Api\Gm\GmRevenueController;
 use App\Http\Controllers\Api\Gm\GmProgressionController;
 use App\Http\Controllers\Api\Gm\GmTicketController;
 use App\Http\Controllers\Api\GuildController;
@@ -278,6 +279,7 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
         Route::post('/players/{user}/clear-stuck-state', [GmPlayerController::class, 'clearStuckState']);
 
         Route::get('/metrics', [GmMetricsController::class, 'index']);
+        Route::get('/revenue', [GmRevenueController::class, 'index']);
         Route::get('/analytics', [GmAnalyticsController::class, 'index']);
         Route::get('/errors', [GmErrorLogController::class, 'index']);
         Route::post('/errors/{errorLog}/archive', [GmErrorLogController::class, 'archive']);
