@@ -185,6 +185,57 @@ class GmRevenueController extends Controller
         ]);
     }
 
+    /** Who bought what — every Purchase row with the buyer attached, newest first, optionally filtered
+     * by player name/email. This is the per-user drill-down the aggregate panels above can't answer. */
+    public function purchases(Request $request)
+    {
+        $search = $request->query('search');
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = 50;
+
+        $query = Purchase::with('user:id,name,email')
+            ->when($search, fn ($q) => $q->whereHas('user', fn ($u) => $u->where('name', 'like', "%{$search}%")
+                ->orWhere('email', 'like', "%{$search}%")))
+            ->orderByDesc('created_at');
+
+        $total = $query->count();
+        $rows = $query->forPage($page, $perPage)->get();
+
+        return response()->json([
+            'purchases' => $rows->map(fn ($p) => [
+                'id' => $p->id,
+                'user_id' => $p->user_id,
+                'user_name' => $p->user?->name,
+                'user_email' => $p->user?->email,
+                'sku' => $p->sku,
+                'label' => $this->skuLabel($p->sku),
+                'amount_cents' => $p->amount_cents,
+                'status' => $p->status,
+                'created_at' => $p->created_at,
+            ]),
+            'page' => $page,
+            'per_page' => $perPage,
+            'total' => $total,
+        ]);
+    }
+
+    private function skuLabel(string $sku): string
+    {
+        $suffix = match (true) {
+            str_ends_with($sku, '_renewal') => ' (renewal)',
+            str_ends_with($sku, '_year') => ' (yearly)',
+            default => '',
+        };
+
+        foreach (self::PRODUCTS as $product) {
+            if (in_array($sku, $product['match'], true)) {
+                return $product['label'].$suffix;
+            }
+        }
+
+        return $sku;
+    }
+
     private function rangeStart(string $range): Carbon
     {
         return match ($range) {

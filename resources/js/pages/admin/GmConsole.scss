@@ -596,6 +596,88 @@
   margin-top: 3px;
 }
 
+// Purchase log — "who bought what"
+.gm-revenue-purchase-table {
+  margin-top: 6px;
+  overflow-x: auto;
+}
+
+.gm-revenue-purchase-row {
+  display: grid;
+  grid-template-columns: 90px 1.4fr 1.3fr 90px 90px;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 12.5px;
+  min-width: 560px;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &--header {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    color: v.$text-muted-40;
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+}
+
+.gm-revenue-purchase-row__when {
+  color: v.$text-muted-45;
+  white-space: nowrap;
+}
+
+.gm-revenue-purchase-row__player {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.gm-revenue-purchase-row__name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gm-revenue-purchase-row__email {
+  font-size: 10.5px;
+  color: v.$text-muted-40;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gm-revenue-purchase-row__status {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+
+  &.is-completed {
+    color: v.$success;
+  }
+
+  &.is-pending {
+    color: #eab308;
+  }
+}
+
+.gm-revenue-purchase-load-more {
+  margin-top: 12px;
+  width: 100%;
+  text-align: center;
+  justify-content: center;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}
+
 // ---- Activity tab ----
 .gm-console-activity__toolbar {
   display: flex;

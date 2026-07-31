@@ -287,6 +287,29 @@ const arpdauChartData = computed(() => ({
   labels: revenue.value ? revenue.value.arpdau.map((d) => d.date.slice(5)) : [],
   data: revenue.value ? revenue.value.arpdau.map((d) => d.value) : [],
 }));
+
+// Purchase log — "who bought what", fed by GET /gm/purchases. Kept separate from /gm/revenue since
+// it's a per-user drill-down rather than an aggregate, and paginates independently of the range toggle.
+const purchaseLog = ref([]);
+const purchaseLogTotal = ref(0);
+const purchaseLogPage = ref(1);
+const purchaseLogSearch = ref('');
+const purchaseLogLoading = ref(false);
+async function loadPurchaseLog(reset = true) {
+  if (reset) purchaseLogPage.value = 1;
+  purchaseLogLoading.value = true;
+  try {
+    const { data } = await api.get('/gm/purchases', { params: { search: purchaseLogSearch.value || undefined, page: purchaseLogPage.value } });
+    purchaseLog.value = reset ? data.purchases : [...purchaseLog.value, ...data.purchases];
+    purchaseLogTotal.value = data.total;
+  } finally {
+    purchaseLogLoading.value = false;
+  }
+}
+function loadMorePurchases() {
+  purchaseLogPage.value++;
+  loadPurchaseLog(false);
+}
 const revenueFunnel = computed(() => {
   if (!revenue.value) return [];
   const top = revenue.value.funnel[0]?.value || 0;
@@ -619,7 +642,7 @@ function switchTab(key) {
   if (key === 'activity') { loadActivity(); loadRevenue(); }
   if (key === 'players') loadPlayers();
   if (key === 'economy') loadConfig();
-  if (key === 'revenue') loadRevenueDashboard();
+  if (key === 'revenue') { loadRevenueDashboard(); loadPurchaseLog(); }
   if (key === 'flags') loadFlags();
   if (key === 'tickets') loadTickets();
   if (key === 'audit') loadAuditLog();
@@ -988,6 +1011,54 @@ onMounted(() => {
 
           </div>
         </div>
+
+        <div class="gm-console-panel gm-revenue-card">
+          <div class="gm-revenue-card__head">
+            <div>
+              <div class="gm-console-section-label">Purchase log — who bought what</div>
+              <p class="gm-revenue-card__sub">{{ purchaseLogTotal }} purchase{{ purchaseLogTotal === 1 ? '' : 's' }} total, newest first · all-time, independent of the range above.</p>
+            </div>
+            <div class="gm-console-search-row">
+              <input
+                v-model="purchaseLogSearch"
+                @keyup.enter="loadPurchaseLog()"
+                placeholder="Search by player name or email…"
+                class="gm-console-search-input"
+              />
+              <button @click="loadPurchaseLog()" class="gm-console-search-btn">Search</button>
+            </div>
+          </div>
+          <div class="gm-revenue-purchase-table">
+            <div class="gm-revenue-purchase-row gm-revenue-purchase-row--header">
+              <span>When</span>
+              <span>Player</span>
+              <span>Product</span>
+              <span>Amount</span>
+              <span>Status</span>
+            </div>
+            <div v-for="p in purchaseLog" :key="p.id" class="gm-revenue-purchase-row">
+              <span class="gm-revenue-purchase-row__when" :title="p.created_at">{{ timeAgo(p.created_at) }}</span>
+              <span class="gm-revenue-purchase-row__player">
+                <span class="gm-revenue-purchase-row__name">{{ p.user_name || 'Deleted user' }}</span>
+                <span class="gm-revenue-purchase-row__email">{{ p.user_email }}</span>
+              </span>
+              <span>{{ p.label }}</span>
+              <span class="ox">{{ formatEuro(p.amount_cents) }}</span>
+              <span class="gm-revenue-purchase-row__status" :class="'is-' + p.status">{{ p.status }}</span>
+            </div>
+            <p v-if="!purchaseLog.length && !purchaseLogLoading" class="gm-console-empty gm-console-empty--panel">No purchases found.</p>
+          </div>
+          <button
+            v-if="purchaseLog.length < purchaseLogTotal"
+            type="button"
+            class="gm-console-activity__range-btn gm-revenue-purchase-load-more"
+            :disabled="purchaseLogLoading"
+            @click="loadMorePurchases"
+          >
+            {{ purchaseLogLoading ? 'Loading…' : `Load more (${purchaseLog.length} of ${purchaseLogTotal})` }}
+          </button>
+        </div>
+
       </div>
       <p v-else class="gm-console-intro">Loading revenue…</p>
     </div>

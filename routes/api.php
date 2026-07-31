@@ -280,6 +280,7 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
 
         Route::get('/metrics', [GmMetricsController::class, 'index']);
         Route::get('/revenue', [GmRevenueController::class, 'index']);
+        Route::get('/purchases', [GmRevenueController::class, 'purchases']);
         Route::get('/analytics', [GmAnalyticsController::class, 'index']);
         Route::get('/errors', [GmErrorLogController::class, 'index']);
         Route::post('/errors/{errorLog}/archive', [GmErrorLogController::class, 'archive']);
