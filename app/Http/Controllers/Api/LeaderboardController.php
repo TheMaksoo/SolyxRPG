@@ -72,10 +72,20 @@ class LeaderboardController extends Controller
                 'starts_at' => $season->starts_at,
                 'ends_at' => $season->ends_at,
             ],
-            'reward_tiers' => LeaderboardService::REWARD_TIERS,
+            'reward_tiers' => $this->leaderboard->rewardTiersFor($category),
             'hall_of_fame' => $this->leaderboard->hallOfFame(),
             'rivals' => $character ? $this->leaderboard->rivals($character, $category) : [],
         ]);
+    }
+
+    /** Every real-money spender, ranked by spend but never showing the amount — its own page (Solyx
+     * Supporters), same treatment as FounderPackController's Hall of Founders but not restricted to
+     * Founder Pack buyers specifically. */
+    public function supporters(Request $request)
+    {
+        abort_unless(FeatureFlag::gate('leaderboard', $request->user()), 403, 'The Leaderboard is not currently available.');
+
+        return response()->json(['supporters' => $this->leaderboard->supporters()]);
     }
 
     /** Bulk "my rank in every category" for the sidebar's per-category pills — one request instead of 18. */

@@ -1,25 +1,11 @@
 @use '../../scss/variables' as v;
 @use '../../scss/mixins' as m;
 
-.profile-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 18px;
-}
-
-.profile-tab-btn {
-  padding: 8px 16px;
-  border-radius: v.$radius-pill;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: v.$bg-card;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-
-  &.is-active {
-    background: v.$accent;
-  }
+.customize-back-btn {
+  @include m.btn-secondary;
+  padding: 7px 16px;
+  font-size: 12px;
+  margin-bottom: 16px;
 }
 
 .profile-message {
@@ -28,17 +14,124 @@
   margin-bottom: 14px;
 }
 
+// The equipped banner paints the entire hero card, top to bottom — not just the art band above —
+// so there's a single continuous background instead of a hard seam where a band-scoped gradient
+// meets the plain card color underneath.
 .profile-hero {
+  position: relative;
+  overflow: hidden;
   background: linear-gradient(150deg, #1a1013, v.$bg-card);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: v.$radius-xl;
-  padding: 26px;
   margin-bottom: v.$space-5;
+  display: flex;
+  flex-direction: column;
+  transition: background 0.2s ease;
+}
+
+// The banner "art" band — height-bounded so the glyph watermark/rank-crest/season pill have a fixed
+// stage, with the avatar+info overlapping up into it from .profile-hero__content below (same
+// composition as the design mock's hero). No background of its own — the banner behind it is
+// .profile-hero's, continuing unbroken into the content below.
+.profile-hero__art {
+  position: relative;
+  height: 130px;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 13px);
+  }
+}
+
+// Large low-opacity crest glyph watermark for the equipped banner — same "intricate art" treatment the
+// mock's hero/season-banner art uses, reused here on both the main hero and the Customize live preview.
+.profile-hero__banner-glyph {
+  position: absolute;
+  right: 24px;
+  top: 6px;
+  font-size: 120px;
+  line-height: 1;
+  opacity: 0.12;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+
+// Top-left "you placed here" crest — only rendered when the equipped banner is a season-leaderboard
+// placement (see heroSeasonInfo), mirroring the Customize season-banner card's own crest+rank styling.
+.profile-hero__rank-crest {
+  position: absolute;
+  left: 22px;
+  top: 14px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-hero__rank-crest-icon {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  background: rgba(11, 11, 12, 0.72);
+  border: 2px solid v.$border-medium;
+}
+
+.profile-hero__rank-crest-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.profile-hero__rank-crest-mark {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.profile-hero__rank-crest-sub {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: v.$text-muted-45;
+  white-space: nowrap;
+}
+
+.profile-hero__art-pill {
+  position: absolute;
+  right: 16px;
+  top: 14px;
+  z-index: 1;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: v.$text-muted-70;
+  background: rgba(11, 11, 12, 0.6);
+  border: 1px solid v.$border-medium;
+  border-radius: 6px;
+  padding: 5px 9px;
+  white-space: nowrap;
+}
+
+// Overlaps up into .profile-hero__art via the negative margin, same as the mock's hero — avatar,
+// name/info, and actions all live here, bottom-aligned against the art band above.
+.profile-hero__content {
+  position: relative;
+  z-index: 1;
+  margin-top: -46px;
+  padding: 0 26px 24px;
   display: flex;
   gap: v.$space-5;
   flex-wrap: wrap;
-  align-items: center;
-  transition: background 0.2s ease;
+  align-items: flex-end;
 }
 
 .profile-hero__name-row {
@@ -48,23 +141,131 @@
   flex-wrap: wrap;
 }
 
+.profile-hero__online {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: v.$text-muted-45;
+  margin-left: 2px;
+
+  &--live {
+    color: v.$success;
+  }
+}
+
+.profile-hero__online-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: v.$text-muted-40;
+
+  .profile-hero__online--live & {
+    background: v.$success;
+    box-shadow: 0 0 6px rgba(74, 222, 128, 0.6);
+  }
+}
+
+.profile-hero__guild,
+.profile-hero__since {
+  color: v.$text-muted-45;
+  font-weight: 500;
+  text-transform: none;
+}
+
+.profile-hero__bio {
+  font-size: 12.5px;
+  color: v.$text-muted-55;
+  margin-top: 8px;
+  max-width: 480px;
+  line-height: 1.4;
+}
+
+.profile-hero__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.profile-hero__tag {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: v.$text-muted-55;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid v.$border-medium;
+  border-radius: v.$radius-pill;
+  padding: 4px 10px;
+}
+
 .profile-hero__title-badge {
   @include m.badge(v.$accent, rgba(255, 255, 255, 0.08));
   border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
+.profile-hero__avatar-wrap {
+  position: relative;
+  flex: none;
+  padding-bottom: 10px;
+}
+
 .profile-hero__avatar {
-  width: 80px;
-  height: 80px;
+  width: 84px;
+  height: 84px;
   border-radius: 18px;
   background: v.$accent;
+  border: 2px solid rgba(255, 255, 255, 0.12);
   display: grid;
   place-items: center;
   font-size: 30px;
   font-weight: 800;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 
   &--icon {
     font-size: 40px;
+  }
+}
+
+.profile-hero__level-badge {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  background: v.$accent;
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  border-radius: 7px;
+  padding: 2px 8px;
+  border: 2px solid v.$bg-card;
+  white-space: nowrap;
+}
+
+.profile-hero__actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px;
+  flex: none;
+}
+
+.profile-hero__action-btn {
+  @include m.btn-reset;
+  background: v.$bg-input;
+  border: 1px solid v.$border-medium;
+  color: v.$text-muted-70;
+  border-radius: v.$radius-md;
+  padding: 9px 16px;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &--primary {
+    background: v.$accent;
+    border-color: v.$accent;
+    color: #fff;
   }
 }
 
@@ -87,25 +288,6 @@
 .profile-hero__meta {
   font-size: 13px;
   color: v.$text-muted-45;
-  margin-top: 4px;
-}
-
-.profile-hero__xp {
-  margin-top: 10px;
-  max-width: 320px;
-}
-
-.profile-hero__xp-track {
-  @include m.stat-bar-track;
-}
-
-.profile-hero__xp-fill {
-  @include m.stat-bar-fill(v.$accent, v.$accent-soft);
-}
-
-.profile-hero__xp-label {
-  font-size: 11px;
-  color: v.$text-muted-40;
   margin-top: 4px;
 }
 
@@ -373,102 +555,14 @@
   margin-top: 2px;
 }
 
-.metric-cards {
-  @include m.grid-auto-fit(180px, 12px);
-  margin-bottom: v.$space-5;
-}
-
-.metric-card {
-  @include m.card(16px);
-}
-
-.metric-card__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.metric-card__label {
-  font-size: 10.5px;
-  color: v.$text-muted-40;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.metric-card__icon {
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.history-select {
+  background: v.$bg-input;
+  border: 1px solid v.$border-medium;
+  color: v.$text-muted-70;
+  border-radius: v.$radius-sm;
+  padding: 6px 10px;
   font-size: 12px;
-  flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.06);
-
-  &--green {
-    background: rgba(74, 222, 128, 0.15);
-    color: #4ade80;
-  }
-
-  &--red {
-    background: rgba(255, 106, 77, 0.15);
-    color: #ff6a4d;
-  }
-
-  &--blue {
-    background: rgba(92, 199, 245, 0.15);
-    color: #5cc7f5;
-  }
-
-  &--amber {
-    background: rgba(251, 191, 36, 0.15);
-    color: #fbbf24;
-  }
-
-  &--purple {
-    background: rgba(167, 139, 250, 0.15);
-    color: #a78bfa;
-  }
-}
-
-.metric-card__value {
-  font-size: 26px;
-  font-weight: 800;
-  line-height: 1;
-
-  &--text {
-    font-size: 16px;
-    text-transform: capitalize;
-  }
-
-  &--green {
-    color: #4ade80;
-  }
-
-  &--red {
-    color: #ff6a4d;
-  }
-
-  &--blue {
-    color: #5cc7f5;
-  }
-
-  &--amber {
-    color: #fbbf24;
-  }
-
-  &--purple {
-    color: #a78bfa;
-  }
-}
-
-.metric-card__sub {
-  font-size: 11px;
-  color: v.$text-muted-45;
-  margin-top: 6px;
+  font-weight: 600;
 }
 
 .activity-charts {
@@ -542,28 +636,6 @@
   color: v.$text-muted-40;
 }
 
-.quests-completed-banner {
-  @include m.card(22px);
-  text-align: center;
-  margin-bottom: v.$space-5;
-}
-
-.quests-completed-banner__value {
-  font-size: 44px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: v.$success;
-}
-
-.quests-completed-banner__label {
-  @include m.section-eyebrow;
-  margin-top: 4px;
-}
-
-.achievements-eyebrow {
-  @include m.section-eyebrow;
-  margin-bottom: 12px;
-}
 
 .achievements-grid {
   @include m.grid-auto-fill(180px, 12px);
@@ -604,13 +676,148 @@
   margin-top: 3px;
 }
 
+// ---- Combat Profile (vs server average for this level bracket) ----
+.combat-profile__legend {
+  display: flex;
+  gap: 14px;
+  font-size: 11px;
+  color: v.$text-muted-40;
+}
+
+.combat-profile__legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.combat-profile__legend-swatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  background: v.$accent;
+
+  &--avg {
+    background: v.$border-medium;
+  }
+}
+
+.combat-profile {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.combat-profile__row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.combat-profile__row-label {
+  color: v.$text-muted-70;
+  font-weight: 500;
+}
+
+.combat-profile__row-value {
+  font-weight: 700;
+}
+
+.combat-profile__track {
+  position: relative;
+  height: 9px;
+  background: v.$bg-input;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.combat-profile__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 5px;
+  background: linear-gradient(90deg, v.$accent, v.$accent-soft);
+}
+
+.combat-profile__avg-marker {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.45);
+}
+
 // ---- Customize (titles / colors / banners) ----
-.customize-tester-note {
-  @include m.card(14px);
-  font-size: 13px;
-  color: v.$success;
-  border-color: rgba(16, 185, 129, 0.35);
+.profile-meta-editor {
   margin-bottom: v.$space-5;
+}
+
+.profile-meta-editor__label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: v.$text-muted-55;
+  margin: 12px 0 6px;
+
+  &:first-of-type {
+    margin-top: 0;
+  }
+}
+
+.profile-meta-editor__count {
+  font-size: 11px;
+  font-weight: 500;
+  color: v.$text-muted-40;
+}
+
+.profile-meta-editor__textarea {
+  width: 100%;
+  resize: vertical;
+  background: v.$bg-input;
+  border: 1px solid v.$border-medium;
+  border-radius: v.$radius-sm;
+  color: v.$text-primary;
+  font-size: 13px;
+  font-family: inherit;
+  padding: 10px 12px;
+
+  &:focus {
+    outline: none;
+    border-color: v.$accent;
+  }
+}
+
+.profile-meta-editor__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.profile-meta-editor__tag-btn {
+  @include m.btn-reset;
+  font-size: 12px;
+  font-weight: 600;
+  color: v.$text-muted-55;
+  background: v.$bg-input;
+  border: 1px solid v.$border-medium;
+  border-radius: v.$radius-pill;
+  padding: 7px 13px;
+
+  &--picked {
+    background: v.$accent-tint-12;
+    border-color: v.$accent;
+    color: v.$accent-soft;
+  }
+}
+
+.profile-meta-editor__save {
+  @include m.btn-primary;
+  margin-top: 16px;
+  padding: 9px 20px;
+  font-size: 13px;
 }
 
 .customize-section {
@@ -626,7 +833,48 @@
   @include m.grid-auto-fill(160px, 12px);
 }
 
+.customize-section__head--sub {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 22px 0 4px;
+  padding-top: 18px;
+  border-top: 1px solid v.$border-subtle;
+}
+
+.customize-section__hint-inline {
+  font-size: 11px;
+  color: v.$text-muted-40;
+}
+
+.season-banner-filters {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+
+.season-banner-filter {
+  @include m.btn-reset;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: v.$text-muted-45;
+  background: transparent;
+  border: 1px solid v.$border-medium;
+  border-radius: 8px;
+  padding: 6px 12px;
+
+  &--active {
+    color: v.$accent-soft;
+    background: v.$accent-tint-12;
+    border-color: v.$accent;
+  }
+}
+
 .cosmetic-card {
+  position: relative;
   background: v.$bg-card;
   border: 1px solid v.$border-subtle;
   border-radius: 12px;
@@ -641,9 +889,53 @@
 
   &--mystery {
     border-style: dashed;
-    opacity: 0.6;
-    text-align: center;
-    align-items: center;
+  }
+}
+
+.cosmetic-card__active-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: v.$accent;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+}
+
+.cosmetic-card__locked-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(11, 11, 12, 0.75);
+  border: 1px solid v.$border-medium;
+  color: v.$text-muted-55;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+
+.cosmetic-card__frame-preview {
+  width: 46px;
+  height: 46px;
+  margin: 9px auto;
+  border-radius: 12px;
+  border: 2px solid;
+  background: v.$bg-input;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 15px;
+
+  &--dim {
+    opacity: 0.4;
+    filter: grayscale(0.6);
   }
 }
 
@@ -652,6 +944,32 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+
+  // Types with no preview swatch (titles) put the header right where the absolutely-positioned
+  // .cosmetic-card__locked-badge floats (top:10/right:10) — without this, a long locked name has
+  // nothing constraining its width (the rarity pill is hidden while locked) and runs straight under
+  // the badge. Reserve the badge's footprint so the name wraps before it gets there instead.
+  &--locked {
+    padding-right: 76px;
+  }
+}
+
+.cosmetic-card__header-badges {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.cosmetic-card__season-tag {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: v.$text-muted-55;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid v.$border-medium;
+  border-radius: v.$radius-sm;
+  padding: 3px 6px;
 }
 
 .cosmetic-card__rarity {
@@ -669,6 +987,206 @@
   height: 36px;
   border-radius: v.$radius-sm;
   border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+
+  &--banner {
+    height: 74px;
+
+    // Faint diagonal hatch texture — the same "intricate art" treatment every banner in the design
+    // mock shares, applied once here rather than needing bespoke art per banner.
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 12px);
+    }
+  }
+
+  &--dim {
+    opacity: 0.4;
+    filter: grayscale(0.6);
+  }
+}
+
+// Crest circle + large corner glyph watermark + "kind" pill overlaid on the plain banner grid's art —
+// same visual grammar as the season-banner crest below (color-mix glow trick), driven by each banner's
+// own accent_hex/icon instead of a shared tier hex.
+.cosmetic-card__crest {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  background: rgba(11, 11, 12, 0.72);
+  border: 1.5px solid var(--accent-hex, v.$border-medium);
+  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--accent-hex, transparent) 40%, transparent);
+}
+
+.cosmetic-card__glyph-watermark {
+  position: absolute;
+  right: -4px;
+  top: -10px;
+  font-size: 54px;
+  line-height: 1;
+  opacity: 0.14;
+  color: var(--accent-hex, #fff);
+  pointer-events: none;
+  user-select: none;
+}
+
+.cosmetic-card__kind-pill {
+  position: absolute;
+  left: 8px;
+  top: 7px;
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--accent-hex, v.$text-muted-55);
+  background: rgba(11, 11, 12, 0.62);
+  border: 1px solid color-mix(in srgb, var(--accent-hex, v.$border-medium) 40%, transparent);
+  border-radius: 5px;
+  padding: 2px 6px;
+}
+
+.cosmetic-card__cost--grey {
+  color: v.$text-muted-40;
+}
+
+// ---- Season leaderboard placement banners (Customize) ----
+.cosmetic-card--season-banner {
+  padding-top: 0;
+  overflow: hidden;
+}
+
+.cosmetic-card__season-art {
+  position: relative;
+  height: 100px;
+  margin: 0 -16px;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 12px);
+  }
+}
+
+.cosmetic-card__season-laurel {
+  position: absolute;
+  right: -4px;
+  top: -12px;
+  font-size: 82px;
+  line-height: 1;
+  opacity: 0.14;
+  color: var(--tier-hex, #fff);
+  pointer-events: none;
+  user-select: none;
+}
+
+.cosmetic-card__season-pill {
+  position: absolute;
+  left: 10px;
+  top: 8px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  font-family: v.$font-display;
+  color: var(--tier-hex, #fff);
+  background: rgba(11, 11, 12, 0.66);
+  border: 1px solid color-mix(in srgb, var(--tier-hex, v.$border-medium) 45%, transparent);
+  border-radius: 5px;
+  padding: 3px 8px;
+}
+
+.cosmetic-card__season-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px 9px;
+  gap: 6px;
+}
+
+.cosmetic-card__season-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.cosmetic-card__season-crest {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  background: rgba(11, 11, 12, 0.75);
+  border: 1.5px solid var(--tier-hex, v.$border-medium);
+  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--tier-hex, transparent) 36%, transparent);
+}
+
+.cosmetic-card__season-ranks {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.cosmetic-card__season-rank {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  line-height: 1.25;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.cosmetic-card__season-board {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+  max-width: 90px;
+}
+
+.cosmetic-card__season-season {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex: none;
+}
+
+.cosmetic-card__season-s {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.1;
+}
+
+.cosmetic-card__season-slabel {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.32);
+  line-height: 1;
 }
 
 .cosmetic-card__title-preview {
@@ -690,6 +1208,11 @@
   border-radius: v.$radius-sm;
   background: v.$bg-input;
   font-size: 22px;
+
+  &--dim {
+    opacity: 0.4;
+    filter: grayscale(0.6);
+  }
 }
 
 .cosmetic-card__name {
@@ -702,7 +1225,7 @@
   color: v.$text-muted-45;
 
   &--quest {
-    color: v.$success;
+    color: v.$text-muted-40;
   }
 }
 
@@ -733,8 +1256,13 @@
     min-height: 36px;
   }
 
-  .profile-hero {
-    padding: 18px;
+  .profile-hero__art {
+    height: 90px;
+  }
+
+  .profile-hero__content {
+    margin-top: -34px;
+    padding: 0 16px 18px;
     gap: 14px;
   }
 
@@ -767,8 +1295,7 @@
   }
 
   .stats-panel,
-  .fun-stats-panel,
-  .quests-completed-banner {
+  .fun-stats-panel {
     padding: 16px;
   }
 
@@ -820,5 +1347,736 @@
   .achievements-grid,
   .customize-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+// ---- Headline stat tiles (Overview) ----
+.headline-grid {
+  @include m.grid-auto-fit(150px, 10px);
+  margin-bottom: v.$space-5;
+}
+
+.headline-tile {
+  @include m.card(14px);
+}
+
+.headline-tile__label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: v.$text-muted-40;
+}
+
+.headline-tile__value {
+  font-size: 22px;
+  font-weight: 800;
+  margin-top: 6px;
+
+  &--power {
+    color: v.$warning;
+  }
+
+  &--green {
+    color: v.$success;
+  }
+
+  &--amber {
+    color: v.$warning;
+  }
+
+  &--gold {
+    color: v.$warning;
+  }
+
+  &--accent {
+    color: v.$accent-soft;
+  }
+}
+
+.headline-tile__sub {
+  font-size: 11px;
+  color: v.$text-muted-40;
+  margin-top: 2px;
+}
+
+// ---- Two-column Overview layout ----
+.profile-columns {
+  display: flex;
+  gap: v.$space-5;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.profile-columns__main {
+  flex: 1;
+  min-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: v.$space-5;
+}
+
+.profile-columns__rail {
+  width: 300px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: v.$space-5;
+}
+
+.panel-card {
+  @include m.card(18px);
+}
+
+.panel-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.panel-card__eyebrow {
+  @include m.section-eyebrow;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.panel-card__head .panel-card__eyebrow {
+  margin-bottom: 0;
+}
+
+.panel-card__link-btn {
+  @include m.btn-reset;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: v.$accent-soft;
+}
+
+.panel-card__head-note {
+  font-size: 11.5px;
+  color: v.$text-muted-45;
+
+  b {
+    color: v.$text-primary;
+    font-weight: 800;
+  }
+}
+
+.panel-card__empty {
+  font-size: 12.5px;
+  color: v.$text-muted-40;
+  margin: 0;
+}
+
+// ---- Equipped Loadout ----
+.loadout-grid {
+  @include m.grid-auto-fill(210px, 9px);
+}
+
+.loadout-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background: v.$bg-input;
+  border: 1px solid v.$border-subtle;
+  border-radius: 11px;
+  padding: 10px 12px;
+}
+
+.loadout-item__icon {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  border: 1px solid v.$border-subtle;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+}
+
+.loadout-item__info {
+  min-width: 0;
+  flex: 1;
+}
+
+.loadout-item__name {
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.loadout-item__meta {
+  font-size: 11px;
+  color: v.$text-muted-40;
+  margin-top: 2px;
+}
+
+.loadout-item__durability {
+  flex: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: v.$success;
+
+  &--low {
+    color: v.$danger;
+  }
+}
+
+.loadout-item__score {
+  flex: none;
+  font-size: 13px;
+  font-weight: 800;
+  color: v.$text-muted-45;
+}
+
+// ---- Trophy Case (Overview teaser) ----
+.trophy-grid {
+  @include m.grid-auto-fill(120px, 9px);
+}
+
+.trophy-tile {
+  background: v.$bg-input;
+  border: 1px solid v.$border-subtle;
+  border-radius: 11px;
+  padding: 12px 10px;
+  text-align: center;
+  opacity: 0.45;
+
+  &--earned {
+    opacity: 1;
+  }
+}
+
+.trophy-tile__icon {
+  font-size: 19px;
+}
+
+.trophy-tile__name {
+  font-size: 11.5px;
+  font-weight: 600;
+  margin-top: 7px;
+}
+
+// ---- Season History (rail) ----
+.season-row__name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.season-row__season {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.season-row__badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: v.$text-muted-45;
+  border: 1px solid v.$border-medium;
+  border-radius: 5px;
+  padding: 2px 7px;
+  margin-left: 6px;
+
+  &--premium {
+    color: v.$warning;
+    border-color: rgba(234, 179, 8, 0.4);
+  }
+}
+
+.season-row__status {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: v.$accent-soft;
+  border: 1px solid rgba(232, 72, 47, 0.35);
+  border-radius: 5px;
+  padding: 3px 8px;
+
+  &--done {
+    color: v.$success;
+    border-color: rgba(74, 222, 128, 0.35);
+  }
+}
+
+.season-row__track {
+  @include m.stat-bar-track;
+}
+
+.season-row__fill {
+  @include m.stat-bar-fill(v.$accent, v.$accent-soft);
+}
+
+.season-row__label {
+  font-size: 11px;
+  color: v.$text-muted-40;
+  margin-top: 6px;
+}
+
+// ---- Rankings (rail) ----
+.ranking-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid v.$border-subtle;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.ranking-row__label {
+  font-size: 12.5px;
+  color: v.$text-muted-70;
+}
+
+.ranking-row__rank {
+  font-size: 14px;
+  font-weight: 800;
+  color: v.$accent-soft;
+}
+
+// ---- Profile Visibility (rail, self view) ----
+.panel-card__hint {
+  font-size: 11.5px;
+  color: v.$text-muted-40;
+  line-height: 1.5;
+  margin: -4px 0 13px;
+}
+
+.privacy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.privacy-row__label {
+  font-size: 12.5px;
+  color: v.$text-muted-70;
+}
+
+.privacy-toggle {
+  @include m.btn-reset;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  color: v.$text-muted-45;
+  background: transparent;
+  border: 1px solid v.$border-medium;
+  border-radius: v.$radius-sm;
+  padding: 4px 10px;
+  cursor: pointer;
+
+  &--on {
+    color: v.$success;
+    border-color: rgba(74, 222, 128, 0.35);
+  }
+}
+
+.privacy-save {
+  width: 100%;
+  margin-top: 10px;
+}
+
+// ---- Recent Activity (rail) ----
+.activity-feed__row {
+  display: flex;
+  gap: 12px;
+  padding: 13px 0;
+  border-bottom: 1px solid v.$border-subtle;
+
+  &:first-child {
+    padding-top: 2px;
+  }
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 2px;
+  }
+}
+
+.activity-feed__rail {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 8px;
+}
+
+.activity-feed__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 6px;
+  background: v.$text-muted-40;
+
+  &--achievement {
+    background: v.$warning;
+  }
+
+  &--duel_win {
+    background: v.$success;
+  }
+
+  &--duel_loss {
+    background: v.$danger;
+  }
+
+  &--cosmetic {
+    background: v.$purple;
+  }
+
+  &--dungeon_clear {
+    background: v.$info;
+  }
+
+  &--market_sale {
+    background: v.$success-strong;
+  }
+
+  &--craft {
+    background: v.$accent-soft;
+  }
+
+  &--pet {
+    background: v.$info-strong;
+  }
+
+  &--guild_join {
+    background: v.$accent;
+  }
+}
+
+.activity-feed__line {
+  flex: 1;
+  width: 1px;
+  background: v.$border-subtle;
+  margin-top: 4px;
+}
+
+.activity-feed__body {
+  min-width: 0;
+  flex: 1;
+}
+
+.activity-feed__text {
+  font-size: 13px;
+  color: v.$text-muted-70;
+  line-height: 1.5;
+
+  b {
+    color: v.$text-primary;
+  }
+}
+
+.activity-feed__time {
+  font-size: 11px;
+  color: v.$text-muted-40;
+  margin-top: 3px;
+}
+
+// ---- Guild card (rail) ----
+.guild-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.guild-card__tag {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: v.$bg-input;
+  border: 1px solid v.$border-medium;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: v.$accent-soft;
+}
+
+.guild-card__info {
+  min-width: 0;
+  flex: 1;
+}
+
+.guild-card__name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.guild-card__meta {
+  font-size: 11.5px;
+  color: v.$text-muted-40;
+  margin-top: 2px;
+  text-transform: capitalize;
+}
+
+// ---- Trophy Showcase picker (Customize) ----
+.achievement-card--pickable {
+  cursor: pointer;
+}
+
+.achievement-card--picked {
+  border-color: v.$accent;
+  background: v.$accent-tint-12;
+}
+
+@media (max-width: 900px) {
+  .profile-columns__rail {
+    width: 100%;
+  }
+}
+
+// ---- Trophy Case description (Overview) ----
+.trophy-tile__desc {
+  font-size: 10.5px;
+  color: v.$text-muted-40;
+  margin-top: 4px;
+  line-height: 1.35;
+}
+
+// ---- Most Difficult Enemies (Overview) ----
+.toughest-foes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toughest-foes__row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background: v.$bg-input;
+  border: 1px solid v.$border-subtle;
+  border-radius: 11px;
+  padding: 10px 12px;
+}
+
+.toughest-foes__glyph {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: rgba(255, 106, 77, 0.12);
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+}
+
+.toughest-foes__name {
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.toughest-foes__meta {
+  font-size: 11px;
+  color: v.$text-muted-40;
+  margin-top: 2px;
+}
+
+// ---- Customize page: two-column layout ----
+.customize-layout {
+  display: flex;
+  gap: v.$space-5;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.customize-layout__main {
+  flex: 1;
+  min-width: 380px;
+}
+
+.customize-layout__rail {
+  width: 300px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: v.$space-5;
+  position: sticky;
+  top: 16px;
+}
+
+.customize-section__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.customize-section__count {
+  font-size: 11.5px;
+  color: v.$text-muted-40;
+}
+
+.customize-section__hint {
+  font-size: 12px;
+  color: v.$text-muted-45;
+  margin: 4px 0 12px;
+}
+
+.customize-group {
+  margin: 14px 0;
+}
+
+.customize-group__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: v.$text-muted-45;
+  margin-bottom: 8px;
+}
+
+// ---- Customize page: Live Preview / Display Name / Bio rail ----
+.customize-preview {
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+  background: linear-gradient(150deg, #1a1013, v.$bg-card);
+}
+
+.customize-preview__banner-glyph {
+  right: -6px;
+  top: -20px;
+  font-size: 90px;
+}
+
+// Shared "which banner is equipped" badge — same crest+name treatment on the main profile hero and the
+// Customize live preview, so both surfaces represent the equipped banner identically.
+.banner-id-tag {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  border-radius: v.$radius-pill;
+  background: rgba(11, 11, 12, 0.55);
+  border: 1px solid color-mix(in srgb, var(--accent-hex, v.$border-medium) 45%, transparent);
+}
+
+.banner-id-tag__crest {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 11px;
+  background: rgba(11, 11, 12, 0.7);
+  border: 1.5px solid var(--accent-hex, v.$border-medium);
+  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--accent-hex, transparent) 36%, transparent);
+}
+
+.banner-id-tag__name {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: v.$text-muted-70;
+}
+
+.customize-preview__eyebrow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+
+  span {
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: normal;
+    color: v.$text-muted-40;
+    text-transform: none;
+  }
+}
+
+.customize-preview__avatar {
+  width: 64px;
+  height: 64px;
+  margin: 14px auto 10px;
+  border-radius: 16px;
+  background: v.$accent;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.customize-preview__name {
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.customize-readonly-field {
+  background: v.$bg-input;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-sm;
+  padding: 9px 12px;
+  font-size: 13px;
+  color: v.$text-muted-70;
+}
+
+.customize-hint {
+  font-size: 11px;
+  color: v.$text-muted-40;
+  margin: 8px 0 0;
+
+  &--gems {
+    color: v.$warning;
+    font-weight: 600;
+  }
+}
+
+.customize-name-input {
+  width: 100%;
+  background: v.$bg-input;
+  border: 1px solid v.$border-medium;
+  border-radius: v.$radius-sm;
+  color: v.$text-primary;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 9px 12px;
+
+  &:focus {
+    outline: none;
+    border-color: v.$accent;
+  }
+}
+
+.profile-meta-editor__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+
+  button {
+    flex: 1;
+  }
+}
+
+.profile-meta-editor__reset {
+  @include m.btn-secondary;
+  padding: 9px 16px;
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .customize-layout__rail {
+    width: 100%;
+    position: static;
   }
 }

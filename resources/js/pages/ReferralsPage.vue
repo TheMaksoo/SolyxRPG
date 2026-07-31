@@ -65,7 +65,7 @@ onMounted(load);
       <h1 class="ox referrals-title">Invite Friends</h1>
       <p class="referrals-header__subtitle">
         Every {{ data?.referrals_per_reward ?? 2 }} friends who reach level {{ data?.required_level ?? 5 }} earns you
-        {{ data?.reward_vip_days ?? 7 }} days of {{ data?.reward_vip_tier === 'gold' ? 'Gold' : data?.reward_vip_tier }} VIP, and your friend gets {{ data?.referee_bonus_gems ?? 500 }} gems when they reach level {{ data?.required_level ?? 5 }}.
+        {{ data?.reward_vip_days ?? 7 }} days of {{ data?.reward_vip_tier === 'gold' ? 'Gold' : data?.reward_vip_tier }} Rank, and your friend gets {{ data?.referee_bonus_gems ?? 500 }} gems when they reach level {{ data?.required_level ?? 5 }}.
       </p>
     </div>
 

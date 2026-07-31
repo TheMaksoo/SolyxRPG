@@ -30,7 +30,7 @@
       <section class="terms-section">
         <h2 class="terms-section__title">3. Purchases are final</h2>
         <p>
-          Gems, VIP tiers, cosmetics, and any other paid benefit are sold as-is. If a paid benefit is later
+          Gems, Rank tiers, cosmetics, and any other paid benefit are sold as-is. If a paid benefit is later
           changed, rebalanced, moved to a different system, or removed as part of ongoing development, or if
           related data is lost for any reason, <strong>no refund will be issued</strong>. Only purchase what
           you're comfortable spending on a game that is still being built.

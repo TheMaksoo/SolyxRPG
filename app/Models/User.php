@@ -38,6 +38,10 @@ class User extends Authenticatable
             'tester_mode_disabled' => 'boolean',
             'ads_removed' => 'boolean',
             'vip_cancel_at_period_end' => 'boolean',
+            'vip_lifetime' => 'boolean',
+            'lifetime_spend_cents' => 'integer',
+            'is_founder' => 'boolean',
+            'founder_purchased_at' => 'datetime',
             'vip_gems_granted_at' => 'datetime',
             'referral_bonus_granted_at' => 'datetime',
             'preferences' => 'array',
@@ -134,6 +138,9 @@ class User extends Authenticatable
     /** Extra concurrent active Marketplace listings (on top of the 10 base slots) per VIP tier. */
     public const VIP_TIER_MARKET_LISTINGS = ['bronze' => 5, 'gold' => 10, 'diamond' => 20];
 
+    /** % bonus to Battle Pass points earned from quests, per VIP tier — see BattlePassService::addXp(). */
+    public const VIP_TIER_BP_XP_PCT = ['bronze' => 5, 'gold' => 10, 'diamond' => 20];
+
     /** Level milestones that raise the level-earned active pet cap (cumulative — highest reached wins). */
     private const PET_LEVEL_SLOT_TIERS = [1 => 1, 50 => 2, 100 => 3];
 
@@ -155,6 +162,10 @@ class User extends Authenticatable
 
     public function hasActiveVip(): bool
     {
+        if ($this->vip_lifetime) {
+            return true;
+        }
+
         return $this->vip_tier !== 'none' && $this->vip_expires_at && $this->vip_expires_at->isFuture();
     }
 
@@ -247,6 +258,18 @@ class User extends Authenticatable
         $fallback = self::VIP_TIER_GOLD_XP_PCT[$this->vip_tier] ?? 0;
 
         return GameConfig::number("vip_gold_xp_pct_{$this->vip_tier}", $fallback);
+    }
+
+    /** % bonus to Battle Pass points earned from quests, from an active VIP subscription. */
+    public function vipBattlePassXpBonusPct(): float
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_BP_XP_PCT[$this->vip_tier] ?? 0;
+
+        return GameConfig::number("vip_bp_xp_pct_{$this->vip_tier}", $fallback);
     }
 
     /** % reduction to crafting time from an active VIP subscription. */

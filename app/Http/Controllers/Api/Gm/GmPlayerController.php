@@ -130,8 +130,12 @@ class GmPlayerController extends Controller
             'energy_max' => ['nullable', 'integer', 'min:0'],
         ]);
 
-        if (array_key_exists('role', $data) && $data['role'] === 'owner' && $request->user()->role !== 'owner') {
-            abort(403, 'Only an Owner can promote another account to Owner.');
+        // Role changes are Owner-only, full stop — not just promotions to Owner. A gm-tier account is
+        // otherwise able to mint new gm accounts or demote/lock out an existing Owner, which `ban()`
+        // already treats as out of bounds for a non-owner (`abort_if($user->isGm(), ...)` below) but
+        // `update()` had no equivalent guard on the role field itself.
+        if (array_key_exists('role', $data) && $request->user()->role !== 'owner') {
+            abort(403, 'Only an Owner can change account roles.');
         }
 
         if (array_key_exists('role', $data)) {

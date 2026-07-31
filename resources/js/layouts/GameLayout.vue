@@ -92,6 +92,7 @@ const BADGE_PATH = {
   crafting: '/crafting',
   dungeons: '/dungeons',
   pvp: '/pvp',
+  referrals: '/referrals',
 };
 let badgePollTimer = null;
 const badgesUpdatedAt = ref(0);

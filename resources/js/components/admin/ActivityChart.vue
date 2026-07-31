@@ -20,6 +20,11 @@ const props = defineProps({
   // Logarithmic y-axis — for series that span multiple orders of magnitude (e.g. an XP curve with
   // hard walls) where a linear scale would flatten everything except the very top of the range.
   logScale: { type: Boolean, default: false },
+  // Single-dataset line/bar point size — a line chart with only 1-2 real points and the default 0
+  // draws nothing visible at all (no line segment to connect, no dot). Callers with sparse real data
+  // (e.g. a history graph a few days into tracking) should pass a non-zero radius so a lone point
+  // still reads as data rather than an empty chart.
+  pointRadius: { type: Number, default: 0 },
 });
 
 function compactNumber(n) {
@@ -64,9 +69,10 @@ function build() {
           data: props.data,
           borderColor: isSeries ? props.color : undefined,
           backgroundColor: props.type === 'line' ? `${props.color}22` : colors ?? props.color,
+          pointBackgroundColor: props.color,
           fill: props.type === 'line',
           tension: 0.35,
-          pointRadius: 0,
+          pointRadius: props.pointRadius,
           borderWidth: 2,
           borderRadius: props.type === 'bar' ? 4 : 0,
         },
@@ -107,7 +113,7 @@ function build() {
 
 onMounted(build);
 onUnmounted(() => { if (chart) chart.destroy(); });
-watch(() => [props.labels, props.data, props.tooltipLabels, props.datasets, props.stacked, props.logScale], build, { deep: true });
+watch(() => [props.labels, props.data, props.tooltipLabels, props.datasets, props.stacked, props.logScale, props.pointRadius], build, { deep: true });
 </script>
 
 <template>

@@ -22,7 +22,7 @@ export const NAV = [
   { path: '/daily', name: 'daily', label: 'Daily', icon: '🎁', flagKey: 'daily' },
   { path: '/gem-store', name: 'gem-store', label: 'Gem Store', icon: '💎', flagKey: 'gem_store' },
   { path: '/battle-pass', name: 'battle-pass', label: 'Battle Pass', icon: '🎫', flagKey: 'battle_pass' },
-  { path: '/vip', name: 'vip', label: 'VIP', icon: '👑', flagKey: 'vip' },
+  { path: '/vip', name: 'vip', label: 'Premium', icon: '👑', flagKey: 'vip' },
   { path: '/referrals', name: 'referrals', label: 'Invite Friends', icon: '🎁' },
   { path: '/profile', name: 'profile', label: 'Profile', icon: '👤' },
   { path: '/settings', name: 'settings', label: 'Settings', icon: '⚙' },
@@ -33,5 +33,6 @@ export const NAV_FOOTER = [
   { path: '/wiki', name: 'wiki-link', label: 'Wiki', icon: '📖' },
   { path: '/known-bugs', name: 'known-bugs-link', label: 'Known Bugs', icon: '🐞' },
   { path: '/changelog', name: 'changelog-link', label: 'Changelog', icon: '📜' },
+  { path: '/hall-of-founders', name: 'hall-of-founders-link', label: 'Hall of Founders', icon: '⚜️' },
   { path: '/admin', name: 'admin', label: 'GM Console', icon: '🛠' },
 ];

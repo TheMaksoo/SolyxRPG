@@ -619,7 +619,7 @@ onMounted(() => {
                   <div class="reward-breakdown__line">Base: {{ result.breakdown.gold.base }}g</div>
                   <div v-if="result.breakdown.gold.grade_mult > 1" class="reward-breakdown__line">Grade: ×{{ result.breakdown.gold.grade_mult }}</div>
                   <div v-if="result.breakdown.gold.luck_pct" class="reward-breakdown__line reward-breakdown__line--luck">Luck: +{{ result.breakdown.gold.luck_pct }}%</div>
-                  <div v-if="result.breakdown.gold.vip_pct" class="reward-breakdown__line">VIP: +{{ result.breakdown.gold.vip_pct }}%</div>
+                  <div v-if="result.breakdown.gold.vip_pct" class="reward-breakdown__line">Rank: +{{ result.breakdown.gold.vip_pct }}%</div>
                   <div v-if="result.breakdown.gold.guild_pct" class="reward-breakdown__line">Guild: +{{ result.breakdown.gold.guild_pct }}%</div>
                 </div>
                 <div class="reward-breakdown__section">
@@ -627,7 +627,7 @@ onMounted(() => {
                   <div class="reward-breakdown__line">Base: {{ result.breakdown.xp.base }} xp</div>
                   <div v-if="result.breakdown.xp.grade_mult > 1" class="reward-breakdown__line">Grade: ×{{ result.breakdown.xp.grade_mult }}</div>
                   <div v-if="result.breakdown.xp.luck_pct" class="reward-breakdown__line reward-breakdown__line--luck">Luck: +{{ result.breakdown.xp.luck_pct }}%</div>
-                  <div v-if="result.breakdown.xp.vip_pct" class="reward-breakdown__line">VIP: +{{ result.breakdown.xp.vip_pct }}%</div>
+                  <div v-if="result.breakdown.xp.vip_pct" class="reward-breakdown__line">Rank: +{{ result.breakdown.xp.vip_pct }}%</div>
                   <div v-if="result.breakdown.xp.guild_pct" class="reward-breakdown__line">Guild: +{{ result.breakdown.xp.guild_pct }}%</div>
                   <div v-if="result.breakdown.xp.pet_pct" class="reward-breakdown__line">Pet: +{{ result.breakdown.xp.pet_pct }}%</div>
                 </div>

@@ -47,9 +47,10 @@ function applyPayload(data) {
 
 function rewardParts(reward) {
   const parts = [];
-  if (reward?.gold) parts.push(`💰 ${reward.gold} Gold`);
-  if (reward?.gems) parts.push(`💎 ${reward.gems} Gems`);
-  if (reward?.xp) parts.push(`✨ ${reward.xp} XP`);
+  if (reward?.gold) parts.push({ text: `💰 ${reward.gold} Gold` });
+  if (reward?.gems) parts.push({ text: `💎 ${reward.gems} Gems` });
+  if (reward?.xp) parts.push({ text: `✨ ${reward.xp} XP` });
+  if (reward?.bp_xp) parts.push({ text: `🎖 ${reward.bp_xp} Battle Pass Points`, bp: true });
   return parts;
 }
 
@@ -76,6 +77,7 @@ async function claim(row) {
       gold: data.reward?.gold,
       gems: data.reward?.gems,
       xp: data.reward?.xp,
+      bpXp: data.reward?.bp_xp,
     };
   } catch (e) {
     message.value = e.response?.data?.message || 'Could not claim.';
@@ -117,6 +119,7 @@ onMounted(load);
         <span v-if="claimSummary.gold" class="claim-summary__chip">🪙 +{{ claimSummary.gold }} gold</span>
         <span v-if="claimSummary.gems" class="claim-summary__chip">💎 +{{ claimSummary.gems }} gems</span>
         <span v-if="claimSummary.xp" class="claim-summary__chip">✨ +{{ claimSummary.xp }} xp</span>
+        <span v-if="claimSummary.bpXp" class="claim-summary__chip claim-summary__chip--bp">🎖 +{{ claimSummary.bpXp }} Battle Pass Points</span>
       </div>
     </div>
 
@@ -144,8 +147,13 @@ onMounted(load);
           </div>
 
           <div class="quest-row__rewards">
-            <span v-for="part in rewardParts(row.quest.reward_json)" :key="part" class="quest-row__reward-chip">
-              {{ part }}
+            <span
+              v-for="part in rewardParts(row.quest.reward_json)"
+              :key="part.text"
+              class="quest-row__reward-chip"
+              :class="{ 'quest-row__reward-chip--bp': part.bp }"
+            >
+              {{ part.text }}
             </span>
           </div>
         </div>

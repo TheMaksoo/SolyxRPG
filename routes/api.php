@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\CraftingController;
 use App\Http\Controllers\Api\DailyController;
 use App\Http\Controllers\Api\DirectMessageController;
 use App\Http\Controllers\Api\DungeonController;
+use App\Http\Controllers\Api\FounderPackController;
 use App\Http\Controllers\Api\FriendController;
 use App\Http\Controllers\Api\Gm\GmAuditLogController;
 use App\Http\Controllers\Api\Gm\GmBroadcastController;
@@ -38,6 +39,7 @@ use App\Http\Controllers\Api\MarketplaceController;
 use App\Http\Controllers\Api\NavBadgeController;
 use App\Http\Controllers\Api\PartyController;
 use App\Http\Controllers\Api\PetController;
+use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PvpController;
 use App\Http\Controllers\Api\QuestController;
 use App\Http\Controllers\Api\ShopController;
@@ -173,6 +175,7 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::get('/leaderboard', [LeaderboardController::class, 'index']);
     Route::get('/leaderboard/my-ranks', [LeaderboardController::class, 'myRanks']);
     Route::get('/leaderboard/recent-battles', [LeaderboardController::class, 'recentBattles']);
+    Route::get('/supporters', [LeaderboardController::class, 'supporters']);
 
     Route::get('/market', [MarketplaceController::class, 'index']);
     Route::get('/market/mine', [MarketplaceController::class, 'mine']);
@@ -188,6 +191,13 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::get('/cosmetics', [CosmeticController::class, 'index']);
     Route::post('/cosmetics/{cosmetic}/unlock', [CosmeticController::class, 'unlock']);
     Route::post('/cosmetics/{cosmetic}/equip', [CosmeticController::class, 'equip']);
+
+    Route::get('/profile/panels', [ProfileController::class, 'panels']);
+    Route::get('/profile/history', [ProfileController::class, 'history']);
+    Route::patch('/profile/showcase', [ProfileController::class, 'updateShowcase']);
+    Route::patch('/profile/meta', [ProfileController::class, 'updateMeta']);
+    Route::patch('/profile/rename', [ProfileController::class, 'rename']);
+    Route::patch('/profile/privacy', [ProfileController::class, 'updatePrivacy']);
 
     Route::get('/friends', [FriendController::class, 'index']);
     Route::post('/friends/{target}/request', [FriendController::class, 'request']);
@@ -243,6 +253,9 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::post('/vip/subscribe', [VipController::class, 'subscribe']);
     Route::post('/vip/cancel', [VipController::class, 'cancel']);
     Route::post('/vip/resume', [VipController::class, 'resume']);
+    Route::post('/vip/lifetime', [VipController::class, 'purchaseLifetime']);
+    Route::get('/founders', [FounderPackController::class, 'index']);
+    Route::post('/founders/purchase', [FounderPackController::class, 'purchase']);
 
     // GM console
     Route::middleware('gm')->prefix('gm')->group(function () {
@@ -278,5 +291,6 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
         Route::get('/audit-log', [GmAuditLogController::class, 'index']);
 
         Route::get('/xp-curve', [GmProgressionController::class, 'xpCurve']);
+        Route::get('/battle-pass-curve', [GmProgressionController::class, 'battlePassCurve']);
     });
 });

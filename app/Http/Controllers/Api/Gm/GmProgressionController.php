@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Gm;
 
 use App\Http\Controllers\Controller;
 use App\Models\Character;
+use App\Services\BattlePassService;
 
 class GmProgressionController extends Controller
 {
@@ -27,6 +28,25 @@ class GmProgressionController extends Controller
         return response()->json([
             'costs' => $costs,
             'walls' => self::WALL_LEVELS,
+        ]);
+    }
+
+    /** Read-only view of the Battle Pass points curve and quest income for the GM console's Progression
+     * tab — per-tier cost straight from BattlePassService::xpForTier() plus the same season-income
+     * projection shown on the player-facing Battle Pass page, so tuning either stays visible here with no
+     * separate numbers to keep in sync. */
+    public function battlePassCurve(BattlePassService $battlePass)
+    {
+        $costs = [];
+        for ($tier = 1; $tier <= BattlePassService::TOTAL_TIERS; $tier++) {
+            $costs[] = $battlePass->xpForTier($tier);
+        }
+
+        return response()->json([
+            'costs' => $costs,
+            'total_tiers' => BattlePassService::TOTAL_TIERS,
+            'total_to_max' => $battlePass->totalXpToMax(),
+            'points_income' => $battlePass->pointsIncomeSummary(),
         ]);
     }
 }

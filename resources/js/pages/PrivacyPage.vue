@@ -53,7 +53,7 @@
         <p>
           You can permanently delete your account and character at any time from
           <router-link to="/settings">Settings</router-link>. This immediately and irreversibly removes your
-          account, character, inventory, and associated gameplay data. If you have an active VIP subscription,
+          account, character, inventory, and associated gameplay data. If you have an active Premium subscription,
           cancel it separately in Settings first — deleting your account does not automatically stop billing.
         </p>
       </section>

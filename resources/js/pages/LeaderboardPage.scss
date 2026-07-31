@@ -48,10 +48,12 @@
 
 .lb-ranges__btn {
   @include m.btn-reset;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
   border-radius: 7px;
-  padding: 6px 13px;
-  font-size: 12px;
-  font-weight: 600;
+  padding: 5px 13px;
   color: v.$text-muted-45;
 
   &.is-active {
@@ -65,6 +67,19 @@
   }
 }
 
+.lb-ranges__btn-period {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.lb-ranges__btn-kind {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
 .lb-ad {
   @include m.centered-column(1320px);
   margin-bottom: 16px;
@@ -76,6 +91,51 @@
   gap: 20px;
   align-items: flex-start;
   flex-wrap: wrap;
+}
+
+.lb-supporters {
+  @include m.centered-column(1320px);
+  margin-top: 20px;
+}
+
+.lb-supporters__hint {
+  font-size: 12px;
+  color: v.$text-muted-40;
+  margin: -4px 0 14px;
+}
+
+.lb-supporters__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.lb-supporter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: v.$bg-input;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-sm;
+  padding: 8px 12px;
+  min-width: 0;
+}
+
+.lb-supporter-row__rank {
+  flex: none;
+  font-size: 12px;
+  font-weight: 800;
+  color: v.$info-strong;
+}
+
+.lb-supporter-row__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 // ---- Sidebar ----

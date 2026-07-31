@@ -5,17 +5,23 @@ import AdBanner from '../components/AdBanner.vue';
 import VipBadge from '../components/VipBadge.vue';
 
 // Kept in sync with LeaderboardService::CATEGORIES on the backend — label/glyph/group are display-only,
-// the backend is the source of truth for which categories exist and how each is ranked.
+// the backend is the source of truth for which categories exist and how each is ranked. `currentOnly`
+// marks the one category that actually resets (Trophies, via PvpSeasonReset) — it always shows the live,
+// current value regardless of range. `rangeLocked` marks Guild Power, the one category with no range
+// support at all (a separate guild-wide board, no per-character snapshot history exists for it). Every
+// other category — including Power and Battle Pass Points, neither of which resets — shows a real
+// GAINED delta for Day/Week/Season, same as Gold always has.
 const CATEGORIES = [
-  { key: 'power', label: 'Power', glyph: '💪', suffix: '', group: 'COMBAT', rangeLocked: true },
+  { key: 'power', label: 'Power', glyph: '💪', suffix: '', group: 'COMBAT' },
   { key: 'level', label: 'Level', glyph: '⭐', suffix: '', group: 'COMBAT' },
-  { key: 'trophies', label: 'Trophies', glyph: '🏆', suffix: '', group: 'COMBAT' },
+  { key: 'trophies', label: 'Trophies', glyph: '🏆', suffix: '', group: 'COMBAT', currentOnly: true },
   { key: 'monsters_slain', label: 'Monsters Slain', glyph: '⚔', suffix: '', group: 'COMBAT' },
   { key: 'bosses_slain', label: 'Boss Slayer', glyph: '👹', suffix: '', group: 'COMBAT' },
   { key: 'deaths', label: 'Deaths', glyph: '💀', suffix: '', group: 'COMBAT' },
   { key: 'gold', label: 'Richest', glyph: '🪙', suffix: 'g', group: 'WEALTH' },
   { key: 'gems', label: 'Gem Hoarder', glyph: '💎', suffix: '', group: 'WEALTH' },
   { key: 'quests_completed', label: 'Quest Completionist', glyph: '📜', suffix: '', group: 'WEALTH' },
+  { key: 'battle_pass_points', label: 'Battle Pass Points', glyph: '🎫', suffix: ' pts', group: 'WEALTH' },
   { key: 'times_mined', label: 'Master Miner', glyph: '⛏', suffix: '', group: 'PROFESSIONS' },
   { key: 'times_chopped', label: 'Lumberjack', glyph: '🪓', suffix: '', group: 'PROFESSIONS' },
   { key: 'times_smelted', label: 'Forge Master', glyph: '🔥', suffix: '', group: 'PROFESSIONS' },
@@ -29,10 +35,10 @@ const CATEGORIES = [
 const GROUP_ORDER = ['COMBAT', 'WEALTH', 'PROFESSIONS', 'EXPLORATION'];
 
 const RANGES = [
+  { key: 'daily', label: 'Day' },
+  { key: 'weekly', label: 'Week' },
   { key: 'season', label: 'Season' },
-  { key: 'weekly', label: 'Weekly' },
-  { key: 'daily', label: 'Daily' },
-  { key: 'all', label: 'All-time' },
+  { key: 'all', label: 'All-Time' },
 ];
 const SCOPES = [
   { key: 'global', label: 'Global' },
@@ -57,12 +63,23 @@ const totalPlayers = ref(0);
 const season = ref(null);
 const rewardTiers = ref([]);
 const hallOfFame = ref([]);
+const supporters = ref([]);
 const rivals = ref([]);
 const myRanks = ref({});
 
 const currentCategory = computed(() => CATEGORIES.find((c) => c.key === category.value) ?? CATEGORIES[0]);
 const isRangeLocked = computed(() => !!currentCategory.value.rangeLocked);
+const isCurrentOnly = computed(() => !!currentCategory.value.currentOnly);
 const maxPage = computed(() => Math.max(1, Math.ceil(totalShown.value / 10)));
+
+// Every range tab is labeled with what it actually shows for the selected category: a stat that gets
+// reset (only Trophies does — see PvpSeasonReset) always reads "Current" no matter the window, since a
+// "gained this week" reading is meaningless right after a reset. Everything else reads "Gained" for a
+// time window, or "Total" for All-Time (the full, unwindowed amount).
+function rangeKindLabel(rangeKey) {
+  if (isCurrentOnly.value) return 'Current';
+  return rangeKey === 'all' ? 'Total' : 'Gained';
+}
 
 async function load() {
   loading.value = true;
@@ -86,6 +103,14 @@ async function load() {
   }
 }
 
+// Its own endpoint (not part of the per-category /leaderboard payload) since it's account-wide and
+// doesn't change when switching category/range/scope/page — no reason to refetch it on every one of
+// those, unlike everything else load() pulls.
+async function loadSupporters() {
+  const { data } = await api.get('/supporters');
+  supporters.value = data.supporters;
+}
+
 async function loadMyRanks() {
   try {
     const { data } = await api.get('/leaderboard/my-ranks');
@@ -97,8 +122,8 @@ async function loadMyRanks() {
 
 function pickCategory(key) {
   category.value = key;
-  // Power/Trophies/Guild Power always show live data regardless of range — force the tab back to
-  // All-time when switching to one so the (disabled) tab bar doesn't show a stale Weekly/Daily selection.
+  // Guild Power has no range support at all (separate guild-wide board, no snapshot history) — force the
+  // tab back to All-Time when switching to it so the disabled tab bar doesn't show a stale selection.
   if (CATEGORIES.find((c) => c.key === key)?.rangeLocked) {
     range.value = 'all';
   }
@@ -183,6 +208,7 @@ const seasonCountdown = computed(() => {
 onMounted(() => {
   load();
   loadMyRanks();
+  loadSupporters();
   clockTimer = setInterval(() => { now.value = Date.now(); }, 60000);
 });
 
@@ -206,10 +232,11 @@ onUnmounted(() => {
           :key="r.key"
           class="lb-ranges__btn"
           :class="{ 'is-active': range === r.key, 'is-disabled': isRangeLocked && r.key !== 'all' }"
-          :title="isRangeLocked && r.key !== 'all' ? 'This board always shows your current standing, not a time window.' : ''"
+          :title="isRangeLocked && r.key !== 'all' ? 'Guild Power has no time-windowed view — it always shows the current guild-wide total.' : ''"
           @click="pickRange(r.key)"
         >
-          {{ r.label }}
+          <span class="lb-ranges__btn-period">{{ r.label }}</span>
+          <span class="lb-ranges__btn-kind">{{ rangeKindLabel(r.key) }}</span>
         </button>
       </div>
     </div>
@@ -358,12 +385,10 @@ onUnmounted(() => {
         </div>
 
         <div class="lb-card">
-          <div class="lb-card__eyebrow">SEASON REWARDS</div>
+          <div class="lb-card__eyebrow">SEASON REWARDS — {{ currentCategory.label.toUpperCase() }}</div>
           <div v-for="t in rewardTiers" :key="t.label" class="lb-reward-row">
             <span class="ox lb-reward-row__tier">{{ t.label }}</span>
-            <span class="lb-reward-row__prize">
-              {{ fmt(t.gold) }}g<span v-if="t.gems"> · {{ t.gems }}◆</span><span v-if="t.title"> · Champion title</span><span v-if="t.banner"> · Top 10 banner</span>
-            </span>
+            <span class="lb-reward-row__prize">{{ t.reward }}</span>
           </div>
         </div>
 
@@ -387,7 +412,20 @@ onUnmounted(() => {
             <span class="ox lb-hof-row__name">{{ h.name }}</span>
           </div>
         </div>
+
       </aside>
+    </div>
+
+    <div class="lb-card lb-supporters">
+      <div class="lb-card__eyebrow">SOLYX SUPPORTERS</div>
+      <p class="lb-supporters__hint">Every real supporter, ranked by how much they've backed Solyx, the amount itself is never shown, just the order.</p>
+      <div v-if="!supporters.length" class="lb-empty-small">No supporters yet, be the first, from the Premium page.</div>
+      <div v-else class="lb-supporters__grid">
+        <div v-for="(s, i) in supporters" :key="s.name + i" class="lb-supporter-row">
+          <span class="ox lb-supporter-row__rank">#{{ i + 1 }}</span>
+          <span class="ox lb-supporter-row__name">{{ s.name }}</span>
+        </div>
+      </div>
     </div>
   </div>
 </template>

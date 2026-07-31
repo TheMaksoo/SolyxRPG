@@ -554,6 +554,24 @@ const overviewDatasets = computed(() => {
   return [...segmentSets, wallSet];
 });
 
+// Battle Pass curve — points-per-tier straight from BattlePassService::xpForTier(), plus the same
+// season quest-income projection shown on the player-facing Battle Pass page (see
+// GmProgressionController::battlePassCurve()), so tuning either the curve or a quest's bp_xp shows up
+// here with no separate numbers to keep in sync.
+const battlePass = ref(null);
+async function loadBattlePassCurve() {
+  const { data } = await api.get('/gm/battle-pass-curve');
+  battlePass.value = data;
+}
+const battlePassTierLabels = computed(() =>
+  battlePass.value ? Array.from({ length: battlePass.value.total_tiers }, (_, i) => `T${i + 1}`) : []
+);
+const battlePassSourceLabels = computed(() => battlePass.value?.points_income.sources.map((s) => s.label) ?? []);
+const battlePassSourceTotals = computed(() => battlePass.value?.points_income.sources.map((s) => s.total) ?? []);
+const battlePassSourceTooltips = computed(
+  () => battlePass.value?.points_income.sources.map((s) => `${s.per_cycle}/cycle × ${s.cycles} = ${formatXp(s.total)} pts`) ?? []
+);
+
 function switchTab(key) {
   tab.value = key;
   if (key === 'overview') loadOverview();
@@ -564,7 +582,7 @@ function switchTab(key) {
   if (key === 'flags') loadFlags();
   if (key === 'tickets') loadTickets();
   if (key === 'audit') loadAuditLog();
-  if (key === 'progression') loadProgression();
+  if (key === 'progression') { loadProgression(); loadBattlePassCurve(); }
 }
 
 onMounted(() => {
@@ -1215,6 +1233,48 @@ onMounted(() => {
         </div>
       </div>
       <p v-else class="gm-console-intro">Loading progression curve…</p>
+
+      <p class="gm-console-intro" style="margin-top: 28px">
+        Battle Pass points curve, straight from BattlePassService — tune xpForTier()/pointsForQuest() there and this updates automatically.
+      </p>
+      <div v-if="battlePass" class="gm-console-revenue-grid">
+        <div class="gm-console-revenue-tile gm-console-revenue-tile--total">
+          <div class="gm-console-revenue-tile__label">Total to max ({{ battlePass.total_tiers }} tiers)</div>
+          <div class="ox gm-console-revenue-tile__value">{{ formatXp(battlePass.total_to_max) }} pts</div>
+        </div>
+        <div class="gm-console-revenue-tile gm-console-revenue-tile--total">
+          <div class="gm-console-revenue-tile__label">{{ battlePass.points_income.season_length_days }}-day season, daily+weekly+monthly only</div>
+          <div class="ox gm-console-revenue-tile__value">{{ formatXp(battlePass.points_income.recurring_total) }} pts</div>
+          <div class="gm-console-config-tile__readout">{{ battlePass.points_income.recurring_pct_of_max }}% of the total needed — some slack for missed quests</div>
+        </div>
+        <div class="gm-console-revenue-tile gm-console-revenue-tile--total">
+          <div class="gm-console-revenue-tile__label">With one-time main &amp; raid quests too</div>
+          <div class="ox gm-console-revenue-tile__value">{{ formatXp(battlePass.points_income.grand_total_with_bonus) }} pts</div>
+        </div>
+      </div>
+      <div v-if="battlePass" class="gm-console-progression-grid">
+        <div class="gm-console-progression-card">
+          <div class="gm-console-progression-card__head">
+            <span class="ox">Points required per tier (1–{{ battlePass.total_tiers }})</span>
+          </div>
+          <ActivityChart type="line" :labels="battlePassTierLabels" :data="battlePass.costs" color="#a78bfa" :height="200" />
+        </div>
+        <div class="gm-console-progression-card">
+          <div class="gm-console-progression-card__head">
+            <span class="ox">Season income by source</span>
+            <span class="gm-console-progression-card__range">Daily/weekly/monthly over {{ battlePass.points_income.season_length_days }} days, main/raid one-time</span>
+          </div>
+          <ActivityChart
+            type="bar"
+            :labels="battlePassSourceLabels"
+            :data="battlePassSourceTotals"
+            :tooltip-labels="battlePassSourceTooltips"
+            color="#a78bfa"
+            :height="200"
+          />
+        </div>
+      </div>
+      <p v-else class="gm-console-intro">Loading Battle Pass curve…</p>
     </div>
 
     <!-- TICKETS -->

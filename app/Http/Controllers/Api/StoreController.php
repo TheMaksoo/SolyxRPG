@@ -14,18 +14,22 @@ use Stripe\Webhook;
 
 class StoreController extends Controller
 {
-    /** SKU catalog — cents + gem/effect payload. Not DB-backed; edit here to change pricing.
-     * Base rate: 100 gems = 50 cents. Each pack includes a +10% bonus. */
+    /** SKU catalog — cents + gem/effect payload. Not DB-backed; edit here to change pricing. Keys are named
+     * for the actual total 'gems' amount each pack grants (matching what fulfil() actually credits) — they
+     * used to be named after stale numbers (gems_340/900/2000/8000) that didn't match any field in the
+     * pack itself, which is exactly the kind of drift this naming convention is meant to prevent. */
     private const GEM_PACKS = [
-        'gems_340' => ['label' => '1000 Gems', 'price_cents' => 499, 'gems' => 1000, 'bonus' => 100],
-        'gems_900' => ['label' => '2000 Gems', 'price_cents' => 999, 'gems' => 2000, 'bonus' => 200],
-        'gems_2000' => ['label' => '4000 Gems', 'price_cents' => 1999, 'gems' => 4000, 'bonus' => 400],
-        'gems_8000' => ['label' => '14000 Gems', 'price_cents' => 6999, 'gems' => 14000, 'bonus' => 1400],
+        'gems_1000' => ['label' => '1000 Gems', 'price_cents' => 499, 'gems' => 1000, 'bonus' => 100],
+        'gems_2000' => ['label' => '2000 Gems', 'price_cents' => 999, 'gems' => 2000, 'bonus' => 200],
+        'gems_4000' => ['label' => '4000 Gems', 'price_cents' => 1999, 'gems' => 4000, 'bonus' => 400],
+        'gems_14000' => ['label' => '14000 Gems', 'price_cents' => 6999, 'gems' => 14000, 'bonus' => 1400],
     ];
 
     private const OTHER_SKUS = [
         'remove_ads' => ['label' => 'Remove Ads', 'price_cents' => 499],
-        'pass_ashfall' => ['label' => 'Ashfall Season Pass (Premium)', 'price_cents' => 599],
+        // Same price as the entry 'gems_1000' pack (€4.99) — matches BattlePassController::PREMIUM_GEM_COST
+        // (1000 gems) so the cash and gem prices are the same offer, not two arbitrary numbers.
+        'pass_ashfall' => ['label' => 'Ashfall Season Pass (Premium)', 'price_cents' => 499],
         // The only Auto-Attack duration sold for real money — 15/30 min stay gems-only (see AutoBattleService).
         'auto_battle_60' => ['label' => '1 Hour Auto-Attack', 'price_cents' => 99],
     ];
@@ -161,13 +165,19 @@ class StoreController extends Controller
         if ($event->type === 'checkout.session.completed') {
             $session = $event->data->object;
 
-            if (isset($session->metadata['vip_tier'])) {
+            if (isset($session->metadata['vip_lifetime'])) {
+                $this->fulfilVipLifetime($session);
+            } elseif (isset($session->metadata['founder_pack'])) {
+                FounderPackController::fulfil($session);
+                $this->recordSpend($session->metadata['user_id'] ?? null, $session->amount_total ?? 0);
+            } elseif (isset($session->metadata['vip_tier'])) {
                 $this->fulfilVipSubscription($session);
             } else {
                 $purchase = Purchase::where('stripe_session_id', $session->id)->first();
                 if ($purchase && $purchase->status !== 'completed') {
                     $purchase->update(['status' => 'completed']);
                     $this->fulfil($purchase);
+                    $this->recordSpend($purchase->user_id, $purchase->amount_cents);
                 }
             }
         }
@@ -195,15 +205,48 @@ class StoreController extends Controller
             return;
         }
 
+        $period = $session->metadata['vip_period'] ?? 'month';
+
         // User's #[Fillable] attribute only allows name/email/password through mass-assignment —
         // ->update() here would silently no-op (confirmed: same landmine as the is_tester bug).
         // Direct property assignment bypasses the guard.
         $user->vip_tier = $session->metadata['vip_tier'];
-        $user->vip_expires_at = now()->addMonth();
+        $user->vip_expires_at = $period === 'year' ? now()->addYear() : now()->addMonth();
         // Stashed so a later tier switch can update this same subscription in Stripe (proration)
         // instead of starting a second, separately-billed one — see VipController::subscribe().
         $user->stripe_subscription_id = is_string($session->subscription ?? null) ? $session->subscription : ($session->subscription->id ?? null);
         $user->save();
+
+        $this->recordSpend($user->id, $session->amount_total ?? 0);
+    }
+
+    /** One-time Lifetime VIP purchase — no subscription, no recurring billing, no expiry. */
+    private function fulfilVipLifetime(object $session): void
+    {
+        $user = \App\Models\User::find($session->metadata['user_id'] ?? null);
+        if (! $user || $user->vip_lifetime) {
+            return;
+        }
+
+        $user->vip_tier = 'diamond';
+        $user->vip_lifetime = true;
+        $user->vip_expires_at = null;
+        $user->save();
+
+        $this->recordSpend($user->id, $session->amount_total ?? 0);
+    }
+
+    /** Running lifetime real-money total per account — every checkout.session.completed and recurring
+     * invoice.paid event feeds this. Currently only consumed by FounderPackController's Hall of Founders
+     * ranking (spend order, amount itself never shown), but it's an account-wide total, not scoped to
+     * any one purchase type. */
+    private function recordSpend(?string $userId, int $amountCents): void
+    {
+        if (! $userId || $amountCents <= 0) {
+            return;
+        }
+
+        \App\Models\User::where('id', $userId)->increment('lifetime_spend_cents', $amountCents);
     }
 
     /** Handles both the classic flat `invoice.subscription` shape and the newer nested
@@ -239,9 +282,13 @@ class StoreController extends Controller
             return;
         }
 
+        $period = $subscription->metadata['vip_period'] ?? 'month';
+
         $user->vip_tier = $vipTier;
-        $user->vip_expires_at = now()->addMonth();
+        $user->vip_expires_at = $period === 'year' ? now()->addYear() : now()->addMonth();
         $user->save();
+
+        $this->recordSpend($userId, $invoice->amount_paid ?? 0);
     }
 
     private function fulfil(Purchase $purchase): void

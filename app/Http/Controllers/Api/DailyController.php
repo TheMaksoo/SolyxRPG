@@ -7,7 +7,6 @@ use App\Models\DailyClaim;
 use App\Models\FeatureFlag;
 use App\Models\GemLedger;
 use App\Services\AchievementService;
-use App\Services\BattlePassService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -20,7 +19,6 @@ class DailyController extends Controller
     private const MILESTONE_DAYS = [7, 14, 21, 28];
 
     public function __construct(
-        private BattlePassService $battlePass = new BattlePassService(),
         private AchievementService $achievements = new AchievementService(),
     ) {
     }
@@ -59,7 +57,8 @@ class DailyController extends Controller
         }
 
         $claim->update(['streak' => $streak, 'last_claim_date' => Carbon::today()]);
-        $this->battlePass->addXp($character, 15);
+        // Battle Pass xp is quest-based only now (see QuestController::claim) — the daily login streak
+        // has its own escalating gold/gems reward calendar below and doesn't also feed the pass.
         $this->achievements->check($character->fresh());
 
         return response()->json(array_merge(

@@ -34,7 +34,9 @@ class Character extends Model
         'user_id', 'name', 'base_class', 'spec_class', 'profession', 'ascension',
         'avatar', 'level', 'xp', 'gold', 'gems', 'quests_completed', 'hp', 'hp_max', 'mana', 'mana_max',
         'energy', 'energy_max', 'base_atk', 'base_def', 'skill_points', 'attribute_points', 'current_zone_id', 'last_action',
-        'active_title_id', 'active_color_id', 'active_banner_id', 'active_icon_id', 'tutorial_seen',
+        'active_title_id', 'active_color_id', 'active_banner_id', 'active_icon_id', 'active_frame_id',
+        'showcased_achievement_ids', 'bio', 'playstyle_tags', 'tutorial_seen',
+        'playtime_seconds', 'last_active_at', 'privacy_settings',
         'pvp_attempts_used', 'pvp_attempts_reset_at', 'last_daily_reward_at',
         'dungeon_attempts_used', 'dungeon_attempts_reset_at',
         'pvp_wins_today', 'pvp_wins_today_date', 'pvp_10_wins_reward_at',
@@ -91,7 +93,33 @@ class Character extends Model
             'auto_gather_last_tick_at' => 'datetime',
             'sync_calls_today' => 'integer',
             'sync_calls_reset_at' => 'datetime',
+            'showcased_achievement_ids' => 'array',
+            'playstyle_tags' => 'array',
+            'playtime_seconds' => 'integer',
+            'last_active_at' => 'datetime',
+            'privacy_settings' => 'array',
         ];
+    }
+
+    /** Defaults match the previous always-public behavior exactly, so a character who's never touched
+     * these settings (privacy_settings is null) shows the same profile as before this feature existed —
+     * except playtime, which defaults hidden since it's the one field nobody opted into showing before. */
+    private const PRIVACY_DEFAULTS = [
+        'gear_visible' => true,
+        'combat_stats_visible' => true,
+        'activity_feed_visibility' => 'public', // 'public' | 'friends' | 'hidden'
+        'playtime_visible' => false,
+        'open_to_duels' => true,
+    ];
+
+    public function privacySetting(string $key)
+    {
+        return ($this->privacy_settings ?? [])[$key] ?? self::PRIVACY_DEFAULTS[$key];
+    }
+
+    public function privacySettingsWithDefaults(): array
+    {
+        return array_merge(self::PRIVACY_DEFAULTS, $this->privacy_settings ?? []);
     }
 
     protected $appends = ['calculated_level', 'calculated_xp_min', 'calculated_xp_max'];
@@ -233,6 +261,11 @@ class Character extends Model
     public function activeIcon(): BelongsTo
     {
         return $this->belongsTo(Cosmetic::class, 'active_icon_id');
+    }
+
+    public function activeFrame(): BelongsTo
+    {
+        return $this->belongsTo(Cosmetic::class, 'active_frame_id');
     }
 
     /** Accepted friendships in either direction, as a collection of the *other* character. */

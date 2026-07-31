@@ -63,7 +63,7 @@ class QuestController extends Controller
             ['claimed' => true, 'completed' => true]
         );
         $character->increment('quests_completed');
-        $this->battlePass->addXp($character, 25);
+        $this->battlePass->addXp($character, $this->battlePass->pointsForQuest($quest));
         $this->achievements->check($character->fresh());
         $this->grantQuestTitle($character, $quest);
 

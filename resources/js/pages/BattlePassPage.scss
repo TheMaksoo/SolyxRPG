@@ -10,9 +10,25 @@
   margin-bottom: 20px;
 }
 
+.battlepass-header__title-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .battlepass-header__title {
   font-size: 22px;
   font-weight: 800;
+}
+
+.battlepass-header__season-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: v.$accent-soft;
+  border: 1px solid v.$accent-tint-25;
+  border-radius: 5px;
+  padding: 3px 7px;
 }
 
 .battlepass-header__tier {
@@ -25,6 +41,11 @@
   color: v.$text-muted-40;
 }
 
+.battlepass-header__days-left {
+  color: v.$accent-soft;
+  font-weight: 600;
+}
+
 .battlepass-header__actions {
   display: flex;
   align-items: center;
@@ -33,6 +54,12 @@
 
 .battlepass-header__premium-badge {
   color: v.$warning;
+  font-weight: 700;
+  font-size: 13.5px;
+}
+
+.battlepass-header__vip-badge {
+  color: v.$purple;
   font-weight: 700;
   font-size: 13.5px;
 }
@@ -102,6 +129,12 @@
   padding: 5px 12px;
 }
 
+.claim-summary__chip--bp {
+  background: v.$purple-tint-12;
+  border-color: rgba(139, 92, 246, 0.25);
+  color: v.$purple;
+}
+
 .battlepass-premium-pitch {
   background: linear-gradient(160deg, rgba(232, 72, 47, 0.1), v.$bg-card);
   border: 1px solid rgba(232, 72, 47, 0.25);
@@ -138,6 +171,30 @@
   padding: 4px 12px;
 }
 
+.battlepass-premium-pitch__total-chip--toggle {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+}
+
+.battlepass-premium-pitch__toggle-arrow {
+  font-size: 9px;
+  opacity: 0.7;
+}
+
+.battlepass-premium-pitch__totals--breakdown {
+  margin-top: -6px;
+}
+
+.battlepass-premium-pitch__total-chip--sub {
+  font-weight: 600;
+  color: v.$text-muted-70;
+  background: v.$bg-input;
+  border-color: v.$border-subtle;
+}
+
 .battlepass-premium-pitch__actions {
   display: flex;
   gap: 10px;
@@ -150,12 +207,194 @@
   margin-bottom: 14px;
 }
 
+.battlepass-progress-card {
+  background: linear-gradient(120deg, v.$accent-tint-12, v.$bg-card 46%);
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-lg;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  display: flex;
+  gap: 26px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.battlepass-progress-card__tier {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex: none;
+}
+
+.battlepass-progress-card__tier-label {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  font-weight: 700;
+  color: v.$text-muted-35;
+}
+
+.battlepass-progress-card__tier-value {
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.battlepass-progress-card__tier-max {
+  font-size: 15px;
+  font-weight: 700;
+  color: v.$text-muted-40;
+}
+
+.battlepass-progress-card__bar {
+  flex: 1;
+  min-width: 260px;
+}
+
+.battlepass-progress-card__bar-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: v.$text-muted-45;
+  margin-bottom: 6px;
+
+  span:last-child {
+    font-weight: 700;
+    color: v.$text-body;
+  }
+}
+
+.battlepass-progress-card__bar-track {
+  height: 12px;
+  background: v.$bg-input;
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.battlepass-progress-card__bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, v.$accent, v.$warning);
+  transition: width 0.4s ease;
+}
+
+.battlepass-progress-card__bar-sub {
+  font-size: 11.5px;
+  color: v.$text-muted-35;
+  margin-top: 6px;
+}
+
+.battlepass-progress-card__pace {
+  flex: none;
+  text-align: right;
+  min-width: 150px;
+}
+
+.battlepass-progress-card__pace-label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+  color: v.$text-muted-35;
+  margin-bottom: 4px;
+}
+
+.battlepass-progress-card__pace-value {
+  display: block;
+  font-size: 18px;
+  font-weight: 800;
+  color: v.$success;
+
+  &--off {
+    color: v.$danger;
+  }
+}
+
+.battlepass-progress-card__pace-sub {
+  font-size: 11.5px;
+  color: v.$success;
+
+  &--off {
+    color: v.$danger;
+  }
+}
+
+.battlepass-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.battlepass-skeleton__columns {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+
+  > :first-child {
+    flex: 1;
+    min-width: 380px;
+  }
+}
+
+.battlepass-track-card {
+  background: v.$bg-card;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-lg;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.battlepass-track-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid v.$border-subtle;
+  flex-wrap: wrap;
+}
+
+.battlepass-track-card__legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.battlepass-track-card__legend-label {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  font-weight: 700;
+  color: v.$text-muted-35;
+}
+
+.battlepass-track-card__legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: v.$text-muted-45;
+}
+
+.battlepass-track-card__swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  background: v.$border-strong;
+
+  &--premium {
+    background: v.$warning;
+  }
+}
+
+.battlepass-track-card__claimable {
+  font-size: 11.5px;
+  color: v.$text-muted-35;
+}
+
 .battlepass-track {
   display: flex;
   flex-direction: column;
   gap: 10px;
   overflow-x: auto;
-  padding-bottom: 8px;
+  padding: 16px;
 }
 
 .battlepass-row {
@@ -202,7 +441,7 @@
 
 .tier-tile {
   width: 86px;
-  height: 104px;
+  height: 118px;
   flex: none;
   display: flex;
   flex-direction: column;
@@ -235,8 +474,22 @@
 }
 
 .tier-tile__glyph {
+  position: relative;
   font-size: 24px;
   line-height: 1;
+}
+
+.tier-tile__extra {
+  position: absolute;
+  top: -6px;
+  right: -12px;
+  font-size: 8px;
+  font-weight: 800;
+  background: v.$purple;
+  color: #fff;
+  border-radius: v.$radius-pill;
+  padding: 1px 4px;
+  line-height: 1.3;
 }
 
 .tier-tile__reward {
@@ -251,6 +504,14 @@
   &--premium {
     color: v.$accent-soft;
   }
+}
+
+.tier-tile__currency {
+  font-size: 8.5px;
+  font-weight: 600;
+  color: v.$warning;
+  margin-top: 3px;
+  white-space: nowrap;
 }
 
 .tier-tile__claim-btn {
@@ -277,6 +538,270 @@
   font-weight: 800;
 }
 
+.battlepass-columns {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.battlepass-earn-panel {
+  flex: 1;
+  min-width: 380px;
+  background: v.$bg-card;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-lg;
+  padding: 16px 18px;
+}
+
+.battlepass-earn-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.battlepass-earn-panel__tabs {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.battlepass-earn-panel__tab {
+  @include m.btn-reset;
+  background: transparent;
+  border: 1px solid v.$border-subtle;
+  color: v.$text-muted-55;
+  border-radius: v.$radius-sm;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  position: relative;
+
+  &--active {
+    background: v.$accent-tint-15;
+    border-color: v.$accent-tint-30;
+    color: v.$accent-soft;
+  }
+}
+
+.battlepass-earn-panel__tab-badge {
+  margin-left: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  background: v.$accent;
+  color: #fff;
+  border-radius: v.$radius-pill;
+  padding: 1px 6px;
+}
+
+.battlepass-earn-panel__reset {
+  font-size: 11.5px;
+  color: v.$text-muted-40;
+
+  span {
+    color: v.$accent-soft;
+    font-weight: 600;
+  }
+}
+
+.battlepass-earn-panel__empty {
+  font-size: 12.5px;
+  color: v.$text-muted-40;
+  padding: 12px 0;
+}
+
+.battlepass-objective {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 12px 0;
+  border-top: 1px solid v.$border-subtle;
+
+  &:first-of-type {
+    border-top: none;
+  }
+}
+
+.battlepass-objective__icon {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.05);
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+}
+
+.battlepass-objective__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.battlepass-objective__name-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.battlepass-objective__name {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &--done {
+    color: v.$text-muted-45;
+  }
+}
+
+.battlepass-objective__xp {
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  color: v.$warning;
+}
+
+.battlepass-objective__bar-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 6px;
+}
+
+.battlepass-objective__bar-track {
+  flex: 1;
+  height: 6px;
+  background: v.$bg-input;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.battlepass-objective__bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, v.$accent, v.$accent-soft);
+
+  &--done {
+    background: v.$success;
+  }
+}
+
+.battlepass-objective__progress {
+  flex: none;
+  font-size: 11px;
+  color: v.$text-muted-40;
+  font-family: monospace;
+}
+
+.battlepass-objective__btn {
+  flex: none;
+  width: 70px;
+  text-align: center;
+  padding: 8px 0;
+  border-radius: v.$radius-sm;
+  font-size: 11.5px;
+  font-weight: 700;
+  border: 1px solid v.$border-medium;
+  background: transparent;
+  color: v.$text-muted-55;
+
+  &--claim {
+    @include m.btn-reset;
+    border-color: rgba(74, 222, 128, 0.35);
+    background: v.$success-tint-12;
+    color: v.$success;
+    cursor: pointer;
+  }
+
+  &--done {
+    border-color: rgba(74, 222, 128, 0.35);
+    color: v.$success;
+  }
+
+  &--track {
+    opacity: 0.7;
+  }
+}
+
+.battlepass-sidebar {
+  width: 322px;
+  flex: none;
+}
+
+.battlepass-earn-card {
+  background: v.$bg-card;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-lg;
+  padding: 16px 18px;
+}
+
+.battlepass-earn-card__head {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  font-weight: 700;
+  color: v.$text-muted-35;
+  margin-bottom: 12px;
+}
+
+.battlepass-earn-card__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 0;
+  border-top: 1px solid v.$border-subtle;
+
+  &:first-of-type {
+    border-top: none;
+  }
+}
+
+.battlepass-earn-card__row-name {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.battlepass-earn-card__row-detail {
+  font-size: 11px;
+  color: v.$text-muted-40;
+  margin-top: 2px;
+}
+
+.battlepass-earn-card__row-total {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: v.$warning;
+}
+
+.battlepass-earn-card__ceiling {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid v.$border-medium;
+  font-size: 12px;
+  color: v.$text-muted-55;
+
+  span:last-child {
+    font-size: 15px;
+    font-weight: 800;
+    color: v.$success;
+  }
+}
+
+.battlepass-earn-card__note {
+  font-size: 11px;
+  color: v.$text-muted-35;
+  margin-top: 5px;
+  line-height: 1.45;
+}
+
 @media (max-width: 768px) {
   .battlepass-header {
     margin-bottom: 16px;
@@ -284,6 +809,19 @@
 
   .battlepass-header__title {
     font-size: 19px;
+  }
+
+  .battlepass-progress-card {
+    padding: 14px 16px;
+  }
+
+  .battlepass-progress-card__bar {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .battlepass-progress-card__pace {
+    text-align: left;
   }
 
   .battlepass-claim-all-btn {
@@ -324,7 +862,7 @@
 
   .tier-tile {
     width: 72px;
-    height: 92px;
+    height: 104px;
     padding: 6px 4px;
   }
 
@@ -334,5 +872,19 @@
 
   .tier-tile__reward {
     font-size: 9px;
+  }
+
+  .tier-tile__currency {
+    font-size: 8px;
+  }
+
+  .battlepass-earn-panel,
+  .battlepass-sidebar {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .battlepass-objective__name {
+    max-width: 140px;
   }
 }

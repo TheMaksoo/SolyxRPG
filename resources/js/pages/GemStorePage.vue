@@ -175,7 +175,7 @@ onMounted(async () => {
         <div class="remove-ads-card__icon">🚫</div>
         <div>
           <div class="remove-ads-card__title">Remove Ads</div>
-          <div class="remove-ads-card__desc">One-time purchase — removes ads permanently (also included with any VIP tier).</div>
+          <div class="remove-ads-card__desc">One-time purchase — removes ads permanently (also included with any Rank tier).</div>
         </div>
       </div>
       <button @click="checkout('remove_ads')" class="remove-ads-card__buy">
@@ -191,7 +191,7 @@ onMounted(async () => {
           <div class="ad-free-card__desc">Not wired up yet — needs a real ad-network SDK (e.g. AdSense rewarded ads).</div>
         </div>
       </div>
-      <router-link to="/vip" class="ad-free-card__cta">Go ad-free with VIP</router-link>
+      <router-link to="/vip" class="ad-free-card__cta">Go ad-free with Premium</router-link>
     </div>
 
     <div class="gem-store-section-eyebrow">TIME BOOSTS</div>

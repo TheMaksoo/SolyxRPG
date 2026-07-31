@@ -11,8 +11,10 @@ use Illuminate\Validation\Rule;
 
 class BattlePassController extends Controller
 {
-    /** Matches the $5.99 cash price at the entry gem pack's rate (340 gems / $4.99 ≈ 68/$ → $5.99 ≈ 400 gems). */
-    public const PREMIUM_GEM_COST = 400;
+    /** 1000 gems is exactly what tier 100's premium gem reward pays back (see
+     * BattlePassService::currencyForTier), so a gem-purchased pass earns back its own cost by tier 100. */
+    public const PREMIUM_GEM_COST = 1000;
+    public const PREMIUM_CASH_LABEL = '€4.99';
 
     public function __construct(private BattlePassService $battlePass) {}
 
@@ -35,8 +37,12 @@ class BattlePassController extends Controller
         return response()->json([
             'battle_pass' => $pass,
             'premium_gem_cost' => self::PREMIUM_GEM_COST,
+            'premium_cash_label' => self::PREMIUM_CASH_LABEL,
             'total_tiers' => BattlePassService::TOTAL_TIERS,
             'track' => $track,
+            'vip_bp_xp_bonus_pct' => $request->user()->vipBattlePassXpBonusPct(),
+            'points_income' => $this->battlePass->pointsIncomeSummary($character),
+            'season_progress' => $this->battlePass->seasonProgress($pass),
         ]);
     }
 

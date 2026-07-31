@@ -1,6 +1,25 @@
 @use '../../scss/variables' as v;
 @use '../../scss/mixins' as m;
 
+// Founder Beta Pack card animations — ported from the Claude Design "Solyx Profile" mock's own
+// keyframes (same names/timings), not reinvented.
+@keyframes founder-sweep {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(420%); }
+}
+@keyframes founder-glow {
+  0%, 100% { opacity: 0.72; transform: translateX(-50%) scale(1); }
+  50% { opacity: 1; transform: translateX(-50%) scale(1.13); }
+}
+@keyframes founder-ring {
+  0%, 100% { box-shadow: 0 0 16px rgba(255, 214, 102, 0.32), 0 0 0 0 rgba(255, 214, 102, 0.28); }
+  50% { box-shadow: 0 0 30px rgba(255, 214, 102, 0.6), 0 0 0 7px rgba(255, 214, 102, 0); }
+}
+@keyframes founder-twinkle {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.9; }
+}
+
 .vip-header {
   text-align: center;
   margin-bottom: 26px;
@@ -81,6 +100,48 @@
   }
 }
 
+.vip-period-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 22px;
+}
+
+.vip-period-toggle__btn {
+  @include m.btn-reset;
+  padding: 9px 18px;
+  border-radius: v.$radius-pill;
+  border: 1px solid v.$border-subtle;
+  background: transparent;
+  color: v.$text-muted-55;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  &.is-active {
+    background: v.$accent;
+    border-color: v.$accent;
+    color: #fff;
+  }
+}
+
+.vip-period-toggle__save {
+  font-size: 10px;
+  font-weight: 700;
+  color: v.$success;
+  background: rgba(74, 222, 128, 0.15);
+  border-radius: v.$radius-pill;
+  padding: 2px 7px;
+
+  .is-active & {
+    color: #fff;
+    background: rgba(0, 0, 0, 0.3);
+  }
+}
+
 .vip-tiers-grid {
   @include m.grid-auto-fit(240px, 16px);
   @include m.centered-column(900px);
@@ -117,6 +178,13 @@
   margin: 6px 0 16px;
 }
 
+.vip-tier-card__price-was {
+  display: block;
+  font-size: 14px;
+  color: v.$text-muted-40;
+  text-decoration: line-through;
+}
+
 .vip-tier-card__price-amount {
   font-size: 32px;
   font-weight: 800;
@@ -125,6 +193,12 @@
 .vip-tier-card__price-period {
   font-size: 13px;
   color: v.$text-muted-40;
+}
+
+.vip-tier-card__price-note {
+  font-size: 10.5px;
+  color: v.$text-muted-40;
+  margin-top: 4px;
 }
 
 .vip-tier-card__perks {
@@ -178,6 +252,544 @@
   }
 }
 
+.vip-lifetime-card {
+  @include m.centered-column(900px);
+  text-align: center;
+  background: linear-gradient(160deg, #1a1013, v.$bg-card);
+  border: 1px solid rgba(234, 179, 8, 0.35);
+  border-radius: 14px;
+  padding: 26px;
+  margin-top: 20px;
+}
+
+.vip-lifetime-card__badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: v.$warning;
+  margin-bottom: 8px;
+}
+
+.vip-lifetime-card__label {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.vip-lifetime-card__desc {
+  font-size: 13px;
+  color: v.$text-muted-55;
+  max-width: 420px;
+  margin: 8px auto 0;
+}
+
+.vip-lifetime-card__price {
+  margin: 16px 0;
+}
+
+.vip-lifetime-card__price-amount {
+  font-size: 34px;
+  font-weight: 800;
+}
+
+.vip-lifetime-card__price-period {
+  font-size: 13px;
+  color: v.$text-muted-40;
+  margin-left: 4px;
+}
+
+.vip-lifetime-card .vip-subscribe-btn {
+  max-width: 280px;
+  margin: 0 auto;
+  background: v.$warning;
+  color: #1a1013;
+}
+
+.vip-founder-card {
+  @include m.centered-column(900px);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  border-radius: 16px;
+  background:
+    radial-gradient(120% 160% at 12% 0%, rgba(234, 179, 8, 0.16), transparent 58%),
+    radial-gradient(100% 140% at 92% 100%, rgba(232, 72, 47, 0.16), transparent 60%),
+    linear-gradient(180deg, #171208, #0d0d0f);
+  padding: 22px 24px 24px;
+  margin-bottom: 24px;
+}
+
+.vip-founder-card__watermark {
+  position: absolute;
+  right: 26px;
+  top: -56px;
+  font-size: 230px;
+  line-height: 1;
+  opacity: 0.07;
+  color: #eab308;
+  pointer-events: none;
+}
+
+.vip-founder-card__top {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.vip-founder-card__intro {
+  flex: 1;
+  min-width: 280px;
+}
+
+.vip-founder-card__pills {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.vip-founder-card__pill {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+  color: v.$text-muted-45;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  padding: 5px 10px;
+
+  &--gold {
+    position: relative;
+    overflow: hidden;
+    color: #eab308;
+    background: rgba(234, 179, 8, 0.1);
+    border-color: rgba(234, 179, 8, 0.35);
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -60%;
+      width: 30%;
+      background: linear-gradient(115deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+      animation: founder-sweep 3.2s ease-in-out infinite;
+    }
+  }
+}
+
+.vip-founder-card__title {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-top: 13px;
+}
+
+.vip-founder-card__desc {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: v.$text-muted-55;
+  max-width: 520px;
+  margin: 9px 0 0;
+}
+
+.vip-founder-card__link {
+  color: #eab308;
+  font-weight: 600;
+}
+
+.vip-founder-card__buy {
+  flex: none;
+  text-align: right;
+  min-width: 184px;
+}
+
+.vip-founder-card__price {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.vip-founder-card__price-amount {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.vip-founder-card__price-period {
+  font-size: 13px;
+  color: v.$text-muted-40;
+}
+
+.vip-founder-card__cta {
+  @include m.btn-reset;
+  margin-top: 13px;
+  width: 100%;
+  background: #eab308;
+  color: #1a1405;
+  border-radius: 11px;
+  padding: 13px 20px;
+  font-size: 13.5px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 8px 26px rgba(234, 179, 8, 0.22);
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+}
+
+.vip-founder-card__grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 11px;
+  margin-top: 22px;
+}
+
+.vip-founder-preview {
+  background: rgba(11, 11, 12, 0.55);
+  border: 1px solid rgba(234, 179, 8, 0.22);
+  border-radius: 13px;
+  padding: 14px 15px;
+}
+
+.vip-founder-preview__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 13px;
+}
+
+.vip-founder-preview__num {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: v.$text-muted-45;
+}
+
+.vip-founder-preview__tag {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+  color: #eab308;
+}
+
+.vip-founder-preview__note {
+  font-size: 11.5px;
+  color: v.$text-muted-40;
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+// 01 · Banner preview — live sunrise art: twinkling stars + a breathing "sun" glow.
+.vip-founder-banner-art {
+  position: relative;
+  height: 82px;
+  border-radius: 9px;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 170% at 50% 122%, rgba(255, 214, 102, 0.5), rgba(232, 72, 47, 0.26) 40%, transparent 68%),
+    radial-gradient(80% 110% at 86% 4%, rgba(168, 85, 247, 0.2), transparent 62%),
+    linear-gradient(180deg, #090912, #1a1206 76%, #241a08);
+  box-shadow: inset 0 0 0 1px rgba(234, 179, 8, 0.32), inset 0 0 26px rgba(234, 179, 8, 0.12);
+}
+
+.vip-founder-banner-art__star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: #fff;
+  animation-name: founder-twinkle;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+
+  &--sm {
+    width: 1.5px;
+    height: 1.5px;
+    background: #ffe9a8;
+  }
+}
+
+.vip-founder-banner-art__sun {
+  position: absolute;
+  left: 50%;
+  bottom: -36px;
+  transform: translateX(-50%);
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 228, 150, 0.95), rgba(234, 179, 8, 0.45) 48%, transparent 70%);
+  animation: founder-glow 3.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.vip-founder-banner-art__texture {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 12px);
+}
+
+.vip-founder-banner-art__glow-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 10px;
+  background: linear-gradient(90deg, transparent, rgba(255, 214, 102, 0.45), transparent);
+}
+
+.vip-founder-banner-art__crest-row {
+  position: absolute;
+  left: 10px;
+  bottom: 9px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.vip-founder-banner-art__crest {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 11, 12, 0.78);
+  border: 1.5px solid #ffd666;
+  font-size: 15px;
+  animation: founder-ring 2.8s ease-in-out infinite;
+}
+
+.vip-founder-banner-art__mark {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  .ox {
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    color: #ffe9a8;
+    text-shadow: 0 0 12px rgba(255, 214, 102, 0.55);
+  }
+
+  span:last-child {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.13em;
+    white-space: nowrap;
+    color: v.$text-muted-45;
+  }
+}
+
+// 02 · Frame preview — pulsing gold ring around a live avatar-initials circle.
+.vip-founder-frame-demo {
+  height: 78px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  p {
+    font-size: 11.5px;
+    color: v.$text-muted-40;
+    line-height: 1.5;
+    max-width: 104px;
+    margin: 0;
+  }
+}
+
+.vip-founder-frame-demo__ring-wrap {
+  position: relative;
+  flex: none;
+  width: 64px;
+  height: 64px;
+}
+
+.vip-founder-frame-demo__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 17px;
+  border: 2px solid #ffd666;
+  background: linear-gradient(160deg, #231b0c, #121214);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: founder-ring 2.8s ease-in-out infinite;
+
+  .ox {
+    font-size: 21px;
+    font-weight: 800;
+    color: #ffe9a8;
+    text-shadow: 0 0 12px rgba(255, 214, 102, 0.5);
+  }
+}
+
+.vip-founder-frame-demo__crown {
+  position: absolute;
+  left: 50%;
+  top: -9px;
+  transform: translateX(-50%);
+  font-size: 15px;
+  line-height: 1;
+}
+
+// 03 · Title preview
+.vip-founder-title-demo {
+  height: 78px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 9px;
+
+  p {
+    font-size: 11.5px;
+    color: v.$text-muted-40;
+    margin: 0;
+  }
+}
+
+.vip-founder-title-demo__row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.vip-founder-title-demo__name {
+  font-size: 19px;
+  font-weight: 800;
+
+  &--gold {
+    color: #eab308;
+    text-shadow: 0 0 12px rgba(234, 179, 8, 0.4);
+  }
+}
+
+.vip-founder-title-demo__pill {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+  color: #eab308;
+  border: 1px solid rgba(234, 179, 8, 0.45);
+  border-radius: 5px;
+  padding: 3px 9px;
+}
+
+// 04 · Badge preview
+.vip-founder-badge-demo {
+  height: 78px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+
+  p {
+    min-width: 0;
+    font-size: 11.5px;
+    color: v.$text-muted-40;
+    line-height: 1.5;
+    margin: 0;
+  }
+}
+
+.vip-founder-badge-demo__hex {
+  flex: none;
+  width: 52px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  background: linear-gradient(180deg, rgba(234, 179, 8, 0.2), rgba(234, 179, 8, 0.04));
+  border: 1px solid rgba(234, 179, 8, 0.4);
+  clip-path: polygon(50% 0, 100% 22%, 100% 74%, 50% 100%, 0 74%, 0 22%);
+}
+
+// 06 · Gems preview
+.vip-founder-gems-demo {
+  height: 78px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+
+  p {
+    min-width: 0;
+    font-size: 11.5px;
+    color: v.$text-muted-40;
+    line-height: 1.5;
+    margin: 4px 0 0;
+  }
+}
+
+.vip-founder-gems-demo__icon {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  background: linear-gradient(180deg, rgba(234, 179, 8, 0.2), rgba(234, 179, 8, 0.04));
+  border: 1px solid rgba(234, 179, 8, 0.4);
+}
+
+.vip-founder-gems-demo__amount {
+  font-size: 19px;
+  font-weight: 800;
+  color: #eab308;
+}
+
+.vip-founder-gems-demo__value {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: v.$text-muted-45;
+  margin-top: 2px;
+}
+
+.vip-founder-card__footer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 18px;
+  padding-top: 15px;
+  border-top: 1px solid rgba(234, 179, 8, 0.16);
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  color: v.$text-muted-40;
+
+  b {
+    color: #eab308;
+    font-weight: 700;
+  }
+
+  span {
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vip-founder-card__pill--gold::after,
+  .vip-founder-banner-art__sun,
+  .vip-founder-banner-art__star,
+  .vip-founder-banner-art__crest,
+  .vip-founder-frame-demo__ring {
+    animation: none;
+  }
+}
+
 .vip-footer {
   text-align: center;
   margin-top: 24px;
@@ -218,5 +830,36 @@
 
   .vip-message {
     max-width: 100%;
+  }
+
+  .vip-period-toggle__btn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .vip-lifetime-card {
+    padding: 18px;
+  }
+
+  .vip-lifetime-card__price-amount {
+    font-size: 28px;
+  }
+
+  .vip-founder-card {
+    padding: 18px;
+  }
+
+  .vip-founder-card__price-amount {
+    font-size: 28px;
+  }
+
+  .vip-founder-card__buy {
+    text-align: left;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .vip-founder-card__price {
+    justify-content: flex-start;
   }
 }

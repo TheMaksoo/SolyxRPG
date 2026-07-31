@@ -33,9 +33,11 @@ const unclaimedQuestCount = ref(0);
 const railLoaded = ref(false);
 const autoBattle = ref(null);
 const autoGather = ref(null);
+const referrals = ref(null);
+const inviteCopied = ref(false);
 
 async function loadRail() {
-  const [dailyRes, passRes, lbRes, recentBattlesRes, questRes, annRes, tradeRes, craftRes, recipeRes, autoBattleRes, autoGatherRes] = await Promise.all([
+  const [dailyRes, passRes, lbRes, recentBattlesRes, questRes, annRes, tradeRes, craftRes, recipeRes, autoBattleRes, autoGatherRes, referralsRes] = await Promise.all([
     api.get('/daily'),
     api.get('/battlepass'),
     api.get('/leaderboard'),
@@ -47,6 +49,7 @@ async function loadRail() {
     api.get('/crafting/recipes'),
     api.get('/auto-battle'),
     api.get('/auto-gather'),
+    api.get('/referrals'),
   ]);
   daily.value = dailyRes.data;
   battlePass.value = passRes.data.battle_pass;
@@ -61,7 +64,15 @@ async function loadRail() {
   craftRecipes.value = recipeRes.data.recipes;
   autoBattle.value = autoBattleRes.data;
   autoGather.value = autoGatherRes.data;
+  referrals.value = referralsRes.data;
   railLoaded.value = true;
+}
+
+async function copyInviteLink() {
+  await navigator.clipboard.writeText(referrals.value.invite_url);
+  inviteCopied.value = true;
+  api.post('/referrals/copy').catch(() => {});
+  setTimeout(() => (inviteCopied.value = false), 2000);
 }
 
 function timeAgo(isoString) {
@@ -192,6 +203,25 @@ onMounted(() => {
         </template>
         <template v-else>
           <Skeleton v-for="i in 5" :key="i" height="16px" style="margin: 8px 0" />
+        </template>
+      </div>
+
+      <div class="rail-card">
+        <div class="rail-eyebrow">🎁 INVITE FRIENDS</div>
+        <template v-if="railLoaded && referrals">
+          <p class="invite-rail__pitch">
+            Every {{ referrals.referrals_per_reward }} friends who reach level {{ referrals.required_level }} earns you
+            {{ referrals.reward_vip_days }} days of {{ referrals.reward_vip_tier === 'gold' ? 'Gold' : referrals.reward_vip_tier }} Rank.
+          </p>
+          <div class="invite-rail__row">
+            <input class="invite-rail__input" aria-label="Your invite link" :value="referrals.invite_url" readonly @click="$event.target.select()" />
+            <button class="invite-rail__copy" @click="copyInviteLink">{{ inviteCopied ? 'Copied!' : 'Copy' }}</button>
+          </div>
+          <router-link to="/referrals" class="invite-rail__link">See your progress →</router-link>
+        </template>
+        <template v-else>
+          <Skeleton height="14px" style="margin: 8px 0" />
+          <Skeleton height="32px" style="margin: 8px 0" />
         </template>
       </div>
 
@@ -381,7 +411,7 @@ onMounted(() => {
     <div class="dashboard__rail">
       <router-link v-if="vipTimeLeft" to="/vip" class="vip-time-card">
         <div class="vip-time-card__header">
-          <span class="ox vip-time-card__tier">👑 {{ vipTimeLeft.tier }} VIP</span>
+          <span class="ox vip-time-card__tier">👑 {{ vipTimeLeft.tier }} Rank</span>
         </div>
         <div class="vip-time-card__value">{{ vipTimeLeft.days }}d {{ vipTimeLeft.hours }}h remaining</div>
       </router-link>

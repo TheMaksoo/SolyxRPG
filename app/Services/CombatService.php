@@ -26,7 +26,6 @@ class CombatService
 
     public function __construct(
         private AchievementService $achievements = new AchievementService(),
-        private BattlePassService $battlePass = new BattlePassService(),
         private GradeService $grades = new GradeService(),
         private SkillService $skills = new SkillService(),
         private DurabilityService $durability = new DurabilityService(),
@@ -519,7 +518,9 @@ class CombatService
 
         $leveledUp = $this->grantXp($character, $xpGain);
         $petResults = $this->grantPetXp($character, (int) round($xpGain * 0.2));
-        $this->battlePass->addXp($character, (int) round($xpGain * 0.3));
+        // Battle Pass xp deliberately does NOT come from combat anymore — it's quest-based only (see
+        // QuestController::claim), so grinding/auto-battling a high-xp zone can no longer max the whole
+        // season pass by itself the way the old uncapped 0.3x-of-battle-xp hook allowed.
         $this->grantPartyShare($character, $goldGain, $xpGain, $gemGain);
 
         foreach ($petResults as $petResult) {

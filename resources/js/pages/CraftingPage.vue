@@ -211,7 +211,7 @@ onUnmounted(() => {
 
     <p class="crafting-subtitle">
       Crafting rank {{ craftingLevel }} — better rank means better odds at rare-and-up rarity.
-      <span v-if="craftSpeedBonusPct">VIP speeds up your crafts by {{ craftSpeedBonusPct }}%.</span>
+      <span v-if="craftSpeedBonusPct">Rank speeds up your crafts by {{ craftSpeedBonusPct }}%.</span>
     </p>
 
     <div class="rarity-odds-strip">

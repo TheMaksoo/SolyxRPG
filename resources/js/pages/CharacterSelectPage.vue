@@ -231,13 +231,13 @@ onMounted(load);
           <div class="slot-card__locked">
             <div class="slot-card__locked-icon">🔒</div>
             <div class="slot-card__locked-label">Slot {{ slot.number }}</div>
-            <div class="slot-card__locked-vip">{{ slot.requirement.tier }} VIP</div>
+            <div class="slot-card__locked-vip">{{ slot.requirement.tier }} Rank</div>
           </div>
           <router-link
             to="/vip"
             class="slot-card__secondary-btn"
           >
-            View VIP
+            View Premium
           </router-link>
         </template>
       </div>

@@ -60,6 +60,11 @@ class WorldChatController extends Controller
     {
         $message->setAttribute('vip_tier', $message->character?->user?->hasActiveVip() ? $message->character->user->vip_tier : 'none');
 
+        // The `user` relation was only loaded to compute vip_tier above — drop it before this message
+        // leaves the controller so every other poster's email/role/ban-status/Stripe ID etc. don't ride
+        // along in the response or the realtime broadcast payload.
+        $message->character?->unsetRelation('user');
+
         return $message;
     }
 }

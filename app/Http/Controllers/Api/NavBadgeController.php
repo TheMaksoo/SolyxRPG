@@ -42,6 +42,10 @@ class NavBadgeController extends Controller
             'crafting' => CraftingJob::where('character_id', $character->id)->whereNull('collected_at')->where('completes_at', '<=', now())->count(),
             'dungeons' => $this->attemptsRemaining($character->dungeon_attempts_used, $character->dungeon_attempts_reset_at, 3 + $user->vipDungeonBonusAttempts()) > 0 ? 1 : 0,
             'pvp' => $this->attemptsRemaining($character->pvp_attempts_used, $character->pvp_attempts_reset_at, 10 + $user->vipPvpBonusAttempts()) > 0 ? 1 : 0,
+            // Not an "unclaimed reward" count like the others — a one-time nudge so a player who has
+            // never even copied their invite link notices the feature exists at all. Clears itself
+            // permanently the first time they copy their code/link from anywhere (see trackCopy()).
+            'referrals' => $user->referral_link_copies === 0 ? 1 : 0,
         ]);
     }
 

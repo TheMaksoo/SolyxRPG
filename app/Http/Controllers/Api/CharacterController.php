@@ -14,8 +14,10 @@ use App\Models\FeatureFlag;
 use App\Models\GemLedger;
 use App\Models\LegacyDiscordUser;
 use App\Models\PvpLiveMatch;
+use App\Models\PvpMatch;
 use App\Models\User;
 use App\Services\AttributeService;
+use App\Services\LeaderboardService;
 use App\Services\QuestService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -25,6 +27,7 @@ class CharacterController extends Controller
 {
     public function __construct(
         private AttributeService $attributeService,
+        private LeaderboardService $leaderboard,
         private QuestService $quests = new QuestService(),
     ) {}
 
@@ -190,7 +193,7 @@ class CharacterController extends Controller
     public function show(Request $request)
     {
         $character = $request->user()->character()
-            ->with(['attributes_', 'zone', 'inventory.item', 'skills.skill', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon'])
+            ->with(['attributes_', 'zone', 'inventory.item', 'skills.skill', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon', 'activeFrame'])
             ->first();
 
         if (! $character) {
@@ -201,7 +204,7 @@ class CharacterController extends Controller
         $vipGemsGranted = $request->user()->grantMonthlyVipGemsIfDue($character);
 
         return response()->json([
-            'character' => $vipGemsGranted > 0 ? $character->fresh(['attributes_', 'zone', 'inventory.item', 'skills.skill', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon']) : $character,
+            'character' => $vipGemsGranted > 0 ? $character->fresh(['attributes_', 'zone', 'inventory.item', 'skills.skill', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon', 'activeFrame']) : $character,
             'stats' => $character->effectiveStats() + [
                 'xp_max' => Character::xpForLevel($character->level),
                 'xp_min' => $character->level > 1 ? Character::xpForLevel($character->level - 1) : 0,
@@ -389,12 +392,20 @@ class CharacterController extends Controller
     }
 
     /** Public-safe view of another character's profile — no gold/gems/inventory/email, just what's shown off. */
-    public function publicProfile(Character $character)
+    public function publicProfile(Request $request, Character $character)
     {
-        $character->load(['user', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon', 'guildMembership.guild', 'pvpRecord']);
+        $character->load(['user', 'zone', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon', 'activeFrame', 'guildMembership.guild', 'pvpRecord']);
 
         $earned = $character->achievements()->count();
         $totalAchievements = Achievement::where('enabled', true)->count();
+
+        // Per-field visibility (Character::privacySetting()) — applied uniformly regardless of who's
+        // viewing, including the character's own owner, so "Share link" honestly previews exactly what
+        // everyone else sees rather than quietly exempting yourself.
+        $gearVisible = $character->privacySetting('gear_visible');
+        $combatVisible = $character->privacySetting('combat_stats_visible');
+        $playtimeVisible = $character->privacySetting('playtime_visible');
+        $gear = $gearVisible ? $this->publicEquippedGear($character) : [];
 
         return response()->json([
             'character' => [
@@ -417,6 +428,11 @@ class CharacterController extends Controller
                 'active_color' => $character->activeColor,
                 'active_banner' => $character->activeBanner,
                 'active_icon' => $character->activeIcon,
+                'active_frame' => $character->activeFrame,
+                'bio' => $character->bio,
+                'playstyle_tags' => $character->playstyle_tags ?? [],
+                'is_online' => $character->updated_at?->gt(now()->subMinutes(3)) ?? false,
+                'zone_name' => $character->zone?->name,
                 'vip_tier' => $character->user?->hasActiveVip() ? $character->user->vip_tier : 'none',
                 'guild' => $character->guildMembership?->guild ? [
                     'name' => $character->guildMembership->guild->name,
@@ -425,11 +441,99 @@ class CharacterController extends Controller
                 'pvp_rank' => $character->pvpRecord?->percentileBracket(),
                 'pvp_rating' => $character->pvpRecord?->rating,
                 'created_at' => $character->created_at,
+                'playtime_seconds' => $playtimeVisible ? $character->playtime_seconds : null,
             ],
-            'power' => $character->effectiveStats()['power'],
+            'power' => $combatVisible ? $character->effectiveStats()['power'] : null,
             'achievements_earned' => $earned,
             'achievements_total' => $totalAchievements,
+            'equipped_gear' => $gear,
+            'gear_score' => $gearVisible ? array_sum(array_column($gear, 'score')) : null,
+            'guild_card' => $this->publicGuildCard($character),
+            'rankings' => $this->publicRankings($character),
+            'head_to_head' => $this->headToHead($request->user()->character, $character),
+            'privacy' => $character->privacySettingsWithDefaults(),
         ]);
+    }
+
+    private function publicEquippedGear(Character $character): array
+    {
+        return $character->inventory()->where('equipped', true)->with('item')->get()
+            ->map(fn ($slot) => [
+                'name' => $slot->item->name,
+                'glyph' => $slot->item->glyph,
+                'rarity' => $slot->item->rarity,
+                'slot' => ucfirst($slot->item->type),
+                'score' => (int) array_sum(array_filter($slot->item->stat_json ?? [], 'is_numeric')),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /** Real fields only — no per-member "contribution" counter exists on GuildMember. */
+    private function publicGuildCard(Character $character): ?array
+    {
+        $membership = $character->guildMembership;
+        if (! $membership?->guild) {
+            return null;
+        }
+
+        return [
+            'name' => $membership->guild->name,
+            'tag' => $membership->guild->tag,
+            'role' => $membership->role,
+            'level' => $membership->guild->level,
+            'member_count' => $membership->guild->members()->count(),
+        ];
+    }
+
+    /** The 4 categories this character actually ranks best in — same real, non-curated approach as
+     * ProfileController::rankings(), so a viewer sees the same "real strengths" a player sees on their own
+     * profile. */
+    private function publicRankings(Character $character): array
+    {
+        return collect($this->leaderboard->myRanksFor($character))
+            ->filter()
+            ->sort()
+            ->take(4)
+            ->map(fn (int $rank, string $category) => [
+                'category' => $category,
+                'label' => LeaderboardService::CATEGORIES[$category]['label'],
+                'rank' => $rank,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /** Real match history between the viewer and the profile they're looking at, from PvpMatch (every
+     * duel writes one row per side — see PvpLiveCombatService::finish() — so the viewer's own rows already
+     * carry their own win/loss perspective, no need to also read the mirrored opponent rows). Null if the
+     * viewer has no character (shouldn't happen behind auth:sanctum, but defensive) or the two have never
+     * fought. */
+    private function headToHead(?Character $viewer, Character $profile): ?array
+    {
+        if (! $viewer || $viewer->id === $profile->id) {
+            return null;
+        }
+
+        $matches = PvpMatch::where('character_id', $viewer->id)
+            ->where('opponent_id', $profile->id)
+            ->orderByDesc('created_at')
+            ->get();
+
+        if ($matches->isEmpty()) {
+            return null;
+        }
+
+        $viewerWins = $matches->where('result', 'win')->count();
+        $profileWins = $matches->where('result', 'loss')->count();
+        $last = $matches->first();
+
+        return [
+            'your_wins' => $viewerWins,
+            'their_wins' => $profileWins,
+            'last_result' => $last->result,
+            'last_played_at' => $last->created_at,
+        ];
     }
 
     public function store(Request $request)
