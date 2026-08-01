@@ -22,7 +22,11 @@ export const useAuthStore = defineStore('auth', {
                 this.user = { ...data.user, has_password: data.has_password };
                 this.globalTesterMode = data.global_tester_mode;
                 this.featureAccess = data.feature_access || {};
-            } catch {
+            } catch (error) {
+                // 401 is expected when user is not logged in - don't treat it as an error
+                if (error.response?.status !== 401) {
+                    console.error('Error fetching user:', error);
+                }
                 this.user = null;
             } finally {
                 this.checked = true;
