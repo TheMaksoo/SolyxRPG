@@ -19,10 +19,10 @@ return [
     */
 
     'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', sprintf(
-        '%s%s%s',
+        '%s%s',
         'localhost,localhost:3000,127.0.0.1,127.0.0.1:8000,::1',
         Sanctum::currentApplicationUrlWithPort(),
-        Sanctum::currentRequestHost(),
+        // Sanctum::currentRequestHost(),
     ))),
 
     /*
@@ -81,7 +81,7 @@ return [
     'middleware' => [
         'authenticate_session' => AuthenticateSession::class,
         'encrypt_cookies' => EncryptCookies::class,
-        'validate_csrf_token' => \App\Http\Middleware\VerifyCsrfToken::class,
+        'validate_csrf_token' => ValidateCsrfToken::class,
     ],
 
 ];
