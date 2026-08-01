@@ -10,9 +10,10 @@ return [
     // set Access-Control-Allow-Credentials — without both, browsers silently refuse to persist/send
     // the session cookie on any cross-origin request (e.g. the Vite dev server on its own port),
     // which is exactly what was causing every request to look like a brand-new anonymous visitor.
+    // Production: Must include https://play.solyx.gg (exact match, no trailing slash)
     'allowed_origins' => array_filter(array_map('trim', explode(',', env(
         'CORS_ALLOWED_ORIGINS',
-        'http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000,http://127.0.0.1:8000,http://solyxrpg.test:8000,http://solyxrpg.test'
+        'http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000,http://127.0.0.1:8000,http://solyxrpg.test:8000,http://solyxrpg.test,https://play.solyx.gg'
     )))),
 
     'allowed_origins_patterns' => [],
