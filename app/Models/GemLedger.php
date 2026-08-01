@@ -25,11 +25,17 @@ class GemLedger extends Model
     /** Records a gem change if it's non-zero — the single entry point every gem-affecting action should go
      * through, so the Inbox's transaction history is a complete picture rather than whatever a few call
      * sites happened to log. Now logs at the user level (account-wide gems), with optional character_id
-     * for context about which character triggered the transaction. */
-    public static function log(User $user, int $delta, string $reason, ?Character $character = null): void
+     * for context about which character triggered the transaction. Accepts either a User or a Character
+     * during the migration window and normalizes Character callers to their owning user. */
+    public static function log(User|Character $user, int $delta, string $reason, ?Character $character = null): void
     {
         if ($delta === 0) {
             return;
+        }
+
+        if ($user instanceof Character) {
+            $character ??= $user;
+            $user = $user->user;
         }
 
         self::create([
