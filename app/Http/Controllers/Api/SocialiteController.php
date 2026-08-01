@@ -162,7 +162,7 @@ class SocialiteController extends Controller
         Auth::login($user);
         $request = request();
         $request->session()->regenerate();
-        
+
         // Explicitly save the session AND regenerate CSRF token before redirecting.
         // OAuth callbacks need the session committed to storage and a fresh CSRF token
         // generated so the SPA's subsequent /api/me call (via Sanctum stateful API)
