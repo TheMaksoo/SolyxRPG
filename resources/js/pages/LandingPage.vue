@@ -146,8 +146,8 @@ onMounted(async () => {
         </p>
         <div v-if="stats" class="landing-stats">
           <div class="landing-stat">
-            <div class="ox landing-stat__value">{{ stats.adventurers }}</div>
-            <div class="landing-stat__label">Adventurers</div>
+            <div class="ox landing-stat__value">{{ stats.total_users }} / {{ stats.adventurers }}</div>
+            <div class="landing-stat__label">Adventures</div>
           </div>
           <div class="landing-stat">
             <div class="ox landing-stat__value">{{ stats.zones_dungeons }}</div>
