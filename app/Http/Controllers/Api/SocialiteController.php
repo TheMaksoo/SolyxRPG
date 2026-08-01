@@ -17,17 +17,7 @@ class SocialiteController extends Controller
 {
     public function redirect(string $provider)
     {
-        if (! $this->providerIsConfigured($provider)) {
-            return redirect('/landing?oauth_error=unconfigured');
-        }
-
-        $driver = Socialite::driver($provider);
-
-        if ($provider === 'discord' && method_exists($driver, 'withConsent')) {
-            $driver = $driver->withConsent();
-        }
-
-        return $driver->redirect();
+        return Socialite::driver($provider)->stateless()->redirect();
     }
 
     public function callback(string $provider)
@@ -43,7 +33,7 @@ class SocialiteController extends Controller
         }
 
         try {
-            $oauthUser = Socialite::driver($provider)->user();
+            $oauthUser = Socialite::driver($provider)->stateless()->user();
         } catch (Throwable $e) {
             Log::warning("Socialite {$provider} callback failed", ['error' => $e->getMessage()]);
 
@@ -62,15 +52,6 @@ class SocialiteController extends Controller
         }
 
         return $this->loginOrRegister($provider, $oauthUser, $social);
-    }
-
-    private function providerIsConfigured(string $provider): bool
-    {
-        $config = config("services.{$provider}");
-
-        return filled($config['client_id'] ?? null)
-            && filled($config['client_secret'] ?? null)
-            && filled($config['redirect'] ?? null);
     }
 
     private function linkToCurrentUser(string $provider, string $providerUserId, ?SocialAccount $social)
@@ -97,38 +78,13 @@ class SocialiteController extends Controller
         return redirect("/settings?linked={$provider}");
     }
 
-    /** The provider's email, but only if it actually confirms it's verified — Discord in particular lets
-     * an account carry an email that was edited but never confirmed, which still comes back from the
-     * `identify email` scope. Google's OAuth email is always verified in practice, but the raw flag is
-     * checked anyway rather than assumed. */
-    private function verifiedEmail(string $provider, $oauthUser): ?string
-    {
-        $email = $oauthUser->getEmail();
-        if (! $email) {
-            return null;
-        }
-
-        $raw = $oauthUser->getRaw();
-        $verified = match ($provider) {
-            'discord' => (bool) ($raw['verified'] ?? false),
-            'google' => (bool) ($raw['email_verified'] ?? false),
-            default => true,
-        };
-
-        return $verified ? $email : null;
-    }
-
     private function loginOrRegister(string $provider, $oauthUser, ?SocialAccount $social)
     {
         $user = $social?->user ?: DB::transaction(function () use ($provider, $oauthUser) {
             // No SocialAccount row yet for this provider+ID — but if this email already has a
             // regular (or other-provider) account, attach this identity to it rather than trying
             // to INSERT a second user with the same email, which fails on the unique constraint.
-            // Only trust the email for that lookup if the provider confirms it's actually verified —
-            // Discord in particular lets an account carry an email that was changed but never
-            // confirmed, which would otherwise let an attacker "become" any existing player by just
-            // typing their email into their own Discord account and signing in with it.
-            $email = $this->verifiedEmail($provider, $oauthUser);
+            $email = $oauthUser->getEmail();
             $user = $email ? User::where('email', $email)->first() : null;
 
             if (! $user) {
@@ -160,16 +116,7 @@ class SocialiteController extends Controller
         }
 
         Auth::login($user);
-        $request = request();
-        $request->session()->regenerate();
-
-        // Explicitly persist the session changes before redirecting.
-        // The SPA boot sequence calls /sanctum/csrf-cookie and then /api/me; if the
-        // session write lags behind the redirect, the csrf-cookie request can start a
-        // new anonymous session (overwriting the cookie) and /api/me returns 401.
-        // We also regenerate the CSRF token so the next state-changing request is valid.
-        $request->session()->save();
-        $request->session()->regenerateToken();
+        request()->session()->regenerate();
 
         return redirect($user->character ? '/dashboard' : '/character/create');
     }

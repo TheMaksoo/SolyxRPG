@@ -17,16 +17,11 @@ export const useAuthStore = defineStore('auth', {
     actions: {
         async fetchMe() {
             try {
-                await ensureCsrfCookie();
                 const { data } = await api.get('/me');
                 this.user = { ...data.user, has_password: data.has_password };
                 this.globalTesterMode = data.global_tester_mode;
                 this.featureAccess = data.feature_access || {};
-            } catch (error) {
-                // 401 is expected when user is not logged in - don't treat it as an error
-                if (error.response?.status !== 401) {
-                    console.error('Error fetching user:', error);
-                }
+            } catch {
                 this.user = null;
             } finally {
                 this.checked = true;
