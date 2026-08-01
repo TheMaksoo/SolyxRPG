@@ -160,7 +160,9 @@ class SocialiteController extends Controller
         }
 
         Auth::login($user);
-        request()->session()->regenerate();
+        $request = request();
+        $request->session()->regenerate();
+        $request->session()->save();
 
         return redirect($user->character ? '/dashboard' : '/character/create');
     }
