@@ -204,10 +204,17 @@ class GmAnalyticsController extends Controller
     {
         $active24h = Character::where('updated_at', '>=', now()->subDay())->count();
         $active30d = Character::where('updated_at', '>=', now()->subDays(30))->count();
+        
+        $totalUsers = User::count();
+        $totalCharacters = Character::count();
+        $usersWithoutCharacters = User::doesntHave('characters')->count();
+        $usersWithMultipleCharacters = User::has('characters', '>=', 2)->count();
 
         return [
-            'total_users' => User::count(),
-            'total_characters' => Character::count(),
+            'total_users' => $totalUsers,
+            'total_characters' => $totalCharacters,
+            'users_without_characters' => $usersWithoutCharacters,
+            'users_with_multiple_characters' => $usersWithMultipleCharacters,
             'new_users_today' => User::whereDate('created_at', now()->toDateString())->count(),
             'new_users_7d' => User::where('created_at', '>=', now()->subDays(7))->count(),
             'active_1h' => Character::where('updated_at', '>=', now()->subHour())->count(),

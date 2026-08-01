@@ -712,7 +712,7 @@ onMounted(() => {
         <div class="gm-console-activity-stat">
           <div class="gm-console-activity-stat__label">Total users</div>
           <div class="ox gm-console-activity-stat__value">{{ analytics.headline.total_users }}</div>
-          <div class="gm-console-activity-stat__sub">+{{ analytics.headline.new_users_7d }} last 7d</div>
+          <div class="gm-console-activity-stat__sub">{{ analytics.headline.total_characters }} characters · +{{ analytics.headline.new_users_7d }} last 7d</div>
         </div>
         <div class="gm-console-activity-stat">
           <div class="gm-console-activity-stat__label">Active now</div>
@@ -1321,6 +1321,41 @@ onMounted(() => {
                 {{ analytics.live_health.errors_24h > 0
                   ? `⚠ ${analytics.live_health.errors_24h} error(s) detected in the last 24h`
                   : '✓ All systems operational' }}
+              </div>
+            </div>
+          </div>
+
+          <div class="gm-console-activity-chart-card">
+            <div class="gm-console-activity-chart-card__title">
+              User vs Character Count
+              <InfoTooltip text="Total users includes accounts that signed up but haven't created a character yet, plus users with multiple characters. This breakdown shows the relationship between user accounts and character slots." />
+            </div>
+            <div class="gm-console-health">
+              <div class="gm-console-health-grid">
+                <div class="gm-console-health-tile">
+                  <span class="gm-console-health__dot is-active"></span>
+                  <span class="gm-console-health-tile__label">Total users</span>
+                  <span class="ox gm-console-health-tile__value">{{ analytics.headline.total_users }}</span>
+                </div>
+                <div class="gm-console-health-tile">
+                  <span class="gm-console-health__dot is-active"></span>
+                  <span class="gm-console-health-tile__label">Total characters</span>
+                  <span class="ox gm-console-health-tile__value">{{ analytics.headline.total_characters }}</span>
+                </div>
+                <div class="gm-console-health-tile">
+                  <span class="gm-console-health__dot" :class="{ 'is-warn': analytics.headline.users_without_characters > 0 }"></span>
+                  <span class="gm-console-health-tile__label">No characters</span>
+                  <span class="ox gm-console-health-tile__value">{{ analytics.headline.users_without_characters }}</span>
+                </div>
+                <div class="gm-console-health-tile">
+                  <span class="gm-console-health__dot is-active"></span>
+                  <span class="gm-console-health-tile__label">Multi-character</span>
+                  <span class="ox gm-console-health-tile__value">{{ analytics.headline.users_with_multiple_characters }}</span>
+                </div>
+              </div>
+              <div class="gm-console-health__banner">
+                {{ analytics.headline.total_users }} accounts, {{ analytics.headline.total_characters }} characters 
+                ({{ analytics.headline.users_without_characters }} users haven't created a character yet)
               </div>
             </div>
           </div>

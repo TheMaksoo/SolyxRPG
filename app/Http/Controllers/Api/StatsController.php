@@ -7,6 +7,7 @@ use App\Models\Character;
 use App\Models\Dungeon;
 use App\Models\Item;
 use App\Models\Quest;
+use App\Models\User;
 use App\Models\Zone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
@@ -30,15 +31,23 @@ class StatsController extends Controller
      * these page-load-triggered query bursts from ever reaching the DB. */
     public function public(): JsonResponse
     {
-        $data = Cache::remember('stats:public', 20, fn () => [
-            'players_online' => Character::where('updated_at', '>=', now()->subMinutes(self::ONLINE_WINDOW_MINUTES))->count(),
-            'players_active_hour' => Character::where('updated_at', '>=', now()->subHour())->count(),
-            'adventurers' => Character::count(),
-            'zones_dungeons' => Zone::where('enabled', true)->count() + Dungeon::count(),
-            'classes' => self::PLAYABLE_CLASSES,
-            'quests' => Quest::count(),
-            'items' => Item::count(),
-        ]);
+        $data = Cache::remember('stats:public', 20, function () {
+            $totalUsers = User::count();
+            $totalCharacters = Character::count();
+            $usersWithoutCharacters = User::doesntHave('characters')->count();
+            
+            return [
+                'players_online' => Character::where('updated_at', '>=', now()->subMinutes(self::ONLINE_WINDOW_MINUTES))->count(),
+                'players_active_hour' => Character::where('updated_at', '>=', now()->subHour())->count(),
+                'adventurers' => $totalCharacters,
+                'total_users' => $totalUsers,
+                'users_without_characters' => $usersWithoutCharacters,
+                'zones_dungeons' => Zone::where('enabled', true)->count() + Dungeon::count(),
+                'classes' => self::PLAYABLE_CLASSES,
+                'quests' => Quest::count(),
+                'items' => Item::count(),
+            ];
+        });
 
         return response()->json($data);
     }
