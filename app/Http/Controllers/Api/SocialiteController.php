@@ -17,7 +17,17 @@ class SocialiteController extends Controller
 {
     public function redirect(string $provider)
     {
-        return Socialite::driver($provider)->redirect();
+        if (! $this->providerIsConfigured($provider)) {
+            return redirect('/landing?oauth_error=unconfigured');
+        }
+
+        $driver = Socialite::driver($provider);
+
+        if ($provider === 'discord' && method_exists($driver, 'withConsent')) {
+            $driver = $driver->withConsent();
+        }
+
+        return $driver->redirect();
     }
 
     public function callback(string $provider)
@@ -52,6 +62,15 @@ class SocialiteController extends Controller
         }
 
         return $this->loginOrRegister($provider, $oauthUser, $social);
+    }
+
+    private function providerIsConfigured(string $provider): bool
+    {
+        $config = config("services.{$provider}");
+
+        return filled($config['client_id'] ?? null)
+            && filled($config['client_secret'] ?? null)
+            && filled($config['redirect'] ?? null);
     }
 
     private function linkToCurrentUser(string $provider, string $providerUserId, ?SocialAccount $social)
