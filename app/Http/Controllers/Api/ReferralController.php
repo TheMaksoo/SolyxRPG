@@ -49,11 +49,12 @@ class ReferralController extends Controller
                 ->whereHas('characters', fn ($q) => $q->where('level', '>=', $milestoneLevel))
                 ->count();
 
-            $rewardsGranted = \App\Models\ReferralMilestone::where('referrer_id', $user->id)
+            $grantedRows = \App\Models\ReferralMilestone::where('referrer_id', $user->id)
                 ->where('level_milestone', $milestoneLevel)
                 ->whereNotNull('reward_granted_at')
                 ->count();
 
+            $rewardsGranted = intdiv($grantedRows, ReferralService::REFERRALS_PER_REWARD);
             $milestoneProgress[] = [
                 'level' => $milestoneLevel,
                 'qualifying_count' => $qualifyingCount,
