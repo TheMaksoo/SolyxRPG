@@ -160,9 +160,9 @@ class SocialiteController extends Controller
         }
 
         // Log in the user and establish a fresh session. The regenerate() call is crucial —
-        // it creates a new session ID to prevent session fixation attacks. It must be called
-        // AFTER Auth::login() to ensure the authenticated user ID is carried over to the new session.
-        Auth::login($user);
+        // it creates a new session ID to prevent session fixation attacks while preserving
+        // all session data. This ensures the CSRF token and auth state are properly set.
+        Auth::login($user, true);
         $request = request();
         $request->session()->regenerate();
 
