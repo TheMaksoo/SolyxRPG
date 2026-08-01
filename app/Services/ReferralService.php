@@ -140,11 +140,12 @@ class ReferralService
             $milestonesEarned = intdiv($qualifyingCount, self::REFERRALS_PER_REWARD);
 
             // Count how many rewards have already been granted for this milestone level
-            $alreadyGranted = ReferralMilestone::where('referrer_id', $referrer->id)
+            $grantedRows = ReferralMilestone::where('referrer_id', $referrer->id)
                 ->where('level_milestone', $milestoneLevel)
                 ->whereNotNull('reward_granted_at')
                 ->count();
 
+            $alreadyGranted = intdiv($grantedRows, self::REFERRALS_PER_REWARD);
             $newRewards = $milestonesEarned - $alreadyGranted;
 
             if ($newRewards <= 0) {
@@ -168,7 +169,6 @@ class ReferralService
                             'level_milestone' => $milestoneLevel,
                             'reward_granted_at' => null,
                         ]);
-                        break;
                     }
                 }
 
