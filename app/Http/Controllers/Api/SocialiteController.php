@@ -163,14 +163,6 @@ class SocialiteController extends Controller
         $request = request();
         $request->session()->regenerate();
 
-        // Explicitly persist the session changes before redirecting.
-        // The SPA boot sequence calls /sanctum/csrf-cookie and then /api/me; if the
-        // session write lags behind the redirect, the csrf-cookie request can start a
-        // new anonymous session (overwriting the cookie) and /api/me returns 401.
-        // We also regenerate the CSRF token so the next state-changing request is valid.
-        $request->session()->save();
-        $request->session()->regenerateToken();
-
         return redirect($user->character ? '/dashboard' : '/character/create');
     }
 }
