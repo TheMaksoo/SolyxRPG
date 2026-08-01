@@ -52,8 +52,8 @@ class DailyController extends Controller
 
         $character->increment('gold', $reward['gold']);
         if ($reward['gems']) {
-            $character->increment('gems', $reward['gems']);
-            GemLedger::log($character, $reward['gems'], "daily_reward:day{$cycleDay}");
+            $character->user->increment('gems', $reward['gems']);
+            GemLedger::log($character->user, $reward['gems'], "daily_reward:day{$cycleDay}", $character);
         }
 
         $claim->update(['streak' => $streak, 'last_claim_date' => Carbon::today()]);

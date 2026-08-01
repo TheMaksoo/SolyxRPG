@@ -45,6 +45,7 @@ class User extends Authenticatable
             'vip_gems_granted_at' => 'datetime',
             'referral_bonus_granted_at' => 'datetime',
             'preferences' => 'array',
+            'gems' => 'integer',
         ];
     }
 
@@ -169,7 +170,7 @@ class User extends Authenticatable
         return $this->vip_tier !== 'none' && $this->vip_expires_at && $this->vip_expires_at->isFuture();
     }
 
-    /** Grants this calendar month's free VIP gem stipend to the character if active VIP and not already claimed
+    /** Grants this calendar month's free VIP gem stipend to the account if active VIP and not already claimed
      * this month. Lazily checked wherever character data loads, like every other timed effect in this game.
      * Returns the amount granted (0 if none). */
     public function grantMonthlyVipGemsIfDue(Character $character): int
@@ -186,8 +187,8 @@ class User extends Authenticatable
         $gems = (int) round(GameConfig::number("vip_monthly_gems_{$this->vip_tier}", $fallback));
 
         if ($gems > 0) {
-            $character->increment('gems', $gems);
-            GemLedger::log($character, $gems, "vip_monthly_stipend:{$this->vip_tier}");
+            $this->increment('gems', $gems);
+            GemLedger::log($this, $gems, "vip_monthly_stipend:{$this->vip_tier}", $character);
         }
         $this->vip_gems_granted_at = now();
         $this->save();

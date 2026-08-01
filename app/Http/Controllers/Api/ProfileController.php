@@ -231,12 +231,12 @@ class ProfileController extends Controller
             'name' => ['required', 'string', 'max:30'],
         ]);
 
-        if ($character->gems < self::RENAME_COST_GEMS) {
+        if ($character->user->gems < self::RENAME_COST_GEMS) {
             return response()->json(['message' => 'Not enough gems.'], 422);
         }
 
-        $character->decrement('gems', self::RENAME_COST_GEMS);
-        GemLedger::log($character, -self::RENAME_COST_GEMS, 'character_rename');
+        $character->user->decrement('gems', self::RENAME_COST_GEMS);
+        GemLedger::log($character->user, -self::RENAME_COST_GEMS, 'character_rename', $character);
         $character->update(['name' => $data['name']]);
 
         return response()->json(['character' => $character->fresh()]);

@@ -51,8 +51,8 @@ class QuestController extends Controller
             $character->increment('gold', $reward['gold']);
         }
         if (! empty($reward['gems'])) {
-            $character->increment('gems', $reward['gems']);
-            GemLedger::log($character, $reward['gems'], "quest_reward:{$quest->key}");
+            $character->user->increment('gems', $reward['gems']);
+            GemLedger::log($character->user, $reward['gems'], "quest_reward:{$quest->key}", $character);
         }
         if (! empty($reward['xp'])) {
             $character->increment('xp', $reward['xp']);

@@ -175,12 +175,12 @@ class CharacterController extends Controller
         $tier = $user->bonus_character_slots + 1;
         $cost = self::GEM_SLOT_COSTS[$tier];
 
-        if ($payer->gems < $cost) {
+        if ($user->gems < $cost) {
             return response()->json(['message' => "Not enough gems. Requires {$cost} gems."], 422);
         }
 
-        $payer->decrement('gems', $cost);
-        GemLedger::log($payer, -$cost, "character_slot_unlock:tier{$tier}");
+        $user->decrement('gems', $cost);
+        GemLedger::log($user, -$cost, "character_slot_unlock:tier{$tier}", $payer);
         $user->increment('bonus_character_slots');
 
         return response()->json([

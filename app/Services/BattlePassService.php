@@ -538,8 +538,8 @@ class BattlePassService
             $character->increment('gold', $gold);
         }
         if ($gems > 0) {
-            $character->increment('gems', $gems);
-            GemLedger::log($character, $gems, "battlepass_claim:tier{$tier}_{$track}");
+            $character->user->increment('gems', $gems);
+            GemLedger::log($character->user, $gems, "battlepass_claim:tier{$tier}_{$track}", $character);
         }
 
         $grantedItems = [];

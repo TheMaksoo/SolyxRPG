@@ -19,6 +19,7 @@ class ReferralController extends Controller
         // CheckReferralMilestones — so a referrer who just qualified (or a referee who just hit the
         // required level) sees the reward immediately instead of waiting for the next cron tick.
         $this->referrals->checkAndGrant($user);
+        $this->referrals->checkAndGrantMilestones($user);
         $this->referrals->checkAndGrantRefereeBonus($user);
         $user->refresh();
 
@@ -39,6 +40,31 @@ class ReferralController extends Controller
             ? $user->characters->max('level')
             : $user->characters()->max('level');
 
+        // Get milestone progress information
+        $milestones = ReferralService::getMilestoneLevels();
+        $milestoneProgress = [];
+
+        foreach ($milestones as $milestoneLevel) {
+            $qualifyingCount = $user->referrals()
+                ->whereHas('characters', fn ($q) => $q->where('level', '>=', $milestoneLevel))
+                ->count();
+
+            $grantedRows = \App\Models\ReferralMilestone::where('referrer_id', $user->id)
+                ->where('level_milestone', $milestoneLevel)
+                ->whereNotNull('reward_granted_at')
+                ->count();
+
+            $rewardsGranted = intdiv($grantedRows, ReferralService::REFERRALS_PER_REWARD);
+            $milestoneProgress[] = [
+                'level' => $milestoneLevel,
+                'qualifying_count' => $qualifyingCount,
+                'progress' => $qualifyingCount % ReferralService::REFERRALS_PER_REWARD,
+                'rewards_claimed' => $rewardsGranted,
+                'reward_type' => $milestoneLevel === 5 ? 'vip' : 'gems',
+                'reward_amount' => $milestoneLevel === 5 ? ReferralService::REWARD_VIP_DAYS : ReferralService::MILESTONE_GEM_REWARD,
+            ];
+        }
+
         return response()->json([
             'code' => $code,
             'invite_url' => url("/landing?ref={$code}"),
@@ -47,9 +73,11 @@ class ReferralController extends Controller
             'reward_vip_days' => ReferralService::REWARD_VIP_DAYS,
             'reward_vip_tier' => ReferralService::REWARD_VIP_TIER,
             'referee_bonus_gems' => ReferralService::REFEREE_BONUS_GEMS,
+            'milestone_gem_reward' => ReferralService::MILESTONE_GEM_REWARD,
             'qualifying_count' => $qualifying,
             'progress_to_next' => $qualifying % ReferralService::REFERRALS_PER_REWARD,
             'rewards_claimed' => $user->referral_rewards_claimed,
+            'milestone_progress' => $milestoneProgress,
             'referred' => $referred,
             // Null unless this account itself was referred by someone else — see ReferralsPage's
             // "You were referred by..." card.

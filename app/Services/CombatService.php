@@ -501,9 +501,9 @@ class CombatService
 
         $character->decrementAtkBuffFight();
         $character->increment('gold', $goldGain);
-        $character->increment('gems', $gemGain);
+        $character->user->increment('gems', $gemGain);
         if ($gemGain > 0) {
-            GemLedger::log($character, $gemGain, "battle_win:{$monster->key}");
+            GemLedger::log($character->user, $gemGain, "battle_win:{$monster->key}", $character);
         }
         $character->increment('battles_won');
         $character->hp = max(1, (int) $battle->character_hp);
@@ -617,8 +617,8 @@ class CombatService
                 $partner->increment('gold', $goldShare);
             }
             if ($gemShare > 0) {
-                $partner->increment('gems', $gemShare);
-                GemLedger::log($partner, $gemShare, "party_share:{$character->name}");
+                $partner->user->increment('gems', $gemShare);
+                GemLedger::log($partner->user, $gemShare, "party_share:{$character->name}", $partner);
             }
             if ($xpShare > 0) {
                 $this->grantXp($partner, $xpShare);

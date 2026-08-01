@@ -112,12 +112,12 @@ class CosmeticController extends Controller
         if ($cosmetic->unlock_event || $cosmetic->category === 'battle_pass') {
             return response()->json(['message' => 'Earned automatically — cannot be bought.'], 422);
         }
-        if ($character->gems < $cosmetic->cost_gems) {
+        if ($character->user->gems < $cosmetic->cost_gems) {
             return response()->json(['message' => 'Not enough gems.'], 422);
         }
         if ($cosmetic->cost_gems > 0) {
-            $character->decrement('gems', $cosmetic->cost_gems);
-            GemLedger::log($character, -$cosmetic->cost_gems, "cosmetic_unlock:{$cosmetic->key}");
+            $character->user->decrement('gems', $cosmetic->cost_gems);
+            GemLedger::log($character->user, -$cosmetic->cost_gems, "cosmetic_unlock:{$cosmetic->key}", $character);
         }
 
         $character->cosmetics()->create(['cosmetic_id' => $cosmetic->id]);

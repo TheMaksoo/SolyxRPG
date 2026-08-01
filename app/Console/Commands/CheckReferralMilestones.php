@@ -23,6 +23,7 @@ class CheckReferralMilestones extends Command
 
         User::whereHas('referrals')->each(function (User $referrer) use ($referrals, &$rewardsGranted) {
             $rewardsGranted += $referrals->checkAndGrant($referrer);
+            $rewardsGranted += $referrals->checkAndGrantMilestones($referrer);
         });
 
         $bonusesGranted = 0;

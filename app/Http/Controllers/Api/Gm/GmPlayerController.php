@@ -48,8 +48,8 @@ class GmPlayerController extends Controller
             $character->increment('gold', $data['gold']);
         }
         if (! empty($data['gems'])) {
-            $character->increment('gems', $data['gems']);
-            GemLedger::log($character, $data['gems'], 'gm_grant');
+            $character->user->increment('gems', $data['gems']);
+            GemLedger::log($character->user, $data['gems'], 'gm_grant', $character);
         }
         if (! empty($data['cosmetic_id'])) {
             CharacterCosmetic::firstOrCreate(
