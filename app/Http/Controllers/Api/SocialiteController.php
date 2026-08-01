@@ -27,7 +27,7 @@ class SocialiteController extends Controller
             $driver = $driver->withConsent();
         }
 
-        return $driver->redirect();
+        return $driver->stateless()->redirect();
     }
 
     public function callback(string $provider)
@@ -43,7 +43,7 @@ class SocialiteController extends Controller
         }
 
         try {
-            $oauthUser = Socialite::driver($provider)->user();
+            $oauthUser = Socialite::driver($provider)->stateless()->user();
         } catch (Throwable $e) {
             Log::warning("Socialite {$provider} callback failed", ['error' => $e->getMessage()]);
 
