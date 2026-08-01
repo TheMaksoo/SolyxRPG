@@ -172,7 +172,7 @@ class ReferralService
                     }
                 }
 
-                // Count again how many are ungrantedfor this milestone
+                // Count again how many are ungranted for this milestone
                 $ungrantedMilestones = ReferralMilestone::where('referrer_id', $referrer->id)
                     ->where('level_milestone', $milestoneLevel)
                     ->whereNull('reward_granted_at')
