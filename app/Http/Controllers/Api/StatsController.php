@@ -39,7 +39,7 @@ class StatsController extends Controller
             return [
                 'players_online' => Character::where('updated_at', '>=', now()->subMinutes(self::ONLINE_WINDOW_MINUTES))->count(),
                 'players_active_hour' => Character::where('updated_at', '>=', now()->subHour())->count(),
-                'adventurers' => $totalCharacters,
+                'adventurers' => $totalCharacters + $usersWithoutCharacters,
                 'total_users' => $totalUsers,
                 'users_without_characters' => $usersWithoutCharacters,
                 'zones_dungeons' => Zone::where('enabled', true)->count() + Dungeon::count(),
