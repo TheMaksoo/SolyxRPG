@@ -12,11 +12,12 @@ class VerifyCsrfToken extends Middleware
      * @var array<int, string>
      */
     protected $except = [
-        // OAuth callbacks don't carry CSRF tokens — they come from external providers
+        // OAuth flows don't carry CSRF tokens — the redirect happens from the landing page
+        // before any session is established, and callbacks come from external providers
         // (Discord, Google) that don't know our token. The OAuth code/state validation
-        // provides security instead. Excluding just the callback route while keeping
-        // CSRF on the redirect route (which does have the token) prevents "token mismatch"
-        // errors when the provider sends users back to our site.
+        // provides security instead. Both routes need to be excluded to prevent "token
+        // mismatch" errors during the OAuth flow.
+        'api/auth/*/redirect',
         'api/auth/*/callback',
     ];
 }
