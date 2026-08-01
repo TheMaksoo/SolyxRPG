@@ -17,7 +17,8 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         const url = error.config?.url || '';
-        const isAuthEndpoint = url.startsWith('/me') || url.startsWith('/auth/');
+        // Exact match for /me or any /auth/* route - these 401s are expected during login flow
+        const isAuthEndpoint = url === '/me' || url.startsWith('/auth/');
         if (error.response?.status === 401 && !isAuthEndpoint) {
             window.location.href = '/landing';
         }

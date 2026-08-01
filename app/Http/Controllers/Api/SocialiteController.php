@@ -159,7 +159,10 @@ class SocialiteController extends Controller
             LegacyDiscordUser::grantLegendTitleIfMatched($user);
         }
 
-        Auth::login($user);
+        // Log in the user and establish a fresh session. The regenerate() call is crucial —
+        // it creates a new session ID to prevent session fixation attacks while preserving
+        // all session data. This ensures the CSRF token and auth state are properly set.
+        Auth::login($user, true);
         $request = request();
         $request->session()->regenerate();
 
