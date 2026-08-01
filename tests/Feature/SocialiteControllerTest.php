@@ -96,7 +96,7 @@ class SocialiteControllerTest extends TestCase
         $oauthUser->email = 'oauth-player@example.test';
         $oauthUser->user = ['email_verified' => true];
 
-        Socialite::shouldReceive('driver->user')->once()->andReturn($oauthUser);
+        Socialite::shouldReceive('driver->stateless->user')->once()->andReturn($oauthUser);
 
         $callback = $this->get('/api/auth/google/callback?code=oauth-code');
 
