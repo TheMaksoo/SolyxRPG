@@ -26,9 +26,8 @@ class ReferralService
 
     public const MILESTONE_GEM_REWARD = 100;
 
-    // Milestone levels where rewards are granted for every 2 users reaching them
-    public const MILESTONE_LEVELS = [5, 10, 25, 50, 100, 150, 200, 250];
-
+    // Milestone levels (gem rewards) where rewards are granted for every 2 users reaching them
+    public const MILESTONE_LEVELS = [10, 25, 50, 100, 150, 200, 250];
     /**
      * Generate additional milestone levels beyond the predefined ones.
      * Pattern: after 250, continue with increments of 50 (300, 350, 400, etc.)
