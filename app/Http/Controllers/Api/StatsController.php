@@ -33,7 +33,7 @@ class StatsController extends Controller
         $data = Cache::remember('stats:public', 20, fn () => [
             'players_online' => Character::where('updated_at', '>=', now()->subMinutes(self::ONLINE_WINDOW_MINUTES))->count(),
             'players_active_hour' => Character::where('updated_at', '>=', now()->subHour())->count(),
-            'adventurers' => Character::count(),
+            'characters' => Character::count(),
             'zones_dungeons' => Zone::where('enabled', true)->count() + Dungeon::count(),
             'classes' => self::PLAYABLE_CLASSES,
             'quests' => Quest::count(),
