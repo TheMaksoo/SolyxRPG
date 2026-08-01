@@ -36,6 +36,7 @@ const gameChildren = NAV.map((n) => ({
   path: n.path.slice(1),
   name: n.name,
   component: pageImport(PAGE_COMPONENT[n.path]),
+  meta: n.unlockLevel ? { requiredLevel: n.unlockLevel, featureName: n.label } : {},
 }));
 
 // Lets the sidebar warm a page's JS chunk on hover/focus, before the click actually happens — the
@@ -106,6 +107,7 @@ const routes = [
   { path: '/wiki', name: 'wiki', component: pageImport('WikiPage') },
   { path: '/terms', name: 'terms', component: pageImport('TermsPage') },
   { path: '/privacy', name: 'privacy', component: pageImport('PrivacyPage') },
+  { path: '/level-required', name: 'level-required', component: pageImport('LevelRequiredPage') },
   {
     path: '/',
     component: GameLayout,
@@ -127,6 +129,7 @@ router.beforeEach(async (to) => {
   const isLanding = to.path === '/landing';
   const isCreate = to.path === '/character/create';
   const isSelect = to.path === '/characters';
+  const isLevelRequired = to.path === '/level-required';
   const isPublic =
     isLanding ||
     to.path === '/wiki' ||
@@ -147,6 +150,20 @@ router.beforeEach(async (to) => {
   }
   if (to.meta.requiresGm && !['gm', 'owner'].includes(auth.user?.role)) {
     return '/dashboard';
+  }
+  
+  // Check level requirements for pages
+  if (to.meta.requiredLevel && auth.hasCharacter && !isLevelRequired) {
+    const currentLevel = auth.user?.character?.level || 0;
+    if (currentLevel < to.meta.requiredLevel) {
+      return {
+        path: '/level-required',
+        query: {
+          level: to.meta.requiredLevel,
+          feature: to.meta.featureName || 'this page',
+        },
+      };
+    }
   }
 });
 
