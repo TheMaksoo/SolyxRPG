@@ -617,8 +617,8 @@ class CombatService
                 $partner->increment('gold', $goldShare);
             }
             if ($gemShare > 0) {
-                $partner->increment('gems', $gemShare);
-                GemLedger::log($partner, $gemShare, "party_share:{$character->name}");
+                $partner->user->increment('gems', $gemShare);
+                GemLedger::log($partner->user, $gemShare, "party_share:{$character->name}", $partner);
             }
             if ($xpShare > 0) {
                 $this->grantXp($partner, $xpShare);

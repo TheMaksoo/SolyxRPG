@@ -123,8 +123,8 @@ class LeaderboardSeasonRollover extends Command
         $rewardParts = ["{$tier['gold']} gold"];
 
         if ($tier['gems'] > 0) {
-            $character->increment('gems', $tier['gems']);
-            GemLedger::log($character, $tier['gems'], "leaderboard_season_reward:s{$season->season_number}:rank{$rank}");
+            $character->user->increment('gems', $tier['gems']);
+            GemLedger::log($character->user, $tier['gems'], "leaderboard_season_reward:s{$season->season_number}:rank{$rank}", $character);
             $rewardParts[] = "{$tier['gems']} gems";
         }
 

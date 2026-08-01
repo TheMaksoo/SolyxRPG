@@ -312,8 +312,8 @@ class StoreController extends Controller
 
         if (isset(self::GEM_PACKS[$purchase->sku]) && $character) {
             $gems = self::GEM_PACKS[$purchase->sku]['gems'];
-            $character->increment('gems', $gems);
-            GemLedger::log($character, $gems, "purchase:{$purchase->sku}");
+            $user->increment('gems', $gems);
+            GemLedger::log($user, $gems, "purchase:{$purchase->sku}", $character);
         } elseif ($purchase->sku === 'remove_ads') {
             $user->ads_removed = true;
             $user->save();

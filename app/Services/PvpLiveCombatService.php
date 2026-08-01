@@ -294,9 +294,9 @@ class PvpLiveCombatService
 
         $character->pvp_10_wins_reward_at = now();
         $character->gold += $gold;
-        $character->gems += $gems;
+        $character->user->increment('gems', $gems);
         $character->save();
-        GemLedger::log($character, $gems, 'pvp_10_wins_reward');
+        GemLedger::log($character->user, $gems, 'pvp_10_wins_reward', $character);
 
         return ['granted' => true, 'gold' => $gold, 'gems' => $gems];
     }
@@ -318,9 +318,9 @@ class PvpLiveCombatService
 
         $character->last_daily_reward_at = now();
         $character->gold += $gold;
-        $character->gems += $gems;
+        $character->user->increment('gems', $gems);
         $character->save();
-        GemLedger::log($character, $gems, 'pvp_daily_win_reward');
+        GemLedger::log($character->user, $gems, 'pvp_daily_win_reward', $character);
 
         return ['granted' => true, 'gold' => $gold, 'gems' => $gems];
     }

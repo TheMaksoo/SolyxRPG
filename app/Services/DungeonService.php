@@ -71,8 +71,8 @@ class DungeonService
                 $character->increment('gold', $bonus['gold']);
             }
             if (! empty($bonus['gems'])) {
-                $character->increment('gems', $bonus['gems']);
-                GemLedger::log($character, $bonus['gems'], "dungeon_clear:{$dungeon->key}");
+                $character->user->increment('gems', $bonus['gems']);
+                GemLedger::log($character->user, $bonus['gems'], "dungeon_clear:{$dungeon->key}", $character);
             }
 
             return ['stage' => $run->stage, 'total_stages' => $run->total_stages, 'completed' => true, 'bonus' => $bonus];

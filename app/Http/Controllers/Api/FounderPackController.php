@@ -123,8 +123,8 @@ class FounderPackController extends Controller
                 );
             }
 
-            $character->increment('gems', self::GEM_BONUS);
-            \App\Models\GemLedger::log($character, self::GEM_BONUS, 'purchase:founder_pack');
+            $user->increment('gems', self::GEM_BONUS);
+            \App\Models\GemLedger::log($user, self::GEM_BONUS, 'purchase:founder_pack', $character);
         }
 
         $user->is_founder = true;
