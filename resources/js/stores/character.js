@@ -21,6 +21,7 @@ export const useCharacterStore = defineStore('character', {
             try {
                 const { data } = await api.get('/character');
                 this.character = data.character;
+                useAuthStore().setCharacter(data.character);
                 this.stats = data.stats;
                 this.regenPerTick = data.regen_per_tick ?? 0;
                 this.manaRegenPerTick = data.mana_regen_per_tick ?? 0;
