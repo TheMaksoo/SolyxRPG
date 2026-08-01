@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => 'laravel/laravel',
-        'pretty_version' => 'dev-main',
-        'version' => 'dev-main',
-        'reference' => 'fa642bfa706a2da8d231c070b54c1cc76f53681e',
+        'pretty_version' => 'dev-copilot/fix-unauthorized-error',
+        'version' => 'dev-copilot/fix-unauthorized-error',
+        'reference' => 'ed7cf8cdbda7bdbb5bbd8e283d7de3e162c5772d',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -422,9 +422,9 @@
             'dev_requirement' => false,
         ),
         'laravel/laravel' => array(
-            'pretty_version' => 'dev-main',
-            'version' => 'dev-main',
-            'reference' => 'fa642bfa706a2da8d231c070b54c1cc76f53681e',
+            'pretty_version' => 'dev-copilot/fix-unauthorized-error',
+            'version' => 'dev-copilot/fix-unauthorized-error',
+            'reference' => 'ed7cf8cdbda7bdbb5bbd8e283d7de3e162c5772d',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -890,8 +890,8 @@
             'dev_requirement' => false,
             'provided' => array(
                 0 => '1.0 || 2.0 || 3.0',
-                1 => '3.0.0',
-                2 => '1.0|2.0|3.0',
+                1 => '1.0|2.0|3.0',
+                2 => '3.0.0',
             ),
         ),
         'psr/simple-cache' => array(
