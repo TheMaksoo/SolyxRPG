@@ -57,12 +57,12 @@ class BattlePassController extends Controller
         if ($pass->premium) {
             return response()->json(['message' => 'Already premium.'], 422);
         }
-        if ($character->gems < self::PREMIUM_GEM_COST) {
+        if ($character->user->gems < self::PREMIUM_GEM_COST) {
             return response()->json(['message' => 'Not enough gems.'], 422);
         }
 
-        $character->decrement('gems', self::PREMIUM_GEM_COST);
-        GemLedger::log($character, -self::PREMIUM_GEM_COST, 'battlepass_premium_unlock');
+        $character->user->decrement('gems', self::PREMIUM_GEM_COST);
+        GemLedger::log($character->user, -self::PREMIUM_GEM_COST, 'battlepass_premium_unlock', $character);
         $pass->update(['premium' => true]);
 
         return response()->json(['battle_pass' => $pass->fresh(), 'character' => $character->fresh()]);

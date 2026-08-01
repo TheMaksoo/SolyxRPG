@@ -122,7 +122,7 @@ class Character extends Model
         return array_merge(self::PRIVACY_DEFAULTS, $this->privacy_settings ?? []);
     }
 
-    protected $appends = ['calculated_level', 'calculated_xp_min', 'calculated_xp_max'];
+    protected $appends = ['calculated_level', 'calculated_xp_min', 'calculated_xp_max', 'account_gems'];
 
     /** Calculate level from cumulative XP — always accurate even if stored level drifts. */
     public function getCalculatedLevelAttribute(): int
@@ -145,6 +145,12 @@ class Character extends Model
     public function getCalculatedXpMaxAttribute(): int
     {
         return self::xpForLevel($this->calculated_level);
+    }
+
+    /** Account-wide gems that can be spent by any character on this account. */
+    public function getAccountGemsAttribute(): int
+    {
+        return $this->user ? $this->user->gems : 0;
     }
 
     public function user(): BelongsTo

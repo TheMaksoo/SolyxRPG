@@ -85,11 +85,11 @@ class PetController extends Controller
             }
             $character->decrement('gold', $pet->unlock_gold);
         } elseif ($pet->unlock_gems !== null) {
-            if ($character->gems < $pet->unlock_gems) {
+            if ($character->user->gems < $pet->unlock_gems) {
                 return response()->json(['message' => 'Not enough gems.'], 422);
             }
-            $character->decrement('gems', $pet->unlock_gems);
-            GemLedger::log($character, -$pet->unlock_gems, "pet_unlock:{$pet->key}");
+            $character->user->decrement('gems', $pet->unlock_gems);
+            GemLedger::log($character->user, -$pet->unlock_gems, "pet_unlock:{$pet->key}", $character);
         } else {
             return response()->json(['message' => 'This companion cannot be unlocked.'], 422);
         }
@@ -120,14 +120,14 @@ class PetController extends Controller
         if ($character->gold < $goldCost) {
             return response()->json(['message' => "Not enough gold — Rank Up costs {$goldCost} gold.".($gemCost > 0 ? " and {$gemCost} gems." : '')], 422);
         }
-        if ($gemCost > 0 && $character->gems < $gemCost) {
+        if ($gemCost > 0 && $character->user->gems < $gemCost) {
             return response()->json(['message' => "Not enough gems — Rank Up costs {$gemCost} gems on top of {$goldCost} gold."], 422);
         }
 
         $character->decrement('gold', $goldCost);
         if ($gemCost > 0) {
-            $character->decrement('gems', $gemCost);
-            GemLedger::log($character, -$gemCost, "pet_rank_up:{$pet->key}");
+            $character->user->decrement('gems', $gemCost);
+            GemLedger::log($character->user, -$gemCost, "pet_rank_up:{$pet->key}", $character);
         }
 
         $owned->update(['rank' => $owned->rank + 1, 'level' => 1, 'xp' => 0]);

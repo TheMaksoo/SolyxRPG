@@ -132,11 +132,11 @@ class ShopController extends Controller
             }
             $character->decrement('gold', $item->price_gold);
         } else {
-            if ($character->gems < $item->price_gems) {
+            if ($character->user->gems < $item->price_gems) {
                 return response()->json(['message' => 'Not enough gems.'], 422);
             }
-            $character->decrement('gems', $item->price_gems);
-            GemLedger::log($character, -$item->price_gems, "shop_buy:{$item->key}");
+            $character->user->decrement('gems', $item->price_gems);
+            GemLedger::log($character->user, -$item->price_gems, "shop_buy:{$item->key}", $character);
         }
 
         if (in_array($item->type, self::GEAR_TYPES, true)) {

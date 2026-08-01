@@ -501,9 +501,9 @@ class CombatService
 
         $character->decrementAtkBuffFight();
         $character->increment('gold', $goldGain);
-        $character->increment('gems', $gemGain);
+        $character->user->increment('gems', $gemGain);
         if ($gemGain > 0) {
-            GemLedger::log($character, $gemGain, "battle_win:{$monster->key}");
+            GemLedger::log($character->user, $gemGain, "battle_win:{$monster->key}", $character);
         }
         $character->increment('battles_won');
         $character->hp = max(1, (int) $battle->character_hp);

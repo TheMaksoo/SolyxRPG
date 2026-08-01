@@ -216,19 +216,15 @@ class ReferralService
     }
 
     /**
-     * Grant gems to the referrer's highest-level character.
-     * If the referrer has no characters, gems are queued and will be granted to their first character.
+     * Grant gems to the referrer's account.
      */
     private function grantGemsToReferrer(User $referrer, int $gemAmount, string $reason): void
     {
+        $referrer->increment('gems', $gemAmount);
+        
+        // Log with the highest-level character for context, if any exists
         $character = $referrer->characters()->orderByDesc('level')->first();
-
-        if ($character) {
-            $character->increment('gems', $gemAmount);
-            GemLedger::log($character, $gemAmount, $reason);
-        }
-        // If no character exists yet, the gems are essentially lost, but this is unlikely
-        // since referrers typically play the game themselves.
+        GemLedger::log($referrer, $gemAmount, $reason, $character);
     }
 
     /** One-time bonus for the referred player themselves, separate from the referrer's reward — grants
@@ -249,8 +245,8 @@ class ReferralService
             return false;
         }
 
-        $qualifyingCharacter->increment('gems', self::REFEREE_BONUS_GEMS);
-        GemLedger::log($qualifyingCharacter, self::REFEREE_BONUS_GEMS, 'referral_bonus');
+        $referee->increment('gems', self::REFEREE_BONUS_GEMS);
+        GemLedger::log($referee, self::REFEREE_BONUS_GEMS, 'referral_bonus', $qualifyingCharacter);
 
         $referee->referral_bonus_granted_at = now();
         $referee->save();

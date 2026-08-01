@@ -40,6 +40,7 @@ class DungeonController extends Controller
             'dungeons' => $dungeons,
             'dungeon_attempts_used' => $attemptsUsed,
             'dungeon_attempts_max' => $maxAttempts,
+            'gems_account_wide_hint' => 'Gems are shared across all your characters! Run dungeons with each character to maximize your gem rewards.',
         ]);
     }
 
