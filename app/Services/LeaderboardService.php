@@ -214,8 +214,8 @@ class LeaderboardService
                 $live = match (true) {
                     $category === 'power' => $c->effectiveStats()['power'],
                     $category === 'trophies' => $c->pvpRecord->rating ?? 1000,
+                    $category === 'gems' => (int) ($c->user->gems ?? 0),
                     $category === 'battle_pass_points' => $this->battlePassPointsFor($c),
-                    $config['type'] === 'column' && $config['column'] === 'gems' => (int) ($c->user->gems ?? 0),
                     $config['type'] === 'column' => (int) $c->{$config['column']},
                     $config['type'] === 'dungeon_clears' => $c->dungeonRuns->where('status', 'completed')->count(),
                     $config['type'] === 'companions_collected' => $c->pets->count(),
@@ -412,6 +412,7 @@ class LeaderboardService
         return match (true) {
             $category === 'power' => (int) $c->effectiveStats()['power'],
             $category === 'trophies' => (int) ($c->pvpRecord->rating ?? 1000),
+            $category === 'gems' => (int) ($c->user->gems ?? 0),
             $category === 'battle_pass_points' => $this->battlePassPointsFor($c),
             $config['type'] === 'column' => (int) $c->{$config['column']},
             $config['type'] === 'dungeon_clears' => $c->dungeonRuns()->where('status', 'completed')->count(),
