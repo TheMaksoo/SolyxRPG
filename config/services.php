@@ -1,7 +1,5 @@
 <?php
 
-$appUrl = rtrim((string) env('APP_URL', 'http://localhost'), '/');
-
 return [
 
     /*
@@ -40,13 +38,13 @@ return [
     'discord' => [
         'client_id' => env('DISCORD_CLIENT_ID'),
         'client_secret' => env('DISCORD_CLIENT_SECRET'),
-        'redirect' => $appUrl.'/api/auth/discord/callback',
+        'redirect' => env('APP_URL').'/api/auth/discord/callback',
     ],
 
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
-        'redirect' => $appUrl.'/api/auth/google/callback',
+        'redirect' => env('APP_URL').'/api/auth/google/callback',
     ],
 
     'turnstile' => [

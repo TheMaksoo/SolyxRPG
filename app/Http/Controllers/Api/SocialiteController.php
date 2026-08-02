@@ -17,17 +17,7 @@ class SocialiteController extends Controller
 {
     public function redirect(string $provider)
     {
-        if (! $this->providerIsConfigured($provider)) {
-            return redirect('/landing?oauth_error=unconfigured');
-        }
-
-        $driver = Socialite::driver($provider);
-
-        if ($provider === 'discord' && method_exists($driver, 'withConsent')) {
-            $driver = $driver->withConsent();
-        }
-
-        return $driver->stateless()->redirect();
+        return Socialite::driver($provider)->redirect();
     }
 
     public function callback(string $provider)
@@ -43,7 +33,7 @@ class SocialiteController extends Controller
         }
 
         try {
-            $oauthUser = Socialite::driver($provider)->stateless()->user();
+            $oauthUser = Socialite::driver($provider)->user();
         } catch (Throwable $e) {
             Log::warning("Socialite {$provider} callback failed", ['error' => $e->getMessage()]);
 
@@ -62,15 +52,6 @@ class SocialiteController extends Controller
         }
 
         return $this->loginOrRegister($provider, $oauthUser, $social);
-    }
-
-    private function providerIsConfigured(string $provider): bool
-    {
-        $config = config("services.{$provider}");
-
-        return filled($config['client_id'] ?? null)
-            && filled($config['client_secret'] ?? null)
-            && filled($config['redirect'] ?? null);
     }
 
     private function linkToCurrentUser(string $provider, string $providerUserId, ?SocialAccount $social)
@@ -121,6 +102,9 @@ class SocialiteController extends Controller
     private function loginOrRegister(string $provider, $oauthUser, ?SocialAccount $social)
     {
         $user = $social?->user ?: DB::transaction(function () use ($provider, $oauthUser) {
+            // No SocialAccount row yet for this provider+ID — but if this email already has a
+            // regular (or other-provider) account, attach this identity to it rather than trying
+            // to INSERT a second user with the same email, which fails on the unique constraint.
             // Only trust the email for that lookup if the provider confirms it's actually verified —
             // Discord in particular lets an account carry an email that was changed but never
             // confirmed, which would otherwise let an attacker "become" any existing player by just
@@ -156,7 +140,7 @@ class SocialiteController extends Controller
             LegacyDiscordUser::grantLegendTitleIfMatched($user);
         }
 
-        Auth::login($user, true);
+        Auth::login($user);
         request()->session()->regenerate();
 
         return redirect($user->character ? '/dashboard' : '/character/create');

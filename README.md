@@ -7,20 +7,6 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
-# Solyx RPG
-
-A Laravel-powered RPG game with Discord and Google OAuth authentication.
-
-## Production Deployment
-
-⚠️ **Important**: If Discord/Google login is failing with 401 errors, see [DEPLOYMENT.md](DEPLOYMENT.md) for production configuration requirements.
-
-Quick fix:
-```bash
-# Validate your OAuth configuration
-php artisan oauth:validate
-```
-
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
