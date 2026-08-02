@@ -20,8 +20,8 @@ return new class extends Migration
             $table->timestamps();
             
             // Ensure we only track each milestone once per referrer-referee pair
-            $table->unique(['referrer_id', 'referee_id', 'level_milestone']);
-            $table->index(['referrer_id', 'level_milestone']);
+            $table->unique(['referrer_id', 'referee_id', 'level_milestone'], 'ref_milestone_unique');
+            $table->index(['referrer_id', 'level_milestone'], 'ref_level_index');
         });
     }
 
