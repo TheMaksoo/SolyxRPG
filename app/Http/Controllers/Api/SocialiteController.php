@@ -25,14 +25,18 @@ class SocialiteController extends Controller
 
         $driver = Socialite::driver($provider);
 
-        // Google requires explicit scopes for email and profile access.
+        // Both providers require explicit scopes for email and profile access.
         // Without these, the OAuth response may not include the user's email,
         // which is needed for account creation and linking.
         if ($provider === 'google') {
             $driver->scopes(['email', 'profile']);
+        } elseif ($provider === 'discord') {
+            // Discord requires identify (basic profile) and email scopes
+            $driver->scopes(['identify', 'email']);
         }
 
-        return $driver->redirect();
+        // Use stateless mode to avoid session issues with OAuth state parameter
+        return $driver->stateless()->redirect();
     }
 
     public function callback(string $provider)
@@ -53,7 +57,7 @@ class SocialiteController extends Controller
         }
 
         try {
-            $oauthUser = Socialite::driver($provider)->user();
+            $oauthUser = Socialite::driver($provider)->stateless()->user();
         } catch (Throwable $e) {
             Log::warning("Socialite {$provider} callback failed", [
                 'error' => $e->getMessage(),
