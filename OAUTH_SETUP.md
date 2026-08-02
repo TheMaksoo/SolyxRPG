@@ -1,11 +1,11 @@
 # OAuth Setup Guide
 
 ## Overview
-OAuth login with Discord and Google is configured to work with environment variables set in your deployment environment. The credentials should NEVER be committed to the repository.
+OAuth login with Discord and Google uses the standard Laravel Socialite stateful flow. It's simple and clean - just set your environment variables and it works.
 
 ## Environment Variables Required
 
-The following environment variables MUST be set in your deployment environment:
+Add these to your `.env` file or hosting platform's environment configuration:
 
 ```env
 DISCORD_CLIENT_ID=your_client_id_here
@@ -14,7 +14,7 @@ GOOGLE_CLIENT_ID=your_client_id_here.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your_client_secret_here
 ```
 
-**IMPORTANT**: Never commit these credentials to the repository. Set them in your hosting platform's environment configuration.
+**IMPORTANT**: Never commit these credentials to the repository.
 
 ### 1. Discord OAuth Setup
 
@@ -58,13 +58,13 @@ GOOGLE_CLIENT_SECRET=your_client_secret_here
 Ensure these settings in `.env`:
 
 ```env
-# Must be your production domain (HTTPS required for production)
+# Your production domain (HTTPS required for production)
 APP_URL=https://play.solyx.gg
 
 # Must include your domain for cookie/session to work
 SANCTUM_STATEFUL_DOMAINS=play.solyx.gg,localhost,localhost:*,127.0.0.1
 
-# For production behind proxy/CloudFlare (optional but recommended)
+# For production behind proxy/CloudFlare
 SESSION_DOMAIN=.solyx.gg
 SESSION_SECURE_COOKIE=true
 ```
@@ -72,9 +72,10 @@ SESSION_SECURE_COOKIE=true
 ### 4. After Configuration
 
 1. Clear config cache: `php artisan config:clear`
-2. Clear route cache: `php artisan route:clear`
-3. Restart your application server
-4. Test OAuth login from the landing page
+2. Restart your application server
+3. Test OAuth login from the landing page
+
+That's it! OAuth now uses the standard Laravel Socialite flow.
 
 ### 5. Verification
 
@@ -91,24 +92,14 @@ Both should show your actual client IDs, not `null`.
 
 ## Troubleshooting
 
-### Still getting "unconfigured" error?
+### OAuth not working?
 - Verify ENV variables are set correctly (no typos)
 - Run `php artisan config:clear` to clear cached config
-- Check that `.env` file is in the project root
 - Restart your web server/PHP-FPM
+- Check redirect URIs match exactly in provider console
+- Check logs: `storage/logs/laravel.log`
 
-### Getting "failed" error?
-- Check that redirect URIs match exactly in provider console
-- Verify client secret is correct
-- Check logs for specific error: `storage/logs/laravel.log`
-
-### Users redirected back immediately?
-- This was the original bug - now fixed with proper error handling
-- Check if ENV variables are actually loaded: `php artisan tinker` then `config('services.discord')`
-- Ensure cookies are working (check browser dev tools > Application > Cookies)
-
-### Callback fails with "state validation failed"?
-- This means OAuth worked but CSRF check failed
-- Ensure cookies are enabled
-- Check that your domain is in `SANCTUM_STATEFUL_DOMAINS`
+### Users can't log in?
+- Ensure cookies are enabled in browser
+- Check `SANCTUM_STATEFUL_DOMAINS` includes your domain
 - Verify `APP_URL` matches your actual domain exactly
