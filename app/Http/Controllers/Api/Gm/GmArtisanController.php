@@ -17,6 +17,20 @@ class GmArtisanController extends Controller
         return response()->json([
             'commands' => [
                 [
+                    'key' => 'migrate',
+                    'label' => 'Run Migrations',
+                    'description' => 'Runs any pending database migrations. Safe to run multiple times.',
+                    'requires_season' => false,
+                    'danger_level' => 'low',
+                ],
+                [
+                    'key' => 'db:seed',
+                    'label' => 'Run Seeders',
+                    'description' => 'Re-runs all database seeders to update game content (items, monsters, zones, etc.). Safe to run — all seeders use updateOrCreate() to avoid duplicates.',
+                    'requires_season' => false,
+                    'danger_level' => 'low',
+                ],
+                [
                     'key' => 'leaderboard:distribute-rewards',
                     'label' => 'Distribute Leaderboard Rewards',
                     'description' => 'Retroactively distributes season-end rewards (gold, gems, titles, banners) for a specific season.',
@@ -114,6 +128,8 @@ class GmArtisanController extends Controller
 
         // Validate command is in allowed list
         $allowedCommands = [
+            'migrate',
+            'db:seed',
             'leaderboard:distribute-rewards',
             'leaderboard:season-rollover',
             'leaderboard:snapshot-daily',

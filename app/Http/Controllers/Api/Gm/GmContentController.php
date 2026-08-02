@@ -16,6 +16,7 @@ use App\Models\Quest;
 use App\Models\Recipe;
 use App\Models\Skill;
 use App\Models\Zone;
+use App\Services\SeederSyncService;
 use App\Services\WikiSyncService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -64,7 +65,7 @@ class GmContentController extends Controller
         'events' => ['syncEvent', 'event'],
     ];
 
-    public function __construct(private WikiSyncService $wiki) {}
+    public function __construct(private WikiSyncService $wiki, private SeederSyncService $seederSync) {}
 
     public function index(Request $request, string $resource)
     {
@@ -104,6 +105,9 @@ class GmContentController extends Controller
 
         AuditLog::record($request->user()->id, 'gm.content.update', $resource, $row->id, $request->all());
         $this->syncWiki($resource, $row->fresh());
+        
+        // Sync to seeder file so changes persist across db:seed runs
+        $this->seederSync->syncToSeeder($resource, $row->fresh());
 
         return response()->json([$resource => $row->fresh()]);
     }
