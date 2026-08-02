@@ -38,13 +38,13 @@ return [
     'discord' => [
         'client_id' => env('DISCORD_CLIENT_ID'),
         'client_secret' => env('DISCORD_CLIENT_SECRET'),
-        'redirect' => env('APP_URL').'/api/auth/discord/callback',
+        'redirect' => rtrim(env('APP_URL', 'http://localhost'), '/').'/api/auth/discord/callback',
     ],
 
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
-        'redirect' => env('APP_URL').'/api/auth/google/callback',
+        'redirect' => rtrim(env('APP_URL', 'http://localhost'), '/').'/api/auth/google/callback',
     ],
 
     'turnstile' => [
