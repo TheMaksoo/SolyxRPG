@@ -29,7 +29,7 @@ class LeaderboardService
      * cosmetic types this game actually has (title/color/banner/icon), no invented reward items. */
     public const REWARD_TIERS = [
         ['from' => 1, 'to' => 1, 'gold' => 20000, 'gems' => 500, 'title' => true, 'banner' => false, 'label' => '#1'],
-        ['from' => 2, 'to' => 3, 'gold' => 8000, 'gems' => 200, 'title' => false, 'banner' => false, 'label' => '#2–3'],
+        ['from' => 2, 'to' => 3, 'gold' => 8000, 'gems' => 200, 'title' => false, 'banner' => true, 'label' => '#2–3'],
         ['from' => 4, 'to' => 10, 'gold' => 4000, 'gems' => 100, 'title' => false, 'banner' => true, 'label' => '#4–10'],
         ['from' => 11, 'to' => 100, 'gold' => 1200, 'gems' => 25, 'title' => false, 'banner' => false, 'label' => '#11–100'],
     ];
@@ -165,9 +165,8 @@ class LeaderboardService
 
         return match ($config['type']) {
             'column' => $config['column'] === 'gems'
-                ? $query->leftJoin('users', 'users.id', '=', 'characters.user_id')
-                    ->select('characters.*')
-                    ->selectRaw('COALESCE(users.gems, 0) as value')
+                ? $query->join('users', 'characters.user_id', '=', 'users.id')
+                    ->select('characters.*')->selectRaw('users.gems as value')
                 : $query->select('characters.*')->selectRaw("{$config['column']} as value"),
             'dungeon_clears' => $query->withCount(['dungeonRuns as value' => fn ($q) => $q->where('status', 'completed')]),
             'companions_collected' => $query->withCount('pets as value'),
@@ -205,6 +204,7 @@ class LeaderboardService
             ...($config['type'] === 'dungeon_clears' ? ['dungeonRuns'] : []),
             ...(in_array($config['type'], ['companions_collected', 'companion_ranks'], true) ? ['pets'] : []),
             ...($category === 'battle_pass_points' ? ['battlePasses'] : []),
+            ...($category === 'gems' ? ['user'] : []),
         ];
 
         $all = Character::with($relations)
