@@ -646,9 +646,18 @@ const commandExecuting = ref(false);
 const commandOutput = ref('');
 const commandMessage = ref('');
 
+// Seeder selection
+const availableSeeders = ref([]);
+const selectedSeeder = ref(null);
+
 async function loadArtisanCommands() {
   const { data } = await api.get('/gm/artisan-commands');
   artisanCommands.value = data.commands;
+}
+
+async function loadSeeders() {
+  const { data } = await api.get('/gm/artisan-commands/seeders');
+  availableSeeders.value = data.seeders;
 }
 
 function selectCommand(command) {
@@ -657,6 +666,10 @@ function selectCommand(command) {
   commandForce.value = false;
   commandOutput.value = '';
   commandMessage.value = '';
+  // Reset seeder selection when switching commands
+  if (command.key !== 'db:seed') {
+    selectedSeeder.value = null;
+  }
 }
 
 async function executeCommand() {
@@ -700,6 +713,11 @@ async function executeCommand() {
     if (selectedCommand.value.requires_season && commandSeasonNumber.value) {
       payload.season_number = parseInt(commandSeasonNumber.value);
     }
+    
+    // Add seeder class if db:seed and a specific seeder is selected
+    if (selectedCommand.value.key === 'db:seed' && selectedSeeder.value) {
+      payload.seeder_class = selectedSeeder.value;
+    }
 
     const { data } = await api.post('/gm/artisan-commands/execute', payload);
     
@@ -724,7 +742,7 @@ function switchTab(key) {
   if (key === 'revenue') { loadRevenueDashboard(); loadPurchaseLog(); }
   if (key === 'flags') loadFlags();
   if (key === 'tickets') loadTickets();
-  if (key === 'commands') loadArtisanCommands();
+  if (key === 'commands') { loadArtisanCommands(); loadSeeders(); }
   if (key === 'audit') loadAuditLog();
   if (key === 'progression') { loadProgression(); loadBattlePassCurve(); }
 }
@@ -1800,6 +1818,25 @@ onMounted(() => {
                 placeholder="e.g. 1"
                 class="gm-console-commands-input"
               />
+            </label>
+            
+            <!-- Seeder selection for db:seed command -->
+            <label v-if="selectedCommand.key === 'db:seed'" class="gm-console-commands-field">
+              <span>Specific Seeder (optional - leave empty to run all)</span>
+              <select v-model="selectedSeeder" class="gm-console-commands-input">
+                <option :value="null">All Seeders (DatabaseSeeder)</option>
+                <option v-for="seeder in availableSeeders" :key="seeder.class" :value="seeder.class">
+                  {{ seeder.label }}
+                </option>
+              </select>
+              <span class="gm-console-commands-help">Select a specific seeder to avoid overwriting data you want to preserve.</span>
+            </label>
+            
+            <label class="gm-console-commands-field gm-console-commands-field--checkbox">
+              <input type="checkbox" v-model="commandForce" />
+              <span>Pass --force when supported</span>
+            </label>
+          </div>
             </label>
             
             <label class="gm-console-commands-field gm-console-commands-field--checkbox">
