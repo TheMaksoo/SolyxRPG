@@ -41,7 +41,7 @@ const metrics = ref(null);
 function formatCents(cents) {
   return ((cents || 0) / 100).toFixed(2);
 }
-const TAB_KEYS = ['overview', 'activity', 'content', 'players', 'economy', 'progression', 'revenue', 'flags', 'tickets', 'broadcast', 'audit'];
+const TAB_KEYS = ['overview', 'activity', 'content', 'players', 'economy', 'progression', 'revenue', 'flags', 'tickets', 'broadcast', 'commands', 'audit'];
 // Supports deep-linking straight to a tab (e.g. /admin?tab=tickets from the Settings page's
 // "manage tickets" link) while still defaulting to the overview tab otherwise.
 const tab = ref(TAB_KEYS.includes(route.query.tab) ? route.query.tab : 'overview');
@@ -56,6 +56,7 @@ const TABS = [
   { key: 'flags', label: 'Feature Flags' },
   { key: 'tickets', label: 'Tickets' },
   { key: 'broadcast', label: 'Broadcast' },
+  { key: 'commands', label: 'Commands' },
   { key: 'audit', label: 'Audit Log' },
 ];
 
@@ -636,6 +637,84 @@ const battlePassSourceTooltips = computed(
   () => battlePass.value?.points_income.sources.map((s) => `${s.per_cycle}/cycle × ${s.cycles} = ${formatXp(s.total)} pts`) ?? []
 );
 
+// Artisan Commands
+const artisanCommands = ref([]);
+const selectedCommand = ref(null);
+const commandSeasonNumber = ref(null);
+const commandForce = ref(false);
+const commandExecuting = ref(false);
+const commandOutput = ref('');
+const commandMessage = ref('');
+
+async function loadArtisanCommands() {
+  const { data } = await api.get('/gm/artisan-commands');
+  artisanCommands.value = data.commands;
+}
+
+function selectCommand(command) {
+  selectedCommand.value = command;
+  commandSeasonNumber.value = null;
+  commandForce.value = false;
+  commandOutput.value = '';
+  commandMessage.value = '';
+}
+
+async function executeCommand() {
+  if (!selectedCommand.value) return;
+  
+  const dangerLevel = selectedCommand.value.danger_level;
+  const confirmMessage = dangerLevel === 'critical' 
+    ? `⚠️ CRITICAL: This will ${selectedCommand.value.label}. This is IRREVERSIBLE. Type 'CONFIRM' to proceed:`
+    : dangerLevel === 'high'
+    ? `⚠️ WARNING: ${selectedCommand.value.description} This may create duplicate rewards if run multiple times. Continue?`
+    : `Run ${selectedCommand.value.label}?`;
+  
+  if (dangerLevel === 'critical') {
+    const userInput = prompt(confirmMessage);
+    if (userInput !== 'CONFIRM') {
+      commandMessage.value = 'Command cancelled.';
+      return;
+    }
+  } else if (dangerLevel === 'high') {
+    if (!confirm(confirmMessage)) {
+      commandMessage.value = 'Command cancelled.';
+      return;
+    }
+  } else {
+    if (!confirm(confirmMessage)) {
+      commandMessage.value = 'Command cancelled.';
+      return;
+    }
+  }
+
+  commandExecuting.value = true;
+  commandMessage.value = '';
+  commandOutput.value = '';
+
+  try {
+    const payload = {
+      command: selectedCommand.value.key,
+      force: commandForce.value,
+    };
+    
+    if (selectedCommand.value.requires_season && commandSeasonNumber.value) {
+      payload.season_number = parseInt(commandSeasonNumber.value);
+    }
+
+    const { data } = await api.post('/gm/artisan-commands/execute', payload);
+    
+    commandOutput.value = data.output || '';
+    commandMessage.value = data.success 
+      ? '✅ ' + data.message 
+      : '❌ ' + (data.error || data.message);
+  } catch (error) {
+    commandOutput.value = error.response?.data?.error || error.message;
+    commandMessage.value = '❌ Command failed: ' + (error.response?.data?.error || error.message);
+  } finally {
+    commandExecuting.value = false;
+  }
+}
+
 function switchTab(key) {
   tab.value = key;
   if (key === 'overview') loadOverview();
@@ -645,6 +724,7 @@ function switchTab(key) {
   if (key === 'revenue') { loadRevenueDashboard(); loadPurchaseLog(); }
   if (key === 'flags') loadFlags();
   if (key === 'tickets') loadTickets();
+  if (key === 'commands') loadArtisanCommands();
   if (key === 'audit') loadAuditLog();
   if (key === 'progression') { loadProgression(); loadBattlePassCurve(); }
 }
@@ -1673,6 +1753,86 @@ onMounted(() => {
           </div>
         </div>
         <div v-if="!auditLogs.length" class="gm-console-empty">No audit log entries yet.</div>
+      </div>
+    </div>
+
+    <!-- ARTISAN COMMANDS -->
+    <div v-else-if="tab === 'commands'" class="gm-console-commands">
+      <p class="gm-console-broadcast-intro">
+        Run administrative commands directly from the GM panel. These commands are typically scheduled via cron but can be run manually here.
+        <strong class="gm-console-commands-warning">⚠️ Use with caution — some actions are irreversible.</strong>
+      </p>
+      
+      <div class="gm-console-commands-grid">
+        <div class="gm-console-commands-list">
+          <h3 class="gm-console-section-title">Available Commands</h3>
+          <div class="gm-console-commands-buttons">
+            <button
+              v-for="command in artisanCommands"
+              :key="command.key"
+              @click="selectCommand(command)"
+              class="gm-console-command-btn"
+              :class="{
+                'is-selected': selectedCommand?.key === command.key,
+                'is-danger-critical': command.danger_level === 'critical',
+                'is-danger-high': command.danger_level === 'high',
+              }"
+            >
+              <span class="gm-console-command-btn__icon">
+                {{ command.danger_level === 'critical' ? '🔥' : command.danger_level === 'high' ? '⚠️' : '⚙️' }}
+              </span>
+              <span class="gm-console-command-btn__label">{{ command.label }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="selectedCommand" class="gm-console-commands-detail">
+          <h3 class="gm-console-section-title">{{ selectedCommand.label }}</h3>
+          <p class="gm-console-commands-description">{{ selectedCommand.description }}</p>
+          
+          <div class="gm-console-commands-inputs">
+            <label v-if="selectedCommand.requires_season" class="gm-console-commands-field">
+              <span>Season Number</span>
+              <input
+                v-model="commandSeasonNumber"
+                type="number"
+                min="1"
+                placeholder="e.g. 1"
+                class="gm-console-commands-input"
+              />
+            </label>
+            
+            <label class="gm-console-commands-field gm-console-commands-field--checkbox">
+              <input type="checkbox" v-model="commandForce" />
+              <span>Force (skip confirmations)</span>
+            </label>
+          </div>
+
+          <button
+            @click="executeCommand"
+            :disabled="commandExecuting"
+            class="gm-console-commands-execute-btn"
+            :class="{
+              'is-danger-critical': selectedCommand.danger_level === 'critical',
+              'is-danger-high': selectedCommand.danger_level === 'high',
+            }"
+          >
+            {{ commandExecuting ? 'Executing...' : `Run ${selectedCommand.label}` }}
+          </button>
+
+          <div v-if="commandMessage" class="gm-console-commands-message" :class="{ 'is-error': commandMessage.includes('❌') }">
+            {{ commandMessage }}
+          </div>
+
+          <div v-if="commandOutput" class="gm-console-commands-output">
+            <h4 class="gm-console-commands-output-title">Output:</h4>
+            <pre class="gm-console-commands-output-pre">{{ commandOutput }}</pre>
+          </div>
+        </div>
+
+        <div v-else class="gm-console-commands-detail gm-console-commands-detail--empty">
+          <p>← Select a command from the list to get started</p>
+        </div>
       </div>
     </div>
 
