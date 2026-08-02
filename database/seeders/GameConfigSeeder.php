@@ -71,6 +71,7 @@ class GameConfigSeeder extends Seeder
             'vip_monthly_gems_bronze' => '50',
             'vip_monthly_gems_gold' => '85',
             'vip_monthly_gems_diamond' => '170',
+            'pvp_season_number' => '1',
         ];
 
         foreach ($config as $key => $value) {

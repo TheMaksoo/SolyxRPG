@@ -39,6 +39,7 @@ class DatabaseSeeder extends Seeder
             EventSeeder::class,
             FeatureFlagSeeder::class,
             GameConfigSeeder::class,
+            LeaderboardSeasonSeeder::class,
             AchievementSeeder::class,
             CosmeticSeeder::class,
             ChangelogSeeder::class,
