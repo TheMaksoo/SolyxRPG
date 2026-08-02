@@ -55,7 +55,9 @@ npm run dev
 
 ## Documentation
 
+- **[Database Quick Reference](docs/DATABASE_QUICK_REFERENCE.md)** - Quick commands and common tasks
 - **[Database Setup & Seeding](docs/DATABASE_SETUP.md)** - Complete guide for migrations, seeders, and making content/economy changes
+- **[Contributing Guide](docs/CONTRIBUTING.md)** - How to contribute to SolyxRPG
 - **[Battle Pass Management](docs/BATTLEPASS_SEASON_MANAGEMENT.md)** - Managing battle pass seasons
 - **[Season Management Quick Reference](docs/SEASON_MANAGEMENT_QUICK_REFERENCE.md)** - Quick reference for season operations
 
