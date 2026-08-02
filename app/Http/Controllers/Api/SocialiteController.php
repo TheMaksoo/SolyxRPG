@@ -18,7 +18,7 @@ class SocialiteController extends Controller
     public function redirect(string $provider)
     {
         try {
-            $driver = Socialite::driver($provider);
+            $driver = Socialite::driver($provider)->stateless();
 
             if ($provider === 'google') {
                 $driver->scopes(['email', 'profile']);
@@ -47,7 +47,7 @@ class SocialiteController extends Controller
         }
 
         try {
-            $oauthUser = Socialite::driver($provider)->user();
+            $oauthUser = Socialite::driver($provider)->stateless()->user();
         } catch (Throwable $e) {
             Log::error("OAuth {$provider} callback failed", [
                 'error' => $e->getMessage(),
@@ -144,6 +144,11 @@ class SocialiteController extends Controller
         Auth::login($user);
         request()->session()->regenerate();
 
-        return redirect($user->character ? '/dashboard' : '/character/create');
+        // Redirect via the SPA's dedicated OAuth callback page rather than straight to the
+        // destination. The callback page explicitly refreshes the CSRF cookie and re-fetches
+        // the user before navigating, which sidesteps the race where the SPA cold-boots on a
+        // protected route and calls /api/me before the session cookie is reliably available.
+        $dest = $user->character ? '/dashboard' : '/character/create';
+        return redirect('/oauth/callback?to='.urlencode($dest));
     }
 }

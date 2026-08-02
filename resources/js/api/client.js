@@ -7,19 +7,34 @@ const api = axios.create({
     headers: { Accept: 'application/json' },
 });
 
-// The router only checks auth once per SPA load and then trusts it for the whole session — if the
-// session dies underneath the user (timeout, server restart, cookie cleared) nothing re-validates it,
-// so every subsequent action just fails with a confusing per-page error. Catch that here instead: any
-// 401 from a real (already-past-the-login-gate) request forces a full reload back to the login screen,
-// which also wipes all stale client-side state. /me and /auth/* are excluded since their 401s are the
-// normal "not logged in yet" case already handled by the router guard.
+// When a game endpoint returns 401 it could mean the session genuinely expired — but it could also
+// be a transient server hiccup, CSRF token rotation, or a race condition. Immediately hard-redirecting
+// to /landing on any 401 causes mid-game logouts for something that was never a real auth failure.
+// Instead: confirm the session is actually dead by re-checking /me. Only redirect if /me also 401s.
+// A single in-flight check is shared across any concurrent 401s so we never send a burst of /me calls.
+let sessionCheckPromise = null;
+
 api.interceptors.response.use(
     (response) => response,
     (error) => {
         const url = error.config?.url || '';
         const isAuthEndpoint = url === '/me' || url.startsWith('/auth/');
         if (error.response?.status === 401 && !isAuthEndpoint) {
-            window.location.href = '/landing';
+            if (!sessionCheckPromise) {
+                sessionCheckPromise = axios
+                    .get('/api/me', { withCredentials: true, headers: { Accept: 'application/json' } })
+                    .then(() => {
+                        // /me succeeded — session is alive, the original 401 was a fluke; do nothing.
+                    })
+                    .catch((meError) => {
+                        if (meError.response?.status === 401) {
+                            window.location.href = '/landing';
+                        }
+                    })
+                    .finally(() => {
+                        sessionCheckPromise = null;
+                    });
+            }
         }
         return Promise.reject(error);
     }
