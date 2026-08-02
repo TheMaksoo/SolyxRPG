@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Gm;
 
 use App\Http\Controllers\Controller;
 use App\Models\Battle;
+use App\Models\BattlePass;
 use App\Models\Character;
 use App\Models\CharacterQuest;
 use App\Models\CraftingJob;
@@ -210,6 +211,9 @@ class GmAnalyticsController extends Controller
         $usersWithoutCharacters = User::doesntHave('characters')->count();
         $usersWithMultipleCharacters = User::has('characters', '>=', 2)->count();
 
+        // Battle pass statistics
+        $battlePassStats = $this->battlePassStats();
+
         return [
             'total_users' => $totalUsers,
             'total_characters' => $totalCharacters,
@@ -229,6 +233,8 @@ class GmAnalyticsController extends Controller
             // signup/qualified breakdown lives in referralFunnel() below.
             'referrals_used' => (int) User::sum('referral_link_copies'),
             'referrals_signed_up' => User::whereNotNull('referred_by_user_id')->count(),
+            // Battle pass engagement metrics
+            'battle_pass' => $battlePassStats,
         ];
     }
 
@@ -358,5 +364,59 @@ class GmAnalyticsController extends Controller
             ->orderBy('bucket')
             ->get()
             ->map(fn ($row) => ['bucket' => "{$row->bucket}-".($row->bucket + 9), 'count' => $row->count]);
+    }
+
+    /** Battle pass statistics for current season — shows how many players are engaged with the battle
+     * pass system and how far along they are. Useful for tracking monetization and engagement with the
+     * seasonal progression system. */
+    private function battlePassStats(): array
+    {
+        $currentSeason = \App\Services\BattlePassService::SEASON;
+        
+        // All battle pass records for current season
+        $allPasses = \App\Models\BattlePass::where('season', $currentSeason)->get();
+        $totalWithBattlePass = $allPasses->count();
+        
+        // Premium (purchased) vs free
+        $premiumPasses = $allPasses->where('premium', true);
+        $totalPremium = $premiumPasses->count();
+        $totalFree = $totalWithBattlePass - $totalPremium;
+        
+        // Average tier calculations
+        $avgTierAll = $totalWithBattlePass > 0 ? round($allPasses->avg('tier'), 1) : 0;
+        $avgTierPremium = $totalPremium > 0 ? round($premiumPasses->avg('tier'), 1) : 0;
+        $avgTierFree = $totalFree > 0 ? round($allPasses->where('premium', false)->avg('tier'), 1) : 0;
+        
+        // Completion metrics
+        $maxTier = \App\Services\BattlePassService::TOTAL_TIERS;
+        $completedPasses = $allPasses->where('tier', '>=', $maxTier)->count();
+        $completionRate = $totalWithBattlePass > 0 ? round($completedPasses / $totalWithBattlePass * 100, 1) : 0;
+        
+        // Tier distribution (useful for seeing engagement drop-off)
+        $tierBuckets = [
+            'tier_0_9' => $allPasses->whereBetween('tier', [0, 9])->count(),
+            'tier_10_24' => $allPasses->whereBetween('tier', [10, 24])->count(),
+            'tier_25_49' => $allPasses->whereBetween('tier', [25, 49])->count(),
+            'tier_50_74' => $allPasses->whereBetween('tier', [50, 74])->count(),
+            'tier_75_99' => $allPasses->whereBetween('tier', [75, 99])->count(),
+            'tier_100' => $allPasses->where('tier', '>=', 100)->count(),
+        ];
+        
+        // Premium conversion rate (of those who have started the battle pass)
+        $premiumConversionRate = $totalWithBattlePass > 0 ? round($totalPremium / $totalWithBattlePass * 100, 1) : 0;
+
+        return [
+            'season' => $currentSeason,
+            'total_active' => $totalWithBattlePass,
+            'total_premium' => $totalPremium,
+            'total_free' => $totalFree,
+            'avg_tier_all' => $avgTierAll,
+            'avg_tier_premium' => $avgTierPremium,
+            'avg_tier_free' => $avgTierFree,
+            'completed_count' => $completedPasses,
+            'completion_rate_pct' => $completionRate,
+            'premium_conversion_pct' => $premiumConversionRate,
+            'tier_distribution' => $tierBuckets,
+        ];
     }
 }
