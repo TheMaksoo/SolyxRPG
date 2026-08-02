@@ -11,7 +11,9 @@ use App\Models\CraftingJob;
 use App\Models\Dungeon;
 use App\Models\DungeonRun;
 use App\Models\ErrorLog;
+use App\Models\GemLedger;
 use App\Models\Monster;
+use App\Models\Purchase;
 use App\Models\PvpLiveMatch;
 use App\Models\Recipe;
 use App\Models\Skill;
@@ -45,6 +47,7 @@ class GmAnalyticsController extends Controller
                 'referrals' => $this->dailyCounts(User::whereNotNull('referred_by_user_id'), 'created_at', $since, $days),
             ],
             'referral_funnel' => $this->referralFunnel(),
+            'battle_pass_premium' => $this->battlePassPremiumStats(),
             'level_growth' => $this->levelGrowth(),
             'kills_to_level_up' => $this->killsToLevelUp(),
             'unlock_timeline' => $this->unlockTimeline(),
@@ -417,6 +420,65 @@ class GmAnalyticsController extends Controller
             'completion_rate_pct' => $completionRate,
             'premium_conversion_pct' => $premiumConversionRate,
             'tier_distribution' => $tierBuckets,
+        ];
+    }
+
+    /** Premium battle pass purchase breakdown — tracks how players unlock premium (gems vs real money)
+     * and the total value derived from each method. Useful for understanding monetization channels and
+     * the effectiveness of the gem-purchase option alongside direct cash sales. */
+    private function battlePassPremiumStats(): array
+    {
+        $currentSeason = \App\Services\BattlePassService::SEASON;
+        $premiumGemCost = \App\Http\Controllers\Api\BattlePassController::PREMIUM_GEM_COST;
+        
+        // Count gem-based unlocks from GemLedger (negative delta = spent gems)
+        $gemUnlocks = GemLedger::where('reason', 'battlepass_premium_unlock')
+            ->where('delta', -$premiumGemCost)
+            ->count();
+        
+        // Count cash-based unlocks from Purchase table (SKU: pass_ashfall or pass_{season})
+        $cashPurchases = Purchase::where('status', 'completed')
+            ->where(function ($q) use ($currentSeason) {
+                $q->where('sku', "pass_{$currentSeason}")
+                  ->orWhere('sku', 'pass_ashfall'); // Fallback for current season
+            })
+            ->get();
+        
+        $cashUnlocks = $cashPurchases->count();
+        $cashRevenueCents = $cashPurchases->sum('amount_cents');
+        
+        // Total premium unlocks
+        $totalPremiumUnlocks = $gemUnlocks + $cashUnlocks;
+        
+        // Calculate percentages
+        $gemUnlockPct = $totalPremiumUnlocks > 0 ? round($gemUnlocks / $totalPremiumUnlocks * 100, 1) : 0;
+        $cashUnlockPct = $totalPremiumUnlocks > 0 ? round($cashUnlocks / $totalPremiumUnlocks * 100, 1) : 0;
+        
+        // Calculate gem value (gems spent)
+        $totalGemsSpent = $gemUnlocks * $premiumGemCost;
+        
+        // Average revenue per cash unlock
+        $avgRevenueCents = $cashUnlocks > 0 ? round($cashRevenueCents / $cashUnlocks) : 0;
+
+        return [
+            'season' => $currentSeason,
+            'total_premium_unlocks' => $totalPremiumUnlocks,
+            'gem_unlocks' => [
+                'count' => $gemUnlocks,
+                'percentage' => $gemUnlockPct,
+                'total_gems_spent' => $totalGemsSpent,
+                'gems_per_unlock' => $premiumGemCost,
+            ],
+            'cash_unlocks' => [
+                'count' => $cashUnlocks,
+                'percentage' => $cashUnlockPct,
+                'revenue_cents' => $cashRevenueCents,
+                'avg_revenue_cents' => $avgRevenueCents,
+            ],
+            'breakdown' => [
+                ['method' => 'Gems', 'count' => $gemUnlocks, 'percentage' => $gemUnlockPct],
+                ['method' => 'Cash', 'count' => $cashUnlocks, 'percentage' => $cashUnlockPct],
+            ],
         ];
     }
 }
