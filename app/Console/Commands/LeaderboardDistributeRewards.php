@@ -127,7 +127,7 @@ class LeaderboardDistributeRewards extends Command
             }
 
             $character = Character::find($row['character_id']);
-            if (!$character) {
+            if (!$character || !$character->user) {
                 continue;
             }
 
@@ -210,7 +210,7 @@ class LeaderboardDistributeRewards extends Command
             foreach ($topTen as $i => $row) {
                 $rank = $i + 1;
                 $character = Character::find($row['character_id']);
-                if (!$character) {
+                if (!$character || !$character->user) {
                     continue;
                 }
 
@@ -264,7 +264,7 @@ class LeaderboardDistributeRewards extends Command
                 }
 
                 $character = Character::find($row['character_id']);
-                if (!$character) {
+                if (!$character || !$character->user) {
                     continue;
                 }
 
