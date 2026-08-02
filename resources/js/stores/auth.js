@@ -17,7 +17,6 @@ export const useAuthStore = defineStore('auth', {
     actions: {
         async fetchMe() {
             try {
-                await ensureCsrfCookie();
                 const { data } = await api.get('/me');
                 this.user = { ...data.user, has_password: data.has_password };
                 this.globalTesterMode = data.global_tester_mode;
