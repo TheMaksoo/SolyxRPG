@@ -38,7 +38,7 @@ class AchievementService
             'bosses_slain' => $character->bosses_slain >= $req['target'],
             'level' => $character->level >= $req['target'],
             'gold' => $character->gold >= $req['target'],
-            'gems' => $character->gems >= $req['target'],
+            'gems' => $character->user->gems >= $req['target'],
             'quests_completed' => $character->quests_completed >= $req['target'],
             'boss_kill' => $defeatedBoss && $defeatedBoss->key === $req['monster_key'],
             'pvp_wins' => ($character->pvpRecord?->wins ?? 0) >= $req['target'],

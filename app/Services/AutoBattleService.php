@@ -58,12 +58,12 @@ class AutoBattleService
         }
 
         $cost = $this->costFor($minutes);
-        if ($character->gems < $cost) {
+        if ($character->user->gems < $cost) {
             throw new \RuntimeException("Not enough gems — need {$cost}.");
         }
 
-        $character->decrement('gems', $cost);
-        GemLedger::log($character, -$cost, "auto_battle:{$minutes}min");
+        $character->user->decrement('gems', $cost);
+        GemLedger::log($character->user, -$cost, "auto_battle:{$minutes}min", $character);
         $character->refresh();
 
         $this->extend($character, $minutes);
