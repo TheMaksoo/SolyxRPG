@@ -144,6 +144,11 @@ class SocialiteController extends Controller
         Auth::login($user);
         request()->session()->regenerate();
 
-        return redirect($user->character ? '/dashboard' : '/character/create');
+        // Redirect via the SPA's dedicated OAuth callback page rather than straight to the
+        // destination. The callback page explicitly refreshes the CSRF cookie and re-fetches
+        // the user before navigating, which sidesteps the race where the SPA cold-boots on a
+        // protected route and calls /api/me before the session cookie is reliably available.
+        $dest = $user->character ? '/dashboard' : '/character/create';
+        return redirect('/oauth/callback?to='.urlencode($dest));
     }
 }

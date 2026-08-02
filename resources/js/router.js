@@ -92,6 +92,7 @@ gameChildren.push(
 const routes = [
   { path: '/', redirect: '/dashboard' },
   { path: '/landing', name: 'landing', component: pageImport('LandingPage') },
+  { path: '/oauth/callback', name: 'oauth-callback', component: pageImport('OAuthCallbackPage') },
   { path: '/forgot-password', name: 'forgot-password', component: pageImport('ForgotPasswordPage') },
   { path: '/reset-password', name: 'reset-password', component: pageImport('ResetPasswordPage') },
   {
@@ -132,6 +133,7 @@ router.beforeEach(async (to) => {
   const isLevelRequired = to.path === '/level-required';
   const isPublic =
     isLanding ||
+    to.path === '/oauth/callback' ||
     to.path === '/wiki' ||
     to.path === '/terms' ||
     to.path === '/privacy' ||
