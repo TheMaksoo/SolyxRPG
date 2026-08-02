@@ -29,7 +29,7 @@ class LeaderboardService
      * cosmetic types this game actually has (title/color/banner/icon), no invented reward items. */
     public const REWARD_TIERS = [
         ['from' => 1, 'to' => 1, 'gold' => 20000, 'gems' => 500, 'title' => true, 'banner' => false, 'label' => '#1'],
-        ['from' => 2, 'to' => 3, 'gold' => 8000, 'gems' => 200, 'title' => false, 'banner' => false, 'label' => '#2–3'],
+        ['from' => 2, 'to' => 3, 'gold' => 8000, 'gems' => 200, 'title' => false, 'banner' => true, 'label' => '#2–3'],
         ['from' => 4, 'to' => 10, 'gold' => 4000, 'gems' => 100, 'title' => false, 'banner' => true, 'label' => '#4–10'],
         ['from' => 11, 'to' => 100, 'gold' => 1200, 'gems' => 25, 'title' => false, 'banner' => false, 'label' => '#11–100'],
     ];
