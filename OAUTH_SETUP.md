@@ -14,7 +14,7 @@ The `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, and `GOOGL
 2. Create a new application (or select existing one)
 3. Go to "OAuth2" section
 4. Copy the **Client ID** and **Client Secret**
-5. Add the redirect URI: `https://play.solyx.gg/api/auth/discord/callback`
+5. Add the redirect URI: `{APP_URL}/api/auth/discord/callback`
    - **IMPORTANT**: Must match your `APP_URL` exactly
    - Must use HTTPS in production
 6. Under "OAuth2 Scopes", ensure the following are enabled (for reference):
@@ -31,10 +31,10 @@ DISCORD_CLIENT_SECRET=your_client_secret_here
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project (or select existing one)
-3. Enable the "Google+ API"
+3. (Optional) Enable **Google People API** only if you need extra profile fields beyond standard OAuth claims
 4. Go to "Credentials" > "Create Credentials" > "OAuth 2.0 Client IDs"
 5. Set application type to "Web application"
-6. Add authorized redirect URI: `https://play.solyx.gg/api/auth/google/callback`
+6. Add authorized redirect URI: `{APP_URL}/api/auth/google/callback`
    - **IMPORTANT**: Must match your `APP_URL` exactly
    - Must use HTTPS in production
 7. Copy the **Client ID** and **Client Secret**

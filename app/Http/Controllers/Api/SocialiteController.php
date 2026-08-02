@@ -30,6 +30,8 @@ class SocialiteController extends Controller
         if (empty($clientId) || empty($clientSecret)) {
             Log::error("OAuth {$provider} not configured", [
                 'provider' => $provider,
+                'is_authenticated' => Auth::check(),
+                'user_id' => Auth::id(),
                 'has_client_id' => !empty($clientId),
                 'has_client_secret' => !empty($clientSecret),
             ]);
