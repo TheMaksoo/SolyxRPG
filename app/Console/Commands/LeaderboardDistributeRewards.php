@@ -160,7 +160,7 @@ class LeaderboardDistributeRewards extends Command
         $character->increment('gold', $tier['gold']);
         $rewardParts = ["{$tier['gold']} gold"];
 
-        if ($tier['gems'] > 0) {
+        if ($tier['gems'] > 0 && $character->user) {
             $character->user->increment('gems', $tier['gems']);
             GemLedger::log($character->user, $tier['gems'], "leaderboard_season_reward:s{$season->season_number}:rank{$rank}", $character);
             $rewardParts[] = "{$tier['gems']} gems";
