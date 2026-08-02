@@ -17,6 +17,12 @@ class SocialiteController extends Controller
 {
     public function redirect(string $provider)
     {
+        Log::info("OAuth {$provider} redirect initiated", [
+            'provider' => $provider,
+            'is_authenticated' => Auth::check(),
+            'user_id' => Auth::id(),
+        ]);
+
         $driver = Socialite::driver($provider);
 
         // Google requires explicit scopes for email and profile access.
@@ -38,6 +44,11 @@ class SocialiteController extends Controller
         // anyway would try to exchange a nonexistent code for a token and blow up with a raw
         // Guzzle 400, so bail out gracefully here instead.
         if (request()->filled('error') || ! request()->filled('code')) {
+            Log::info("OAuth {$provider} callback: user cancelled or denied", [
+                'error' => request('error'),
+                'has_code' => request()->filled('code'),
+                'query_params' => request()->query(),
+            ]);
             return redirect("{$back}?oauth_error=cancelled");
         }
 
@@ -50,10 +61,21 @@ class SocialiteController extends Controller
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString(),
+                'request_url' => request()->fullUrl(),
+                'has_code' => request()->filled('code'),
+                'has_state' => request()->filled('state'),
             ]);
 
             return redirect("{$back}?oauth_error=failed");
         }
+
+        // Log successful OAuth user retrieval for diagnostics
+        Log::info("OAuth {$provider} user retrieved successfully", [
+            'provider' => $provider,
+            'provider_user_id' => $oauthUser->getId(),
+            'has_email' => !empty($oauthUser->getEmail()),
+            'email_domain' => $oauthUser->getEmail() ? explode('@', $oauthUser->getEmail())[1] ?? 'unknown' : null,
+        ]);
 
         $social = SocialAccount::where('provider', $provider)
             ->where('provider_user_id', $oauthUser->getId())
@@ -74,6 +96,12 @@ class SocialiteController extends Controller
         $current = Auth::user();
 
         if ($social && $social->user_id !== $current->id) {
+            Log::warning("OAuth {$provider} link attempt failed: already linked to different account", [
+                'provider' => $provider,
+                'provider_user_id' => $providerUserId,
+                'current_user_id' => $current->id,
+                'existing_link_user_id' => $social->user_id,
+            ]);
             return redirect('/settings?link_error=already_linked_elsewhere');
         }
 
@@ -83,6 +111,12 @@ class SocialiteController extends Controller
                 'provider' => $provider,
                 'provider_user_id' => $providerUserId,
                 'discord_id' => $provider === 'discord' ? $providerUserId : null,
+            ]);
+
+            Log::info("OAuth {$provider} linked successfully to existing user", [
+                'provider' => $provider,
+                'user_id' => $current->id,
+                'provider_user_id' => $providerUserId,
             ]);
 
             if ($provider === 'discord') {
@@ -139,6 +173,18 @@ class SocialiteController extends Controller
                 // new OAuth signup counts as acceptance the same way the email/password path's checkbox does.
                 $user->tos_accepted_at = now();
                 $user->save();
+
+                Log::info("New user created via OAuth {$provider}", [
+                    'provider' => $provider,
+                    'user_id' => $user->id,
+                    'has_verified_email' => !empty($email),
+                ]);
+            } else {
+                Log::info("Existing user found by verified email, linking OAuth {$provider}", [
+                    'provider' => $provider,
+                    'user_id' => $user->id,
+                    'email_domain' => $email ? explode('@', $email)[1] ?? 'unknown' : null,
+                ]);
             }
 
             SocialAccount::create([
@@ -157,6 +203,12 @@ class SocialiteController extends Controller
 
         Auth::login($user);
         request()->session()->regenerate();
+
+        Log::info("User logged in via OAuth {$provider}", [
+            'provider' => $provider,
+            'user_id' => $user->id,
+            'has_character' => !empty($user->character),
+        ]);
 
         return redirect($user->character ? '/dashboard' : '/character/create');
     }
