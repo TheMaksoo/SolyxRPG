@@ -11,7 +11,7 @@ const route = useRoute();
 const OAUTH_ERROR_MESSAGES = {
   cancelled: 'Sign-in was cancelled.',
   failed: 'Could not sign in with that provider. Please try again.',
-  unconfigured: 'That sign-in option is not configured right now. Please contact support.',
+  unconfigured: 'That sign-in option is not available right now. Please use email/password or try again later.',
 };
 
 const mode = ref('login'); // 'login' | 'register'
