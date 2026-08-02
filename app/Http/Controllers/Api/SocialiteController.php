@@ -23,23 +23,6 @@ class SocialiteController extends Controller
             'user_id' => Auth::id(),
         ]);
 
-        // Check if OAuth is properly configured for this provider
-        $clientId = config("services.{$provider}.client_id");
-        $clientSecret = config("services.{$provider}.client_secret");
-        
-        if (empty($clientId) || empty($clientSecret)) {
-            Log::error("OAuth {$provider} not configured", [
-                'provider' => $provider,
-                'is_authenticated' => Auth::check(),
-                'user_id' => Auth::id(),
-                'has_client_id' => !empty($clientId),
-                'has_client_secret' => !empty($clientSecret),
-            ]);
-            
-            $back = Auth::check() ? '/settings' : '/landing';
-            return redirect("{$back}?oauth_error=unconfigured");
-        }
-
         try {
             $driver = Socialite::driver($provider);
 
