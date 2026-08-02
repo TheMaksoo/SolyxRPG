@@ -150,7 +150,7 @@ class Character extends Model
     /** Account-wide gems that can be spent by any character on this account. */
     public function getAccountGemsAttribute(): int
     {
-        return $this->user ? $this->user->gems : 0;
+        return $this->user ? ($this->user->gems ?? 0) : 0;
     }
 
     public function user(): BelongsTo
