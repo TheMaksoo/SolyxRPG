@@ -239,8 +239,8 @@ class LeaderboardDistributeRewards extends Command
 
     private function grantSeasonBanners(LeaderboardService $leaderboard, LeaderboardSeason $season): int
     {
-        $tierLabels = ['champion' => '#1 Champion', 'top3' => 'Top 3', 'top10' => 'Top 10', 'top100' => 'Top 100'];
-        $tierRarities = ['champion' => 'legendary', 'top3' => 'epic', 'top10' => 'rare', 'top100' => 'common'];
+        $tierLabels = ['champion' => '#1 Champion', 'rank2' => '#2', 'rank3' => '#3', 'top10' => 'Top 10', 'top100' => 'Top 100'];
+        $tierRarities = ['champion' => 'legendary', 'rank2' => 'epic', 'rank3' => 'epic', 'top10' => 'rare', 'top100' => 'common'];
         $granted = 0;
 
         $categoryHex = [
@@ -292,7 +292,8 @@ class LeaderboardDistributeRewards extends Command
     {
         return match (true) {
             $rank === 1 => 'champion',
-            $rank <= 3 => 'top3',
+            $rank === 2 => 'rank2',
+            $rank === 3 => 'rank3',
             $rank <= 10 => 'top10',
             $rank <= 100 => 'top100',
             default => null,
@@ -302,8 +303,11 @@ class LeaderboardDistributeRewards extends Command
     private function seasonBannerGradient(string $categoryKey, string $tier, int $seasonNumber, array $categoryHex): string
     {
         $tierGlow = [
-            'champion' => 'rgba(245,197,66,.55)', 'top3' => 'rgba(212,216,224,.42)',
-            'top10' => 'rgba(200,128,74,.4)', 'top100' => 'rgba(124,135,148,.3)',
+            'champion' => 'rgba(245,197,66,.55)', 
+            'rank2' => 'rgba(212,216,224,.42)',
+            'rank3' => 'rgba(212,216,224,.42)',
+            'top10' => 'rgba(200,128,74,.4)', 
+            'top100' => 'rgba(124,135,148,.3)',
         ];
         $seasonTints = ['#e8482f', '#60a5fa', '#4ade80', '#eab308', '#a855f7', '#f97316', '#ec4899', '#14b8a6'];
 
