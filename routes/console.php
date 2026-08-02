@@ -12,6 +12,11 @@ Artisan::command('inspire', function () {
 // Platinum+ finishers, then soft-resets ratings toward the 1000 baseline (see PvpSeasonReset).
 Schedule::command('pvp:season-reset')->monthlyOn(1, '00:05');
 
+// Ends the current Battle Pass season on the 1st of each month: distributes all unclaimed rewards,
+// sends season-end summary mail, resets progress (tier/xp/claimed tiers), and clears premium status
+// so players need to purchase it again for the new season (see BattlePassSeasonRollover).
+Schedule::command('battlepass:season-rollover --force')->monthlyOn(1, '00:15');
+
 // Purges finished battles/dungeon runs/crafting jobs, stale party invites, old dismissed mail, and
 // resolved support tickets/audit logs past their retention window (see CleanupStaleData for the
 // per-table reasoning). Runs daily in the small hours since it's a maintenance job, not a player-facing

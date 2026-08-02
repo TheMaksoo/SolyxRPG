@@ -70,29 +70,27 @@ php artisan battlepass:season-rollover --force
 
 ### For future seasons:
 
-```bash
-# Run at the end of each season (monthly)
-php artisan battlepass:season-rollover
+**✅ Already automated!** The command runs automatically on the 1st of each month at 00:15 AM via Laravel's scheduler (configured in `routes/console.php`).
 
-# Then update BattlePassService::SEASON constant to the next season name in code
-```
+**Don't forget**: You still need to manually update `BattlePassService::SEASON` constant to the new season name each month after the rollover completes.
 
 ---
 
-## Automated Scheduling (Recommended)
+## Automated Scheduling (Already Configured)
 
-To automatically run the rollover at the start of each month, add to `app/Console/Kernel.php`:
+The rollover is already scheduled to run automatically:
 
 ```php
-protected function schedule(Schedule $schedule)
-{
-    // Run on the 1st of each month at 00:01 AM
-    $schedule->command('battlepass:season-rollover --force')
-        ->monthlyOn(1, '00:01');
-}
+// In routes/console.php
+Schedule::command('battlepass:season-rollover --force')->monthlyOn(1, '00:15');
 ```
 
-**Don't forget**: You still need to manually update `BattlePassService::SEASON` constant to the new season name each month.
+This runs on the 1st of every month at 00:15 AM, right after the PvP season reset (00:05) and before the leaderboard rollover (00:20).
+
+**Manual run**: If you need to trigger it manually (e.g., for testing or emergency rollover):
+```bash
+php artisan battlepass:season-rollover
+```
 
 ---
 
