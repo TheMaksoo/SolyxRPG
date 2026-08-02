@@ -35,7 +35,21 @@ class SocialiteController extends Controller
             $driver->scopes(['identify', 'email']);
         }
 
-        return $driver->redirect();
+        // CSRF protection via HMAC state cookie rather than session state.
+        // Session-based state is unreliable across the OAuth redirect chain (the provider's
+        // cross-domain redirect changes the session context), causing the standard stateful
+        // Socialite flow to intermittently reject valid callbacks with InvalidStateException.
+        // Instead: generate a random nonce, store it in a short-lived SameSite=Lax cookie,
+        // and pass HMAC(nonce, app_key) as the OAuth state parameter. The callback validates
+        // the HMAC — an attacker cannot forge it without the application key.
+        $nonce = Str::random(40);
+        $state = hash_hmac('sha256', $nonce, config('app.key'));
+
+        return $driver
+            ->stateless()
+            ->with(['state' => $state])
+            ->redirect()
+            ->withCookie(cookie('oauth_nonce', $nonce, 5, '/', null, request()->isSecure(), true, false, 'lax'));
     }
 
     public function callback(string $provider)
@@ -56,7 +70,21 @@ class SocialiteController extends Controller
         }
 
         try {
-            $oauthUser = Socialite::driver($provider)->user();
+            // Validate the HMAC state from the cookie before exchanging the code.
+            // This is our CSRF guard: the nonce was set by us during redirect() and cannot
+            // be forged by an attacker without the application key.
+            $nonce = request()->cookie('oauth_nonce');
+            $actualState = request()->input('state');
+            if (! $nonce || ! $actualState || ! hash_equals(hash_hmac('sha256', $nonce, config('app.key')), $actualState)) {
+                Log::warning("OAuth {$provider} state validation failed (CSRF check)", [
+                    'provider' => $provider,
+                    'has_nonce_cookie' => ! empty($nonce),
+                    'has_state_param' => ! empty($actualState),
+                ]);
+                return redirect("{$back}?oauth_error=failed");
+            }
+
+            $oauthUser = Socialite::driver($provider)->stateless()->user();
         } catch (Throwable $e) {
             Log::warning("Socialite {$provider} callback failed", [
                 'error' => $e->getMessage(),
