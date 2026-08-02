@@ -2490,6 +2490,14 @@
   }
 }
 
+.gm-console-commands-help {
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  color: v.$text-muted-50 !important;
+  font-style: italic;
+  margin-top: 2px;
+}
+
 .gm-console-commands-input {
   padding: 10px 14px;
   background: v.$bg-input;

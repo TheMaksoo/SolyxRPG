@@ -5,10 +5,51 @@ namespace App\Http\Controllers\Api\Gm;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 
 class GmArtisanController extends Controller
 {
+    /**
+     * List available seeders in the database/seeders directory.
+     */
+    public function seeders()
+    {
+        $seederPath = database_path('seeders');
+        $seederFiles = File::files($seederPath);
+        
+        $seeders = collect($seederFiles)
+            ->filter(function ($file) {
+                // Exclude DatabaseSeeder (that runs all seeders) and any temporary files
+                $name = $file->getFilenameWithoutExtension();
+                return $name !== 'DatabaseSeeder' 
+                    && !str_ends_with($name, '_temp')
+                    && str_ends_with($file->getFilename(), '.php');
+            })
+            ->map(function ($file) {
+                $className = $file->getFilenameWithoutExtension();
+                return [
+                    'class' => $className,
+                    'label' => $this->formatSeederLabel($className),
+                ];
+            })
+            ->sortBy('label')
+            ->values();
+
+        return response()->json(['seeders' => $seeders]);
+    }
+
+    /**
+     * Convert seeder class name to a readable label.
+     */
+    private function formatSeederLabel(string $className): string
+    {
+        // Remove "Seeder" suffix and split on capital letters
+        $name = str_replace('Seeder', '', $className);
+        $name = preg_replace('/(?<!^)([A-Z])/', ' $1', $name);
+        return $name;
+    }
+
     /**
      * List available artisan commands that can be run from the GM panel.
      */
@@ -120,11 +161,13 @@ class GmArtisanController extends Controller
             'command' => 'required|string',
             'season_number' => 'nullable|integer|min:1',
             'force' => 'boolean',
+            'seeder_class' => 'nullable|string', // For db:seed --class=SpecificSeeder
         ]);
 
         $command = $validated['command'];
         $seasonNumber = $validated['season_number'] ?? null;
         $force = $validated['force'] ?? false;
+        $seederClass = $validated['seeder_class'] ?? null;
 
         // Validate command is in allowed list
         $allowedCommands = [
@@ -159,6 +202,11 @@ class GmArtisanController extends Controller
         
         if ($command === 'leaderboard:distribute-rewards' && $seasonNumber) {
             $commandArgs['season_number'] = $seasonNumber;
+        }
+        
+        // Add seeder class if specified for db:seed
+        if ($command === 'db:seed' && $seederClass) {
+            $commandArgs['--class'] = $seederClass;
         }
         
         if ($force && in_array($command, $forceSupportedCommands, true)) {
