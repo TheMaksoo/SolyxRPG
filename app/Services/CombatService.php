@@ -601,7 +601,7 @@ class CombatService
 
         $partners = $party->members()
             ->where('character_id', '!=', $character->id)
-            ->with('character')
+            ->with('character.user')
             ->get()
             ->pluck('character')
             ->filter(fn (?Character $c) => $c
