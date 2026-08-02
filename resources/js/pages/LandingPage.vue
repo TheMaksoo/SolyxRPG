@@ -215,16 +215,21 @@ onMounted(async () => {
           <div class="landing-auth-card__divider-line"></div>
         </div>
 
-        <form @submit.prevent="submit" class="landing-form">
+        <form @submit.prevent="submit" class="landing-form" autocomplete="on">
           <input
             v-if="mode === 'register'"
             v-model="form.name"
+            id="reg-name"
+            name="name"
             placeholder="Name"
+            autocomplete="username"
             required
             class="landing-input"
           />
           <input
             v-model="form.email"
+            id="auth-email"
+            name="email"
             type="email"
             placeholder="Email"
             autocomplete="email"
@@ -234,6 +239,8 @@ onMounted(async () => {
           <div class="landing-password-wrapper">
             <input
               v-model="form.password"
+              id="auth-password"
+              name="password"
               :type="showPassword ? 'text' : 'password'"
               placeholder="Password"
               :autocomplete="mode === 'register' ? 'new-password' : 'current-password'"

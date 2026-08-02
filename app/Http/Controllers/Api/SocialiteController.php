@@ -18,7 +18,7 @@ class SocialiteController extends Controller
     public function redirect(string $provider)
     {
         try {
-            $driver = Socialite::driver($provider);
+            $driver = Socialite::driver($provider)->stateless();
 
             if ($provider === 'google') {
                 $driver->scopes(['email', 'profile']);
@@ -47,7 +47,7 @@ class SocialiteController extends Controller
         }
 
         try {
-            $oauthUser = Socialite::driver($provider)->user();
+            $oauthUser = Socialite::driver($provider)->stateless()->user();
         } catch (Throwable $e) {
             Log::error("OAuth {$provider} callback failed", [
                 'error' => $e->getMessage(),
