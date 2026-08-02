@@ -35,8 +35,7 @@ class SocialiteController extends Controller
             $driver->scopes(['identify', 'email']);
         }
 
-        // Use stateless mode to avoid session issues with OAuth state parameter
-        return $driver->stateless()->redirect();
+        return $driver->redirect();
     }
 
     public function callback(string $provider)
@@ -51,13 +50,13 @@ class SocialiteController extends Controller
             Log::info("OAuth {$provider} callback: user cancelled or denied", [
                 'error' => request('error'),
                 'has_code' => request()->filled('code'),
-                'query_params' => request()->query(),
+                'query_keys' => array_keys(request()->query()),
             ]);
             return redirect("{$back}?oauth_error=cancelled");
         }
 
         try {
-            $oauthUser = Socialite::driver($provider)->stateless()->user();
+            $oauthUser = Socialite::driver($provider)->user();
         } catch (Throwable $e) {
             Log::warning("Socialite {$provider} callback failed", [
                 'error' => $e->getMessage(),
@@ -65,7 +64,6 @@ class SocialiteController extends Controller
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString(),
-                'request_url' => request()->fullUrl(),
                 'has_code' => request()->filled('code'),
                 'has_state' => request()->filled('state'),
             ]);
