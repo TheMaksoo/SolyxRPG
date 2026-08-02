@@ -15,7 +15,7 @@ Schedule::command('pvp:season-reset')->monthlyOn(1, '00:00')->timezone('Europe/A
 // Ends the current Battle Pass season on the 1st of each month: distributes all unclaimed rewards,
 // sends season-end summary mail, resets progress (tier/xp/claimed tiers), and clears premium status
 // so players need to purchase it again for the new season (see BattlePassSeasonRollover).
-Schedule::command('battlepass:season-rollover --force')->monthlyOn(1, '00:01')->timezone('Europe/Amsterdam');
+Schedule::command('battlepass:season-rollover --force')->monthlyOn(1, '00:00')->timezone('Europe/Amsterdam');
 
 // Purges finished battles/dungeon runs/crafting jobs, stale party invites, old dismissed mail, and
 // resolved support tickets/audit logs past their retention window (see CleanupStaleData for the
@@ -49,4 +49,4 @@ Schedule::command('leaderboard:snapshot-daily')->dailyAt('00:10');
 // Ends the active leaderboard season once its end date has passed: pays out rewards ranked by Power,
 // archives the top 10 into the Hall of Fame, and starts the next season. A no-op most days (see
 // LeaderboardSeasonRollover) — scheduled daily so a season never runs more than a day past its end.
-Schedule::command('leaderboard:season-rollover')->dailyAt('00:02')->timezone('Europe/Amsterdam');
+Schedule::command('leaderboard:season-rollover')->dailyAt('00:00')->timezone('Europe/Amsterdam');
