@@ -17,7 +17,16 @@ class SocialiteController extends Controller
 {
     public function redirect(string $provider)
     {
-        return Socialite::driver($provider)->redirect();
+        $driver = Socialite::driver($provider);
+
+        // Google requires explicit scopes for email and profile access.
+        // Without these, the OAuth response may not include the user's email,
+        // which is needed for account creation and linking.
+        if ($provider === 'google') {
+            $driver->scopes(['email', 'profile']);
+        }
+
+        return $driver->redirect();
     }
 
     public function callback(string $provider)
