@@ -65,7 +65,9 @@ onMounted(load);
       <h1 class="ox referrals-title">Invite Friends</h1>
       <p class="referrals-header__subtitle">
         Every {{ data?.referrals_per_reward ?? 2 }} friends who reach level {{ data?.required_level ?? 5 }} earns you
-        {{ data?.reward_vip_days ?? 7 }} days of {{ data?.reward_vip_tier === 'gold' ? 'Gold' : data?.reward_vip_tier }} Rank, and your friend gets {{ data?.referee_bonus_gems ?? 500 }} gems when they reach level {{ data?.required_level ?? 5 }}.
+        {{ data?.reward_vip_days ?? 7 }} days of {{ data?.reward_vip_tier === 'gold' ? 'Gold' : data?.reward_vip_tier }} Rank.
+        Your friends get {{ data?.referee_bonus_gems ?? 500 }} gems when they reach level {{ data?.required_level ?? 5 }}.
+        Plus, earn {{ data?.milestone_gem_reward ?? 100 }} gems for every {{ data?.referrals_per_reward ?? 2 }} friends reaching milestone levels!
       </p>
     </div>
 
@@ -115,6 +117,44 @@ onMounted(load);
         </div>
         <div v-if="data.rewards_claimed > 0" class="progress-card__claimed">
           🎉 {{ data.rewards_claimed }} reward{{ data.rewards_claimed > 1 ? 's' : '' }} claimed so far
+        </div>
+      </div>
+
+      <div v-if="data.milestone_progress && data.milestone_progress.length > 0" class="milestone-section">
+        <div class="milestone-section__header">
+          <div class="milestone-section__icon">💎</div>
+          <h2 class="milestone-section__title">Level Milestone Rewards</h2>
+          <p class="milestone-section__subtitle">
+            Every {{ data.referrals_per_reward }} friends who reach specific levels earns you {{ data.milestone_gem_reward }} gems per milestone!
+          </p>
+        </div>
+
+        <div class="milestone-list">
+          <div v-for="milestone in data.milestone_progress" :key="milestone.level" class="milestone-card">
+            <div class="milestone-card__header">
+              <span class="milestone-card__level">Level {{ milestone.level }}</span>
+              <span class="milestone-card__reward">
+                {{ milestone.reward_type === 'vip' ? `${milestone.reward_amount} days ${data.reward_vip_tier} VIP` : `${milestone.reward_amount} gems` }}
+              </span>
+            </div>
+            <div class="milestone-card__body">
+              <div class="milestone-card__progress-head">
+                <span class="milestone-card__progress-label">Progress</span>
+                <span class="milestone-card__progress-count">{{ milestone.progress }} / {{ data.referrals_per_reward }}</span>
+              </div>
+              <div class="milestone-card__track">
+                <div class="milestone-card__fill" :style="{ width: (milestone.progress / data.referrals_per_reward * 100) + '%' }"></div>
+              </div>
+              <div class="milestone-card__stats">
+                <span class="milestone-card__stat">
+                  {{ milestone.qualifying_count }} friend{{ milestone.qualifying_count !== 1 ? 's' : '' }} reached this level
+                </span>
+                <span v-if="milestone.rewards_claimed > 0" class="milestone-card__claimed">
+                  ✓ {{ milestone.rewards_claimed }} reward{{ milestone.rewards_claimed > 1 ? 's' : '' }} claimed
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
