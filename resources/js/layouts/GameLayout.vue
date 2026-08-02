@@ -387,7 +387,7 @@ onUnmounted(() => {
             <span class="topbar__pill-icon">◉</span> {{ characterStore.character.gold }}
           </div>
           <router-link v-if="characterStore.character" to="/gem-store" class="topbar__pill topbar__pill--gems">
-            <span class="topbar__pill-icon">◆</span> {{ characterStore.character.gems }}
+            <span class="topbar__pill-icon">◆</span> {{ characterStore.character.account_gems }}
           </router-link>
         </div>
       </header>

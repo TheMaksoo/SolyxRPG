@@ -127,7 +127,7 @@ class LeaderboardDistributeRewards extends Command
             }
 
             $character = Character::find($row['character_id']);
-            if (!$character) {
+            if (!$character || !$character->user) {
                 continue;
             }
 
@@ -160,7 +160,7 @@ class LeaderboardDistributeRewards extends Command
         $character->increment('gold', $tier['gold']);
         $rewardParts = ["{$tier['gold']} gold"];
 
-        if ($tier['gems'] > 0) {
+        if ($tier['gems'] > 0 && $character->user) {
             $character->user->increment('gems', $tier['gems']);
             GemLedger::log($character->user, $tier['gems'], "leaderboard_season_reward:s{$season->season_number}:rank{$rank}", $character);
             $rewardParts[] = "{$tier['gems']} gems";
@@ -210,7 +210,7 @@ class LeaderboardDistributeRewards extends Command
             foreach ($topTen as $i => $row) {
                 $rank = $i + 1;
                 $character = Character::find($row['character_id']);
-                if (!$character) {
+                if (!$character || !$character->user) {
                     continue;
                 }
 
@@ -239,8 +239,8 @@ class LeaderboardDistributeRewards extends Command
 
     private function grantSeasonBanners(LeaderboardService $leaderboard, LeaderboardSeason $season): int
     {
-        $tierLabels = ['champion' => '#1 Champion', 'top3' => 'Top 3', 'top10' => 'Top 10', 'top100' => 'Top 100'];
-        $tierRarities = ['champion' => 'legendary', 'top3' => 'epic', 'top10' => 'rare', 'top100' => 'common'];
+        $tierLabels = ['champion' => '#1 Champion', 'rank2' => '#2', 'rank3' => '#3', 'top10' => 'Top 10', 'top100' => 'Top 100'];
+        $tierRarities = ['champion' => 'legendary', 'rank2' => 'epic', 'rank3' => 'epic', 'top10' => 'rare', 'top100' => 'common'];
         $granted = 0;
 
         $categoryHex = [
@@ -264,7 +264,7 @@ class LeaderboardDistributeRewards extends Command
                 }
 
                 $character = Character::find($row['character_id']);
-                if (!$character) {
+                if (!$character || !$character->user) {
                     continue;
                 }
 
@@ -292,7 +292,8 @@ class LeaderboardDistributeRewards extends Command
     {
         return match (true) {
             $rank === 1 => 'champion',
-            $rank <= 3 => 'top3',
+            $rank === 2 => 'rank2',
+            $rank === 3 => 'rank3',
             $rank <= 10 => 'top10',
             $rank <= 100 => 'top100',
             default => null,
@@ -302,8 +303,11 @@ class LeaderboardDistributeRewards extends Command
     private function seasonBannerGradient(string $categoryKey, string $tier, int $seasonNumber, array $categoryHex): string
     {
         $tierGlow = [
-            'champion' => 'rgba(245,197,66,.55)', 'top3' => 'rgba(212,216,224,.42)',
-            'top10' => 'rgba(200,128,74,.4)', 'top100' => 'rgba(124,135,148,.3)',
+            'champion' => 'rgba(245,197,66,.55)', 
+            'rank2' => 'rgba(212,216,224,.42)',
+            'rank3' => 'rgba(212,216,224,.42)',
+            'top10' => 'rgba(200,128,74,.4)', 
+            'top100' => 'rgba(124,135,148,.3)',
         ];
         $seasonTints = ['#e8482f', '#60a5fa', '#4ade80', '#eab308', '#a855f7', '#f97316', '#ec4899', '#14b8a6'];
 

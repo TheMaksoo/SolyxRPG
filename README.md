@@ -1,3 +1,78 @@
+# SolyxRPG
+
+A Laravel-based browser RPG game with real-time combat, crafting, quests, and social features.
+
+## Quick Start
+
+### Prerequisites
+
+- PHP 8.2+
+- Composer
+- MySQL 8.0+
+- Node.js 18+ & npm
+
+### Installation
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/TheMaksoo/SolyxRPG.git
+cd SolyxRPG
+
+# 2. Install PHP dependencies
+composer install
+
+# 3. Install Node dependencies
+npm install
+
+# 4. Copy and configure environment
+cp .env.example .env
+# Edit .env with your database credentials
+
+# 5. Generate application key
+php artisan key:generate
+
+# 6. Run migrations to create database tables
+php artisan migrate
+
+# 7. Seed the database with game content
+php artisan db:seed
+
+# 8. Build frontend assets
+npm run dev
+```
+
+### Running the Application
+
+```bash
+# Start the Laravel development server
+php artisan serve
+
+# In a separate terminal, start Vite for hot module replacement
+npm run dev
+
+# Visit http://localhost:8000
+```
+
+## Documentation
+
+- **[Database Quick Reference](docs/DATABASE_QUICK_REFERENCE.md)** - Quick commands and common tasks
+- **[Database Setup & Seeding](docs/DATABASE_SETUP.md)** - Complete guide for migrations, seeders, and making content/economy changes
+- **[Contributing Guide](docs/CONTRIBUTING.md)** - How to contribute to SolyxRPG
+- **[Battle Pass Management](docs/BATTLEPASS_SEASON_MANAGEMENT.md)** - Managing battle pass seasons
+- **[Season Management Quick Reference](docs/SEASON_MANAGEMENT_QUICK_REFERENCE.md)** - Quick reference for season operations
+
+## Making Content Changes
+
+When you need to update game content (items, monsters, economy settings):
+
+1. **Edit the appropriate seeder** in `database/seeders/`
+2. **Run the seeder**: `php artisan db:seed --class=YourSeeder`
+3. **Commit your changes**: All seeders are idempotent and safe to re-run!
+
+See [DATABASE_SETUP.md](docs/DATABASE_SETUP.md) for detailed examples and workflows.
+
+---
+
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
 <p align="center">

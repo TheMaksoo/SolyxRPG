@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\DungeonController;
 use App\Http\Controllers\Api\FounderPackController;
 use App\Http\Controllers\Api\FriendController;
 use App\Http\Controllers\Api\Gm\GmAuditLogController;
+use App\Http\Controllers\Api\Gm\GmArtisanController;
 use App\Http\Controllers\Api\Gm\GmBroadcastController;
 use App\Http\Controllers\Api\Gm\GmConfigController;
 use App\Http\Controllers\Api\Gm\GmContentController;
@@ -299,5 +300,8 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
 
         Route::get('/xp-curve', [GmProgressionController::class, 'xpCurve']);
         Route::get('/battle-pass-curve', [GmProgressionController::class, 'battlePassCurve']);
+
+        Route::get('/artisan-commands', [GmArtisanController::class, 'index']);
+        Route::post('/artisan-commands/execute', [GmArtisanController::class, 'execute']);
     });
 });
