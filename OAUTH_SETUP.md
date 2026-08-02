@@ -1,12 +1,20 @@
 # OAuth Setup Guide
 
-## Problem
-OAuth login is currently failing because the provider credentials are not configured. Users are being redirected back to the landing page without being able to authorize.
+## Overview
+OAuth login with Discord and Google is configured to work with environment variables set in your deployment environment. The credentials should NEVER be committed to the repository.
 
-## Root Cause
-The `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET` environment variables are not set (or are empty).
+## Environment Variables Required
 
-## Solution
+The following environment variables MUST be set in your deployment environment:
+
+```env
+DISCORD_CLIENT_ID=your_client_id_here
+DISCORD_CLIENT_SECRET=your_client_secret_here
+GOOGLE_CLIENT_ID=your_client_id_here.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_client_secret_here
+```
+
+**IMPORTANT**: Never commit these credentials to the repository. Set them in your hosting platform's environment configuration.
 
 ### 1. Discord OAuth Setup
 
