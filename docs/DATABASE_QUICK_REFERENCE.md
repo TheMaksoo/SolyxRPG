@@ -67,16 +67,18 @@ php validate-seeders.php     # Check all seeders are idempotent
 
 ## 🛠️ Seeder Files
 
-| File | Content |
-|------|---------|
-| `ItemSeeder.php` | Items, weapons, armor, consumables |
-| `MonsterSeeder.php` | Monsters and bosses |
-| `GameConfigSeeder.php` | Economy settings |
-| `ZoneSeeder.php` | Game zones |
-| `QuestSeeder.php` | Quests and rewards |
-| `SkillSeeder.php` | Character skills |
-| `PetSeeder.php` | Pet definitions |
-| `RecipeSeeder.php` | Crafting recipes |
+| File | Content | Auto-Updated by GM Console |
+|------|---------|----------------------------|
+| `ItemSeeder.php` | Items, weapons, armor, consumables | ✅ Yes |
+| `MonsterSeeder.php` | Monsters and bosses | ✅ Yes |
+| `GameConfigSeeder.php` | Economy settings | ❌ No (edit manually) |
+| `ZoneSeeder.php` | Game zones | ❌ No (edit manually) |
+| `QuestSeeder.php` | Quests and rewards | ❌ No (edit manually) |
+| `SkillSeeder.php` | Character skills | ❌ No (edit manually) |
+| `PetSeeder.php` | Pet definitions | ❌ No (edit manually) |
+| `RecipeSeeder.php` | Crafting recipes | ❌ No (edit manually) |
+
+> **Note**: When you edit items or monsters through the GM Console, the corresponding seeder file is automatically updated! This ensures your changes persist when `php artisan db:seed` is run later.
 
 ## 🔍 Troubleshooting
 

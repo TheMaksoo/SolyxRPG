@@ -538,6 +538,55 @@ php artisan migrate:fresh --seed
 
 ---
 
+## GM Console Integration
+
+SolyxRPG includes a **Game Master Console** that provides a no-code UI for managing game content. When GMs are granted access, they can:
+
+### Running Migrations and Seeders
+
+The GM Console includes buttons to run migrations and seeders directly from the web interface:
+
+1. Navigate to **Admin → GM Console → Commands** tab
+2. Select "Run Migrations" or "Run Seeders"
+3. Click "Execute" to run the command
+
+This provides the same functionality as running `php artisan migrate` or `php artisan db:seed` from the command line, but accessible to GMs who may not have direct server access.
+
+### Auto-Updating Seeders
+
+**✨ NEW FEATURE**: When a GM edits items or monsters through the GM Console Content Editor, the corresponding seeder file is **automatically updated**!
+
+**How it works:**
+
+1. GM navigates to **GM Console → Content → Items**
+2. GM edits an item (e.g., changes Health Potion from 120 HP to 150 HP)
+3. GM saves the changes
+4. **Behind the scenes**: The database is updated AND `ItemSeeder.php` is automatically modified
+5. Next time anyone runs `php artisan db:seed`, the change persists!
+
+**Supported resources:**
+- ✅ **Items** → Auto-updates `ItemSeeder.php`
+- ✅ **Monsters** → Auto-updates `MonsterSeeder.php`
+- ❌ Other resources (zones, quests, etc.) → Edit seeders manually
+
+**Benefits:**
+
+- **No lost changes**: GM edits won't be reverted when seeders run
+- **Version control**: Seeder files stay in sync with database
+- **Team coordination**: Developers can see GM changes in Git commits
+
+**Example workflow:**
+
+```
+1. GM edits "Shadow Dragon" HP from 5000 to 6000 in GM Console
+2. System updates the database immediately
+3. System also updates MonsterSeeder.php automatically
+4. Developer pulls the code and sees the change in Git
+5. Developer runs `php artisan db:seed` → Change is preserved!
+```
+
+---
+
 ## Key Files Reference
 
 | File | Purpose | When to Edit |
