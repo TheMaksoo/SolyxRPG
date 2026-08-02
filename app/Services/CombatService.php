@@ -529,7 +529,7 @@ class CombatService
         $battle->update(['status' => 'won', 'log_json' => $log]);
 
         $this->quests->progress($character, 'battles_won', $monster);
-        $freshCharacter = $character->fresh(['attributes_', 'inventory.item', 'skills.skill']);
+        $freshCharacter = $character->fresh(['attributes_', 'inventory.item', 'skills.skill', 'user']);
         $newAchievements = $this->achievements->check($freshCharacter, $monster->is_boss ? $monster : null);
 
         return [

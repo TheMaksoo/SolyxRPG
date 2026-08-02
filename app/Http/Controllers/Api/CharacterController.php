@@ -126,7 +126,7 @@ class CharacterController extends Controller
         $user->active_character_id = $character->id;
         $user->save();
 
-        $character->load(['attributes_', 'zone', 'inventory.item', 'skills.skill']);
+        $character->load(['attributes_', 'zone', 'inventory.item', 'skills.skill', 'user']);
         $character->applyPassiveRegen();
 
         return response()->json([
@@ -193,7 +193,7 @@ class CharacterController extends Controller
     public function show(Request $request)
     {
         $character = $request->user()->character()
-            ->with(['attributes_', 'zone', 'inventory.item', 'skills.skill', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon', 'activeFrame'])
+            ->with(['attributes_', 'zone', 'inventory.item', 'skills.skill', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon', 'activeFrame', 'user'])
             ->first();
 
         if (! $character) {
@@ -204,7 +204,7 @@ class CharacterController extends Controller
         $vipGemsGranted = $request->user()->grantMonthlyVipGemsIfDue($character);
 
         return response()->json([
-            'character' => $vipGemsGranted > 0 ? $character->fresh(['attributes_', 'zone', 'inventory.item', 'skills.skill', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon', 'activeFrame']) : $character,
+            'character' => $vipGemsGranted > 0 ? $character->fresh(['attributes_', 'zone', 'inventory.item', 'skills.skill', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon', 'activeFrame', 'user']) : $character,
             'stats' => $character->effectiveStats() + [
                 'xp_max' => Character::xpForLevel($character->level),
                 'xp_min' => $character->level > 1 ? Character::xpForLevel($character->level - 1) : 0,

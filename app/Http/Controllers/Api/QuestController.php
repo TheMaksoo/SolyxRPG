@@ -64,10 +64,10 @@ class QuestController extends Controller
         );
         $character->increment('quests_completed');
         $this->battlePass->addXp($character, $this->battlePass->pointsForQuest($quest));
-        $this->achievements->check($character->fresh());
+        $this->achievements->check($character->fresh(['user']));
         $this->grantQuestTitle($character, $quest);
 
-        $fresh = $character->fresh();
+        $fresh = $character->fresh(['user']);
 
         return response()->json(array_merge($this->payload($fresh), [
             'quest' => $quest,
