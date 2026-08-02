@@ -65,27 +65,34 @@ class ReferralController extends Controller
             ];
         }
 
-        // Filter to show only 1 milestone higher than where at least 1 friend is
+        // Filter milestones: show completed (2+ users), current (1+ user), and next (0 users)
         $filteredMilestoneProgress = [];
         if (!empty($milestoneProgress)) {
-            // Find the highest milestone level where at least 1 friend has reached
             $highestReachedIndex = -1;
+            
+            // Find all relevant milestones
             foreach ($milestoneProgress as $index => $milestone) {
-                if ($milestone['qualifying_count'] >= 1) {
+                $qualifyingCount = $milestone['qualifying_count'];
+                
+                // Always show completed milestones (2+ users reached)
+                if ($qualifyingCount >= 2) {
+                    $filteredMilestoneProgress[] = $milestone;
                     $highestReachedIndex = $index;
                 }
-            }
-
-            // Show only the current milestone and the next one
-            if ($highestReachedIndex >= 0) {
-                // Show the highest reached milestone
-                $filteredMilestoneProgress[] = $milestoneProgress[$highestReachedIndex];
-                // And one above it if it exists
-                if ($highestReachedIndex + 1 < count($milestoneProgress)) {
-                    $filteredMilestoneProgress[] = $milestoneProgress[$highestReachedIndex + 1];
+                // Show current milestone (1 user reached)
+                elseif ($qualifyingCount === 1) {
+                    $filteredMilestoneProgress[] = $milestone;
+                    $highestReachedIndex = $index;
                 }
-            } else {
-                // No friends have reached any milestone, show only the first one
+                // Show the next unreached milestone only once
+                elseif ($qualifyingCount === 0 && $index === $highestReachedIndex + 1) {
+                    $filteredMilestoneProgress[] = $milestone;
+                    break; // Only show one unreached milestone
+                }
+            }
+            
+            // If no users have reached any milestone, show only the first one
+            if (empty($filteredMilestoneProgress)) {
                 $filteredMilestoneProgress[] = $milestoneProgress[0];
             }
         }
