@@ -62,9 +62,9 @@ Route::get('/stats/public', [StatsController::class, 'public']);
 
 // Auth — the login-family routes get an explicit 'web' middleware group because at the moment of
 // login there's no authenticated session yet for Sanctum's own EnsureFrontendRequestsAreStateful
-// pipeline to hang session bootstrapping off reliably. The /me endpoint is also included here to
+// pipeline to hang session bootstrapping off reliably. The /api/me endpoint is also included here to
 // ensure consistent session handling after OAuth redirects — after the callback completes and redirects
-// to the SPA, the frontend immediately calls /me to check auth state, and without explicit 'web'
+// to the SPA, the frontend immediately calls /api/me to check auth state, and without explicit 'web'
 // middleware that check can race against session propagation and intermittently fail with 401.
 // The rest of the app (below) deliberately does NOT also wrap in 'web' — bootstrap/app.php's
 // statefulApi() already runs that same session/CSRF/cookie pipeline once per request for every route
