@@ -35,7 +35,13 @@ class SocialiteController extends Controller
         try {
             $oauthUser = Socialite::driver($provider)->user();
         } catch (Throwable $e) {
-            Log::warning("Socialite {$provider} callback failed", ['error' => $e->getMessage()]);
+            Log::warning("Socialite {$provider} callback failed", [
+                'error' => $e->getMessage(),
+                'exception_class' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
 
             return redirect("{$back}?oauth_error=failed");
         }
