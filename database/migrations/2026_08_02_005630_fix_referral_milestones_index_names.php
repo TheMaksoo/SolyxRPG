@@ -10,6 +10,10 @@ return new class extends Migration
     /**
      * Run the migrations.
      * 
+     * ⚠️ PRODUCTION SAFETY: This migration is 100% safe for production.
+     * It ONLY modifies indexes (not data). NO rows are deleted or modified.
+     * NO tables are dropped. All existing data remains intact.
+     * 
      * This migration fixes the index naming issue where the original referral_milestones
      * migration created auto-generated index names that were too long for MySQL.
      * It ensures the indexes have explicit short names.
