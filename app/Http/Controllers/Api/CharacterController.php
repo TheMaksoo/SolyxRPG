@@ -186,7 +186,7 @@ class CharacterController extends Controller
         return response()->json([
             'bonus_character_slots' => $user->bonus_character_slots,
             'max_slots' => $user->fresh()->maxCharacterSlots(),
-            'paid_character' => $payer->fresh(),
+            'paid_character' => $payer->fresh(['user']),
         ]);
     }
 
@@ -604,9 +604,9 @@ class CharacterController extends Controller
         $character->decrement('attribute_points', $cost);
 
         return response()->json([
-            'character' => $character->fresh('attributes_'),
-            'stats' => $character->fresh('attributes_')->effectiveStats() + ['xp_max' => Character::xpForLevel($character->level)],
-            'attribute_costs' => $this->attributeService->allCosts($character->fresh('attributes_')->attributes_),
+            'character' => $character->fresh(['attributes_', 'user']),
+            'stats' => $character->fresh(['attributes_', 'user'])->effectiveStats() + ['xp_max' => Character::xpForLevel($character->level)],
+            'attribute_costs' => $this->attributeService->allCosts($character->fresh(['attributes_', 'user'])->attributes_),
         ]);
     }
 

@@ -85,8 +85,8 @@ class BattlePassController extends Controller
 
         return response()->json([
             'reward' => $result,
-            'battle_pass' => $this->battlePass->passFor($character->fresh()),
-            'character' => $character->fresh(),
+            'battle_pass' => $this->battlePass->passFor($character->fresh(['user'])),
+            'character' => $character->fresh(['user']),
         ]);
     }
 
@@ -99,8 +99,8 @@ class BattlePassController extends Controller
 
         return response()->json([
             'totals' => $totals,
-            'battle_pass' => $this->battlePass->passFor($character->fresh()),
-            'character' => $character->fresh(),
+            'battle_pass' => $this->battlePass->passFor($character->fresh(['user'])),
+            'character' => $character->fresh(['user']),
         ]);
     }
 }

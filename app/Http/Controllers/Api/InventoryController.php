@@ -212,7 +212,7 @@ class InventoryController extends Controller
         }
 
         return response()->json([
-            'character' => $character->fresh(['attributes_', 'inventory.item']),
+            'character' => $character->fresh(['attributes_', 'inventory.item', 'user']),
             'applied' => $applied,
         ]);
     }
