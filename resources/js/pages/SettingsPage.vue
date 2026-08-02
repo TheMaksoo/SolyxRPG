@@ -44,7 +44,7 @@ async function handleLinkRedirect() {
   } else if (oauthError === 'failed') {
     linkMessage.value = 'Could not link that account. Please try again.';
   } else if (oauthError === 'unconfigured') {
-    linkMessage.value = 'That sign-in option is not configured right now. Please contact support.';
+    linkMessage.value = 'That sign-in option is not available right now. Please use email/password or try again later.';
   }
 
   router.replace({ query: {} });

@@ -23,33 +23,63 @@ class SocialiteController extends Controller
             'user_id' => Auth::id(),
         ]);
 
-        $driver = Socialite::driver($provider);
-
-        // Both providers require explicit scopes for email and profile access.
-        // Without these, the OAuth response may not include the user's email,
-        // which is needed for account creation and linking.
-        if ($provider === 'google') {
-            $driver->scopes(['email', 'profile']);
-        } elseif ($provider === 'discord') {
-            // Discord requires identify (basic profile) and email scopes
-            $driver->scopes(['identify', 'email']);
+        // Check if OAuth is properly configured for this provider
+        $clientId = config("services.{$provider}.client_id");
+        $clientSecret = config("services.{$provider}.client_secret");
+        
+        if (empty($clientId) || empty($clientSecret)) {
+            Log::error("OAuth {$provider} not configured", [
+                'provider' => $provider,
+                'is_authenticated' => Auth::check(),
+                'user_id' => Auth::id(),
+                'has_client_id' => !empty($clientId),
+                'has_client_secret' => !empty($clientSecret),
+            ]);
+            
+            $back = Auth::check() ? '/settings' : '/landing';
+            return redirect("{$back}?oauth_error=unconfigured");
         }
 
-        // CSRF protection via HMAC state cookie rather than session state.
-        // Session-based state is unreliable across the OAuth redirect chain (the provider's
-        // cross-domain redirect changes the session context), causing the standard stateful
-        // Socialite flow to intermittently reject valid callbacks with InvalidStateException.
-        // Instead: generate a random nonce, store it in a short-lived SameSite=Lax cookie,
-        // and pass HMAC(nonce, app_key) as the OAuth state parameter. The callback validates
-        // the HMAC — an attacker cannot forge it without the application key.
-        $nonce = Str::random(40);
-        $state = hash_hmac('sha256', $nonce, config('app.key'));
+        try {
+            $driver = Socialite::driver($provider);
 
-        return $driver
-            ->stateless()
-            ->with(['state' => $state])
-            ->redirect()
-            ->withCookie(cookie('oauth_nonce', $nonce, 5, '/', null, request()->isSecure(), true, false, 'lax'));
+            // Both providers require explicit scopes for email and profile access.
+            // Without these, the OAuth response may not include the user's email,
+            // which is needed for account creation and linking.
+            if ($provider === 'google') {
+                $driver->scopes(['email', 'profile']);
+            } elseif ($provider === 'discord') {
+                // Discord requires identify (basic profile) and email scopes
+                $driver->scopes(['identify', 'email']);
+            }
+
+            // CSRF protection via HMAC state cookie rather than session state.
+            // Session-based state is unreliable across the OAuth redirect chain (the provider's
+            // cross-domain redirect changes the session context), causing the standard stateful
+            // Socialite flow to intermittently reject valid callbacks with InvalidStateException.
+            // Instead: generate a random nonce, store it in a short-lived SameSite=Lax cookie,
+            // and pass HMAC(nonce, app_key) as the OAuth state parameter. The callback validates
+            // the HMAC — an attacker cannot forge it without the application key.
+            $nonce = Str::random(40);
+            $state = hash_hmac('sha256', $nonce, config('app.key'));
+
+            return $driver
+                ->stateless()
+                ->with(['state' => $state])
+                ->redirect()
+                ->withCookie(cookie('oauth_nonce', $nonce, 5, '/', null, request()->isSecure(), true, false, 'lax'));
+        } catch (Throwable $e) {
+            Log::error("OAuth {$provider} redirect failed", [
+                'provider' => $provider,
+                'error' => $e->getMessage(),
+                'exception_class' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+            
+            $back = Auth::check() ? '/settings' : '/landing';
+            return redirect("{$back}?oauth_error=failed");
+        }
     }
 
     public function callback(string $provider)
