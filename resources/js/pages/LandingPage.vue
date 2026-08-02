@@ -227,6 +227,7 @@ onMounted(async () => {
             v-model="form.email"
             type="email"
             placeholder="Email"
+            autocomplete="email"
             required
             class="landing-input"
           />
@@ -235,6 +236,7 @@ onMounted(async () => {
               v-model="form.password"
               :type="showPassword ? 'text' : 'password'"
               placeholder="Password"
+              :autocomplete="mode === 'register' ? 'new-password' : 'current-password'"
               required
               class="landing-input"
             />

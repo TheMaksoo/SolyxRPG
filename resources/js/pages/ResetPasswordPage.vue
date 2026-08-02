@@ -53,6 +53,7 @@ async function submit() {
         v-model="email"
         type="email"
         placeholder="Email"
+        autocomplete="email"
         required
         class="reset-form__input"
       />
@@ -60,6 +61,7 @@ async function submit() {
         v-model="password"
         type="password"
         placeholder="New password"
+        autocomplete="new-password"
         required
         class="reset-form__input"
       />
@@ -67,6 +69,7 @@ async function submit() {
         v-model="passwordConfirmation"
         type="password"
         placeholder="Confirm new password"
+        autocomplete="new-password"
         required
         class="reset-form__input"
       />

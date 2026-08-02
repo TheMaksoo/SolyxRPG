@@ -38,6 +38,7 @@ async function submit() {
         v-model="email"
         type="email"
         placeholder="Email"
+        autocomplete="email"
         required
         class="forgot-password-page__input"
       />
