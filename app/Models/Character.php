@@ -32,7 +32,7 @@ class Character extends Model
 
     protected $fillable = [
         'user_id', 'name', 'base_class', 'spec_class', 'profession', 'ascension',
-        'avatar', 'level', 'xp', 'gold', 'gems', 'quests_completed', 'hp', 'hp_max', 'mana', 'mana_max',
+        'avatar', 'level', 'xp', 'gold', 'quests_completed', 'hp', 'hp_max', 'mana', 'mana_max',
         'energy', 'energy_max', 'base_atk', 'base_def', 'skill_points', 'attribute_points', 'current_zone_id', 'last_action',
         'active_title_id', 'active_color_id', 'active_banner_id', 'active_icon_id', 'active_frame_id',
         'showcased_achievement_ids', 'bio', 'playstyle_tags', 'tutorial_seen',
@@ -54,7 +54,6 @@ class Character extends Model
             'level' => 'integer',
             'xp' => 'integer',
             'gold' => 'integer',
-            'gems' => 'integer',
             'quests_completed' => 'integer',
             'hp' => 'integer',
             'hp_max' => 'integer',

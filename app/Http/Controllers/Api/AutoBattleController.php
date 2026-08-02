@@ -31,7 +31,7 @@ class AutoBattleController extends Controller
             'seconds_remaining' => $secondsRemaining,
             'summary' => $summary,
             'costs' => $this->autoBattle->costs(),
-            'gems' => $character->gems,
+            'gems' => $character->user->gems,
         ]);
     }
 
@@ -53,7 +53,7 @@ class AutoBattleController extends Controller
         $character->refresh();
 
         return response()->json([
-            'gems' => $character->gems,
+            'gems' => $character->user->gems,
             'expires_at' => $character->auto_battle_expires_at,
             'seconds_remaining' => max(0, $character->auto_battle_expires_at->getTimestamp() - now()->getTimestamp()),
         ]);

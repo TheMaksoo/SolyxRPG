@@ -29,7 +29,7 @@ class LeaderboardService
      * cosmetic types this game actually has (title/color/banner/icon), no invented reward items. */
     public const REWARD_TIERS = [
         ['from' => 1, 'to' => 1, 'gold' => 20000, 'gems' => 500, 'title' => true, 'banner' => false, 'label' => '#1'],
-        ['from' => 2, 'to' => 3, 'gold' => 8000, 'gems' => 200, 'title' => false, 'banner' => false, 'label' => '#2–3'],
+        ['from' => 2, 'to' => 3, 'gold' => 8000, 'gems' => 200, 'title' => false, 'banner' => true, 'label' => '#2–3'],
         ['from' => 4, 'to' => 10, 'gold' => 4000, 'gems' => 100, 'title' => false, 'banner' => true, 'label' => '#4–10'],
         ['from' => 11, 'to' => 100, 'gold' => 1200, 'gems' => 25, 'title' => false, 'banner' => false, 'label' => '#11–100'],
     ];
@@ -164,7 +164,10 @@ class LeaderboardService
         $query = Character::query()->with(self::COSMETIC_RELATIONS);
 
         return match ($config['type']) {
-            'column' => $query->select('characters.*')->selectRaw("{$config['column']} as value"),
+            'column' => $config['column'] === 'gems'
+                ? $query->join('users', 'characters.user_id', '=', 'users.id')
+                    ->select('characters.*')->selectRaw('users.gems as value')
+                : $query->select('characters.*')->selectRaw("{$config['column']} as value"),
             'dungeon_clears' => $query->withCount(['dungeonRuns as value' => fn ($q) => $q->where('status', 'completed')]),
             'companions_collected' => $query->withCount('pets as value'),
             'companion_ranks' => $query->withSum('pets as value', 'rank'),
@@ -201,6 +204,7 @@ class LeaderboardService
             ...($config['type'] === 'dungeon_clears' ? ['dungeonRuns'] : []),
             ...(in_array($config['type'], ['companions_collected', 'companion_ranks'], true) ? ['pets'] : []),
             ...($category === 'battle_pass_points' ? ['battlePasses'] : []),
+            ...($category === 'gems' ? ['user'] : []),
         ];
 
         $all = Character::with($relations)
@@ -211,6 +215,7 @@ class LeaderboardService
                     $category === 'power' => $c->effectiveStats()['power'],
                     $category === 'trophies' => $c->pvpRecord->rating ?? 1000,
                     $category === 'battle_pass_points' => $this->battlePassPointsFor($c),
+                    $config['type'] === 'column' && $config['column'] === 'gems' => (int) ($c->user->gems ?? 0),
                     $config['type'] === 'column' => (int) $c->{$config['column']},
                     $config['type'] === 'dungeon_clears' => $c->dungeonRuns->where('status', 'completed')->count(),
                     $config['type'] === 'companions_collected' => $c->pets->count(),

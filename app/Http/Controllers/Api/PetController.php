@@ -95,9 +95,9 @@ class PetController extends Controller
         }
 
         $character->pets()->create(['pet_id' => $pet->id]);
-        $this->achievements->check($character->fresh());
+        $this->achievements->check($character->fresh(['user']));
 
-        return response()->json(['character' => $character->fresh()]);
+        return response()->json(['character' => $character->fresh(['user'])]);
     }
 
     /** Resets a maxed-out pet's level back to 1 in exchange for a permanent bonus increase (see
@@ -133,7 +133,7 @@ class PetController extends Controller
         $owned->update(['rank' => $owned->rank + 1, 'level' => 1, 'xp' => 0]);
 
         return response()->json([
-            'character' => $character->fresh(),
+            'character' => $character->fresh(['user']),
             'pet' => $owned->fresh(),
         ]);
     }

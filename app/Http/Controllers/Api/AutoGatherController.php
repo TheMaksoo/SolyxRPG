@@ -32,7 +32,7 @@ class AutoGatherController extends Controller
             'granted_minutes' => collect($this->autoGather->durations())->mapWithKeys(
                 fn (int $m) => [$m => $this->autoGather->grantedMinutesFor($m)]
             ),
-            'gems' => $character->gems,
+            'gems' => $character->user->gems,
         ]);
     }
 
@@ -56,7 +56,7 @@ class AutoGatherController extends Controller
         $character->refresh();
 
         return response()->json([
-            'gems' => $character->gems,
+            'gems' => $character->user->gems,
             'skill' => $character->auto_gather_skill,
             'target' => $character->auto_gather_target,
             'expires_at' => $character->auto_gather_expires_at,
