@@ -65,6 +65,32 @@ class ReferralController extends Controller
             ];
         }
 
+        // Filter to show only 1 milestone higher than where at least 1 friend is
+        $filteredMilestoneProgress = [];
+        if (!empty($milestoneProgress)) {
+            // Find the highest milestone level where at least 1 friend has reached
+            $highestReachedIndex = -1;
+            foreach ($milestoneProgress as $index => $milestone) {
+                if ($milestone['qualifying_count'] >= 1) {
+                    $highestReachedIndex = $index;
+                }
+            }
+
+            // Show only the current milestone and the next one
+            if ($highestReachedIndex >= 0) {
+                // Show the highest reached milestone
+                $filteredMilestoneProgress[] = $milestoneProgress[$highestReachedIndex];
+                // And one above it if it exists
+                if ($highestReachedIndex + 1 < count($milestoneProgress)) {
+                    $filteredMilestoneProgress[] = $milestoneProgress[$highestReachedIndex + 1];
+                }
+            } else {
+                // No friends have reached any milestone, show only the first one
+                $filteredMilestoneProgress[] = $milestoneProgress[0];
+            }
+        }
+        $milestoneProgress = $filteredMilestoneProgress;
+
         return response()->json([
             'code' => $code,
             'invite_url' => url("/landing?ref={$code}"),
