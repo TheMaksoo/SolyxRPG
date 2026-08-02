@@ -86,9 +86,8 @@ class SeederSyncService
     {
         $key = $model->key;
 
-        // Find the line with this key using regex
-        // Pattern matches: ['key' => 'some_key', ... everything until the closing ],
-        $pattern = "/\['key'\s*=>\s*'" . preg_quote($key, '/') . "'[^\]]*\],/s";
+        // Find the seeder entry line for this key.
+        $pattern = "/^\\s*\\['key'\\s*=>\\s*'" . preg_quote($key, '/') . "'.*?\\],\\s*$/m";
 
         if (!preg_match($pattern, $content, $matches)) {
             Log::warning("Could not find entry in seeder for key: {$key}");
@@ -99,7 +98,7 @@ class SeederSyncService
         $newEntry = $this->generateArrayEntry($model, $resource);
 
         // Replace the old entry with the new one
-        $updatedContent = preg_replace($pattern, $newEntry . ',', $content);
+        $updatedContent = preg_replace($pattern, $newEntry . ',', $content, 1);
 
         return $updatedContent;
     }

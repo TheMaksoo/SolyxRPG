@@ -112,8 +112,8 @@ When a GM edits game content through the GM Console, the system automatically up
 The service uses regex to find and replace seeder entries:
 
 ```php
-// Finds: ['key' => 'health_potion', ...]
-$pattern = "/\['key'\s*=>\s*'health_potion'[^\]]*\],/s";
+// Finds one full entry line (seeders currently store one entry per line)
+$pattern = "/^\s*\['key'\s*=>\s*'health_potion'.*?\],\s*$/m";
 ```
 
 ### Value Formatting
@@ -124,7 +124,7 @@ Values are formatted correctly for PHP code:
 - `true/false` → `true/false`
 - Numbers → `100`
 - Strings → `'escaped string'`
-- Arrays/JSON → `{"heal_hp_flat":150}`
+- Arrays/JSON → `['heal_hp_flat' => 150]`
 
 ### Logging
 

@@ -149,12 +149,19 @@ class GmArtisanController extends Controller
 
         // Build command with arguments
         $commandArgs = [];
+        $forceSupportedCommands = [
+            'migrate',
+            'db:seed',
+            'leaderboard:distribute-rewards',
+            'battlepass:season-rollover',
+            'battlepass:reset',
+        ];
         
         if ($command === 'leaderboard:distribute-rewards' && $seasonNumber) {
             $commandArgs['season_number'] = $seasonNumber;
         }
         
-        if ($force) {
+        if ($force && in_array($command, $forceSupportedCommands, true)) {
             $commandArgs['--force'] = true;
         }
 

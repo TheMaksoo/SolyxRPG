@@ -1804,7 +1804,7 @@ onMounted(() => {
             
             <label class="gm-console-commands-field gm-console-commands-field--checkbox">
               <input type="checkbox" v-model="commandForce" />
-              <span>Force (skip confirmations)</span>
+              <span>Pass --force when supported</span>
             </label>
           </div>
 
