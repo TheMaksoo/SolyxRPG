@@ -135,6 +135,37 @@ const referralFunnelChartData = computed(() => {
   return { labels: ['Pending', 'Qualified (finished)'], data: [funnel.pending, funnel.qualified] };
 });
 
+// Battle Pass engagement charts
+const battlePassEngagementChartData = computed(() => {
+  const bp = analytics.value?.headline?.battle_pass;
+  if (!bp) return { labels: [], data: [] };
+  return { 
+    labels: ['Premium', 'Free'], 
+    data: [bp.total_premium, bp.total_free],
+    colors: ['#a78bfa', '#60a5fa']
+  };
+});
+
+const battlePassTierDistributionChartData = computed(() => {
+  const bp = analytics.value?.headline?.battle_pass;
+  if (!bp || !bp.tier_distribution) return { labels: [], data: [] };
+  const dist = bp.tier_distribution;
+  return {
+    labels: ['0-9', '10-24', '25-49', '50-74', '75-99', '100+'],
+    data: [dist.tier_0_9, dist.tier_10_24, dist.tier_25_49, dist.tier_50_74, dist.tier_75_99, dist.tier_100]
+  };
+});
+
+const battlePassPremiumMethodChartData = computed(() => {
+  const bpp = analytics.value?.battle_pass_premium;
+  if (!bpp) return { labels: [], data: [] };
+  return {
+    labels: ['Gems', 'Cash'],
+    data: [bpp.gem_unlocks.count, bpp.cash_unlocks.count],
+    colors: ['#eab308', '#22c55e']
+  };
+});
+
 const levelGrowthChartData = computed(() => {
   const growth = analytics.value?.level_growth;
   if (!growth) return { labels: [], data: [] };
@@ -1320,6 +1351,42 @@ onMounted(() => {
             <div class="gm-console-activity-chart-card__footnote">
               {{ analytics.referral_funnel.reward_milestones_granted }} referrer reward{{ analytics.referral_funnel.reward_milestones_granted === 1 ? '' : 's' }} granted ·
               {{ analytics.referral_funnel.referee_bonuses_granted }} referee bonus{{ analytics.referral_funnel.referee_bonuses_granted === 1 ? '' : 'es' }} granted
+            </div>
+          </div>
+        </div>
+
+        <div v-if="analytics.headline?.battle_pass" class="gm-console-activity-charts">
+          <div class="gm-console-activity-chart-card">
+            <div class="gm-console-activity-chart-card__title">
+              Battle Pass engagement
+              <InfoTooltip text="Total active players with Battle Pass progress this season. Premium = purchased premium track (gems or cash), Free = playing free track only." />
+            </div>
+            <ActivityChart type="doughnut" :labels="battlePassEngagementChartData.labels" :data="battlePassEngagementChartData.data" :colors="battlePassEngagementChartData.colors" />
+            <div class="gm-console-activity-chart-card__footnote">
+              {{ analytics.headline.battle_pass.total_active }} active this season ·
+              {{ analytics.headline.battle_pass.premium_conversion_pct }}% premium conversion
+            </div>
+          </div>
+          <div class="gm-console-activity-chart-card">
+            <div class="gm-console-activity-chart-card__title">
+              Battle Pass tier distribution
+              <InfoTooltip text="How many players are at each tier range. Shows engagement drop-off and how far players are progressing through the season." />
+            </div>
+            <ActivityChart type="bar" color="#a78bfa" v-bind="battlePassTierDistributionChartData" />
+            <div class="gm-console-activity-chart-card__footnote">
+              {{ analytics.headline.battle_pass.completed_count }} completed ({{ analytics.headline.battle_pass.completion_rate_pct }}%) ·
+              Avg tier: {{ analytics.headline.battle_pass.avg_tier_all }}
+            </div>
+          </div>
+          <div v-if="analytics.battle_pass_premium" class="gm-console-activity-chart-card">
+            <div class="gm-console-activity-chart-card__title">
+              Premium unlock method
+              <InfoTooltip text="How players unlock the premium Battle Pass track: via gems (earned in-game) or direct cash purchase. Shows monetization channel effectiveness." />
+            </div>
+            <ActivityChart type="doughnut" :labels="battlePassPremiumMethodChartData.labels" :data="battlePassPremiumMethodChartData.data" :colors="battlePassPremiumMethodChartData.colors" />
+            <div class="gm-console-activity-chart-card__footnote">
+              {{ analytics.battle_pass_premium.total_premium_unlocks }} premium unlock{{ analytics.battle_pass_premium.total_premium_unlocks === 1 ? '' : 's' }} ·
+              ${{ formatCents(analytics.battle_pass_premium.cash_unlocks.revenue_cents) }} cash revenue
             </div>
           </div>
         </div>
