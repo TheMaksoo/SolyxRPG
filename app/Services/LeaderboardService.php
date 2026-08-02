@@ -164,7 +164,11 @@ class LeaderboardService
         $query = Character::query()->with(self::COSMETIC_RELATIONS);
 
         return match ($config['type']) {
-            'column' => $query->select('characters.*')->selectRaw("{$config['column']} as value"),
+            'column' => $config['column'] === 'gems'
+                ? $query->leftJoin('users', 'users.id', '=', 'characters.user_id')
+                    ->select('characters.*')
+                    ->selectRaw('COALESCE(users.gems, 0) as value')
+                : $query->select('characters.*')->selectRaw("{$config['column']} as value"),
             'dungeon_clears' => $query->withCount(['dungeonRuns as value' => fn ($q) => $q->where('status', 'completed')]),
             'companions_collected' => $query->withCount('pets as value'),
             'companion_ranks' => $query->withSum('pets as value', 'rank'),
@@ -210,6 +214,7 @@ class LeaderboardService
                 $live = match (true) {
                     $category === 'power' => $c->effectiveStats()['power'],
                     $category === 'trophies' => $c->pvpRecord->rating ?? 1000,
+                    $category === 'gems' => (int) ($c->user->gems ?? 0),
                     $category === 'battle_pass_points' => $this->battlePassPointsFor($c),
                     $config['type'] === 'column' => (int) $c->{$config['column']},
                     $config['type'] === 'dungeon_clears' => $c->dungeonRuns->where('status', 'completed')->count(),
@@ -407,6 +412,7 @@ class LeaderboardService
         return match (true) {
             $category === 'power' => (int) $c->effectiveStats()['power'],
             $category === 'trophies' => (int) ($c->pvpRecord->rating ?? 1000),
+            $category === 'gems' => (int) ($c->user->gems ?? 0),
             $category === 'battle_pass_points' => $this->battlePassPointsFor($c),
             $config['type'] === 'column' => (int) $c->{$config['column']},
             $config['type'] === 'dungeon_clears' => $c->dungeonRuns()->where('status', 'completed')->count(),
