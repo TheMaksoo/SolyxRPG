@@ -302,6 +302,7 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
         Route::get('/battle-pass-curve', [GmProgressionController::class, 'battlePassCurve']);
 
         Route::get('/artisan-commands', [GmArtisanController::class, 'index']);
+        Route::get('/artisan-commands/seeders', [GmArtisanController::class, 'seeders']);
         Route::post('/artisan-commands/execute', [GmArtisanController::class, 'execute']);
     });
 });
