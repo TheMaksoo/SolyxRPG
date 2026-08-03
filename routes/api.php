@@ -61,27 +61,35 @@ use Illuminate\Support\Facades\Route;
 Route::get('/wiki', [WikiController::class, 'index']);
 Route::get('/stats/public', [StatsController::class, 'public']);
 
-// Auth — the login-family routes get an explicit 'web' middleware group because at the moment of
-// login there's no authenticated session yet for Sanctum's own EnsureFrontendRequestsAreStateful
-// pipeline to hang session bootstrapping off reliably. The /api/me endpoint is also included here to
-// ensure consistent session handling after OAuth redirects — after the callback completes and redirects
-// to the SPA, the frontend immediately calls /api/me to check auth state, and without explicit 'web'
-// middleware that check can race against session propagation and intermittently fail with 401.
-// The rest of the app (below) deliberately does NOT also wrap in 'web' — bootstrap/app.php's
-// statefulApi() already runs that same session/CSRF/cookie pipeline once per request for every route
-// in this file via Sanctum. Nesting an explicit 'web' group around the already-stateful game routes
-// ran that pipeline a second time on every single game action, corrupting session state during play
-// (this was the actual "unauthenticated mid-game" bug) — so it stays scoped to just these auth
-// endpoints where it's actually needed.
+// OAuth routes need explicit 'web' middleware because they are NOT regular AJAX calls from the
+// SPA. The redirect is a full browser navigation (no Origin header), and the callback arrives
+// from the OAuth provider whose domain is not in SANCTUM_STATEFUL_DOMAINS. Without 'web' here,
+// Sanctum's EnsureFrontendRequestsAreStateful would not fire for the callback, and Auth::login()
+// would have no session to write the authenticated user into.
 Route::middleware('web')->group(function () {
-    Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
-    Route::post('/auth/login', [AuthController::class, 'login'])->middleware(['throttle:login', 'throttle:20,1']);
-    Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:6,1');
-    Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:6,1');
     Route::get('/auth/{provider}/redirect', [SocialiteController::class, 'redirect'])->whereIn('provider', ['discord', 'google']);
     Route::get('/auth/{provider}/callback', [SocialiteController::class, 'callback'])->whereIn('provider', ['discord', 'google']);
-    Route::get('/me', [AuthController::class, 'me'])->middleware(['auth:sanctum', 'not-banned']);
 });
+
+// Login-family routes and /me are AJAX calls from the SPA (they carry an Origin header that
+// matches SANCTUM_STATEFUL_DOMAINS). statefulApi() in bootstrap/app.php appends
+// EnsureFrontendRequestsAreStateful to the 'api' group, and that middleware already wraps every
+// SPA request in its own inner pipeline of EncryptCookies → StartSession → VerifyCsrfToken.
+//
+// Do NOT also wrap these routes in 'web'. That runs EncryptCookies a second time: the first pass
+// (inside EnsureFrontendRequestsAreStateful) decrypts the session cookie into a plain session ID;
+// the second pass (from the 'web' group) then tries to decrypt that already-plaintext value,
+// throws DecryptException, and sets the cookie to null. The subsequent StartSession sees no
+// cookie, creates a fresh empty session, and every auth guard check returns 401 — this is the
+// exact "Could not sign in with that provider" / post-login 401 bug.
+//
+// All other API routes further below also omit 'web' for the same reason. The session/cookie
+// pipeline that 'web' would bring is already present via EnsureFrontendRequestsAreStateful.
+Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
+Route::post('/auth/login', [AuthController::class, 'login'])->middleware(['throttle:login', 'throttle:20,1']);
+Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:6,1');
+Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:6,1');
+Route::get('/me', [AuthController::class, 'me'])->middleware(['auth:sanctum', 'not-banned']);
 
 // Stripe webhook — no auth, verified by signature instead
 Route::post('/store/webhook', [StoreController::class, 'webhook']);
