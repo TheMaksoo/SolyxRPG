@@ -142,6 +142,19 @@ class User extends Authenticatable
     /** % bonus to Battle Pass points earned from quests, per VIP tier — see BattlePassService::addXp(). */
     public const VIP_TIER_BP_XP_PCT = ['bronze' => 5, 'gold' => 10, 'diamond' => 20];
 
+    /** % bonus duration added to gem-purchased Auto-Battle and Auto-Gather passes per VIP tier.
+     * Bronze buys 60m and gets 75m, Gold gets 90m, Diamond gets 120m. */
+    public const VIP_TIER_AUTO_PASS_PCT = ['bronze' => 25, 'gold' => 50, 'diamond' => 100];
+
+    /** Bonus gems credited on top of the base daily login reward per VIP tier. */
+    public const VIP_TIER_DAILY_GEM_BONUS = ['bronze' => 1, 'gold' => 3, 'diamond' => 5];
+
+    /** % reduction to the Marketplace sale fee per VIP tier (base fee is 5% — see MarketplaceController::MARKET_FEE_PCT). */
+    public const VIP_TIER_MARKET_FEE_REDUCTION_PCT = ['bronze' => 2, 'gold' => 5, 'diamond' => 10];
+
+    /** % speed bonus applied to auto-gather action timings per VIP tier — stacks with tool and attribute bonuses. */
+    public const VIP_TIER_GATHER_SPEED_PCT = ['bronze' => 25, 'gold' => 50, 'diamond' => 100];
+
     /** Level milestones that raise the level-earned active pet cap (cumulative — highest reached wins). */
     private const PET_LEVEL_SLOT_TIERS = [1 => 1, 50 => 2, 100 => 3];
 
@@ -343,6 +356,54 @@ class User extends Authenticatable
         $fallback = self::VIP_TIER_DUNGEON_ATTEMPTS[$this->vip_tier] ?? 0;
 
         return (int) round(GameConfig::number("vip_dungeon_attempts_{$this->vip_tier}", $fallback));
+    }
+
+    /** % bonus duration added to gem-purchased Auto-Battle/Gather passes from an active VIP subscription. */
+    public function vipAutoPassBonusPct(): int
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_AUTO_PASS_PCT[$this->vip_tier] ?? 0;
+
+        return (int) round(GameConfig::number("vip_auto_pass_pct_{$this->vip_tier}", $fallback));
+    }
+
+    /** Bonus gems credited on top of each daily login reward from an active VIP subscription. */
+    public function vipDailyGemBonus(): int
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_DAILY_GEM_BONUS[$this->vip_tier] ?? 0;
+
+        return (int) round(GameConfig::number("vip_daily_gem_bonus_{$this->vip_tier}", $fallback));
+    }
+
+    /** % points to subtract from the Marketplace sale fee from an active VIP subscription. */
+    public function vipMarketFeeReductionPct(): int
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_MARKET_FEE_REDUCTION_PCT[$this->vip_tier] ?? 0;
+
+        return (int) round(GameConfig::number("vip_market_fee_reduction_pct_{$this->vip_tier}", $fallback));
+    }
+
+    /** % speed bonus for auto-gather action timings from an active VIP subscription. */
+    public function vipGatherSpeedPct(): float
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_GATHER_SPEED_PCT[$this->vip_tier] ?? 0;
+
+        return GameConfig::number("vip_gather_speed_pct_{$this->vip_tier}", $fallback);
     }
 
     /** up to 4 gem-side slots (1 starter + 3 bought) + up to 4 from an active VIP subscription tier. */

@@ -65,7 +65,9 @@ class AutoBattleService
         GemLedger::log($character->user, -$cost, "auto_battle:{$minutes}min", $character);
         $character->refresh();
 
-        $this->extend($character, $minutes);
+        $bonusPct = $character->user->vipAutoPassBonusPct();
+        $grantedMinutes = (int) round($minutes * (1 + $bonusPct / 100));
+        $this->extend($character, $grantedMinutes);
     }
 
     /** Extends/starts the pass by the given minutes, regardless of how it was paid for (gems or real money via

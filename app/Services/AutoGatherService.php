@@ -87,7 +87,9 @@ class AutoGatherService
         GemLedger::log($character->user, -$cost, "auto_gather:{$skillKey}:{$minutes}min", $character);
         $character->refresh();
 
-        $this->extend($character, $skillKey, $targetKey, $minutes);
+        $bonusPct = $character->user->vipAutoPassBonusPct();
+        $adjustedMinutes = (int) round($minutes * (1 + $bonusPct / 100));
+        $this->extend($character, $skillKey, $targetKey, $adjustedMinutes);
     }
 
     /** Re-targets an already-running pass to a different skill/target, without touching remaining time or
@@ -205,7 +207,8 @@ class AutoGatherService
         $tool = $this->equippedToolBonus($character, $skillKey);
         $speedPoints = $character->attributes_?->{self::SPEED_ATTR_BY_SKILL[$skillKey] ?? ''} ?? 0;
         $petGatherSpeedPct = $character->effectiveStats()['pet_gather_speed_pct'] ?? 0;
-        $actionSeconds = max(1, $this->tradeSkills->actionSeconds($skillKey, $targetKey, $row->level, $speedPoints, $tool['speed_pct'] + $petGatherSpeedPct));
+        $vipGatherSpeedPct = $character->user->vipGatherSpeedPct();
+        $actionSeconds = max(1, $this->tradeSkills->actionSeconds($skillKey, $targetKey, $row->level, $speedPoints, $tool['speed_pct'] + $petGatherSpeedPct + $vipGatherSpeedPct));
         $luckBonusPct = $this->luckBonusPct($character);
 
         $elapsed = max(0, $windowEnd->getTimestamp() - $lastTick->getTimestamp());

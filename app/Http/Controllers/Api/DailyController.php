@@ -51,9 +51,10 @@ class DailyController extends Controller
         $reward = $this->rewardForDay($cycleDay);
 
         $character->increment('gold', $reward['gold']);
-        if ($reward['gems']) {
-            $character->user->increment('gems', $reward['gems']);
-            GemLedger::log($character->user, $reward['gems'], "daily_reward:day{$cycleDay}", $character);
+        $totalGems = $reward['gems'] + $character->user->vipDailyGemBonus();
+        if ($totalGems) {
+            $character->user->increment('gems', $totalGems);
+            GemLedger::log($character->user, $totalGems, "daily_reward:day{$cycleDay}", $character);
         }
 
         $claim->update(['streak' => $streak, 'last_claim_date' => Carbon::today()]);
@@ -63,7 +64,7 @@ class DailyController extends Controller
 
         return response()->json(array_merge(
             $this->buildResponse($claim->fresh()),
-            ['character' => $character->fresh(), 'gold' => $reward['gold'], 'gems' => $reward['gems']],
+            ['character' => $character->fresh(), 'gold' => $reward['gold'], 'gems' => $totalGems],
         ));
     }
 

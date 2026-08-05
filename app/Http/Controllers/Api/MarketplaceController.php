@@ -174,7 +174,8 @@ class MarketplaceController extends Controller
         DB::transaction(function () use ($listing, $character) {
             $character->decrement('gold', $listing->price_gold);
 
-            $fee = (int) floor($listing->price_gold * self::MARKET_FEE_PCT / 100);
+            $feePct = max(0, self::MARKET_FEE_PCT - $listing->sellerCharacter->user->vipMarketFeeReductionPct());
+            $fee = (int) floor($listing->price_gold * $feePct / 100);
             $listing->sellerCharacter->increment('gold', $listing->price_gold - $fee);
 
             $this->depositItem($character, $listing);

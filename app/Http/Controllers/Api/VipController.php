@@ -53,6 +53,10 @@ class VipController extends Controller
                 'market_listing_bonus' => User::VIP_TIER_MARKET_LISTINGS[$key],
                 'pvp_bonus_attempts' => User::VIP_TIER_PVP_ATTEMPTS[$key],
                 'dungeon_bonus_attempts' => User::VIP_TIER_DUNGEON_ATTEMPTS[$key],
+                'auto_pass_pct_bonus' => User::VIP_TIER_AUTO_PASS_PCT[$key],
+                'daily_gem_bonus' => User::VIP_TIER_DAILY_GEM_BONUS[$key],
+                'market_fee_reduction_pct' => User::VIP_TIER_MARKET_FEE_REDUCTION_PCT[$key],
+                'gather_speed_pct_bonus' => User::VIP_TIER_GATHER_SPEED_PCT[$key],
             ])
             ->all();
 
