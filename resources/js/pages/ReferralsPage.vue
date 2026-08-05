@@ -1,12 +1,16 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useCharacterStore } from '../stores/character';
 import api from '../api/client';
 import Skeleton from '../components/Skeleton.vue';
+
+const characterStore = useCharacterStore();
 
 const data = ref(null);
 const loading = ref(true);
 const copied = ref(false);
 const codeCopied = ref(false);
+const cardDownloading = ref(false);
 
 async function load() {
   loading.value = true;
@@ -58,6 +62,141 @@ function timeAgo(isoString) {
 function getMilestoneSample() {
   const levels = [10, 25, 50];
   return levels.join(', ') + ' …';
+}
+
+/**
+ * Renders a 1200×630 branded referral card on a hidden <canvas> and triggers a PNG download.
+ * Everything is drawn with Canvas 2D — no external image library required.
+ */
+async function downloadReferralCard() {
+  if (cardDownloading.value) return;
+  cardDownloading.value = true;
+
+  try {
+    const W = 1200, H = 630;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    // ── Background gradient ───────────────────────────────────────────────────
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, '#0a0c1e');
+    bg.addColorStop(1, '#280a50');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // ── Subtle grid pattern ───────────────────────────────────────────────────
+    ctx.strokeStyle = 'rgba(120,80,220,0.08)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let y = 0; y < H; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+    // ── Accent bar at top ─────────────────────────────────────────────────────
+    const accentGrad = ctx.createLinearGradient(0, 0, W, 0);
+    accentGrad.addColorStop(0, '#7850dc');
+    accentGrad.addColorStop(1, '#dc50aa');
+    ctx.fillStyle = accentGrad;
+    ctx.fillRect(0, 0, W, 7);
+
+    // ── Game logo (top-left) ──────────────────────────────────────────────────
+    await new Promise((resolve) => {
+      const logo = new Image();
+      logo.onload = () => {
+        const scale = 70 / logo.height;
+        ctx.drawImage(logo, 60, 55, logo.width * scale, 70);
+        resolve();
+      };
+      logo.onerror = resolve; // continue even if logo fails
+      logo.src = '/images/solyx-icon.png';
+    });
+
+    // ── "SOLYX RPG" label ────────────────────────────────────────────────────
+    ctx.font = 'bold 24px "Oxanium", sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fillText('SOLYX RPG', 148, 100);
+
+    // ── Character info ────────────────────────────────────────────────────────
+    const char = characterStore.character;
+    const playerName = char?.name ?? 'Adventurer';
+    const playerClass = char?.base_class
+      ? char.base_class.charAt(0).toUpperCase() + char.base_class.slice(1)
+      : '';
+    const playerLevel = char?.level ?? 1;
+
+    // Headline — player name
+    ctx.font = 'bold 62px "Oxanium", sans-serif';
+    const nameGrad = ctx.createLinearGradient(0, 0, W, 0);
+    nameGrad.addColorStop(0, '#ffffff');
+    nameGrad.addColorStop(1, '#c89aff');
+    ctx.fillStyle = nameGrad;
+    ctx.fillText(playerName, 60, 260);
+
+    // Class & level pill
+    const pillText = playerClass ? `${playerClass}  ·  Level ${playerLevel}` : `Level ${playerLevel}`;
+    ctx.font = '600 26px "Oxanium", sans-serif';
+    const pillMetrics = ctx.measureText(pillText);
+    const pillPad = 20, pillH = 46, pillX = 60, pillY = 285;
+    ctx.fillStyle = 'rgba(120,80,220,0.35)';
+    roundRect(ctx, pillX, pillY, pillMetrics.width + pillPad * 2, pillH, 23);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(180,140,255,0.5)';
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, pillX, pillY, pillMetrics.width + pillPad * 2, pillH, 23);
+    ctx.stroke();
+    ctx.fillStyle = '#c89aff';
+    ctx.fillText(pillText, pillX + pillPad, pillY + 31);
+
+    // Invite message
+    ctx.font = '600 28px "Oxanium", sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.fillText('Join me — you both earn 500 gems when you hit Level 5!', 60, 390);
+
+    // ── Invite link box ───────────────────────────────────────────────────────
+    const inviteUrl = data.value?.invite_url ?? '';
+    ctx.fillStyle = 'rgba(255,255,255,0.07)';
+    roundRect(ctx, 60, 420, W - 120, 64, 12);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(180,140,255,0.3)';
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, 60, 420, W - 120, 64, 12);
+    ctx.stroke();
+    ctx.font = '500 22px monospace';
+    ctx.fillStyle = '#b4a0ff';
+    ctx.fillText(inviteUrl, 84, 460);
+
+    // ── Bottom tagline ────────────────────────────────────────────────────────
+    ctx.font = '500 20px "Oxanium", sans-serif';
+    ctx.fillStyle = 'rgba(180,160,220,0.6)';
+    ctx.fillText('Classes · Dungeons · Crafting · Guilds · PvP · Free to play', 60, H - 30);
+
+    // ── Trigger download ──────────────────────────────────────────────────────
+    canvas.toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `solyx-invite-${playerName.replace(/\s+/g, '-').toLowerCase()}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }, 'image/png');
+  } finally {
+    cardDownloading.value = false;
+  }
+}
+
+/** Canvas 2D helper — draws a rounded rectangle path (does not fill or stroke). */
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
 }
 
 onMounted(load);
@@ -140,6 +279,15 @@ onMounted(load);
           Or share your code: <strong>{{ data.code }}</strong>
           <button class="invite-card__copy-code" @click="copyCode">{{ codeCopied ? 'Copied!' : 'Copy code' }}</button>
         </div>
+      </div>
+
+      <div class="referral-card-download">
+        <p class="referral-card-download__hint">
+          Want a shareable image? Download your personalised referral card and post it anywhere.
+        </p>
+        <button class="referral-card-download__btn" :disabled="cardDownloading" @click="downloadReferralCard">
+          {{ cardDownloading ? 'Generating…' : '🖼️ Download Referral Card' }}
+        </button>
       </div>
 
       <div class="progress-card">

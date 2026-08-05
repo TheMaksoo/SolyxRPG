@@ -60,6 +60,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/wiki', [WikiController::class, 'index']);
 Route::get('/stats/public', [StatsController::class, 'public']);
+Route::get('/referral-preview', [ReferralController::class, 'preview']);
+Route::get('/referral-og-image', \App\Http\Controllers\Api\ReferralOgImageController::class);
 
 // OAuth routes need explicit 'web' middleware because they are NOT regular AJAX calls from the
 // SPA. The redirect is a full browser navigation (no Origin header), and the callback arrives

@@ -166,4 +166,21 @@ class ReferralController extends Controller
 
         return response()->json(['ok' => true]);
     }
+
+    /** Public, unauthenticated — returns just the referrer's display name for a given referral code so
+     * the landing page can show a personalised "Your friend X is waiting" banner, and so the dynamic
+     * Open Graph title tag can be set on the server-rendered page without exposing anything sensitive. */
+    public function preview(Request $request)
+    {
+        $code = trim((string) $request->query('code', ''));
+        if (! $code) {
+            return response()->json(['name' => null]);
+        }
+
+        $referrer = \App\Models\User::where('referral_code', $code)
+            ->orWhere('vanity_referral_code', $code)
+            ->first();
+
+        return response()->json(['name' => $referrer?->name]);
+    }
 }
