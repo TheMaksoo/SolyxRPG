@@ -54,9 +54,9 @@ async function loadAutoBattle() {
   autoBattleStore.setExpiresAt(data.active ? data.expires_at : null);
 }
 
-async function buyAutoBattleCash() {
+async function buyAutoBattleCash(sku) {
   try {
-    const { data } = await api.post('/store/checkout', { sku: 'auto_battle_60' });
+    const { data } = await api.post('/store/checkout', { sku });
     window.location.href = data.checkout_url;
   } catch (e) {
     autoBattleMessage.value = e.response?.data?.message || 'Checkout unavailable.';
@@ -524,13 +524,16 @@ onMounted(() => {
               v-for="minutes in [15, 30, 60]"
               :key="minutes"
               class="auto-battle-card__option"
-              :disabled="(characterStore.character?.gems ?? 0) < (autoBattle.costs[minutes] ?? 0)"
+              :disabled="(characterStore.character?.account_gems ?? 0) < (autoBattle.costs[minutes] ?? 0)"
               @click="buyAutoBattle(minutes)"
             >
               {{ minutes }}m · 💎{{ autoBattle.costs[minutes] ?? '—' }}
             </button>
-            <button class="auto-battle-card__option auto-battle-card__option--cash" @click="buyAutoBattleCash">
-              60m · €0.99
+            <button class="auto-battle-card__option auto-battle-card__option--cash" @click="buyAutoBattleCash('auto_battle_60')">
+              1h · €0.99
+            </button>
+            <button class="auto-battle-card__option auto-battle-card__option--cash" @click="buyAutoBattleCash('auto_battle_480')">
+              8h · €0.99
             </button>
           </div>
         </div>

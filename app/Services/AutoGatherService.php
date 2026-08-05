@@ -145,15 +145,35 @@ class AutoGatherService
         }
     }
 
+    /** Called by StoreController's webhook when a cash auto_gather_480 SKU is fulfilled.
+     * If a session is already running, stacks the minutes on top. Otherwise banks them as
+     * pending minutes, which are consumed the next time the player starts an Auto-Gather. */
+    public function extendFromPurchase(Character $character, int $minutes): void
+    {
+        $isActive = $character->auto_gather_expires_at && $character->auto_gather_expires_at->isFuture();
+
+        if ($isActive) {
+            $character->auto_gather_expires_at = $character->auto_gather_expires_at->copy()->addMinutes($minutes);
+            $character->save();
+        } else {
+            $character->increment('auto_gather_pending_minutes', $minutes);
+        }
+    }
+
     private function extend(Character $character, string $skillKey, string $targetKey, int $minutes): void
     {
         $grantedMinutes = $this->grantedMinutesFor($minutes);
         $isExtending = $character->auto_gather_expires_at && $character->auto_gather_expires_at->isFuture();
         $base = $isExtending ? $character->auto_gather_expires_at : now();
 
+        // Consume any banked pending minutes (e.g. from a cash auto_gather_480 purchase made before
+        // starting a session) — they grant real minutes 1:1 since they were already "paid" at purchase.
+        $pending = (int) ($character->auto_gather_pending_minutes ?? 0);
+        $character->auto_gather_pending_minutes = 0;
+
         $character->auto_gather_skill = $skillKey;
         $character->auto_gather_target = $targetKey;
-        $character->auto_gather_expires_at = $base->copy()->addMinutes($grantedMinutes);
+        $character->auto_gather_expires_at = $base->copy()->addMinutes($grantedMinutes + $pending);
         if (! $isExtending) {
             $character->auto_gather_last_tick_at = now();
         }
