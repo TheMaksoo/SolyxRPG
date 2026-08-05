@@ -74,13 +74,13 @@ class ReferralController extends Controller
             foreach ($milestoneProgress as $index => $milestone) {
                 $qualifyingCount = $milestone['qualifying_count'];
                 
-                // Always show completed milestones (2+ users reached)
-                if ($qualifyingCount >= 2) {
+                // Always show completed milestones (enough users to have earned at least one reward)
+                if ($qualifyingCount >= ReferralService::REFERRALS_PER_REWARD) {
                     $filteredMilestoneProgress[] = $milestone;
                     $highestReachedIndex = $index;
                 }
-                // Show current milestone (1 user reached)
-                elseif ($qualifyingCount === 1) {
+                // Show current milestone (some progress but not yet a full reward)
+                elseif ($qualifyingCount > 0 && $qualifyingCount < ReferralService::REFERRALS_PER_REWARD) {
                     $filteredMilestoneProgress[] = $milestone;
                     $highestReachedIndex = $index;
                 }

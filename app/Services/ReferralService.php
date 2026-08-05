@@ -7,7 +7,7 @@ use App\Models\ReferralMilestone;
 use App\Models\User;
 
 /**
- * Invite-a-friend rewards: every 5 people you referred who actually played to REQUIRED_LEVEL earns you
+ * Invite-a-friend rewards: every friend you referred who actually played to REQUIRED_LEVEL earns you
  * a free week of Gold VIP. Gating on a level (not just a signup) is deliberate — it's what makes this a
  * "get your friends playing" feature instead of a free-account farm, since a referral that never plays
  * is worth nothing to the referrer.
@@ -16,7 +16,7 @@ class ReferralService
 {
     public const REQUIRED_LEVEL = 5;
 
-    public const REFERRALS_PER_REWARD = 2;
+    public const REFERRALS_PER_REWARD = 1;
 
     public const REWARD_VIP_DAYS = 7;
 
@@ -26,7 +26,7 @@ class ReferralService
 
     public const MILESTONE_GEM_REWARD = 100;
 
-    // Milestone levels (gem rewards) where rewards are granted for every 2 users reaching them
+    // Milestone levels (gem rewards) where rewards are granted for every qualifying user who reaches them
     public const MILESTONE_LEVELS = [10, 25, 50, 100, 150, 200, 250];
     /**
      * Generate additional milestone levels beyond the predefined ones.

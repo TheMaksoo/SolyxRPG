@@ -75,18 +75,21 @@ class ReferralServiceTest extends TestCase
         $this->createQualifyingReferral($referrer, 10);
         $this->createQualifyingReferral($referrer, 10);
 
-        $this->assertSame(1, $service->checkAndGrantMilestones($referrer->fresh()));
-        $this->assertSame(100, $referrer->fresh()->gems);
-        $this->assertSame(2, ReferralMilestone::where('referrer_id', $referrer->id)->whereNotNull('reward_granted_at')->count());
-        $this->assertDatabaseCount('gem_ledger', 1);
-
-        $this->createQualifyingReferral($referrer, 10);
-        $this->createQualifyingReferral($referrer, 10);
-
-        $this->assertSame(1, $service->checkAndGrantMilestones($referrer->fresh()));
+        // With REFERRALS_PER_REWARD = 1, each qualifying referral earns its own reward.
+        // 2 referrals reaching level 10 → 2 rewards (200 gems total).
+        $this->assertSame(2, $service->checkAndGrantMilestones($referrer->fresh()));
         $this->assertSame(200, $referrer->fresh()->gems);
-        $this->assertSame(4, ReferralMilestone::where('referrer_id', $referrer->id)->whereNotNull('reward_granted_at')->count());
+        $this->assertSame(2, ReferralMilestone::where('referrer_id', $referrer->id)->whereNotNull('reward_granted_at')->count());
         $this->assertDatabaseCount('gem_ledger', 2);
+
+        $this->createQualifyingReferral($referrer, 10);
+        $this->createQualifyingReferral($referrer, 10);
+
+        // 2 more referrals → 2 more rewards (400 gems total, 4 ledger entries).
+        $this->assertSame(2, $service->checkAndGrantMilestones($referrer->fresh()));
+        $this->assertSame(400, $referrer->fresh()->gems);
+        $this->assertSame(4, ReferralMilestone::where('referrer_id', $referrer->id)->whereNotNull('reward_granted_at')->count());
+        $this->assertDatabaseCount('gem_ledger', 4);
     }
 
     private function createUser(?int $referrerId = null): User
