@@ -219,9 +219,6 @@ onMounted(async () => {
         >
           {{ minutes }}m · 💎{{ autoBattle.costs[minutes] ?? '—' }}
         </button>
-        <button class="auto-battle-store-card__option auto-battle-store-card__option--cash" @click="checkout('auto_battle_60')">
-          1h · {{ formatCents(99) }}
-        </button>
         <button class="auto-battle-store-card__option auto-battle-store-card__option--cash" @click="checkout('auto_battle_480')">
           8h · {{ formatCents(99) }}
         </button>

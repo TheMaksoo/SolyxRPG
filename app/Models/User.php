@@ -115,11 +115,11 @@ class User extends Authenticatable
     public const VIP_TIER_SLOTS = ['bronze' => 1, 'gold' => 2, 'diamond' => 4];
     public const VIP_TIER_LUCK = ['bronze' => 2, 'gold' => 6, 'diamond' => 12];
     public const VIP_TIER_REGEN_FLAT = ['bronze' => 1, 'gold' => 2, 'diamond' => 4];
-    public const VIP_TIER_REGEN_PCT = ['bronze' => 10, 'gold' => 25, 'diamond' => 50];
-    public const VIP_TIER_GOLD_XP_PCT = ['bronze' => 10, 'gold' => 20, 'diamond' => 35];
-    public const VIP_TIER_CRAFT_SPEED_PCT = ['bronze' => 15, 'gold' => 30, 'diamond' => 50];
+    public const VIP_TIER_REGEN_PCT = ['bronze' => 25, 'gold' => 50, 'diamond' => 100];
+    public const VIP_TIER_GOLD_XP_PCT = ['bronze' => 25, 'gold' => 50, 'diamond' => 100];
+    public const VIP_TIER_CRAFT_SPEED_PCT = ['bronze' => 25, 'gold' => 50, 'diamond' => 100];
     public const VIP_TIER_ENERGY_FLAT = ['bronze' => 1, 'gold' => 2, 'diamond' => 4];
-    public const VIP_TIER_ENERGY_PCT = ['bronze' => 10, 'gold' => 25, 'diamond' => 50];
+    public const VIP_TIER_ENERGY_PCT = ['bronze' => 25, 'gold' => 50, 'diamond' => 100];
     public const VIP_TIER_CRAFT_QUEUE_BONUS = ['bronze' => 1, 'gold' => 2, 'diamond' => 3];
 
     /** Extra daily PvP battle attempts (on top of the 10 base attempts) per VIP tier. */
