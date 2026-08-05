@@ -21,6 +21,7 @@ class ReferralController extends Controller
         $this->referrals->checkAndGrant($user);
         $this->referrals->checkAndGrantMilestones($user);
         $this->referrals->checkAndGrantRefereeBonus($user);
+        $this->referrals->checkAndGrantRefereeMilestoneBonus($user);
         $user->refresh();
 
         $referred = $user->referrals()->with('characters')->latest('created_at')->get()->map(function ($friend) {
@@ -107,6 +108,7 @@ class ReferralController extends Controller
             'reward_vip_tier' => ReferralService::REWARD_VIP_TIER,
             'referee_bonus_gems' => ReferralService::REFEREE_BONUS_GEMS,
             'milestone_gem_reward' => ReferralService::MILESTONE_GEM_REWARD,
+            'referee_milestone_gem_reward' => ReferralService::REFEREE_MILESTONE_GEM_REWARD,
             'qualifying_count' => $qualifying,
             'progress_to_next' => $qualifying % ReferralService::REFERRALS_PER_REWARD,
             'rewards_claimed' => $user->referral_rewards_claimed,

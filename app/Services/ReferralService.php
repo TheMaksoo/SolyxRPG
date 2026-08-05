@@ -7,16 +7,25 @@ use App\Models\ReferralMilestone;
 use App\Models\User;
 
 /**
- * Invite-a-friend rewards: every friend you referred who actually played to REQUIRED_LEVEL earns you
- * a free week of Gold VIP. Gating on a level (not just a signup) is deliberate — it's what makes this a
- * "get your friends playing" feature instead of a free-account farm, since a referral that never plays
- * is worth nothing to the referrer.
+ * Invite-a-friend rewards.
+ *
+ * Referrer rewards (the person who shared the link):
+ *   - Every REFERRALS_PER_REWARD friends who reach REQUIRED_LEVEL → REWARD_VIP_DAYS of Gold VIP.
+ *   - Every REFERRALS_PER_REWARD friends who reach each milestone level → MILESTONE_GEM_REWARD gems.
+ *   Rewards cycle: hitting the threshold again earns another reward, with no cap on total referrals.
+ *
+ * Referee rewards (each person who used the link):
+ *   - Reaching REQUIRED_LEVEL once → REFEREE_BONUS_GEMS gems (one-time).
+ *   - Reaching each milestone level → REFEREE_MILESTONE_GEM_REWARD gems (once per milestone).
+ *
+ * Gating on level (not just signup) is deliberate — it rewards friends who actually play, not
+ * free-account farming.
  */
 class ReferralService
 {
     public const REQUIRED_LEVEL = 5;
 
-    public const REFERRALS_PER_REWARD = 1;
+    public const REFERRALS_PER_REWARD = 2;
 
     public const REWARD_VIP_DAYS = 7;
 
@@ -26,7 +35,11 @@ class ReferralService
 
     public const MILESTONE_GEM_REWARD = 100;
 
-    // Milestone levels (gem rewards) where rewards are granted for every qualifying user who reaches them
+    /** Gems awarded to the referred player themselves for each milestone level they personally reach. */
+    public const REFEREE_MILESTONE_GEM_REWARD = 20;
+
+    // Milestone levels where both the referrer (every 2 qualifying referrals) and the referee
+    // (individually, on first reach) earn gem rewards.
     public const MILESTONE_LEVELS = [10, 25, 50, 100, 150, 200, 250];
     /**
      * Generate additional milestone levels beyond the predefined ones.
@@ -121,7 +134,13 @@ class ReferralService
 
     /**
      * Check for level milestone rewards and grant gems for qualifying milestones.
-     * Returns the number of new milestone rewards granted.
+     * Returns the number of new referrer-side rewards granted.
+     *
+     * Two things happen here:
+     *  1. Each referee who newly reached a milestone level gets REFEREE_MILESTONE_GEM_REWARD gems
+     *     the first time (tracked by referee_reward_granted_at on the milestone row).
+     *  2. For every REFERRALS_PER_REWARD referees who have reached a milestone level, the referrer
+     *     earns MILESTONE_GEM_REWARD gems (tracked by reward_granted_at).
      */
     public function checkAndGrantMilestones(User $referrer): int
     {
@@ -129,17 +148,41 @@ class ReferralService
         $rewardsGranted = 0;
 
         foreach ($milestones as $milestoneLevel) {
-            // Count how many referrals have reached this milestone level
+            // All referrals that have reached this milestone level.
             $qualifyingReferrals = $referrer->referrals()
                 ->whereHas('characters', fn ($q) => $q->where('level', '>=', $milestoneLevel))
                 ->get();
 
             $qualifyingCount = $qualifyingReferrals->count();
 
-            // Calculate how many rewards should have been granted (every 2 users)
+            // Ensure a milestone row exists for every qualifying referee, and grant the referee their
+            // per-milestone bonus the first time we see them at this level.
+            foreach ($qualifyingReferrals as $referee) {
+                $row = ReferralMilestone::where('referrer_id', $referrer->id)
+                    ->where('referee_id', $referee->id)
+                    ->where('level_milestone', $milestoneLevel)
+                    ->first();
+
+                if (! $row) {
+                    $row = ReferralMilestone::create([
+                        'referrer_id' => $referrer->id,
+                        'referee_id' => $referee->id,
+                        'level_milestone' => $milestoneLevel,
+                        'reward_granted_at' => null,
+                        'referee_reward_granted_at' => null,
+                    ]);
+                }
+
+                // Grant the referee their personal milestone bonus if not yet done.
+                if (! $row->referee_reward_granted_at) {
+                    $this->grantGemsToUser($referee, self::REFEREE_MILESTONE_GEM_REWARD, "referee_milestone_level_{$milestoneLevel}");
+                    $row->update(['referee_reward_granted_at' => now()]);
+                }
+            }
+
+            // Now check how many referrer-side rewards (every REFERRALS_PER_REWARD) are newly due.
             $milestonesEarned = intdiv($qualifyingCount, self::REFERRALS_PER_REWARD);
 
-            // Count how many rewards have already been granted for this milestone level
             $grantedRows = ReferralMilestone::where('referrer_id', $referrer->id)
                 ->where('level_milestone', $milestoneLevel)
                 ->whereNotNull('reward_granted_at')
@@ -152,27 +195,8 @@ class ReferralService
                 continue;
             }
 
-            // Grant rewards for new milestone achievements
             for ($i = 0; $i < $newRewards; $i++) {
-                // Find a qualifying referee who hasn't been credited for this milestone yet
-                foreach ($qualifyingReferrals as $referee) {
-                    $existing = ReferralMilestone::where('referrer_id', $referrer->id)
-                        ->where('referee_id', $referee->id)
-                        ->where('level_milestone', $milestoneLevel)
-                        ->first();
-
-                    if (! $existing) {
-                        // Create milestone record
-                        ReferralMilestone::create([
-                            'referrer_id' => $referrer->id,
-                            'referee_id' => $referee->id,
-                            'level_milestone' => $milestoneLevel,
-                            'reward_granted_at' => null,
-                        ]);
-                    }
-                }
-
-                // Count again how many are ungranted for this milestone
+                // Pick the next REFERRALS_PER_REWARD ungranted rows to mark off for this reward.
                 $ungrantedMilestones = ReferralMilestone::where('referrer_id', $referrer->id)
                     ->where('level_milestone', $milestoneLevel)
                     ->whereNull('reward_granted_at')
@@ -180,14 +204,8 @@ class ReferralService
                     ->get();
 
                 if ($ungrantedMilestones->count() >= self::REFERRALS_PER_REWARD) {
-                    // Grant the appropriate reward based on milestone level
-                    if ($milestoneLevel === 5) {
-                        $this->grantVipWeek($referrer);
-                    } else {
-                        $this->grantGemsToReferrer($referrer, self::MILESTONE_GEM_REWARD, "referral_milestone_level_{$milestoneLevel}");
-                    }
+                    $this->grantGemsToUser($referrer, self::MILESTONE_GEM_REWARD, "referral_milestone_level_{$milestoneLevel}");
 
-                    // Mark these milestones as granted
                     foreach ($ungrantedMilestones->take(self::REFERRALS_PER_REWARD) as $milestone) {
                         $milestone->update(['reward_granted_at' => now()]);
                     }
@@ -198,6 +216,56 @@ class ReferralService
         }
 
         return $rewardsGranted;
+    }
+
+    /**
+     * Grants any outstanding referee milestone bonuses to a referred player — called from the
+     * scheduled sweep for accounts that haven't triggered a page-load check recently.
+     * Returns the number of new milestone bonuses granted.
+     */
+    public function checkAndGrantRefereeMilestoneBonus(User $referee): int
+    {
+        if (! $referee->referred_by_user_id) {
+            return 0;
+        }
+
+        $milestones = self::getMilestoneLevels();
+        $granted = 0;
+
+        foreach ($milestones as $milestoneLevel) {
+            $hasReached = $referee->characters()
+                ->where('level', '>=', $milestoneLevel)
+                ->exists();
+
+            if (! $hasReached) {
+                continue;
+            }
+
+            $row = ReferralMilestone::where('referrer_id', $referee->referred_by_user_id)
+                ->where('referee_id', $referee->id)
+                ->where('level_milestone', $milestoneLevel)
+                ->first();
+
+            if ($row && $row->referee_reward_granted_at) {
+                continue; // Already granted.
+            }
+
+            if (! $row) {
+                $row = ReferralMilestone::create([
+                    'referrer_id' => $referee->referred_by_user_id,
+                    'referee_id' => $referee->id,
+                    'level_milestone' => $milestoneLevel,
+                    'reward_granted_at' => null,
+                    'referee_reward_granted_at' => null,
+                ]);
+            }
+
+            $this->grantGemsToUser($referee, self::REFEREE_MILESTONE_GEM_REWARD, "referee_milestone_level_{$milestoneLevel}");
+            $row->update(['referee_reward_granted_at' => now()]);
+            $granted++;
+        }
+
+        return $granted;
     }
 
     /** Tops up VIP time on the referrer's current tier if they're already subscribed (never downgrades
@@ -215,15 +283,14 @@ class ReferralService
     }
 
     /**
-     * Grant gems to the referrer's account.
+     * Grant gems to any user's account and log the transaction.
      */
-    private function grantGemsToReferrer(User $referrer, int $gemAmount, string $reason): void
+    private function grantGemsToUser(User $user, int $gemAmount, string $reason): void
     {
-        $referrer->increment('gems', $gemAmount);
-        
-        // Log with the highest-level character for context, if any exists
-        $character = $referrer->characters()->orderByDesc('level')->first();
-        GemLedger::log($referrer, $gemAmount, $reason, $character);
+        $user->increment('gems', $gemAmount);
+
+        $character = $user->characters()->orderByDesc('level')->first();
+        GemLedger::log($user, $gemAmount, $reason, $character);
     }
 
     /** One-time bonus for the referred player themselves, separate from the referrer's reward — grants
