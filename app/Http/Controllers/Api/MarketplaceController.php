@@ -36,7 +36,7 @@ class MarketplaceController extends Controller
 
     /** Cut taken from the sale price on a successful sale — a gold sink, same role VIP/gem purchases play
      * elsewhere, so the marketplace doesn't just recirculate gold with zero drain on the economy. */
-    private const MARKET_FEE_PCT = 5;
+    private const MARKET_FEE_PCT = 10;
 
     /** Cancelling your own listing early costs a cut of the LISTED price (not charged to a buyer, since
      * there isn't one) — otherwise listing-then-cancelling is a free way to "reserve" a price check with

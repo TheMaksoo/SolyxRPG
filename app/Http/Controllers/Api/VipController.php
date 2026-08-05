@@ -57,6 +57,7 @@ class VipController extends Controller
                 'daily_gem_bonus' => User::VIP_TIER_DAILY_GEM_BONUS[$key],
                 'market_fee_reduction_pct' => User::VIP_TIER_MARKET_FEE_REDUCTION_PCT[$key],
                 'gather_speed_pct_bonus' => User::VIP_TIER_GATHER_SPEED_PCT[$key],
+                'gather_yield_pct_bonus' => User::VIP_TIER_GATHER_YIELD_PCT[$key],
             ])
             ->all();
 

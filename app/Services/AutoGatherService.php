@@ -209,7 +209,7 @@ class AutoGatherService
         $petGatherSpeedPct = $character->effectiveStats()['pet_gather_speed_pct'] ?? 0;
         $vipGatherSpeedPct = $character->user->vipGatherSpeedPct();
         $actionSeconds = max(1, $this->tradeSkills->actionSeconds($skillKey, $targetKey, $row->level, $speedPoints, $tool['speed_pct'] + $petGatherSpeedPct + $vipGatherSpeedPct));
-        $luckBonusPct = $this->luckBonusPct($character);
+        $luckBonusPct = $this->luckBonusPct($character) + $character->user->vipGatherYieldBonusPct();
 
         $elapsed = max(0, $windowEnd->getTimestamp() - $lastTick->getTimestamp());
         $actionsToRun = min(self::MAX_ACTIONS_PER_TICK, intdiv($elapsed, $actionSeconds));

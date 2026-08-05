@@ -149,11 +149,14 @@ class User extends Authenticatable
     /** Bonus gems credited on top of the base daily login reward per VIP tier. */
     public const VIP_TIER_DAILY_GEM_BONUS = ['bronze' => 1, 'gold' => 3, 'diamond' => 5];
 
-    /** % reduction to the Marketplace sale fee per VIP tier (base fee is 5% — see MarketplaceController::MARKET_FEE_PCT). */
-    public const VIP_TIER_MARKET_FEE_REDUCTION_PCT = ['bronze' => 2, 'gold' => 5, 'diamond' => 10];
+    /** % reduction to the Marketplace sale fee per VIP tier (base fee is 10% — see MarketplaceController::MARKET_FEE_PCT). */
+    public const VIP_TIER_MARKET_FEE_REDUCTION_PCT = ['bronze' => 3, 'gold' => 5, 'diamond' => 8];
 
     /** % speed bonus applied to auto-gather action timings per VIP tier — stacks with tool and attribute bonuses. */
     public const VIP_TIER_GATHER_SPEED_PCT = ['bronze' => 25, 'gold' => 50, 'diamond' => 100];
+
+    /** % bonus yield on every auto-gather action per VIP tier — stacks with luck and tool yield bonuses. */
+    public const VIP_TIER_GATHER_YIELD_PCT = ['bronze' => 10, 'gold' => 20, 'diamond' => 40];
 
     /** Level milestones that raise the level-earned active pet cap (cumulative — highest reached wins). */
     private const PET_LEVEL_SLOT_TIERS = [1 => 1, 50 => 2, 100 => 3];
@@ -404,6 +407,18 @@ class User extends Authenticatable
         $fallback = self::VIP_TIER_GATHER_SPEED_PCT[$this->vip_tier] ?? 0;
 
         return GameConfig::number("vip_gather_speed_pct_{$this->vip_tier}", $fallback);
+    }
+
+    /** % bonus yield on every auto-gather action from an active VIP subscription. */
+    public function vipGatherYieldBonusPct(): float
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_GATHER_YIELD_PCT[$this->vip_tier] ?? 0;
+
+        return GameConfig::number("vip_gather_yield_pct_{$this->vip_tier}", $fallback);
     }
 
     /** up to 4 gem-side slots (1 starter + 3 bought) + up to 4 from an active VIP subscription tier. */

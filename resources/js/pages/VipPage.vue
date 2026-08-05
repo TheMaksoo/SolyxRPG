@@ -58,7 +58,7 @@ const PERK_SECTIONS = [
     perks: [
       (tier) => `+${tier.gold_xp_pct_bonus}% gold & XP from battles`,
       (tier) => `+${tier.monthly_gems} gems every month, free`,
-      (tier) => `${tier.market_fee_reduction_pct}% lower Marketplace sale fee (base 5% → ${5 - tier.market_fee_reduction_pct}%)`,
+      (tier) => `${tier.market_fee_reduction_pct}% lower Marketplace sale fee (base 10% → ${10 - tier.market_fee_reduction_pct}%)`,
       (tier) => `+${tier.market_listing_bonus} active Marketplace listing${tier.market_listing_bonus > 1 ? 's' : ''} (up to ${10 + tier.market_listing_bonus} total)`,
     ],
   },
@@ -67,6 +67,7 @@ const PERK_SECTIONS = [
     perks: [
       (tier) => `+${tier.auto_pass_pct_bonus}% bonus duration on gem-purchased passes (e.g. 60m gem pass → ${Math.round(60 * (1 + tier.auto_pass_pct_bonus / 100))}m)`,
       (tier) => `+${tier.gather_speed_pct_bonus}% Auto-Gather action speed`,
+      (tier) => `+${tier.gather_yield_pct_bonus}% Auto-Gather item yield per action`,
     ],
   },
   {
