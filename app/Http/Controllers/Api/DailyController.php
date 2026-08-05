@@ -55,6 +55,11 @@ class DailyController extends Controller
             $character->user->increment('gems', $reward['gems']);
             GemLedger::log($character->user, $reward['gems'], "daily_reward:day{$cycleDay}", $character);
         }
+        $vipLoginGems = $character->user->vipDailyLoginGems();
+        if ($vipLoginGems > 0) {
+            $character->user->increment('gems', $vipLoginGems);
+            GemLedger::log($character->user, $vipLoginGems, "daily_vip_bonus:{$character->user->vip_tier}", $character);
+        }
 
         $claim->update(['streak' => $streak, 'last_claim_date' => Carbon::today()]);
         // Battle Pass xp is quest-based only now (see QuestController::claim) — the daily login streak
@@ -63,7 +68,7 @@ class DailyController extends Controller
 
         return response()->json(array_merge(
             $this->buildResponse($claim->fresh()),
-            ['character' => $character->fresh(), 'gold' => $reward['gold'], 'gems' => $reward['gems']],
+            ['character' => $character->fresh(), 'gold' => $reward['gold'], 'gems' => $reward['gems'], 'vip_login_gems' => $vipLoginGems],
         ));
     }
 

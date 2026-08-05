@@ -51,9 +51,11 @@ class AutoGatherService
         return collect(self::DURATIONS)->mapWithKeys(fn (int $m) => [$m => $this->costFor($m)])->all();
     }
 
-    public function grantedMinutesFor(int $minutes): int
+    public function grantedMinutesFor(int $minutes, ?Character $character = null): int
     {
-        return $minutes * self::DURATION_MULTIPLIER;
+        $vipMultiplier = $character ? $character->user->vipPassMultiplier() : 1.0;
+
+        return (int) round($minutes * self::DURATION_MULTIPLIER * $vipMultiplier);
     }
 
     /** Buys/extends an auto-gather pass for one skill+target. Switching to a different skill/target while one
@@ -147,7 +149,7 @@ class AutoGatherService
 
     private function extend(Character $character, string $skillKey, string $targetKey, int $minutes): void
     {
-        $grantedMinutes = $this->grantedMinutesFor($minutes);
+        $grantedMinutes = $this->grantedMinutesFor($minutes, $character);
         $isExtending = $character->auto_gather_expires_at && $character->auto_gather_expires_at->isFuture();
         $base = $isExtending ? $character->auto_gather_expires_at : now();
 

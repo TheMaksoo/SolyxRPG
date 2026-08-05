@@ -142,6 +142,19 @@ class User extends Authenticatable
     /** % bonus to Battle Pass points earned from quests, per VIP tier — see BattlePassService::addXp(). */
     public const VIP_TIER_BP_XP_PCT = ['bronze' => 5, 'gold' => 10, 'diamond' => 20];
 
+    /** Duration multiplier applied to gem-purchased Auto-Battle/Gather passes per VIP tier.
+     * e.g. Gold: buy 60 min → get 90 min (1.5×); Diamond: buy 60 min → get 120 min (2×). */
+    public const VIP_TIER_PASS_MULTIPLIER = ['bronze' => 1.25, 'gold' => 1.5, 'diamond' => 2.0];
+
+    /** Bonus gems granted on every successful daily login claim per VIP tier, on top of calendar rewards. */
+    public const VIP_TIER_DAILY_LOGIN_GEMS = ['bronze' => 1, 'gold' => 3, 'diamond' => 5];
+
+    /** % reduction to the crafting minimum-time floor per VIP tier (floor is normally 5 s). */
+    public const VIP_TIER_CRAFT_MIN_REDUCTION_PCT = ['bronze' => 7, 'gold' => 15, 'diamond' => 25];
+
+    /** Marketplace listing fee % per VIP tier — replaces the 10% default for active subscribers. */
+    public const VIP_TIER_MARKET_FEE_PCT = ['bronze' => 8, 'gold' => 5, 'diamond' => 2];
+
     /** Level milestones that raise the level-earned active pet cap (cumulative — highest reached wins). */
     private const PET_LEVEL_SLOT_TIERS = [1 => 1, 50 => 2, 100 => 3];
 
@@ -331,6 +344,57 @@ class User extends Authenticatable
         $fallback = self::VIP_TIER_PVP_ATTEMPTS[$this->vip_tier] ?? 0;
 
         return (int) round(GameConfig::number("vip_pvp_attempts_{$this->vip_tier}", $fallback));
+    }
+
+    /** Multiplier applied to gem-purchased Auto-Battle/Gather pass durations. 1.0 = no bonus. */
+    public function vipPassMultiplier(): float
+    {
+        if (! $this->hasActiveVip()) {
+            return 1.0;
+        }
+
+        $fallback = self::VIP_TIER_PASS_MULTIPLIER[$this->vip_tier] ?? 1.0;
+
+        return GameConfig::number("vip_pass_multiplier_{$this->vip_tier}", $fallback);
+    }
+
+    /** Bonus gems granted per daily login claim from an active VIP subscription (on top of calendar rewards). */
+    public function vipDailyLoginGems(): int
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_DAILY_LOGIN_GEMS[$this->vip_tier] ?? 0;
+
+        return (int) round(GameConfig::number("vip_daily_login_gems_{$this->vip_tier}", $fallback));
+    }
+
+    /** % reduction to the crafting minimum-time floor from an active VIP subscription. */
+    public function vipCraftMinReductionPct(): float
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_CRAFT_MIN_REDUCTION_PCT[$this->vip_tier] ?? 0;
+
+        return GameConfig::number("vip_craft_min_reduction_pct_{$this->vip_tier}", $fallback);
+    }
+
+    /** Marketplace listing fee % for an active VIP subscriber — lower than the 10% default. */
+    public function vipMarketFeePct(): ?float
+    {
+        if (! $this->hasActiveVip()) {
+            return null;
+        }
+
+        $fallback = self::VIP_TIER_MARKET_FEE_PCT[$this->vip_tier] ?? null;
+        if ($fallback === null) {
+            return null;
+        }
+
+        return GameConfig::number("vip_market_fee_pct_{$this->vip_tier}", $fallback);
     }
 
     /** Extra daily dungeon raid attempts from an active VIP subscription. */

@@ -41,6 +41,13 @@ const COSMETIC_PERKS = {
 // stays a 1:1 mirror of what's actually implemented server-side, not aspirational copy.
 const PERK_SECTIONS = [
   {
+    title: 'Daily Bonuses',
+    perks: [
+      (tier) => `+${tier.daily_login_gems} gem${tier.daily_login_gems > 1 ? 's' : ''} every daily login`,
+      (tier) => `+${tier.monthly_gems} gems every month, free`,
+    ],
+  },
+  {
     title: 'Daily Limits',
     perks: [
       (tier) => `+${tier.pvp_bonus_attempts} daily PvP battle attempts`,
@@ -48,11 +55,17 @@ const PERK_SECTIONS = [
     ],
   },
   {
+    title: 'Auto-Battle & Gathering',
+    perks: [
+      (tier) => `${tier.pass_multiplier}× Auto-Battle & Auto-Gather pass duration`,
+    ],
+  },
+  {
     title: 'Economy',
     perks: [
       (tier) => `+${tier.gold_xp_pct_bonus}% gold & XP from battles`,
-      (tier) => `+${tier.monthly_gems} gems every month, free`,
       (tier) => `+${tier.market_listing_bonus} active Marketplace listing${tier.market_listing_bonus > 1 ? 's' : ''} (up to ${10 + tier.market_listing_bonus} total)`,
+      (tier) => `${tier.market_fee_pct}% Marketplace listing fee (default 10%)`,
     ],
   },
   {
@@ -68,6 +81,13 @@ const PERK_SECTIONS = [
     perks: [
       (tier) => `${tier.craft_speed_pct_bonus}% faster crafting`,
       (tier) => `+${tier.craft_queue_bonus} crafting queue slot${tier.craft_queue_bonus > 1 ? 's' : ''}`,
+      (tier) => `${tier.craft_min_reduction_pct}% lower crafting minimum time`,
+    ],
+  },
+  {
+    title: 'Battle Pass',
+    perks: [
+      (tier) => `+${tier.bp_xp_pct_bonus}% Battle Pass XP from quests`,
     ],
   },
   {

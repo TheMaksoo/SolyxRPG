@@ -30,7 +30,7 @@ class AutoGatherController extends Controller
             'summary' => $summary,
             'costs' => $this->autoGather->costs(),
             'granted_minutes' => collect($this->autoGather->durations())->mapWithKeys(
-                fn (int $m) => [$m => $this->autoGather->grantedMinutesFor($m)]
+                fn (int $m) => [$m => $this->autoGather->grantedMinutesFor($m, $character)]
             ),
             'gems' => $character->user->gems,
         ]);

@@ -70,13 +70,16 @@ class AutoBattleService
     }
 
     /** Extends/starts the pass by the given minutes, regardless of how it was paid for (gems here, real money via
-     * StoreController's `auto_battle_60` SKU). Stacks onto time already remaining rather than overwriting it. */
+     * StoreController's `auto_battle_60` SKU). Stacks onto time already remaining rather than overwriting it.
+     * VIP subscribers get a duration multiplier applied on top — e.g. Gold 1.5× turns 60 min into 90 min. */
     public function extend(Character $character, int $minutes): void
     {
+        $multiplier = $character->user->vipPassMultiplier();
+        $grantedMinutes = (int) round($minutes * $multiplier);
         $isExtending = $character->auto_battle_expires_at && $character->auto_battle_expires_at->isFuture();
         $base = $isExtending ? $character->auto_battle_expires_at : now();
 
-        $character->auto_battle_expires_at = $base->copy()->addMinutes($minutes);
+        $character->auto_battle_expires_at = $base->copy()->addMinutes($grantedMinutes);
         if (! $isExtending) {
             $character->auto_battle_last_tick_at = now();
         }

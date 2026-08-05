@@ -31,6 +31,10 @@ class AutoBattleController extends Controller
             'seconds_remaining' => $secondsRemaining,
             'summary' => $summary,
             'costs' => $this->autoBattle->costs(),
+            'pass_multiplier' => $character->user->vipPassMultiplier(),
+            'granted_minutes' => collect($this->autoBattle->durations())->mapWithKeys(
+                fn (int $m) => [$m => (int) round($m * $character->user->vipPassMultiplier())]
+            ),
             'gems' => $character->user->gems,
         ]);
     }

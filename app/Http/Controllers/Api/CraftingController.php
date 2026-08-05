@@ -79,10 +79,11 @@ class CraftingController extends Controller
 
         $craftingLevel = $this->craftingLevel($character);
         $craftSpeedPct = $request->user()->vipCraftingSpeedBonus();
+        $craftMinReductionPct = $request->user()->vipCraftMinReductionPct();
         $craftSpeedAttr = $character->attributes_?->crafting_speed ?? 0;
         $hammerSpeedPct = $this->equippedHammerSpeedPct($character) + ($character->effectiveStats()['pet_craft_speed_pct'] ?? 0);
 
-        $recipes = $recipes->map(function (Recipe $recipe) use ($inventoryByItem, $materialsById, $craftSpeedPct, $craftSpeedAttr, $hammerSpeedPct, $character) {
+        $recipes = $recipes->map(function (Recipe $recipe) use ($inventoryByItem, $materialsById, $craftSpeedPct, $craftMinReductionPct, $craftSpeedAttr, $hammerSpeedPct, $character) {
             $materialsDetailed = collect($recipe->materials_json)->map(function (array $material) use ($inventoryByItem, $materialsById) {
                 $owned = (int) ($inventoryByItem[$material['item_id']] ?? 0);
                 $item = $materialsById->get($material['item_id']);
@@ -122,7 +123,7 @@ class CraftingController extends Controller
                 'other_class' => $otherClass,
                 'can_craft' => $levelUnlocked && $canAffordGold && ! $materialsDetailed->contains(fn (array $m) => ! $m['has_enough']),
                 'is_gear' => $isGear,
-                'craft_seconds' => $this->craftSeconds($recipe->craft_seconds, $craftSpeedPct, $craftSpeedAttr, $hammerSpeedPct),
+                'craft_seconds' => $this->craftSeconds($recipe->craft_seconds, $craftSpeedPct, $craftMinReductionPct, $craftSpeedAttr, $hammerSpeedPct),
             ];
         })->values();
 
@@ -164,11 +165,12 @@ class CraftingController extends Controller
         $luck = (int) ($stats['luck'] ?? 0);
         $craftingLevel = $this->craftingLevel($character);
         $craftSpeedPct = $request->user()->vipCraftingSpeedBonus();
+        $craftMinReductionPct = $request->user()->vipCraftMinReductionPct();
         $craftSpeedAttr = $character->attributes_?->crafting_speed ?? 0;
         $hammerSpeedPct = $this->equippedHammerSpeedPct($character) + ($stats['pet_craft_speed_pct'] ?? 0);
         $job = null;
 
-        DB::transaction(function () use ($recipe, $character, $luck, $craftingLevel, $craftSpeedPct, $craftSpeedAttr, $hammerSpeedPct, &$job) {
+        DB::transaction(function () use ($recipe, $character, $luck, $craftingLevel, $craftSpeedPct, $craftMinReductionPct, $craftSpeedAttr, $hammerSpeedPct, &$job) {
             foreach ($recipe->materials_json as $material) {
                 $owned = Inventory::where('character_id', $character->id)->where('item_id', $material['item_id'])->first();
                 $owned->decrement('qty', $material['qty']);
@@ -194,7 +196,7 @@ class CraftingController extends Controller
                 $resultItem = $this->createCraftedVariant($resultItem, 1 + ($rollPct / 100), $luck, $rarity, $rollPct);
             }
 
-            $seconds = $this->craftSeconds($recipe->craft_seconds, $craftSpeedPct, $craftSpeedAttr, $hammerSpeedPct);
+            $seconds = $this->craftSeconds($recipe->craft_seconds, $craftSpeedPct, $craftMinReductionPct, $craftSpeedAttr, $hammerSpeedPct);
 
             // Only one craft actually cooks at a time — queuing more just lines them up. Each new job starts
             // when the last-queued one finishes, rather than every queued job counting down in parallel.
@@ -301,13 +303,15 @@ class CraftingController extends Controller
     }
 
     /** Applies the VIP crafting-speed %, the Crafting Speed attribute's % reduction, and an equipped Hammer's
-     * % reduction to a recipe's base craft time, floored at 5s. */
-    private function craftSeconds(int $baseSeconds, float $vipSpeedPct, int $attrPoints = 0, float $toolSpeedPct = 0): int
+     * % reduction to a recipe's base craft time. The floor is normally 5 s but is further reduced by the
+     * VIP crafting-minimum-reduction bonus (e.g. 15% at Gold → floor becomes 4 s instead of 5 s). */
+    private function craftSeconds(int $baseSeconds, float $vipSpeedPct, float $vipMinReductionPct = 0, int $attrPoints = 0, float $toolSpeedPct = 0): int
     {
         $attrPct = min(self::ATTR_SPEED_CAP_PCT, $attrPoints * self::ATTR_SPEED_PCT_PER_POINT);
         $seconds = $baseSeconds * (1 - $vipSpeedPct / 100) * (1 - $attrPct / 100) * (1 - $toolSpeedPct / 100);
+        $floor = max(1, (int) round(5 * (1 - $vipMinReductionPct / 100)));
 
-        return max(5, (int) round($seconds));
+        return max($floor, (int) round($seconds));
     }
 
     /** Reads the equipped Hammer's craft_speed_pct stat, or zero if nothing's equipped/it's broken. */
