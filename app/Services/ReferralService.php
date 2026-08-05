@@ -36,7 +36,7 @@ class ReferralService
     public const MILESTONE_GEM_REWARD = 100;
 
     /** Gems awarded to the referred player themselves for each milestone level they personally reach. */
-    public const REFEREE_MILESTONE_GEM_REWARD = 20;
+    public const REFEREE_MILESTONE_GEM_REWARD = 29;
 
     // Milestone levels where both the referrer (every 2 qualifying referrals) and the referee
     // (individually, on first reach) earn gem rewards.
