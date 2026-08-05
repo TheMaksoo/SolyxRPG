@@ -12,10 +12,12 @@ class ReferralMilestone extends Model
         'referee_id',
         'level_milestone',
         'reward_granted_at',
+        'referee_reward_granted_at',
     ];
 
     protected $casts = [
         'reward_granted_at' => 'datetime',
+        'referee_reward_granted_at' => 'datetime',
     ];
 
     public function referrer(): BelongsTo

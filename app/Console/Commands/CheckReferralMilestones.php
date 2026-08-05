@@ -27,15 +27,17 @@ class CheckReferralMilestones extends Command
         });
 
         $bonusesGranted = 0;
+        $milestoneBonusesGranted = 0;
 
-        User::whereNotNull('referred_by_user_id')->whereNull('referral_bonus_granted_at')
-            ->each(function (User $referee) use ($referrals, &$bonusesGranted) {
+        User::whereNotNull('referred_by_user_id')
+            ->each(function (User $referee) use ($referrals, &$bonusesGranted, &$milestoneBonusesGranted) {
                 if ($referrals->checkAndGrantRefereeBonus($referee)) {
                     $bonusesGranted++;
                 }
+                $milestoneBonusesGranted += $referrals->checkAndGrantRefereeMilestoneBonus($referee);
             });
 
-        $this->info("Referral sweep complete — {$rewardsGranted} referrer reward(s), {$bonusesGranted} referee bonus(es) granted.");
+        $this->info("Referral sweep complete — {$rewardsGranted} referrer reward(s), {$bonusesGranted} referee level-5 bonus(es), {$milestoneBonusesGranted} referee milestone bonus(es) granted.");
 
         return self::SUCCESS;
     }

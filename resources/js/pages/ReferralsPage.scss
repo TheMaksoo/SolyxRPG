@@ -22,6 +22,51 @@
   flex-basis: 100%;
 }
 
+.rewards-explainer {
+  @include m.card(18px);
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.rewards-explainer__section {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.rewards-explainer__icon {
+  font-size: 22px;
+  flex-shrink: 0;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+.rewards-explainer__body {
+  font-size: 13px;
+
+  strong {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+}
+
+.rewards-explainer__list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: v.$text-muted-55;
+  font-size: 12.5px;
+
+  li {
+    line-height: 1.5;
+  }
+}
+
 .referrals-skeleton {
   display: flex;
   flex-direction: column;
@@ -220,8 +265,15 @@
   font-weight: 600;
   color: v.$success;
   display: flex;
-  align-items: center;
-  gap: 4px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.milestone-card__reward-note {
+  font-size: 10.5px;
+  font-weight: 400;
+  color: v.$text-muted-45;
 }
 
 .milestone-card__body {
@@ -327,7 +379,47 @@
   padding: 20px 0;
 }
 
-@media (max-width: 768px) {
+.referral-card-download {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 14px 18px;
+  border-radius: v.$radius-sm;
+  border: 1px dashed v.$border-medium;
+  background: v.$bg-surface;
+}
+
+.referral-card-download__hint {
+  flex: 1;
+  font-size: 13px;
+  color: v.$text-muted-45;
+  margin: 0;
+}
+
+.referral-card-download__btn {
+  @include m.btn-secondary;
+  font-size: 13px;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+@media (max-width: 600px) {
+  .referral-card-download {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .referral-card-download__btn {
+    width: 100%;
+  }
+}
+
   .invite-card__row {
     flex-direction: column;
   }

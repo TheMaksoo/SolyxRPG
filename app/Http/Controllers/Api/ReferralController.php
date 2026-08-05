@@ -21,6 +21,7 @@ class ReferralController extends Controller
         $this->referrals->checkAndGrant($user);
         $this->referrals->checkAndGrantMilestones($user);
         $this->referrals->checkAndGrantRefereeBonus($user);
+        $this->referrals->checkAndGrantRefereeMilestoneBonus($user);
         $user->refresh();
 
         $referred = $user->referrals()->with('characters')->latest('created_at')->get()->map(function ($friend) {
@@ -39,6 +40,40 @@ class ReferralController extends Controller
         $ownBestLevel = $user->relationLoaded('characters')
             ? $user->characters->max('level')
             : $user->characters()->max('level');
+
+        // Build referee's own milestone progress (which milestone gem rewards they've earned/pending).
+        $refereeMilestoneProgress = [];
+        if ($user->referred_by_user_id) {
+            $allMilestones = ReferralService::getMilestoneLevels();
+            foreach ($allMilestones as $milestoneLevel) {
+                $reached = ($ownBestLevel ?? 0) >= $milestoneLevel;
+                $row = \App\Models\ReferralMilestone::where('referrer_id', $user->referred_by_user_id)
+                    ->where('referee_id', $user->id)
+                    ->where('level_milestone', $milestoneLevel)
+                    ->first();
+                $claimed = $row && $row->referee_reward_granted_at !== null;
+                if ($reached || $claimed) {
+                    $refereeMilestoneProgress[] = [
+                        'level' => $milestoneLevel,
+                        'reached' => $reached,
+                        'claimed' => $claimed,
+                        'gem_reward' => ReferralService::REFEREE_MILESTONE_GEM_REWARD,
+                    ];
+                }
+            }
+            // Also include the next upcoming milestone so the player sees what's coming.
+            foreach ($allMilestones as $milestoneLevel) {
+                if (($ownBestLevel ?? 0) < $milestoneLevel) {
+                    $refereeMilestoneProgress[] = [
+                        'level' => $milestoneLevel,
+                        'reached' => false,
+                        'claimed' => false,
+                        'gem_reward' => ReferralService::REFEREE_MILESTONE_GEM_REWARD,
+                    ];
+                    break;
+                }
+            }
+        }
 
         // Get milestone progress information
         $milestones = ReferralService::getMilestoneLevels();
@@ -74,13 +109,13 @@ class ReferralController extends Controller
             foreach ($milestoneProgress as $index => $milestone) {
                 $qualifyingCount = $milestone['qualifying_count'];
                 
-                // Always show completed milestones (2+ users reached)
-                if ($qualifyingCount >= 2) {
+                // Always show completed milestones (enough users to have earned at least one reward)
+                if ($qualifyingCount >= ReferralService::REFERRALS_PER_REWARD) {
                     $filteredMilestoneProgress[] = $milestone;
                     $highestReachedIndex = $index;
                 }
-                // Show current milestone (1 user reached)
-                elseif ($qualifyingCount === 1) {
+                // Show current milestone (some progress but not yet a full reward)
+                elseif ($qualifyingCount > 0 && $qualifyingCount < ReferralService::REFERRALS_PER_REWARD) {
                     $filteredMilestoneProgress[] = $milestone;
                     $highestReachedIndex = $index;
                 }
@@ -107,6 +142,7 @@ class ReferralController extends Controller
             'reward_vip_tier' => ReferralService::REWARD_VIP_TIER,
             'referee_bonus_gems' => ReferralService::REFEREE_BONUS_GEMS,
             'milestone_gem_reward' => ReferralService::MILESTONE_GEM_REWARD,
+            'referee_milestone_gem_reward' => ReferralService::REFEREE_MILESTONE_GEM_REWARD,
             'qualifying_count' => $qualifying,
             'progress_to_next' => $qualifying % ReferralService::REFERRALS_PER_REWARD,
             'rewards_claimed' => $user->referral_rewards_claimed,
@@ -129,5 +165,22 @@ class ReferralController extends Controller
         $request->user()->increment('referral_link_copies');
 
         return response()->json(['ok' => true]);
+    }
+
+    /** Public, unauthenticated — returns just the referrer's display name for a given referral code so
+     * the landing page can show a personalised "Your friend X is waiting" banner, and so the dynamic
+     * Open Graph title tag can be set on the server-rendered page without exposing anything sensitive. */
+    public function preview(Request $request)
+    {
+        $code = trim((string) $request->query('code', ''));
+        if (! $code) {
+            return response()->json(['name' => null]);
+        }
+
+        $referrer = \App\Models\User::where('referral_code', $code)
+            ->orWhere('vanity_referral_code', $code)
+            ->first();
+
+        return response()->json(['name' => $referrer?->name]);
     }
 }

@@ -53,6 +53,7 @@ class ReferralServiceTest extends TestCase
             $table->foreignId('referee_id');
             $table->unsignedInteger('level_milestone');
             $table->timestamp('reward_granted_at')->nullable();
+            $table->timestamp('referee_reward_granted_at')->nullable();
             $table->timestamps();
             $table->unique(['referrer_id', 'referee_id', 'level_milestone']);
         });
@@ -72,21 +73,56 @@ class ReferralServiceTest extends TestCase
         $service = $this->app->make(ReferralService::class);
         $referrer = $this->createUser();
 
-        $this->createQualifyingReferral($referrer, 10);
-        $this->createQualifyingReferral($referrer, 10);
+        $referee1 = $this->createQualifyingReferral($referrer, 10);
+        $referee2 = $this->createQualifyingReferral($referrer, 10);
 
+        // 2 referrals reaching level 10 → 1 referrer reward (100 gems).
+        // Each referee also gets REFEREE_MILESTONE_GEM_REWARD (20 gems) individually.
         $this->assertSame(1, $service->checkAndGrantMilestones($referrer->fresh()));
         $this->assertSame(100, $referrer->fresh()->gems);
+        $this->assertSame(20, $referee1->fresh()->gems);
+        $this->assertSame(20, $referee2->fresh()->gems);
         $this->assertSame(2, ReferralMilestone::where('referrer_id', $referrer->id)->whereNotNull('reward_granted_at')->count());
-        $this->assertDatabaseCount('gem_ledger', 1);
+        $this->assertSame(2, ReferralMilestone::where('referrer_id', $referrer->id)->whereNotNull('referee_reward_granted_at')->count());
+        // Ledger: 1 referrer reward + 2 referee bonuses = 3 entries.
+        $this->assertDatabaseCount('gem_ledger', 3);
 
-        $this->createQualifyingReferral($referrer, 10);
-        $this->createQualifyingReferral($referrer, 10);
+        $referee3 = $this->createQualifyingReferral($referrer, 10);
+        $referee4 = $this->createQualifyingReferral($referrer, 10);
 
+        // 2 more referrals → 1 more referrer reward, 2 more referee bonuses.
         $this->assertSame(1, $service->checkAndGrantMilestones($referrer->fresh()));
         $this->assertSame(200, $referrer->fresh()->gems);
+        $this->assertSame(20, $referee3->fresh()->gems);
+        $this->assertSame(20, $referee4->fresh()->gems);
         $this->assertSame(4, ReferralMilestone::where('referrer_id', $referrer->id)->whereNotNull('reward_granted_at')->count());
-        $this->assertDatabaseCount('gem_ledger', 2);
+        $this->assertDatabaseCount('gem_ledger', 6);
+    }
+
+    public function test_referee_milestone_bonus_granted_independently(): void
+    {
+        $service = $this->app->make(ReferralService::class);
+        $referrer = $this->createUser();
+        $referee = $this->createQualifyingReferral($referrer, 10);
+
+        // Only 1 qualifying referral — referrer doesn't reach the 2-per-reward threshold.
+        $service->checkAndGrantMilestones($referrer->fresh());
+        $this->assertSame(0, $referrer->fresh()->gems); // No referrer reward yet.
+        $this->assertSame(20, $referee->fresh()->gems); // Referee still gets their 20 gems.
+        $this->assertSame(0, ReferralMilestone::where('referrer_id', $referrer->id)->whereNotNull('reward_granted_at')->count());
+        $this->assertSame(1, ReferralMilestone::where('referrer_id', $referrer->id)->whereNotNull('referee_reward_granted_at')->count());
+    }
+
+    public function test_referee_milestone_bonus_idempotent(): void
+    {
+        $service = $this->app->make(ReferralService::class);
+        $referrer = $this->createUser();
+        $this->createQualifyingReferral($referrer, 10);
+
+        $service->checkAndGrantMilestones($referrer->fresh());
+        $service->checkAndGrantMilestones($referrer->fresh()); // Second call — should not double-grant.
+
+        $this->assertDatabaseCount('gem_ledger', 1); // Only 1 referee bonus, no double-grant.
     }
 
     private function createUser(?int $referrerId = null): User
