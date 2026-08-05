@@ -41,6 +41,40 @@ class ReferralController extends Controller
             ? $user->characters->max('level')
             : $user->characters()->max('level');
 
+        // Build referee's own milestone progress (which milestone gem rewards they've earned/pending).
+        $refereeMilestoneProgress = [];
+        if ($user->referred_by_user_id) {
+            $allMilestones = ReferralService::getMilestoneLevels();
+            foreach ($allMilestones as $milestoneLevel) {
+                $reached = ($ownBestLevel ?? 0) >= $milestoneLevel;
+                $row = \App\Models\ReferralMilestone::where('referrer_id', $user->referred_by_user_id)
+                    ->where('referee_id', $user->id)
+                    ->where('level_milestone', $milestoneLevel)
+                    ->first();
+                $claimed = $row && $row->referee_reward_granted_at !== null;
+                if ($reached || $claimed) {
+                    $refereeMilestoneProgress[] = [
+                        'level' => $milestoneLevel,
+                        'reached' => $reached,
+                        'claimed' => $claimed,
+                        'gem_reward' => ReferralService::REFEREE_MILESTONE_GEM_REWARD,
+                    ];
+                }
+            }
+            // Also include the next upcoming milestone so the player sees what's coming.
+            foreach ($allMilestones as $milestoneLevel) {
+                if (($ownBestLevel ?? 0) < $milestoneLevel) {
+                    $refereeMilestoneProgress[] = [
+                        'level' => $milestoneLevel,
+                        'reached' => false,
+                        'claimed' => false,
+                        'gem_reward' => ReferralService::REFEREE_MILESTONE_GEM_REWARD,
+                    ];
+                    break;
+                }
+            }
+        }
+
         // Get milestone progress information
         $milestones = ReferralService::getMilestoneLevels();
         $milestoneProgress = [];
