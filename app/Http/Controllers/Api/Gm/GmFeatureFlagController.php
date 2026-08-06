@@ -12,6 +12,7 @@ class GmFeatureFlagController extends Controller
     /** Mirrors FeatureFlagSeeder — self-heals on load like GmConfigController does, so an unseeded install still shows something. */
     private const DEFAULT_FLAGS = [
         ['key' => 'global_tester_mode', 'name' => 'Global Tester Mode', 'enabled' => false, 'tester_only' => false],
+        ['key' => 'tester_auto_approve', 'name' => 'Auto-Approve Testers (~1 hour wait)', 'enabled' => false, 'tester_only' => false],
         ['key' => 'guilds', 'name' => 'Guilds', 'enabled' => true, 'tester_only' => false],
         ['key' => 'battle_pass', 'name' => 'Battle Pass', 'enabled' => true, 'tester_only' => false],
         ['key' => 'gem_store', 'name' => 'Gem Store', 'enabled' => true, 'tester_only' => false],
