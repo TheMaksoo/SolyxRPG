@@ -529,9 +529,6 @@ onMounted(() => {
             >
               {{ minutes }}m · 💎{{ autoBattle.costs[minutes] ?? '—' }}
             </button>
-            <button class="auto-battle-card__option auto-battle-card__option--cash" @click="buyAutoBattleCash('auto_battle_60')">
-              1h · €0.99
-            </button>
             <button class="auto-battle-card__option auto-battle-card__option--cash" @click="buyAutoBattleCash('auto_battle_480')">
               8h · €0.99
             </button>

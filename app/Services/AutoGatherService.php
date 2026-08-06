@@ -148,16 +148,18 @@ class AutoGatherService
     }
 
     /** Called by StoreController's webhook when a cash auto_gather_480 SKU is fulfilled.
-     * Stacks onto time already remaining rather than overwriting it. */
+     * Stacks onto time already remaining rather than overwriting it. Requires an active
+     * gathering session — throws if no session is running, since skill/target are not known. */
     public function extendFromPurchase(Character $character, int $minutes): void
     {
-        $isActive = $character->auto_gather_expires_at && $character->auto_gather_expires_at->isFuture();
-        $base = $isActive ? $character->auto_gather_expires_at : now();
+        $isActive = $character->auto_gather_expires_at && $character->auto_gather_expires_at->isFuture()
+            && $character->auto_gather_skill && $character->auto_gather_target;
 
-        $character->auto_gather_expires_at = $base->copy()->addMinutes($minutes);
         if (! $isActive) {
-            $character->auto_gather_last_tick_at = now();
+            throw new \RuntimeException('No active auto-gather session to extend. Start a gathering session first.');
         }
+
+        $character->auto_gather_expires_at = $character->auto_gather_expires_at->copy()->addMinutes($minutes);
         $character->save();
     }
 

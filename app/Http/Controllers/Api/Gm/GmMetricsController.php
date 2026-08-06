@@ -32,7 +32,7 @@ class GmMetricsController extends Controller
 
         $gemPackRevenueCents = (clone $completedThisMonth())->where('sku', 'like', 'gems_%')->sum('amount_cents');
         $seasonPassRevenueCents = (clone $completedThisMonth())->where('sku', 'pass_ashfall')->sum('amount_cents');
-        $otherRevenueCents = (clone $completedThisMonth())->whereIn('sku', ['remove_ads'])->sum('amount_cents');
+        $otherRevenueCents = (clone $completedThisMonth())->whereIn('sku', ['remove_ads', 'auto_battle_480', 'auto_gather_480'])->sum('amount_cents');
 
         $gemPacksSoldCount = (clone $completedThisMonth())->where('sku', 'like', 'gems_%')->count();
         $seasonPassesSoldCount = (clone $completedThisMonth())->where('sku', 'pass_ashfall')->count();
