@@ -14,14 +14,24 @@ class ChangelogController extends Controller
 {
     public function index()
     {
+        $user = request()->user();
+
+        $allowed = ['player'];
+        if ($user->isTester()) {
+            $allowed[] = 'tester';
+        }
+        if ($user->isGm()) {
+            $allowed[] = 'gm';
+        }
+
         return response()->json([
-            'entries' => Changelog::orderByDesc('published_at')->get(),
+            'entries' => Changelog::whereIn('visibility', $allowed)->orderByDesc('published_at')->get(),
         ]);
     }
 
     public function current()
     {
-        $latest = Changelog::orderByDesc('published_at')->first();
+        $latest = Changelog::where('visibility', 'player')->orderByDesc('published_at')->first();
 
         return response()->json(['version' => $latest?->version ?? 'dev']);
     }
