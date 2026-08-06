@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\AuditLog;
 use App\Models\FeatureFlag;
+use App\Models\GameConfig;
 use App\Models\User;
 use App\Notifications\TesterApprovedNotification;
 use Illuminate\Console\Command;
@@ -23,7 +24,7 @@ class AutoApproveTesterApplications extends Command
         $pending = User::whereNotNull('tester_applied_at')
             ->whereNull('tester_approved_at')
             ->whereNull('tester_rejection_reason')
-            ->where('tester_applied_at', '<=', now()->subHour())
+            ->where('tester_applied_at', '<=', now()->subMinutes((int) GameConfig::number('tester_auto_approve_minutes', 60)))
             ->get();
 
         foreach ($pending as $user) {

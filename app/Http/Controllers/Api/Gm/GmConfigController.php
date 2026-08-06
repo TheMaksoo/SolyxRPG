@@ -76,6 +76,7 @@ class GmConfigController extends Controller
         'durability_max_epic' => '240',
         'durability_max_legendary' => '350',
         'durability_max_mythic' => '500',
+        'tester_auto_approve_minutes' => '60',
     ];
 
     public function index()

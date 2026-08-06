@@ -112,6 +112,54 @@
   margin: 0;
 }
 
+.gm-console-tester-auto-panel {
+  @extend %gm-tile-base;
+  padding: 14px 18px;
+  border-color: rgba(16, 185, 129, 0.25);
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gm-console-tester-auto-panel__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+
+  &--wait {
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+}
+
+.gm-console-tester-auto-panel__label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 13px;
+  font-weight: 600;
+  color: v.$text-primary;
+  cursor: default;
+}
+
+.gm-console-tester-auto-panel__hint {
+  font-size: 11.5px;
+  font-weight: 400;
+  color: v.$text-muted-40;
+}
+
+.gm-console-tester-auto-panel__input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gm-console-tester-auto-panel__minutes-input {
+  width: 90px;
+}
+
 // ---- Main tabs ----
 .gm-console-tabs {
   display: flex;

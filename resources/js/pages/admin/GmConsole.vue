@@ -770,6 +770,9 @@ const testers = ref([]);
 const testerMessage = ref('');
 const rejectReasonForms = ref({});
 
+const autoApproveFlag = computed(() => flags.value.find((f) => f.key === 'tester_auto_approve'));
+const autoApproveMinutesRow = computed(() => config.value.find((r) => r.key === 'tester_auto_approve_minutes'));
+
 async function loadTesters() {
   const { data } = await api.get('/gm/testers');
   testers.value = data.applications;
@@ -803,7 +806,7 @@ function switchTab(key) {
   if (key === 'overview') loadOverview();
   if (key === 'activity') { loadActivity(); loadRevenue(); }
   if (key === 'players') loadPlayers();
-  if (key === 'testers') loadTesters();
+  if (key === 'testers') { loadTesters(); loadFlags(); loadConfig(); }
   if (key === 'economy') loadConfig();
   if (key === 'revenue') { loadRevenueDashboard(); loadPurchaseLog(); }
   if (key === 'flags') loadFlags();
@@ -1656,6 +1659,42 @@ onMounted(() => {
     <!-- TESTERS -->
     <div v-else-if="tab === 'testers'">
       <p class="gm-console-intro">Pending tester applications — approve to grant dev access, reject to decline.</p>
+
+      <!-- Auto-approve settings -->
+      <div v-if="autoApproveFlag" class="gm-console-tester-auto-panel">
+        <div class="gm-console-tester-auto-panel__row">
+          <label class="gm-console-tester-auto-panel__label">
+            Auto-approve testers
+            <span class="gm-console-tester-auto-panel__hint">When on, pending applications are approved automatically after the wait time below.</span>
+          </label>
+          <label class="toggle-switch">
+            <input
+              type="checkbox"
+              aria-label="Auto-approve testers toggle"
+              :checked="autoApproveFlag.enabled"
+              @change="toggleFlag(autoApproveFlag, 'enabled')"
+            />
+            <span class="toggle-switch__track"><span class="toggle-switch__knob"></span></span>
+          </label>
+        </div>
+        <div v-if="autoApproveMinutesRow" class="gm-console-tester-auto-panel__row gm-console-tester-auto-panel__row--wait">
+          <label class="gm-console-tester-auto-panel__label" :for="`auto-approve-minutes`">
+            Wait time (minutes)
+          </label>
+          <div class="gm-console-tester-auto-panel__input-group">
+            <input
+              id="auto-approve-minutes"
+              v-model.number="autoApproveMinutesRow.value"
+              type="number"
+              min="1"
+              max="10080"
+              class="gm-console-config-input gm-console-tester-auto-panel__minutes-input"
+            />
+            <button class="gm-console-config-save-btn" @click="saveConfig(autoApproveMinutesRow)">Save</button>
+          </div>
+        </div>
+      </div>
+
       <p v-if="testerMessage" class="gm-console-action-msg">{{ testerMessage }}</p>
       <div v-if="!testers.length" class="gm-console-empty">No pending applications.</div>
       <div v-for="user in testers" :key="user.id" class="gm-console-player-card">
