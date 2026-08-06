@@ -35,10 +35,11 @@ const autoBattle = ref(null);
 const autoGather = ref(null);
 const referrals = ref(null);
 const latestUpdate = ref(null);
+const recentChanges = ref([]);
 const inviteCopied = ref(false);
 
 async function loadRail() {
-  const [dailyRes, passRes, lbRes, recentBattlesRes, questRes, annRes, tradeRes, craftRes, recipeRes, autoBattleRes, autoGatherRes, referralsRes] = await Promise.all([
+  const [dailyRes, passRes, lbRes, recentBattlesRes, questRes, annRes, tradeRes, craftRes, recipeRes, autoBattleRes, autoGatherRes, referralsRes, changelogRes] = await Promise.all([
     api.get('/daily'),
     api.get('/battlepass'),
     api.get('/leaderboard'),
@@ -51,6 +52,7 @@ async function loadRail() {
     api.get('/auto-battle'),
     api.get('/auto-gather'),
     api.get('/referrals'),
+    api.get('/changelog'),
   ]);
   daily.value = dailyRes.data;
   battlePass.value = passRes.data.battle_pass;
@@ -66,6 +68,8 @@ async function loadRail() {
   autoBattle.value = autoBattleRes.data;
   autoGather.value = autoGatherRes.data;
   referrals.value = referralsRes.data;
+  recentChanges.value = (changelogRes.data.entries ?? []).slice(0, 5);
+  latestUpdate.value = recentChanges.value[0] ?? null;
   railLoaded.value = true;
 }
 
@@ -88,6 +92,17 @@ function formatDuration(totalSeconds) {
   const s = totalSeconds % 60;
   return `${m}:${String(s).padStart(2, '0')}`;
 }
+
+function formatDate(isoString) {
+  return new Date(isoString).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+const CHANGELOG_TAG_LABEL = { feature: 'New', fix: 'Fix', balance: 'Balance', misc: 'Misc' };
+
+/** Show the Recent Changes widget in the dashboard when running in the dev environment. */
+const showDashboardChangelog = computed(
+  () => auth.isDev || auth.user?.is_tester || auth.user?.role === 'tester' || auth.user?.role === 'gm' || auth.user?.role === 'owner'
+);
 
 const isCrafting = computed(() => craftQueue.value.length > 0);
 
@@ -347,6 +362,34 @@ onMounted(() => {
       </div>
 
       <AdBanner variant="inline" />
+
+      <!-- Recent Changes — shown in dev environment so testers see what changed. -->
+      <div v-if="showDashboardChangelog" class="dash-changelog">
+        <div class="dash-changelog__head">
+          <span class="dash-changelog__icon">⚗</span>
+          <span class="dash-changelog__title">Recent Changes</span>
+          <router-link to="/development" class="dash-changelog__more">See all →</router-link>
+        </div>
+        <template v-if="railLoaded">
+          <div v-for="entry in recentChanges" :key="entry.id" class="dash-changelog__row dash-fade-in">
+            <span class="dash-changelog__tag" :class="`dash-changelog__tag--${entry.tag}`">
+              {{ CHANGELOG_TAG_LABEL[entry.tag] ?? entry.tag }}
+            </span>
+            <span class="dash-changelog__version">v{{ entry.version }}</span>
+            <span class="dash-changelog__entry-title">{{ entry.title }}</span>
+            <span v-if="entry.visibility !== 'player'" class="dash-changelog__vis" :class="`dash-changelog__vis--${entry.visibility}`">
+              {{ entry.visibility === 'gm' ? '🔒 GM' : '🧪 Tester' }}
+            </span>
+            <span class="dash-changelog__date">{{ formatDate(entry.published_at) }}</span>
+          </div>
+          <div v-if="!recentChanges.length" class="rail-empty dash-fade-in">No updates yet.</div>
+        </template>
+        <template v-else>
+          <div v-for="i in 3" :key="i" style="margin: 8px 0">
+            <Skeleton height="16px" />
+          </div>
+        </template>
+      </div>
 
       <!-- Alerts — kept last in this column so it can grow/shrink as its rows resolve (quests,
       gear durability, unspent points, live Training/Auto-Gather timers, etc.) without shifting

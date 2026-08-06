@@ -10,6 +10,7 @@ export const useAuthStore = defineStore('auth', {
         pendingApproval: false,
         testerRejected: false,
         testerRejectionReason: null,
+        isDev: false,
     }),
 
     getters: {
@@ -27,6 +28,7 @@ export const useAuthStore = defineStore('auth', {
                 this.pendingApproval = data.pending_approval ?? false;
                 this.testerRejected = data.tester_rejected ?? false;
                 this.testerRejectionReason = data.tester_rejection_reason ?? null;
+                this.isDev = data.is_dev ?? false;
             } catch {
                 this.user = null;
             } finally {

@@ -79,6 +79,28 @@ if ($tag === 'misc') {
     }
 }
 
+// ── 2b. Determine visibility from PR labels ───────────────────────────────────
+//   tester-changelog / tester-only  → only testers + GMs can see it
+//   gm-changelog / gm-only          → only GMs can see it
+//   (no label)                      → player (default, everyone sees it)
+
+function resolveVisibility(string $labels): string
+{
+    foreach (explode(',', $labels) as $label) {
+        $label = strtolower(trim($label));
+        if (in_array($label, ['gm-changelog', 'gm-only', 'gm'], true)) {
+            return 'gm';
+        }
+        if (in_array($label, ['tester-changelog', 'tester-only', 'tester'], true)) {
+            return 'tester';
+        }
+    }
+
+    return 'player';
+}
+
+$visibility = resolveVisibility($prLabels);
+
 // ── 3. Derive next version number ────────────────────────────────────────────
 
 $seederContent = file_get_contents($seederPath);
@@ -178,12 +200,13 @@ function phpEscape(string $value): string
     );
 }
 
-$escapedTitle   = phpEscape($entryTitle);
-$escapedBody    = phpEscape($entryBody);
-$escapedVersion = phpEscape($newVersion);
-$escapedTag     = phpEscape($tag);
+$escapedTitle      = phpEscape($entryTitle);
+$escapedBody       = phpEscape($entryBody);
+$escapedVersion    = phpEscape($newVersion);
+$escapedTag        = phpEscape($tag);
+$escapedVisibility = phpEscape($visibility);
 
-$newEntry = "        ['{$escapedVersion}', \"{$escapedTitle}\", \"{$escapedBody}\", '{$escapedTag}', '{$mergedAt}'],";
+$newEntry = "        ['{$escapedVersion}', \"{$escapedTitle}\", \"{$escapedBody}\", '{$escapedTag}', '{$mergedAt}', '{$escapedVisibility}'],";
 
 // ── 6. Inject the new entry before the closing bracket of ENTRIES ─────────────
 
@@ -202,4 +225,4 @@ $updatedContent = substr($seederContent, 0, $insertPos)
 
 file_put_contents($seederPath, $updatedContent);
 
-echo "✅ Changelog entry added: [{$newVersion}] \"{$entryTitle}\" ({$tag}) — PR #{$prNumber}\n";
+echo "✅ Changelog entry added: [{$newVersion}] \"{$entryTitle}\" ({$tag}, visibility: {$visibility}) — PR #{$prNumber}\n";

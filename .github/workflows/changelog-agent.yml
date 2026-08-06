@@ -5,6 +5,12 @@ on:
     types: [closed]
     branches: [dev]
 
+# Label conventions:
+#   Tag:        bug / fix / hotfix → fix   |  feature / feat / enhancement → feature  |  balance / rebalance → balance  |  chore / docs / refactor / misc → misc
+#   Visibility: tester-changelog / tester-only  → testers + GMs only
+#               gm-changelog / gm-only          → GMs only
+#               (no label)                      → player (visible to everyone)
+
 jobs:
   update-changelog:
     name: Append changelog entry

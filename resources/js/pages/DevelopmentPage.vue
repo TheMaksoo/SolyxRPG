@@ -146,6 +146,9 @@ onMounted(load);
             <span class="dev-entry__tag" :class="`dev-entry__tag--${entry.tag}`">{{ TAG_LABEL[entry.tag] ?? entry.tag }}</span>
             <span class="ox dev-entry__title">{{ entry.title }}</span>
             <div class="dev-entry__meta">
+              <span v-if="entry.visibility !== 'player'" class="dev-entry__vis" :class="`dev-entry__vis--${entry.visibility}`">
+                {{ entry.visibility === 'gm' ? '🔒 GM only' : '🧪 Tester+' }}
+              </span>
               <span class="dev-entry__date">{{ formatDate(entry.published_at) }}</span>
               <span v-if="entry.pushed_live_at" class="dev-entry__live-badge">✓ Live</span>
             </div>

@@ -167,12 +167,13 @@ export const RESOURCE_SCHEMAS = {
   },
   changelogs: {
     label: 'Changelog',
-    columns: ['id', 'version', 'title', 'tag', 'published_at'],
+    columns: ['id', 'version', 'title', 'tag', 'visibility', 'published_at'],
     fields: [
       { name: 'version', type: 'text' },
       { name: 'title', type: 'text' },
       { name: 'body', type: 'textarea' },
       { name: 'tag', type: 'select', options: ['feature', 'fix', 'balance', 'misc'] },
+      { name: 'visibility', type: 'select', options: ['player', 'tester', 'gm'] },
     ],
   },
 };

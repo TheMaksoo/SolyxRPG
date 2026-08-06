@@ -129,6 +129,9 @@ class AuthController extends Controller
             'pending_approval' => $user->isPendingTesterApproval(),
             'tester_rejected' => $user->isTesterRejected(),
             'tester_rejection_reason' => $user->tester_rejection_reason,
+            // True when running on the dev environment (TESTER_REGISTRATION=true).
+            // Used by the frontend to show dev-only UI like the dashboard changelog widget.
+            'is_dev' => config('app.tester_registration', false),
         ]);
     }
 

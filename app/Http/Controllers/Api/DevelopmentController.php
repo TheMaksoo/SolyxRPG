@@ -18,21 +18,31 @@ use Illuminate\Http\Request;
  */
 class DevelopmentController extends Controller
 {
-    /** Return all changelog entries with vote/bug-report counts and whether the current user voted. */
+    /** Return all changelog entries visible to this user, with vote/bug-report counts and whether the current user voted. */
     public function index(Request $request)
     {
-        $userId = $request->user()->id;
+        $user = $request->user();
+        $userId = $user->id;
 
-        $entries = Changelog::orderByDesc('published_at')
-            ->withCount(['bugReports', 'votes'])
-            ->get()
-            ->map(function (Changelog $entry) use ($userId) {
-                $entry->user_voted = TesterUpdateVote::where('changelog_id', $entry->id)
-                    ->where('user_id', $userId)
-                    ->exists();
+        $query = Changelog::orderByDesc('published_at')
+            ->withCount(['bugReports', 'votes']);
 
-                return $entry;
-            });
+        // Apply the same visibility rules as ChangelogController.
+        if (! $user->isGm()) {
+            if ($user->is_tester || $user->role === 'tester') {
+                $query->whereIn('visibility', ['player', 'tester']);
+            } else {
+                $query->where('visibility', 'player');
+            }
+        }
+
+        $entries = $query->get()->map(function (Changelog $entry) use ($userId) {
+            $entry->user_voted = TesterUpdateVote::where('changelog_id', $entry->id)
+                ->where('user_id', $userId)
+                ->exists();
+
+            return $entry;
+        });
 
         return response()->json(['entries' => $entries]);
     }
