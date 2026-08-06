@@ -20,6 +20,13 @@ class AuthController extends Controller
 {
     public function register(Request $request, ReferralService $referrals)
     {
+        // On dev, registration is tester-only. Block it unless TESTER_REGISTRATION=true.
+        if (! config('app.tester_registration', true)) {
+            return response()->json([
+                'message' => 'Registration is currently invite-only. Contact a GM to get access.',
+            ], 403);
+        }
+
         $data = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
