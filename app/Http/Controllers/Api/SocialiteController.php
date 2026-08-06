@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\LegacyDiscordUser;
 use App\Models\SocialAccount;
 use App\Models\User;
+use App\Notifications\TesterRegistrationNotification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -129,6 +130,10 @@ class SocialiteController extends Controller
                     $user->tester_applied_at = now();
                 }
                 $user->save();
+
+                if (config('app.tester_registration', false)) {
+                    $user->notify(new TesterRegistrationNotification());
+                }
             }
 
             SocialAccount::create([

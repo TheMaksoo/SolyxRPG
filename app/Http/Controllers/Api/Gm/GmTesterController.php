@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Gm;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Notifications\TesterApprovedNotification;
 use Illuminate\Http\Request;
 
 class GmTesterController extends Controller
@@ -32,6 +33,8 @@ class GmTesterController extends Controller
         $user->save();
 
         AuditLog::record($request->user()->id, 'gm.tester.approve', 'users', $user->id);
+
+        $user->notify(new TesterApprovedNotification());
 
         return response()->json(['message' => "{$user->name} has been approved as a tester."]);
     }

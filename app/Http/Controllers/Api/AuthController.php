@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\FeatureFlag;
 use App\Models\User;
+use App\Notifications\TesterRegistrationNotification;
 use App\Services\ReferralService;
 use App\Support\Turnstile;
 use Illuminate\Http\Request;
@@ -53,6 +54,10 @@ class AuthController extends Controller
 
         $user->save();
         $referrals->attach($user, $data['referral_code'] ?? null);
+
+        if (config('app.tester_registration', false)) {
+            $user->notify(new TesterRegistrationNotification());
+        }
 
         Auth::login($user);
         $request->session()->regenerate();
