@@ -67,7 +67,11 @@ async function submit() {
         cf_turnstile_response: turnstileToken.value,
         tos_accepted: tosAccepted.value,
       });
-      router.push('/character/create');
+      if (auth.pendingApproval) {
+        router.push('/tester-pending');
+      } else {
+        router.push('/character/create');
+      }
     } else {
       await auth.login({ email: form.value.email, password: form.value.password });
       // A returning player with an already-selected character should land straight on the dashboard,

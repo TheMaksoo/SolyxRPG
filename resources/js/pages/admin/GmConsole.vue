@@ -41,7 +41,7 @@ const metrics = ref(null);
 function formatCents(cents) {
   return ((cents || 0) / 100).toFixed(2);
 }
-const TAB_KEYS = ['overview', 'activity', 'content', 'players', 'economy', 'progression', 'revenue', 'flags', 'tickets', 'broadcast', 'commands', 'audit'];
+const TAB_KEYS = ['overview', 'activity', 'content', 'players', 'testers', 'economy', 'progression', 'revenue', 'flags', 'tickets', 'broadcast', 'commands', 'audit'];
 // Supports deep-linking straight to a tab (e.g. /admin?tab=tickets from the Settings page's
 // "manage tickets" link) while still defaulting to the overview tab otherwise.
 const tab = ref(TAB_KEYS.includes(route.query.tab) ? route.query.tab : 'overview');
@@ -50,6 +50,7 @@ const TABS = [
   { key: 'activity', label: 'Activity' },
   { key: 'content', label: 'Content' },
   { key: 'players', label: 'Players' },
+  { key: 'testers', label: 'Testers' },
   { key: 'economy', label: 'Economy' },
   { key: 'progression', label: 'Progression' },
   { key: 'revenue', label: 'Revenue' },
@@ -764,11 +765,45 @@ async function executeCommand() {
   }
 }
 
+// Testers tab — pending tester applications queue (dev environment only).
+const testers = ref([]);
+const testerMessage = ref('');
+const rejectReasonForms = ref({});
+
+async function loadTesters() {
+  const { data } = await api.get('/gm/testers');
+  testers.value = data.applications;
+}
+
+async function approveTester(user) {
+  testerMessage.value = '';
+  try {
+    const { data } = await api.post(`/gm/testers/${user.id}/approve`);
+    testerMessage.value = data.message;
+    testers.value = testers.value.filter((u) => u.id !== user.id);
+  } catch (e) {
+    testerMessage.value = e.response?.data?.message || 'Could not approve.';
+  }
+}
+
+async function rejectTester(user) {
+  testerMessage.value = '';
+  const reason = rejectReasonForms.value[user.id] || '';
+  try {
+    const { data } = await api.post(`/gm/testers/${user.id}/reject`, { reason });
+    testerMessage.value = data.message;
+    testers.value = testers.value.filter((u) => u.id !== user.id);
+  } catch (e) {
+    testerMessage.value = e.response?.data?.message || 'Could not reject.';
+  }
+}
+
 function switchTab(key) {
   tab.value = key;
   if (key === 'overview') loadOverview();
   if (key === 'activity') { loadActivity(); loadRevenue(); }
   if (key === 'players') loadPlayers();
+  if (key === 'testers') loadTesters();
   if (key === 'economy') loadConfig();
   if (key === 'revenue') { loadRevenueDashboard(); loadPurchaseLog(); }
   if (key === 'flags') loadFlags();
@@ -1618,9 +1653,37 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- TESTERS -->
+    <div v-else-if="tab === 'testers'">
+      <p class="gm-console-intro">Pending tester applications — approve to grant dev access, reject to decline.</p>
+      <p v-if="testerMessage" class="gm-console-action-msg">{{ testerMessage }}</p>
+      <div v-if="!testers.length" class="gm-console-empty">No pending applications.</div>
+      <div v-for="user in testers" :key="user.id" class="gm-console-player-card">
+        <div class="gm-console-player-header">
+          <span class="gm-console-player-name">{{ user.name }}</span>
+          <span class="gm-console-player-meta">{{ user.email }}</span>
+          <span class="gm-console-player-meta">Applied {{ new Date(user.tester_applied_at).toLocaleDateString() }}</span>
+        </div>
+        <div class="gm-console-tester-actions">
+          <button class="gm-console-btn gm-console-btn--approve" @click="approveTester(user)">
+            ✓ Approve
+          </button>
+          <div class="gm-console-tester-reject-row">
+            <input
+              v-model="rejectReasonForms[user.id]"
+              placeholder="Rejection reason (optional)"
+              class="gm-console-input"
+            />
+            <button class="gm-console-btn gm-console-btn--danger" @click="rejectTester(user)">
+              ✗ Reject
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ECONOMY -->
-    <div v-else-if="tab === 'economy'">
-      <p class="gm-console-intro">Global multipliers applied to every battle reward.</p>
+    <div v-else-if="tab === 'economy'">      <p class="gm-console-intro">Global multipliers applied to every battle reward.</p>
       <p class="gm-console-note">
         Luck and crafting are tunable here, including vip_luck_*, luck_combat_*, crafted_roll_* and crafted_value_* keys.
       </p>

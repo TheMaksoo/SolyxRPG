@@ -36,6 +36,8 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_tester' => 'boolean',
             'tester_mode_disabled' => 'boolean',
+            'tester_applied_at' => 'datetime',
+            'tester_approved_at' => 'datetime',
             'ads_removed' => 'boolean',
             'vip_cancel_at_period_end' => 'boolean',
             'vip_lifetime' => 'boolean',
@@ -109,6 +111,24 @@ class User extends Authenticatable
     public function isBanned(): bool
     {
         return $this->banned_at !== null;
+    }
+
+    /** Whether the user has submitted a tester application and is waiting for GM approval. */
+    public function isPendingTesterApproval(): bool
+    {
+        return $this->tester_applied_at !== null && $this->tester_approved_at === null && $this->tester_rejection_reason === null;
+    }
+
+    /** Whether the user's tester application was rejected by a GM. */
+    public function isTesterRejected(): bool
+    {
+        return $this->tester_applied_at !== null && $this->tester_approved_at === null && $this->tester_rejection_reason !== null;
+    }
+
+    /** Whether this user has been approved as a tester (column set) OR is a GM/Owner (always trusted). */
+    public function hasTesterAccess(): bool
+    {
+        return $this->isGm() || $this->tester_approved_at !== null;
     }
 
     /** extra character slots (of the 4 subscription slots) each VIP tier unlocks */

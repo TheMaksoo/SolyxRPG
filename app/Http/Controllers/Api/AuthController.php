@@ -20,13 +20,6 @@ class AuthController extends Controller
 {
     public function register(Request $request, ReferralService $referrals)
     {
-        // On dev, registration is tester-only. Block it unless TESTER_REGISTRATION=true.
-        if (! config('app.tester_registration', true)) {
-            return response()->json([
-                'message' => 'Registration is currently invite-only. Contact a GM to get access.',
-            ], 403);
-        }
-
         $data = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
@@ -49,13 +42,25 @@ class AuthController extends Controller
         // tos_accepted_at and the referral link aren't in User's #[Fillable] allow-list — set directly
         // rather than via create()/update().
         $user->tos_accepted_at = now();
+
+        // On dev (TESTER_REGISTRATION=true), new accounts are placed in a pending-approval queue.
+        // The user can log in and see the waiting screen, but cannot access the game until a GM approves
+        // them via the GM Console → Testers tab. On live this flag is false, so registration is fully
+        // open (or disabled entirely via a different gate if needed).
+        if (config('app.tester_registration', false)) {
+            $user->tester_applied_at = now();
+        }
+
         $user->save();
         $referrals->attach($user, $data['referral_code'] ?? null);
 
         Auth::login($user);
         $request->session()->regenerate();
 
-        return response()->json(['user' => $user->load('character', 'characters', 'socialAccounts')]);
+        return response()->json([
+            'user' => $user->load('character', 'characters', 'socialAccounts'),
+            'pending_approval' => $user->isPendingTesterApproval(),
+        ]);
     }
 
     public function login(Request $request)
@@ -115,6 +120,23 @@ class AuthController extends Controller
             'feature_access' => collect(self::NAV_FLAG_KEYS)->mapWithKeys(
                 fn (string $key) => [$key => FeatureFlag::gate($key, $user)]
             ),
+            // Lets the frontend know whether to redirect to the tester-pending screen.
+            'pending_approval' => $user->isPendingTesterApproval(),
+            'tester_rejected' => $user->isTesterRejected(),
+            'tester_rejection_reason' => $user->tester_rejection_reason,
+        ]);
+    }
+
+    /** Returns the current user's tester application status. Used by the pending-approval screen. */
+    public function testerStatus(Request $request)
+    {
+        $user = $request->user();
+
+        return response()->json([
+            'pending_approval' => $user->isPendingTesterApproval(),
+            'approved' => $user->hasTesterAccess(),
+            'rejected' => $user->isTesterRejected(),
+            'rejection_reason' => $user->tester_rejection_reason,
         ]);
     }
 

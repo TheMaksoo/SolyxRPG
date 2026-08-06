@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\Gm\GmPlayerController;
 use App\Http\Controllers\Api\Gm\GmRevenueController;
 use App\Http\Controllers\Api\Gm\GmProgressionController;
 use App\Http\Controllers\Api\Gm\GmTicketController;
+use App\Http\Controllers\Api\Gm\GmTesterController;
 use App\Http\Controllers\Api\GuildController;
 use App\Http\Controllers\Api\GuildWarController;
 use App\Http\Controllers\Api\InboxController;
@@ -92,18 +93,22 @@ Route::post('/auth/login', [AuthController::class, 'login'])->middleware(['throt
 Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:6,1');
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:6,1');
 Route::get('/me', [AuthController::class, 'me'])->middleware(['auth:sanctum', 'not-banned']);
+Route::get('/tester/status', [AuthController::class, 'testerStatus'])->middleware(['auth:sanctum', 'not-banned']);
 
 // Stripe webhook — no auth, verified by signature instead
 Route::post('/store/webhook', [StoreController::class, 'webhook']);
 
 Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
-    Route::post('/me/tester-mode', [AuthController::class, 'toggleTesterMode']);
     Route::put('/me/preferences', [AuthController::class, 'updatePreferences']);
     Route::delete('/me', [AuthController::class, 'deleteAccount']);
-    Route::get('/announcements', [AnnouncementController::class, 'index']);
-    Route::get('/nav-badges', [NavBadgeController::class, 'index']);
-    Route::get('/status/check', [StatusController::class, 'check']);
+
+    // All game routes require tester approval on the dev environment.
+    Route::middleware('tester-approved')->group(function () {
+        Route::post('/me/tester-mode', [AuthController::class, 'toggleTesterMode']);
+        Route::get('/announcements', [AnnouncementController::class, 'index']);
+        Route::get('/nav-badges', [NavBadgeController::class, 'index']);
+        Route::get('/status/check', [StatusController::class, 'check']);
 
     Route::get('/character', [CharacterController::class, 'show']);
     Route::post('/character/save-tick', [CharacterController::class, 'saveTick'])->middleware('throttle:regen-sync');
@@ -314,5 +319,11 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
         Route::get('/artisan-commands', [GmArtisanController::class, 'index']);
         Route::get('/artisan-commands/seeders', [GmArtisanController::class, 'seeders']);
         Route::post('/artisan-commands/execute', [GmArtisanController::class, 'execute']);
+
+        // Tester application queue — only visible/actionable by GMs
+        Route::get('/testers', [GmTesterController::class, 'index']);
+        Route::post('/testers/{user}/approve', [GmTesterController::class, 'approve']);
+        Route::post('/testers/{user}/reject', [GmTesterController::class, 'reject']);
     });
-});
+    }); // end tester-approved group
+}); // end auth:sanctum + not-banned group

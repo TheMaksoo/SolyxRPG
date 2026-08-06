@@ -109,6 +109,7 @@ const routes = [
   { path: '/terms', name: 'terms', component: pageImport('TermsPage') },
   { path: '/privacy', name: 'privacy', component: pageImport('PrivacyPage') },
   { path: '/level-required', name: 'level-required', component: pageImport('LevelRequiredPage') },
+  { path: '/tester-pending', name: 'tester-pending', component: pageImport('TesterPendingPage') },
   {
     path: '/',
     component: GameLayout,
@@ -131,6 +132,7 @@ router.beforeEach(async (to) => {
   const isCreate = to.path === '/character/create';
   const isSelect = to.path === '/characters';
   const isLevelRequired = to.path === '/level-required';
+  const isTesterPending = to.path === '/tester-pending';
   const isPublic =
     isLanding ||
     to.path === '/oauth/callback' ||
@@ -143,7 +145,18 @@ router.beforeEach(async (to) => {
   if (!auth.isAuthenticated && !isPublic) {
     return '/landing';
   }
-  if (auth.isAuthenticated && !auth.hasCharacter && !isCreate && !isSelect && !isLanding) {
+
+  // Pending testers can only see the waiting screen (and log out from it).
+  if (auth.isAuthenticated && auth.pendingApproval && !isTesterPending) {
+    return '/tester-pending';
+  }
+  // Once approved, boot them off the waiting screen.
+  if (auth.isAuthenticated && !auth.pendingApproval && isTesterPending) {
+    const hasAnyCharacters = (auth.user?.characters?.length ?? 0) > 0;
+    return hasAnyCharacters ? '/characters' : '/character/create';
+  }
+
+  if (auth.isAuthenticated && !auth.hasCharacter && !isCreate && !isSelect && !isLanding && !isTesterPending) {
     const hasAnyCharacters = (auth.user?.characters?.length ?? 0) > 0;
     return hasAnyCharacters ? '/characters' : '/character/create';
   }

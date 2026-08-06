@@ -7,6 +7,9 @@ export const useAuthStore = defineStore('auth', {
         checked: false,
         globalTesterMode: false,
         featureAccess: {},
+        pendingApproval: false,
+        testerRejected: false,
+        testerRejectionReason: null,
     }),
 
     getters: {
@@ -21,6 +24,9 @@ export const useAuthStore = defineStore('auth', {
                 this.user = { ...data.user, has_password: data.has_password };
                 this.globalTesterMode = data.global_tester_mode;
                 this.featureAccess = data.feature_access || {};
+                this.pendingApproval = data.pending_approval ?? false;
+                this.testerRejected = data.tester_rejected ?? false;
+                this.testerRejectionReason = data.tester_rejection_reason ?? null;
             } catch {
                 this.user = null;
             } finally {
@@ -32,6 +38,7 @@ export const useAuthStore = defineStore('auth', {
             await ensureCsrfCookie();
             const { data } = await api.post('/auth/register', { name, email, password, tos_accepted, cf_turnstile_response, referral_code });
             this.user = data.user;
+            this.pendingApproval = data.pending_approval ?? false;
             this.checked = true;
         },
 

@@ -1691,6 +1691,50 @@
   vertical-align: middle;
 }
 
+.gm-console-tester-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.gm-console-tester-reject-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.gm-console-btn {
+  @include m.btn-reset;
+  padding: 7px 16px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &--approve {
+    border-color: rgba(52, 211, 153, 0.4);
+    color: #34d399;
+    background: rgba(52, 211, 153, 0.08);
+
+    &:hover {
+      background: rgba(52, 211, 153, 0.18);
+    }
+  }
+
+  &--danger {
+    border-color: rgba(255, 107, 107, 0.3);
+    color: #ff6a6a;
+    background: transparent;
+
+    &:hover {
+      background: rgba(255, 107, 107, 0.12);
+    }
+  }
+}
+
 .gm-console-grant-row {
   display: flex;
   gap: 8px;
