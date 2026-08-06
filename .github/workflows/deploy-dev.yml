@@ -9,6 +9,7 @@ jobs:
     name: Deploy to dev.solyx.gg
     runs-on: ubuntu-latest
     environment: development
+    permissions: {}
 
     steps:
       - name: Deploy via SSH
