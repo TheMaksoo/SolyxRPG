@@ -26,6 +26,8 @@ class AutoApproveTesterApplications extends Command
             ->whereNull('tester_rejection_reason')
             ->where('tester_applied_at', '<=', now()->subMinutes((int) GameConfig::number('tester_auto_approve_minutes', 60)))
             ->get();
+        $approverId = User::where('role', 'owner')->value('id')
+            ?? User::where('role', 'gm')->value('id');
 
         foreach ($pending as $user) {
             $user->tester_approved_at = now();
@@ -35,7 +37,9 @@ class AutoApproveTesterApplications extends Command
 
             $user->notify(new TesterApprovedNotification());
 
-            AuditLog::record(0, 'system.tester.auto_approve', 'users', $user->id);
+            if ($approverId !== null) {
+                AuditLog::record($approverId, 'system.tester.auto_approve', 'users', $user->id);
+            }
         }
 
         if ($pending->isNotEmpty()) {

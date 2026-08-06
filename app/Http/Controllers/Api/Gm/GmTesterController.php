@@ -48,7 +48,11 @@ class GmTesterController extends Controller
             'reason' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $user->tester_rejection_reason = $data['reason'] ?? 'Your application was not accepted at this time.';
+        $reason = isset($data['reason']) ? trim($data['reason']) : null;
+
+        $user->tester_rejection_reason = $reason !== '' && $reason !== null
+            ? $reason
+            : 'Your application was not accepted at this time.';
         $user->save();
 
         AuditLog::record($request->user()->id, 'gm.tester.reject', 'users', $user->id, ['reason' => $user->tester_rejection_reason]);
