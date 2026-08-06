@@ -83,6 +83,7 @@ class MarketplaceController extends Controller
         return response()->json([
             'listings' => $listings,
             'listing_cap' => $this->listingCap($request->user()),
+            'cancel_fee_pct' => max(0, self::CANCEL_FEE_PCT - $request->user()->vipMarketFeeReductionPct()),
         ]);
     }
 
@@ -199,7 +200,8 @@ class MarketplaceController extends Controller
         abort_if($listing->seller_character_id !== $character->id, 403, 'That\'s not your listing.');
         abort_if($listing->status !== 'active', 422, 'Only active listings can be cancelled.');
 
-        $fee = (int) ceil($listing->price_gold * self::CANCEL_FEE_PCT / 100);
+        $cancelFeePct = max(0, self::CANCEL_FEE_PCT - $request->user()->vipMarketFeeReductionPct());
+        $fee = (int) ceil($listing->price_gold * $cancelFeePct / 100);
 
         DB::transaction(function () use ($listing, $character, $fee) {
             $this->depositItem($character, $listing);

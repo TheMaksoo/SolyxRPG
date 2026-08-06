@@ -58,7 +58,7 @@ const PERK_SECTIONS = [
     perks: [
       (tier) => `+${tier.gold_xp_pct_bonus}% gold & XP from battles`,
       (tier) => `+${tier.monthly_gems} gems every month, free`,
-      (tier) => `${tier.market_fee_reduction_pct}% lower Marketplace sale fee (base 10% → ${10 - tier.market_fee_reduction_pct}%)`,
+      (tier) => `${tier.market_fee_reduction_pct}% lower Marketplace fees — sale fee (base 10% → ${10 - tier.market_fee_reduction_pct}%) and cancel fee (base 10% → ${10 - tier.market_fee_reduction_pct}%)`,
       (tier) => `+${tier.market_listing_bonus} active Marketplace listing${tier.market_listing_bonus > 1 ? 's' : ''} (up to ${10 + tier.market_listing_bonus} total)`,
     ],
   },
