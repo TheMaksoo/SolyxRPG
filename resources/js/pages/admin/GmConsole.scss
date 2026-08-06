@@ -2597,3 +2597,38 @@
   max-height: 400px;
   overflow-y: auto;
 }
+
+.gm-console-changelog-seeder {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid v.$border-subtle;
+}
+
+.gm-console-changelog-seeder-btn {
+  padding: 8px 16px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    opacity: 0.85;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.gm-console-changelog-seeder-msg {
+  font-size: 13px;
+  color: v.$text-muted-70;
+}
