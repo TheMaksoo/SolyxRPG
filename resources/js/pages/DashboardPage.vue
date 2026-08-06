@@ -34,6 +34,7 @@ const railLoaded = ref(false);
 const autoBattle = ref(null);
 const autoGather = ref(null);
 const referrals = ref(null);
+const latestUpdate = ref(null);
 const inviteCopied = ref(false);
 
 async function loadRail() {

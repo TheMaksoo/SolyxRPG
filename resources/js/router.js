@@ -78,6 +78,11 @@ gameChildren.push(
     component: pageImport('ReferralsPage'),
   },
   {
+    path: 'development',
+    name: 'development',
+    component: pageImport('DevelopmentPage'),
+  },
+  {
     path: 'hall-of-founders',
     name: 'hall-of-founders',
     component: pageImport('HallOfFoundersPage'),

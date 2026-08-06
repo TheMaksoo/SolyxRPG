@@ -29,12 +29,14 @@ use App\Http\Controllers\Api\Gm\GmPlayerController;
 use App\Http\Controllers\Api\Gm\GmRevenueController;
 use App\Http\Controllers\Api\Gm\GmProgressionController;
 use App\Http\Controllers\Api\Gm\GmTicketController;
+use App\Http\Controllers\Api\Gm\GmDevelopmentController;
 use App\Http\Controllers\Api\Gm\GmTesterController;
 use App\Http\Controllers\Api\GuildController;
 use App\Http\Controllers\Api\GuildWarController;
 use App\Http\Controllers\Api\InboxController;
 use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\ChangelogController;
+use App\Http\Controllers\Api\DevelopmentController;
 use App\Http\Controllers\Api\KnownBugController;
 use App\Http\Controllers\Api\ReferralController;
 use App\Http\Controllers\Api\LeaderboardController;
@@ -255,6 +257,11 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::get('/changelog', [ChangelogController::class, 'index']);
     Route::get('/changelog/current', [ChangelogController::class, 'current']);
 
+    // Development page — tester voting and bug reporting against changelog entries.
+    Route::get('/development', [DevelopmentController::class, 'index']);
+    Route::post('/development/changelog/{changelog}/vote', [DevelopmentController::class, 'vote']);
+    Route::post('/development/changelog/{changelog}/report-bug', [DevelopmentController::class, 'reportBug']);
+
     Route::get('/referrals', [ReferralController::class, 'index']);
     Route::post('/referrals/copy', [ReferralController::class, 'trackCopy']);
 
@@ -324,6 +331,11 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
         Route::get('/testers', [GmTesterController::class, 'index']);
         Route::post('/testers/{user}/approve', [GmTesterController::class, 'approve']);
         Route::post('/testers/{user}/reject', [GmTesterController::class, 'reject']);
+
+        // GM Development tab — update approvals and bug-report acknowledgements.
+        Route::get('/development/updates', [GmDevelopmentController::class, 'updateApprovals']);
+        Route::post('/development/updates/{changelog}/push-live', [GmDevelopmentController::class, 'pushLive']);
+        Route::post('/development/bug-reports/{report}/acknowledge', [GmDevelopmentController::class, 'acknowledgeBugReport']);
     });
     }); // end tester-approved group
 }); // end auth:sanctum + not-banned group
