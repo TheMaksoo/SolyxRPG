@@ -8,7 +8,7 @@ class MarketListing extends Model
 {
     protected $fillable = [
         'seller_character_id', 'item_id', 'qty', 'durability', 'durability_max',
-        'price_gold', 'status', 'buyer_character_id', 'expires_at', 'sold_at',
+        'price_gold', 'price_gems', 'status', 'buyer_character_id', 'expires_at', 'sold_at',
     ];
 
     protected $casts = [

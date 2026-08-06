@@ -1,41 +1,123 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
+import { useCharacterStore } from '../stores/character';
 import api from '../api/client';
-import { RARITY_COLORS, formatStats } from '../rarity';
+import { RARITY_COLORS, RARITY_LABELS, formatStats } from '../rarity';
 
 const route = useRoute();
+const characterStore = useCharacterStore();
 const tab = ref(route.query.tab === 'sell' ? 'sell' : 'browse');
+
+// --- browse state ---
 const listings = ref([]);
+const total = ref(0);
+const page = ref(1);
+const lastPage = ref(1);
+const browseLoading = ref(false);
+
+const filters = ref({
+  search: '',
+  seller: '',
+  item_type: 'all',
+  rarity: 'all',
+  currency: 'all',
+  sort: 'newest',
+});
+
+// --- sell / mine state ---
 const mine = ref([]);
 const listingCap = ref(10);
 const cancelFeePct = ref(10);
 const inventory = ref([]);
 const loading = ref(false);
-const message = ref('');
+const message = ref(null);
 
 // Gear is listed one piece at a time (each copy has its own durability) — mirrors
 // CraftingController::GEAR_TYPES / MarketplaceController::GEAR_TYPES.
 const GEAR_TYPES = ['weapon', 'armor', 'shield', 'pickaxe', 'axe', 'sickle', 'hammer', 'quiver'];
+const GEM_RARITIES = ['legendary', 'mythic'];
 
-const browseQuery = ref('');
-const filteredListings = computed(() => {
-  const q = browseQuery.value.trim().toLowerCase();
-  return !q ? listings.value : listings.value.filter((l) => l.item.name.toLowerCase().includes(q));
-});
+const ITEM_TYPES = [
+  { value: 'all', label: 'All types' },
+  { value: 'weapon', label: 'Weapons' },
+  { value: 'armor', label: 'Armor' },
+  { value: 'shield', label: 'Shields' },
+  { value: 'pickaxe', label: 'Pickaxes' },
+  { value: 'axe', label: 'Axes' },
+  { value: 'sickle', label: 'Sickles' },
+  { value: 'hammer', label: 'Hammers' },
+  { value: 'quiver', label: 'Quivers' },
+  { value: 'material', label: 'Materials' },
+  { value: 'consumable', label: 'Consumables' },
+  { value: 'gem', label: 'Gems' },
+];
 
-const listForm = ref(null); // the inventory row currently being listed, or null
+const RARITIES = [
+  { value: 'all', label: 'All rarities' },
+  { value: 'common', label: 'Common' },
+  { value: 'rare', label: 'Rare' },
+  { value: 'epic', label: 'Epic' },
+  { value: 'legendary', label: 'Legendary' },
+  { value: 'mythic', label: 'Mythic' },
+];
+
+const SORTS = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'oldest', label: 'Oldest first' },
+  { value: 'price_asc', label: 'Price: low → high' },
+  { value: 'price_desc', label: 'Price: high → low' },
+];
+
+const CURRENCIES = [
+  { value: 'all', label: 'All' },
+  { value: 'gold', label: '🪙 Gold' },
+  { value: 'gems', label: '◆ Gems' },
+];
+
+const listForm = ref(null);
 const listQty = ref(1);
 const listPrice = ref(1);
+const listGemPrice = ref(null);
+const listUseGems = ref(false);
 
 function showMessage(text, tone = 'error') {
   message.value = { text, tone };
-  setTimeout(() => { if (message.value?.text === text) message.value = null; }, 4000);
+  setTimeout(() => { if (message.value?.text === text) message.value = null; }, 5000);
+}
+
+// Debounce timer for search/seller inputs
+let searchTimer = null;
+function onSearchInput() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { page.value = 1; loadBrowse(); }, 350);
+}
+
+function onFilterChange() {
+  page.value = 1;
+  loadBrowse();
 }
 
 async function loadBrowse() {
-  const { data } = await api.get('/market');
-  listings.value = data.listings;
+  browseLoading.value = true;
+  try {
+    const params = {
+      page: page.value,
+      sort: filters.value.sort,
+    };
+    if (filters.value.search) params.search = filters.value.search;
+    if (filters.value.seller) params.seller = filters.value.seller;
+    if (filters.value.item_type !== 'all') params.item_type = filters.value.item_type;
+    if (filters.value.rarity !== 'all') params.rarity = filters.value.rarity;
+    if (filters.value.currency !== 'all') params.currency = filters.value.currency;
+
+    const { data } = await api.get('/market', { params });
+    listings.value = data.listings;
+    total.value = data.total;
+    lastPage.value = data.last_page;
+  } finally {
+    browseLoading.value = false;
+  }
 }
 
 async function loadMine() {
@@ -47,8 +129,6 @@ async function loadMine() {
 
 async function loadInventory() {
   const { data } = await api.get('/inventory');
-  // Equipped gear can't be listed (unequip first), and this is a sell-what-you-have picker, not a
-  // full inventory view, so filter down to what's actually listable.
   inventory.value = data.inventory.filter((row) => !row.equipped);
 }
 
@@ -65,15 +145,21 @@ function openListForm(row) {
   listForm.value = row;
   listQty.value = GEAR_TYPES.includes(row.item.type) ? 1 : row.qty;
   listPrice.value = row.item.price_gold || 10;
+  listGemPrice.value = null;
+  listUseGems.value = false;
 }
 
 async function submitListing() {
   try {
-    await api.post('/market', {
+    const payload = {
       inventory_id: listForm.value.id,
       qty: listQty.value,
       price_gold: listPrice.value,
-    });
+    };
+    if (listUseGems.value && listGemPrice.value) {
+      payload.price_gems = listGemPrice.value;
+    }
+    await api.post('/market', payload);
     showMessage(`Listed ${listForm.value.item.name}.`, 'success');
     listForm.value = null;
     await Promise.all([loadMine(), loadInventory()]);
@@ -85,7 +171,13 @@ async function submitListing() {
 async function buy(listing) {
   try {
     await api.post(`/market/${listing.id}/buy`);
-    showMessage(`Bought ${listing.item.name} for ${listing.price_gold}g.`, 'success');
+    const price = listing.price_gems != null
+      ? `${listing.price_gems}◆`
+      : `${listing.price_gold}g`;
+    showMessage(`Bought ${listing.item.name} for ${price}.`, 'success');
+    if (listing.price_gems != null) {
+      await characterStore.fetch();
+    }
     await Promise.all([loadBrowse(), loadInventory()]);
   } catch (e) {
     showMessage(e.response?.data?.message || 'Could not buy that listing.');
@@ -103,9 +195,8 @@ async function cancel(listing) {
   }
 }
 
-function isGear(item) {
-  return GEAR_TYPES.includes(item.type);
-}
+function isGear(item) { return GEAR_TYPES.includes(item.type); }
+function canListForGems(item) { return GEM_RARITIES.includes(item.rarity); }
 
 function timeLeft(isoString) {
   const seconds = Math.round((new Date(isoString).getTime() - Date.now()) / 1000);
@@ -118,11 +209,20 @@ function timeLeft(isoString) {
 const activeMine = computed(() => mine.value.filter((l) => l.status === 'active'));
 const historyMine = computed(() => mine.value.filter((l) => l.status !== 'active'));
 
+function changePage(p) {
+  if (p < 1 || p > lastPage.value) return;
+  page.value = p;
+  loadBrowse();
+}
+
+function resetFilters() {
+  filters.value = { search: '', seller: '', item_type: 'all', rarity: 'all', currency: 'all', sort: 'newest' };
+  page.value = 1;
+  loadBrowse();
+}
+
 onMounted(async () => {
   await load();
-  // Deep-link from Inventory's "Sell on Market" shortcut (for gear the character can't equip) —
-  // jumps straight to that specific row's listing form instead of leaving the player to find it
-  // again in the sell picker.
   const listItemId = Number(route.query.list_item);
   if (listItemId) {
     const row = inventory.value.find((r) => r.id === listItemId);
@@ -132,128 +232,281 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div>
-    <div class="market-header">
-      <div class="market-header__icon">🏪</div>
-      <h1 class="ox market-title">Marketplace</h1>
-      <p class="market-header__subtitle">Buy and sell gear and materials with other players.</p>
+  <div class="mp">
+    <!-- Header -->
+    <div class="mp-header">
+      <div class="mp-header__icon">🏪</div>
+      <div class="mp-header__text">
+        <h1 class="ox mp-header__title">Marketplace</h1>
+        <p class="mp-header__sub">Buy and sell gear and materials with other players.</p>
+      </div>
+      <div v-if="total && tab === 'browse'" class="mp-header__count">{{ total.toLocaleString() }} listing{{ total !== 1 ? 's' : '' }}</div>
     </div>
 
-    <div class="market-tabs">
-      <button class="market-tab" :class="{ 'market-tab--active': tab === 'browse' }" @click="tab = 'browse'">Browse</button>
-      <button class="market-tab" :class="{ 'market-tab--active': tab === 'sell' }" @click="tab = 'sell'">Sell an item</button>
-      <button class="market-tab" :class="{ 'market-tab--active': tab === 'mine' }" @click="tab = 'mine'">
-        My listings
-        <span v-if="activeMine.length" class="market-tab__badge">{{ activeMine.length }}/{{ listingCap }}</span>
+    <!-- Tabs -->
+    <div class="mp-tabs">
+      <button class="mp-tab" :class="{ 'mp-tab--active': tab === 'browse' }" @click="tab = 'browse'">Browse</button>
+      <button class="mp-tab" :class="{ 'mp-tab--active': tab === 'sell' }" @click="tab = 'sell'">Sell</button>
+      <button class="mp-tab" :class="{ 'mp-tab--active': tab === 'mine' }" @click="tab = 'mine'">
+        My Listings
+        <span v-if="activeMine.length" class="mp-tab__badge">{{ activeMine.length }}/{{ listingCap }}</span>
       </button>
     </div>
 
-    <p v-if="message" class="market-message" :class="`market-message--${message.tone}`">{{ message.text }}</p>
+    <!-- Toast message -->
+    <transition name="mp-fade">
+      <div v-if="message" class="mp-toast" :class="`mp-toast--${message.tone}`">{{ message.text }}</div>
+    </transition>
 
-    <!-- BROWSE -->
-    <input
-      v-if="tab === 'browse'"
-      v-model="browseQuery"
-      type="text"
-      placeholder="🔍 Search listings…"
-      class="market-search"
-    />
-    <div v-if="tab === 'browse' && browseQuery && !filteredListings.length" class="market-empty">No listings match "{{ browseQuery }}".</div>
-    <div v-if="tab === 'browse'" class="market-grid">
-      <div v-for="l in filteredListings" :key="l.id" class="market-card">
-        <div class="market-card__head">
-          <span class="market-card__glyph">{{ l.item.glyph }}</span>
-          <span class="ox market-card__name" :style="{ color: RARITY_COLORS[l.item.rarity] }">{{ l.item.name }}</span>
-          <span v-if="l.item.roll_pct != null" class="roll-chip" :class="{ 'is-good': l.item.roll_pct > 0, 'is-bad': l.item.roll_pct < 0 }">{{ l.item.roll_pct > 0 ? '+' : '' }}{{ l.item.roll_pct }}% roll</span>
-          <span v-if="l.qty > 1" class="market-card__qty">×{{ l.qty }}</span>
-        </div>
-        <div v-if="formatStats(l.item.stat_json).length" class="market-card__stats">
-          <span v-for="stat in formatStats(l.item.stat_json)" :key="stat" class="market-card__stat">{{ stat }}</span>
-        </div>
-        <div v-if="isGear(l.item) && l.durability_max" class="market-card__durability">
-          Durability {{ l.durability }}/{{ l.durability_max }} ({{ Math.round((l.durability / l.durability_max) * 100) }}%)
-        </div>
-        <div class="market-card__foot">
-          <div class="market-card__seller">Sold by {{ l.seller_name }} · {{ timeLeft(l.expires_at) }}</div>
-          <button class="market-card__buy-btn" @click="buy(l)">
-            <span class="ox">🪙 {{ l.price_gold }}</span>
-          </button>
-        </div>
-      </div>
-      <div v-if="!loading && !listings.length" class="market-empty">No listings right now — check back later, or list something yourself.</div>
-    </div>
-
-    <!-- SELL -->
-    <div v-else-if="tab === 'sell'" class="market-sell">
-      <div v-if="!listForm" class="market-grid">
-        <div v-for="row in inventory" :key="row.id" class="market-card market-card--pickable" @click="openListForm(row)">
-          <div class="market-card__head">
-            <span class="market-card__glyph">{{ row.item.glyph }}</span>
-            <span class="ox market-card__name" :style="{ color: RARITY_COLORS[row.item.rarity] }">{{ row.item.name }}</span>
-            <span v-if="row.qty > 1" class="market-card__qty">×{{ row.qty }}</span>
+    <!-- ===================== BROWSE ===================== -->
+    <template v-if="tab === 'browse'">
+      <!-- Filter bar -->
+      <div class="mp-filters">
+        <div class="mp-filters__row">
+          <div class="mp-filters__search-wrap">
+            <span class="mp-filters__search-icon">🔍</span>
+            <input
+              v-model="filters.search"
+              type="text"
+              placeholder="Search items…"
+              class="mp-filters__search"
+              @input="onSearchInput"
+            />
           </div>
-          <div v-if="formatStats(row.item.stat_json).length" class="market-card__stats">
-            <span v-for="stat in formatStats(row.item.stat_json)" :key="stat" class="market-card__stat">{{ stat }}</span>
+          <div class="mp-filters__search-wrap">
+            <span class="mp-filters__search-icon">👤</span>
+            <input
+              v-model="filters.seller"
+              type="text"
+              placeholder="Seller name…"
+              class="mp-filters__search"
+              @input="onSearchInput"
+            />
           </div>
         </div>
-        <div v-if="!inventory.length" class="market-empty">Nothing listable in your bag — unequip gear or gather/craft something first.</div>
+        <div class="mp-filters__row">
+          <select v-model="filters.item_type" class="mp-select" @change="onFilterChange">
+            <option v-for="t in ITEM_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
+          </select>
+          <select v-model="filters.rarity" class="mp-select" @change="onFilterChange">
+            <option v-for="r in RARITIES" :key="r.value" :value="r.value">{{ r.label }}</option>
+          </select>
+          <select v-model="filters.currency" class="mp-select" @change="onFilterChange">
+            <option v-for="c in CURRENCIES" :key="c.value" :value="c.value">{{ c.label }}</option>
+          </select>
+          <select v-model="filters.sort" class="mp-select" @change="onFilterChange">
+            <option v-for="s in SORTS" :key="s.value" :value="s.value">{{ s.label }}</option>
+          </select>
+          <button class="mp-filters__reset" title="Reset filters" @click="resetFilters">✕ Reset</button>
+        </div>
       </div>
 
-      <div v-else class="market-list-form">
-        <div class="market-list-form__item">
-          <span class="market-card__glyph">{{ listForm.item.glyph }}</span>
-          <span class="ox">{{ listForm.item.name }}</span>
+      <!-- Loading skeleton -->
+      <div v-if="browseLoading" class="mp-grid">
+        <div v-for="i in 8" :key="i" class="mp-card mp-card--skeleton"></div>
+      </div>
+
+      <!-- Listings grid -->
+      <div v-else-if="listings.length" class="mp-grid">
+        <div v-for="l in listings" :key="l.id" class="mp-card">
+          <div class="mp-card__rarity-bar" :style="{ background: RARITY_COLORS[l.item.rarity] }"></div>
+          <div class="mp-card__body">
+            <div class="mp-card__head">
+              <span class="mp-card__glyph">{{ l.item.glyph }}</span>
+              <div class="mp-card__meta">
+                <span class="ox mp-card__name" :style="{ color: RARITY_COLORS[l.item.rarity] }">{{ l.item.name }}</span>
+                <span class="mp-card__rarity-label" :style="{ color: RARITY_COLORS[l.item.rarity] }">{{ RARITY_LABELS[l.item.rarity] }}</span>
+              </div>
+              <div class="mp-card__chips">
+                <span v-if="l.item.roll_pct != null" class="mp-chip" :class="{ 'mp-chip--good': l.item.roll_pct > 0, 'mp-chip--bad': l.item.roll_pct < 0 }">
+                  {{ l.item.roll_pct > 0 ? '+' : '' }}{{ l.item.roll_pct }}%
+                </span>
+                <span v-if="l.qty > 1" class="mp-chip mp-chip--qty">×{{ l.qty }}</span>
+              </div>
+            </div>
+            <div v-if="formatStats(l.item.stat_json).length" class="mp-card__stats">
+              <span v-for="stat in formatStats(l.item.stat_json)" :key="stat" class="mp-stat">{{ stat }}</span>
+            </div>
+            <div v-if="isGear(l.item) && l.durability_max" class="mp-card__durability">
+              <span class="mp-durability-bar" :style="{ '--pct': Math.round((l.durability / l.durability_max) * 100) + '%' }"></span>
+              {{ l.durability }}/{{ l.durability_max }} durability
+            </div>
+            <div class="mp-card__foot">
+              <div class="mp-card__seller">
+                <span class="mp-card__seller-name">{{ l.seller_name }}</span>
+                <span class="mp-card__ttl">· {{ timeLeft(l.expires_at) }}</span>
+              </div>
+              <button
+                v-if="l.price_gems != null"
+                class="mp-buy-btn mp-buy-btn--gem"
+                @click="buy(l)"
+              >◆ {{ l.price_gems }}</button>
+              <button
+                v-else
+                class="mp-buy-btn mp-buy-btn--gold"
+                @click="buy(l)"
+              >🪙 {{ l.price_gold }}</button>
+            </div>
+          </div>
         </div>
-        <label class="market-list-form__field">
-          Quantity
+      </div>
+      <div v-else class="mp-empty">
+        <span class="mp-empty__icon">🏷️</span>
+        <p>No listings match your filters — try widening your search or <button class="mp-link" @click="resetFilters">reset filters</button>.</p>
+      </div>
+
+      <!-- Pagination -->
+      <div v-if="lastPage > 1" class="mp-pagination">
+        <button class="mp-page-btn" :disabled="page === 1" @click="changePage(page - 1)">‹ Prev</button>
+        <template v-for="p in lastPage" :key="p">
+          <button
+            v-if="p === 1 || p === lastPage || Math.abs(p - page) <= 2"
+            class="mp-page-btn"
+            :class="{ 'mp-page-btn--active': p === page }"
+            @click="changePage(p)"
+          >{{ p }}</button>
+          <span v-else-if="p === 2 || p === lastPage - 1" class="mp-page-ellipsis">…</span>
+        </template>
+        <button class="mp-page-btn" :disabled="page === lastPage" @click="changePage(page + 1)">Next ›</button>
+      </div>
+    </template>
+
+    <!-- ===================== SELL ===================== -->
+    <template v-else-if="tab === 'sell'">
+      <div v-if="!listForm">
+        <div v-if="inventory.length" class="mp-grid">
+          <div
+            v-for="row in inventory"
+            :key="row.id"
+            class="mp-card mp-card--pickable"
+            @click="openListForm(row)"
+          >
+            <div class="mp-card__rarity-bar" :style="{ background: RARITY_COLORS[row.item.rarity] }"></div>
+            <div class="mp-card__body">
+              <div class="mp-card__head">
+                <span class="mp-card__glyph">{{ row.item.glyph }}</span>
+                <div class="mp-card__meta">
+                  <span class="ox mp-card__name" :style="{ color: RARITY_COLORS[row.item.rarity] }">{{ row.item.name }}</span>
+                  <span class="mp-card__rarity-label" :style="{ color: RARITY_COLORS[row.item.rarity] }">{{ RARITY_LABELS[row.item.rarity] }}</span>
+                </div>
+                <span v-if="row.qty > 1" class="mp-chip mp-chip--qty">×{{ row.qty }}</span>
+              </div>
+              <div v-if="formatStats(row.item.stat_json).length" class="mp-card__stats">
+                <span v-for="stat in formatStats(row.item.stat_json)" :key="stat" class="mp-stat">{{ stat }}</span>
+              </div>
+              <div v-if="canListForGems(row.item)" class="mp-gem-badge">◆ Gem listing available</div>
+            </div>
+          </div>
+        </div>
+        <div v-else class="mp-empty">
+          <span class="mp-empty__icon">🎒</span>
+          <p>Nothing listable in your bag — unequip gear or gather/craft something first.</p>
+        </div>
+      </div>
+
+      <!-- Listing form -->
+      <div v-else class="mp-list-form">
+        <button class="mp-list-form__back" @click="listForm = null">← Back</button>
+        <div class="mp-list-form__item">
+          <span class="mp-list-form__glyph">{{ listForm.item.glyph }}</span>
+          <div>
+            <div class="ox mp-list-form__name" :style="{ color: RARITY_COLORS[listForm.item.rarity] }">{{ listForm.item.name }}</div>
+            <div class="mp-list-form__rarity" :style="{ color: RARITY_COLORS[listForm.item.rarity] }">{{ RARITY_LABELS[listForm.item.rarity] }}</div>
+          </div>
+        </div>
+
+        <label class="mp-field">
+          <span class="mp-field__label">Quantity</span>
           <input
-            type="number"
-            min="1"
+            type="number" min="1"
             :max="isGear(listForm.item) ? 1 : listForm.qty"
             :disabled="isGear(listForm.item)"
             v-model.number="listQty"
+            class="mp-field__input"
           />
         </label>
-        <label class="market-list-form__field">
-          Price (gold)
-          <input type="number" min="1" v-model.number="listPrice" />
+
+        <label class="mp-field">
+          <span class="mp-field__label">Price (gold 🪙)</span>
+          <input type="number" min="1" v-model.number="listPrice" class="mp-field__input" />
         </label>
-        <div class="market-list-form__actions">
-          <button class="market-list-form__cancel" @click="listForm = null">Back</button>
-          <button class="market-list-form__submit" @click="submitListing">List for 🪙{{ listPrice }}</button>
-        </div>
-      </div>
-    </div>
 
-    <!-- MINE -->
-    <div v-else class="market-mine">
-      <h3 class="ox market-mine__section-title">Active <span class="market-mine__cap">{{ activeMine.length }} / {{ listingCap }}</span></h3>
-      <div class="market-grid">
-        <div v-for="l in activeMine" :key="l.id" class="market-card">
-          <div class="market-card__head">
-            <span class="market-card__glyph">{{ l.item.glyph }}</span>
-            <span class="ox market-card__name" :style="{ color: RARITY_COLORS[l.item.rarity] }">{{ l.item.name }}</span>
-            <span v-if="l.qty > 1" class="market-card__qty">×{{ l.qty }}</span>
-          </div>
-          <div class="market-card__foot">
-            <div class="market-card__seller">🪙 {{ l.price_gold }} · {{ timeLeft(l.expires_at) }}</div>
-            <button class="market-card__cancel-btn" :title="`Cancelling costs a ${cancelFeePct}% fee (${Math.ceil(l.price_gold * cancelFeePct / 100)}g)`" @click="cancel(l)">Cancel</button>
-          </div>
-        </div>
-        <div v-if="!activeMine.length" class="market-empty">You have no active listings.</div>
-      </div>
+        <template v-if="canListForGems(listForm.item)">
+          <label class="mp-gem-toggle">
+            <input type="checkbox" v-model="listUseGems" />
+            <span class="mp-gem-toggle__label">◆ Also list for gems <span class="mp-gem-toggle__hint">(legendary/mythic only)</span></span>
+          </label>
+          <label v-if="listUseGems" class="mp-field">
+            <span class="mp-field__label">Gem price ◆</span>
+            <input type="number" min="1" v-model.number="listGemPrice" class="mp-field__input" />
+          </label>
+        </template>
 
-      <h3 class="ox market-mine__section-title">History</h3>
-      <div class="market-history">
-        <div v-for="l in historyMine" :key="l.id" class="market-history__row">
-          <span class="market-history__glyph">{{ l.item.glyph }}</span>
-          <span class="ox market-history__name">{{ l.item.name }}</span>
-          <span class="market-history__status" :class="`market-history__status--${l.status}`">{{ l.status }}</span>
-          <span class="market-history__price">🪙 {{ l.price_gold }}</span>
+        <div class="mp-list-form__actions">
+          <button class="mp-list-form__submit" @click="submitListing">
+            List for 🪙{{ listPrice }}<template v-if="listUseGems && listGemPrice"> · ◆{{ listGemPrice }}</template>
+          </button>
         </div>
-        <div v-if="!historyMine.length" class="market-empty">No past listings yet.</div>
       </div>
-    </div>
+    </template>
+
+    <!-- ===================== MINE ===================== -->
+    <template v-else>
+      <div class="mp-mine">
+        <div class="mp-mine__head">
+          <h3 class="ox mp-mine__title">Active Listings</h3>
+          <span class="mp-mine__cap">{{ activeMine.length }} / {{ listingCap }}</span>
+        </div>
+
+        <div v-if="activeMine.length" class="mp-grid">
+          <div v-for="l in activeMine" :key="l.id" class="mp-card">
+            <div class="mp-card__rarity-bar" :style="{ background: RARITY_COLORS[l.item.rarity] }"></div>
+            <div class="mp-card__body">
+              <div class="mp-card__head">
+                <span class="mp-card__glyph">{{ l.item.glyph }}</span>
+                <div class="mp-card__meta">
+                  <span class="ox mp-card__name" :style="{ color: RARITY_COLORS[l.item.rarity] }">{{ l.item.name }}</span>
+                  <span class="mp-card__rarity-label" :style="{ color: RARITY_COLORS[l.item.rarity] }">{{ RARITY_LABELS[l.item.rarity] }}</span>
+                </div>
+                <span v-if="l.qty > 1" class="mp-chip mp-chip--qty">×{{ l.qty }}</span>
+              </div>
+              <div class="mp-card__foot">
+                <div class="mp-card__seller">
+                  <span v-if="l.price_gems != null" class="mp-card__price-gem">◆ {{ l.price_gems }}</span>
+                  <span v-else class="mp-card__price-gold">🪙 {{ l.price_gold }}</span>
+                  <span class="mp-card__ttl">· {{ timeLeft(l.expires_at) }}</span>
+                </div>
+                <button
+                  class="mp-cancel-btn"
+                  :title="`Cancel fee: ${cancelFeePct}% (${Math.ceil(l.price_gold * cancelFeePct / 100)}g)`"
+                  @click="cancel(l)"
+                >Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-else class="mp-empty">
+          <span class="mp-empty__icon">📋</span>
+          <p>You have no active listings.</p>
+        </div>
+
+        <div class="mp-mine__head" style="margin-top: 28px;">
+          <h3 class="ox mp-mine__title">History</h3>
+        </div>
+        <div v-if="historyMine.length" class="mp-history">
+          <div v-for="l in historyMine" :key="l.id" class="mp-history__row">
+            <span class="mp-history__glyph">{{ l.item.glyph }}</span>
+            <span class="ox mp-history__name">{{ l.item.name }}</span>
+            <span class="mp-history__status" :class="`mp-history__status--${l.status}`">{{ l.status }}</span>
+            <span class="mp-history__price">
+              <template v-if="l.price_gems != null">◆ {{ l.price_gems }}</template>
+              <template v-else>🪙 {{ l.price_gold }}</template>
+            </span>
+          </div>
+        </div>
+        <div v-else class="mp-empty"><p>No past listings yet.</p></div>
+      </div>
+    </template>
   </div>
 </template>
 
