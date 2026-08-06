@@ -7,6 +7,7 @@ use App\Models\FeatureFlag;
 use App\Models\GemLedger;
 use App\Models\Purchase;
 use App\Services\AutoBattleService;
+use App\Services\AutoGatherService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Stripe\StripeClient;
@@ -30,8 +31,9 @@ class StoreController extends Controller
         // Same price as the entry 'gems_1000' pack (€4.99) — matches BattlePassController::PREMIUM_GEM_COST
         // (1000 gems) so the cash and gem prices are the same offer, not two arbitrary numbers.
         'pass_ashfall' => ['label' => 'Ashfall Season Pass (Premium)', 'price_cents' => 499],
-        // The only Auto-Attack duration sold for real money — 15/30 min stay gems-only (see AutoBattleService).
-        'auto_battle_60' => ['label' => '1 Hour Auto-Attack', 'price_cents' => 99],
+        // Overnight passes — 8 hours for €0.99 each, cash-only (no gem equivalent at this tier).
+        'auto_battle_480' => ['label' => '8 Hour Auto-Attack (Overnight)', 'price_cents' => 99],
+        'auto_gather_480' => ['label' => '8 Hour Auto-Gather (Overnight)', 'price_cents' => 99],
     ];
 
     public function gems(Request $request)
@@ -319,8 +321,10 @@ class StoreController extends Controller
             $user->save();
         } elseif ($purchase->sku === 'pass_ashfall' && $character) {
             $character->battlePasses()->updateOrCreate(['season' => 'ashfall'], ['premium' => true]);
-        } elseif ($purchase->sku === 'auto_battle_60' && $character) {
-            (new AutoBattleService())->extend($character, 60);
+        } elseif ($purchase->sku === 'auto_battle_480' && $character) {
+            (new AutoBattleService())->extend($character, 480);
+        } elseif ($purchase->sku === 'auto_gather_480' && $character) {
+            (new AutoGatherService())->extendFromPurchase($character, 480);
         }
     }
 }

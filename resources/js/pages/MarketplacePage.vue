@@ -9,6 +9,7 @@ const tab = ref(route.query.tab === 'sell' ? 'sell' : 'browse');
 const listings = ref([]);
 const mine = ref([]);
 const listingCap = ref(10);
+const cancelFeePct = ref(10);
 const inventory = ref([]);
 const loading = ref(false);
 const message = ref('');
@@ -41,6 +42,7 @@ async function loadMine() {
   const { data } = await api.get('/market/mine');
   mine.value = data.listings;
   listingCap.value = data.listing_cap;
+  cancelFeePct.value = data.cancel_fee_pct ?? 10;
 }
 
 async function loadInventory() {
@@ -93,7 +95,7 @@ async function buy(listing) {
 async function cancel(listing) {
   try {
     const { data } = await api.post(`/market/${listing.id}/cancel`);
-    const feeText = data.cancel_fee > 0 ? ` (10% cancel fee: -${data.cancel_fee}g)` : '';
+    const feeText = data.cancel_fee > 0 ? ` (${cancelFeePct.value}% cancel fee: -${data.cancel_fee}g)` : '';
     showMessage(`Cancelled — ${listing.item.name} returned to your bag.${feeText}`, 'success');
     await Promise.all([loadMine(), loadInventory()]);
   } catch (e) {
@@ -235,7 +237,7 @@ onMounted(async () => {
           </div>
           <div class="market-card__foot">
             <div class="market-card__seller">🪙 {{ l.price_gold }} · {{ timeLeft(l.expires_at) }}</div>
-            <button class="market-card__cancel-btn" :title="`Cancelling costs a 10% fee (${Math.ceil(l.price_gold * 0.1)}g)`" @click="cancel(l)">Cancel</button>
+            <button class="market-card__cancel-btn" :title="`Cancelling costs a ${cancelFeePct}% fee (${Math.ceil(l.price_gold * cancelFeePct / 100)}g)`" @click="cancel(l)">Cancel</button>
           </div>
         </div>
         <div v-if="!activeMine.length" class="market-empty">You have no active listings.</div>

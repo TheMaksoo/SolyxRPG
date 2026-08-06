@@ -681,6 +681,27 @@ const commandMessage = ref('');
 const availableSeeders = ref([]);
 const selectedSeeder = ref(null);
 
+// Quick changelog seeder run (from Content tab)
+const changelogSeederRunning = ref(false);
+const changelogSeederMessage = ref('');
+
+async function runChangelogSeeder() {
+  changelogSeederRunning.value = true;
+  changelogSeederMessage.value = '';
+  try {
+    const { data } = await api.post('/gm/artisan-commands/execute', {
+      command: 'db:seed',
+      seeder_class: 'ChangelogSeeder',
+      force: false,
+    });
+    changelogSeederMessage.value = data.success ? '✅ Changelog seeder ran successfully.' : '❌ Seeder failed: ' + (data.output || data.message);
+  } catch (e) {
+    changelogSeederMessage.value = '❌ ' + (e.response?.data?.error || e.message);
+  } finally {
+    changelogSeederRunning.value = false;
+  }
+}
+
 async function loadArtisanCommands() {
   const { data } = await api.get('/gm/artisan-commands');
   artisanCommands.value = data.commands;
@@ -1569,6 +1590,16 @@ onMounted(() => {
         </button>
       </div>
       <GmContentEditor :resource="resource" :key="resource" />
+      <div v-if="resource === 'changelogs'" class="gm-console-changelog-seeder">
+        <button
+          @click="runChangelogSeeder"
+          :disabled="changelogSeederRunning"
+          class="gm-console-changelog-seeder-btn"
+        >
+          {{ changelogSeederRunning ? 'Running…' : '▶ Run Changelog Seeder' }}
+        </button>
+        <span v-if="changelogSeederMessage" class="gm-console-changelog-seeder-msg">{{ changelogSeederMessage }}</span>
+      </div>
     </div>
 
     <!-- PLAYERS -->

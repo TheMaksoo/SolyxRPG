@@ -214,13 +214,13 @@ onMounted(async () => {
           v-for="minutes in [15, 30, 60]"
           :key="minutes"
           class="auto-battle-store-card__option"
-          :disabled="(characterStore.character?.gems ?? 0) < (autoBattle.costs[minutes] ?? 0)"
+          :disabled="(characterStore.character?.account_gems ?? 0) < (autoBattle.costs[minutes] ?? 0)"
           @click="buyAutoBattle(minutes)"
         >
           {{ minutes }}m · 💎{{ autoBattle.costs[minutes] ?? '—' }}
         </button>
-        <button class="auto-battle-store-card__option auto-battle-store-card__option--cash" @click="checkout('auto_battle_60')">
-          60m · {{ formatCents(99) }}
+        <button class="auto-battle-store-card__option auto-battle-store-card__option--cash" @click="checkout('auto_battle_480')">
+          8h · {{ formatCents(99) }}
         </button>
       </div>
     </div>
@@ -253,13 +253,18 @@ onMounted(async () => {
             v-for="minutes in [15, 30, 60]"
             :key="minutes"
             class="auto-gather-store-card__option"
-            :disabled="!autoGatherTarget || (characterStore.character?.gems ?? 0) < (autoGather.costs[minutes] ?? 0)"
+            :disabled="!autoGatherTarget || (characterStore.character?.account_gems ?? 0) < (autoGather.costs[minutes] ?? 0)"
             @click="buyAutoGather(minutes)"
           >
             {{ autoGather.granted_minutes[minutes] ?? minutes * 2 }}m · 💎{{ autoGather.costs[minutes] ?? '—' }}
           </button>
         </div>
       </template>
+      <div class="auto-gather-store-card__options">
+        <button class="auto-gather-store-card__option auto-gather-store-card__option--cash" @click="checkout('auto_gather_480')">
+          8h · {{ formatCents(99) }}
+        </button>
+      </div>
     </div>
 
     <div class="gem-store-section-eyebrow">ALSO SPEND GEMS ON</div>

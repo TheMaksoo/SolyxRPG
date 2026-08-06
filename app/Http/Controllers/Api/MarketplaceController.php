@@ -36,7 +36,7 @@ class MarketplaceController extends Controller
 
     /** Cut taken from the sale price on a successful sale — a gold sink, same role VIP/gem purchases play
      * elsewhere, so the marketplace doesn't just recirculate gold with zero drain on the economy. */
-    private const MARKET_FEE_PCT = 5;
+    private const MARKET_FEE_PCT = 10;
 
     /** Cancelling your own listing early costs a cut of the LISTED price (not charged to a buyer, since
      * there isn't one) — otherwise listing-then-cancelling is a free way to "reserve" a price check with
@@ -83,6 +83,7 @@ class MarketplaceController extends Controller
         return response()->json([
             'listings' => $listings,
             'listing_cap' => $this->listingCap($request->user()),
+            'cancel_fee_pct' => max(0, self::CANCEL_FEE_PCT - $request->user()->vipMarketFeeReductionPct()),
         ]);
     }
 
@@ -174,7 +175,8 @@ class MarketplaceController extends Controller
         DB::transaction(function () use ($listing, $character) {
             $character->decrement('gold', $listing->price_gold);
 
-            $fee = (int) floor($listing->price_gold * self::MARKET_FEE_PCT / 100);
+            $feePct = max(0, self::MARKET_FEE_PCT - $listing->sellerCharacter->user->vipMarketFeeReductionPct());
+            $fee = (int) floor($listing->price_gold * $feePct / 100);
             $listing->sellerCharacter->increment('gold', $listing->price_gold - $fee);
 
             $this->depositItem($character, $listing);
@@ -198,7 +200,8 @@ class MarketplaceController extends Controller
         abort_if($listing->seller_character_id !== $character->id, 403, 'That\'s not your listing.');
         abort_if($listing->status !== 'active', 422, 'Only active listings can be cancelled.');
 
-        $fee = (int) ceil($listing->price_gold * self::CANCEL_FEE_PCT / 100);
+        $cancelFeePct = max(0, self::CANCEL_FEE_PCT - $request->user()->vipMarketFeeReductionPct());
+        $fee = (int) ceil($listing->price_gold * $cancelFeePct / 100);
 
         DB::transaction(function () use ($listing, $character, $fee) {
             $this->depositItem($character, $listing);

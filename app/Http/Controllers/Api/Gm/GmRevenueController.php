@@ -26,12 +26,13 @@ class GmRevenueController extends Controller
         ['key' => 'gems_14000', 'match' => ['gems_14000'], 'label' => '14,000 Gems (+10%)', 'kind' => 'CURRENCY', 'price_cents' => 6999],
         ['key' => 'pass_ashfall', 'match' => ['pass_ashfall'], 'label' => 'Ashfall Season Pass', 'kind' => 'BATTLE PASS', 'price_cents' => 499],
         ['key' => 'remove_ads', 'match' => ['remove_ads'], 'label' => 'Remove Ads', 'kind' => 'CONVENIENCE', 'price_cents' => 499],
-        ['key' => 'auto_battle_60', 'match' => ['auto_battle_60'], 'label' => '1 Hour Auto-Attack', 'kind' => 'CONVENIENCE', 'price_cents' => 99],
         ['key' => 'vip_bronze', 'match' => ['vip_bronze_month', 'vip_bronze_year', 'vip_bronze_renewal'], 'label' => 'Bronze Rank', 'kind' => 'RANK', 'price_cents' => 299],
         ['key' => 'vip_gold', 'match' => ['vip_gold_month', 'vip_gold_year', 'vip_gold_renewal'], 'label' => 'Gold Rank', 'kind' => 'RANK', 'price_cents' => 499],
         ['key' => 'vip_diamond', 'match' => ['vip_diamond_month', 'vip_diamond_year', 'vip_diamond_renewal'], 'label' => 'Diamond Rank', 'kind' => 'RANK', 'price_cents' => 999],
         ['key' => 'vip_lifetime', 'match' => ['vip_lifetime'], 'label' => 'Lifetime Rank', 'kind' => 'RANK', 'price_cents' => 19999],
         ['key' => 'founder_pack', 'match' => ['founder_pack'], 'label' => 'Founder Beta Pack', 'kind' => 'ONE-TIME', 'price_cents' => 1499],
+        ['key' => 'auto_battle_480', 'match' => ['auto_battle_480'], 'label' => 'Auto-Battle 8h', 'kind' => 'CONVENIENCE', 'price_cents' => 99],
+        ['key' => 'auto_gather_480', 'match' => ['auto_gather_480'], 'label' => 'Auto-Gather 8h', 'kind' => 'CONVENIENCE', 'price_cents' => 99],
     ];
 
     private const STREAMS = [
@@ -42,6 +43,7 @@ class GmRevenueController extends Controller
         'founder' => ['label' => 'Founder Beta Pack', 'color' => '#a855f7'],
         'remove_ads' => ['label' => 'Remove Ads', 'color' => '#7c8794'],
         'auto_battle' => ['label' => 'Auto-Battle Tokens', 'color' => '#f472b6'],
+        'auto_gather' => ['label' => 'Auto-Gather Tokens', 'color' => '#fb923c'],
     ];
 
     public function index(Request $request)
@@ -255,7 +257,8 @@ class GmRevenueController extends Controller
             str_starts_with($sku, 'vip_') => 'vip',
             $sku === 'founder_pack' => 'founder',
             $sku === 'remove_ads' => 'remove_ads',
-            $sku === 'auto_battle_60' => 'auto_battle',
+            $sku === 'auto_battle_480' => 'auto_battle',
+            $sku === 'auto_gather_480' => 'auto_gather',
             default => 'other',
         };
     }
