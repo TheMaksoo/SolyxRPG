@@ -68,6 +68,14 @@ class Character extends Model
             'battles_won' => 'integer',
             'battles_lost' => 'integer',
             'bosses_slain' => 'integer',
+            // Gathering/crafting counters added in 2026_08_01_000015 — must be cast to integer so the
+            // frontend receives proper JSON numbers rather than strings, otherwise arithmetic like
+            // totalGathered in ProfilePage.vue silently does string concatenation instead of addition.
+            'times_mined' => 'integer',
+            'times_chopped' => 'integer',
+            'times_smelted' => 'integer',
+            'times_foraged' => 'integer',
+            'times_crafted' => 'integer',
             'pvp_attempts_used' => 'integer',
             'pvp_wins_today' => 'integer',
             'dungeon_attempts_used' => 'integer',
