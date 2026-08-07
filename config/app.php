@@ -46,7 +46,7 @@ return [
     // Set to true on dev (dev.solyx.gg) so testers can create accounts freely.
     'tester_registration' => (bool) env('TESTER_REGISTRATION', true),
 
-
+    /*
     |--------------------------------------------------------------------------
     |
     | This URL is used by the console to properly generate URLs when using
