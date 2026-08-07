@@ -104,8 +104,8 @@ class MarketplaceController extends Controller
         $sort = $request->query('sort', 'newest');
         match ($sort) {
             'oldest'     => $query->oldest(),
-            'price_asc'  => $query->orderBy('price_gold')->orderBy('price_gems'),
-            'price_desc' => $query->orderByDesc('price_gold')->orderByDesc('price_gems'),
+            'price_asc'  => $this->applyPriceSort($query, $currency, 'asc'),
+            'price_desc' => $this->applyPriceSort($query, $currency, 'desc'),
             default      => $query->latest(),  // 'newest'
         };
 
@@ -284,26 +284,47 @@ class MarketplaceController extends Controller
         abort_if($listing->status !== 'active', 422, 'Only active listings can be cancelled.');
 
         $cancelFeePct = max(0, self::CANCEL_FEE_PCT - $request->user()->vipMarketFeeReductionPct());
-        $fee          = (int) ceil($listing->price_gold * $cancelFeePct / 100);
-        $gemFee       = $listing->price_gems !== null ? (int) ceil($listing->price_gems * $cancelFeePct / 100) : 0;
+        $useGems      = $listing->price_gems !== null;
+        $fee          = $useGems
+            ? (int) ceil($listing->price_gems * $cancelFeePct / 100)
+            : (int) ceil($listing->price_gold * $cancelFeePct / 100);
         $sellerUser   = $request->user();
 
-        DB::transaction(function () use ($listing, $character, $fee, $gemFee, $sellerUser) {
+        DB::transaction(function () use ($listing, $character, $fee, $useGems, $sellerUser) {
             $this->depositItem($character, $listing);
-            $character->update(['gold' => max(0, $character->gold - $fee)]);
-            if ($gemFee > 0) {
-                $sellerUser->decrement('gems', min($gemFee, $sellerUser->gems));
-                GemLedger::log($sellerUser, -$gemFee, "market_cancel_fee:{$listing->id}", $character);
+            if ($useGems) {
+                $sellerUser->decrement('gems', min($fee, $sellerUser->gems));
+                GemLedger::log($sellerUser, -$fee, "market_cancel_fee:{$listing->id}", $character);
+            } else {
+                $character->update(['gold' => max(0, $character->gold - $fee)]);
             }
             $listing->update(['status' => 'cancelled']);
             $this->trimHistory($character->id);
         });
 
         return response()->json([
-            'inventory'  => $character->inventory()->with('item')->get(),
-            'character'  => $character->fresh(),
-            'cancel_fee' => $fee,
+            'inventory'            => $character->inventory()->with('item')->get(),
+            'character'            => $character->fresh(),
+            'cancel_fee'           => $fee,
+            'cancel_fee_currency'  => $useGems ? 'gems' : 'gold',
         ]);
+    }
+
+    private function applyPriceSort($query, ?string $currency, string $direction): void
+    {
+        if ($currency === 'gems') {
+            $query->orderBy('price_gems', $direction);
+
+            return;
+        }
+
+        if ($currency === 'gold') {
+            $query->orderBy('price_gold', $direction);
+
+            return;
+        }
+
+        $query->orderByRaw("CASE WHEN price_gems IS NULL THEN price_gold ELSE price_gems END {$direction}");
     }
 
     /** Returns/awards a listing's escrowed item+qty to a character's inventory — used on both a

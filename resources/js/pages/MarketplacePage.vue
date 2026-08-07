@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useCharacterStore } from '../stores/character';
 import api from '../api/client';
@@ -187,12 +187,24 @@ async function buy(listing) {
 async function cancel(listing) {
   try {
     const { data } = await api.post(`/market/${listing.id}/cancel`);
-    const feeText = data.cancel_fee > 0 ? ` (${cancelFeePct.value}% cancel fee: -${data.cancel_fee}g)` : '';
+    const feeUnit = data.cancel_fee_currency === 'gems' ? '◆' : 'g';
+    const feeText = data.cancel_fee > 0 ? ` (${cancelFeePct.value}% cancel fee: -${data.cancel_fee}${feeUnit})` : '';
     showMessage(`Cancelled — ${listing.item.name} returned to your bag.${feeText}`, 'success');
+    if (listing.price_gems != null) {
+      await characterStore.fetch();
+    }
     await Promise.all([loadMine(), loadInventory()]);
   } catch (e) {
     showMessage(e.response?.data?.message || 'Could not cancel that listing.');
   }
+}
+
+function cancelFeeTitle(listing) {
+  if (listing.price_gems != null) {
+    return `Cancel fee: ${cancelFeePct.value}% (${Math.ceil(listing.price_gems * cancelFeePct.value / 100)}◆)`;
+  }
+
+  return `Cancel fee: ${cancelFeePct.value}% (${Math.ceil(listing.price_gold * cancelFeePct.value / 100)}g)`;
 }
 
 function isGear(item) { return GEAR_TYPES.includes(item.type); }
@@ -478,7 +490,7 @@ onMounted(async () => {
                 </div>
                 <button
                   class="mp-cancel-btn"
-                  :title="`Cancel fee: ${cancelFeePct}% (${Math.ceil(l.price_gold * cancelFeePct / 100)}g)`"
+                  :title="cancelFeeTitle(l)"
                   @click="cancel(l)"
                 >Cancel</button>
               </div>
