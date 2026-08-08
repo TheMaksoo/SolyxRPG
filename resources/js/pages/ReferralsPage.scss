@@ -387,7 +387,7 @@
   padding: 14px 18px;
   border-radius: v.$radius-sm;
   border: 1px dashed v.$border-medium;
-  background: v.$bg-surface;
+  background: v.$bg-card;
 }
 
 .referral-card-download__hint {
@@ -418,8 +418,7 @@
   .referral-card-download__btn {
     width: 100%;
   }
-}
-
+ 
   .invite-card__row {
     flex-direction: column;
   }
