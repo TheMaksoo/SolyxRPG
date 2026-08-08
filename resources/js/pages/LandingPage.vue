@@ -21,6 +21,7 @@ const tosAccepted = ref(false);
 const error = ref('');
 const loading = ref(false);
 const stats = ref(null);
+const referrerName = ref(null);
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 const turnstileToken = ref('');
@@ -95,6 +96,13 @@ onMounted(async () => {
     // don't touch the casing here.
     form.value.referral_code = String(route.query.ref);
     mode.value = 'register';
+
+    try {
+      const { data } = await api.get('/referral-preview', { params: { code: form.value.referral_code } });
+      referrerName.value = data.name;
+    } catch {
+      // No banner if the lookup fails — the referral code still works for signup either way.
+    }
   }
 
   if (mode.value === 'register') nextTick(renderTurnstile);
@@ -169,6 +177,9 @@ onMounted(async () => {
       </div>
 
       <div class="landing-auth-card">
+        <div v-if="referrerName" class="landing-referral-banner">
+          🎁 {{ referrerName }} invited you — join and you both earn gems!
+        </div>
         <div class="landing-auth-card__header">
           <img src="/images/solyx-logo.png" alt="Solyx" class="landing-auth-card__logo" width="76" height="70" />
           <div class="ox landing-auth-card__title">{{ mode === 'register' ? 'Create your account' : 'Enter Solyx' }}</div>
