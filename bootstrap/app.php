@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'gm' => \App\Http\Middleware\EnsureIsGm::class,
             'not-banned' => \App\Http\Middleware\EnsureNotBanned::class,
+            'tester-approved' => \App\Http\Middleware\EnsureTesterApproved::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

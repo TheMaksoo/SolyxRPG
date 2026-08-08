@@ -28,6 +28,10 @@ Schedule::command('cleanup:stale-data')->dailyAt('03:15');
 // catches the case where both players' clients stopped polling before either attempt could land.
 Schedule::command('pvp:matchmaking-sweep')->everyMinute();
 
+// When tester_auto_approve is enabled by a GM, automatically approves pending tester applications
+// that have been waiting for at least one hour and sends them an approval notification.
+Schedule::command('testers:auto-approve')->everyFiveMinutes();
+
 // "If no actions have been taken for an hour the user that has its turn forfeits automatically" — sweeps
 // active live PvP matches and auto-forfeits whoever's turn it is once last_action_at is over an hour stale.
 Schedule::command('pvp:forfeit-afk')->everyFiveMinutes();

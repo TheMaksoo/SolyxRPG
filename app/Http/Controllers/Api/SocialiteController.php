@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\LegacyDiscordUser;
 use App\Models\SocialAccount;
 use App\Models\User;
+use App\Notifications\TesterRegistrationNotification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -124,7 +125,15 @@ class SocialiteController extends Controller
                     'password' => null,
                 ]);
                 $user->tos_accepted_at = now();
+                // On dev (TESTER_REGISTRATION=true) new OAuth accounts also enter the approval queue.
+                if (config('app.tester_registration', false)) {
+                    $user->tester_applied_at = now();
+                }
                 $user->save();
+
+                if (config('app.tester_registration', false)) {
+                    $user->notify(new TesterRegistrationNotification());
+                }
             }
 
             SocialAccount::create([
@@ -148,7 +157,11 @@ class SocialiteController extends Controller
         // destination. The callback page explicitly refreshes the CSRF cookie and re-fetches
         // the user before navigating, which sidesteps the race where the SPA cold-boots on a
         // protected route and calls /api/me before the session cookie is reliably available.
-        $dest = $user->character ? '/dashboard' : '/character/create';
+        if ($user->isPendingTesterApproval()) {
+            $dest = '/tester-pending';
+        } else {
+            $dest = $user->character ? '/dashboard' : '/character/create';
+        }
         return redirect('/oauth/callback?to='.urlencode($dest));
     }
 }

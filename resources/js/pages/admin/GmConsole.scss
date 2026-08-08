@@ -112,6 +112,54 @@
   margin: 0;
 }
 
+.gm-console-tester-auto-panel {
+  @extend %gm-tile-base;
+  padding: 14px 18px;
+  border-color: rgba(16, 185, 129, 0.25);
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gm-console-tester-auto-panel__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+
+  &--wait {
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+}
+
+.gm-console-tester-auto-panel__label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 13px;
+  font-weight: 600;
+  color: v.$text-primary;
+  cursor: default;
+}
+
+.gm-console-tester-auto-panel__hint {
+  font-size: 11.5px;
+  font-weight: 400;
+  color: v.$text-muted-40;
+}
+
+.gm-console-tester-auto-panel__input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gm-console-tester-auto-panel__minutes-input {
+  width: 90px;
+}
+
 // ---- Main tabs ----
 .gm-console-tabs {
   display: flex;
@@ -1691,6 +1739,50 @@
   vertical-align: middle;
 }
 
+.gm-console-tester-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.gm-console-tester-reject-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.gm-console-btn {
+  @include m.btn-reset;
+  padding: 7px 16px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &--approve {
+    border-color: rgba(52, 211, 153, 0.4);
+    color: #34d399;
+    background: rgba(52, 211, 153, 0.08);
+
+    &:hover {
+      background: rgba(52, 211, 153, 0.18);
+    }
+  }
+
+  &--danger {
+    border-color: rgba(255, 107, 107, 0.3);
+    color: #ff6a6a;
+    background: transparent;
+
+    &:hover {
+      background: rgba(255, 107, 107, 0.12);
+    }
+  }
+}
+
 .gm-console-grant-row {
   display: flex;
   gap: 8px;
@@ -2837,6 +2929,90 @@
   word-wrap: break-word;
   max-height: 400px;
   overflow-y: auto;
+}
+
+// ── Development tab ───────────────────────────────────────────────────────────
+
+.gm-console-section-heading {
+  font-size: 14px;
+  font-weight: 700;
+  color: v.$text-primary;
+  margin: 0 0 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid v.$border-subtle;
+}
+
+.gm-console-dev-update-card {
+  background: v.$bg-card;
+  border: 1px solid v.$border-subtle;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.gm-console-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+
+  &--success {
+    color: v.$success;
+    background: v.$success-tint-12;
+  }
+}
+
+.gm-console-bug-reports {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gm-console-bug-report {
+  background: v.$bg-input;
+  border: 1px solid v.$border-subtle;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.gm-console-bug-report__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.gm-console-bug-report__desc {
+  font-size: 12.5px;
+  color: v.$text-muted-55;
+  margin: 0 0 8px;
+  line-height: 1.5;
+}
+
+.gm-console-bug-report__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.gm-console-select {
+  background: v.$bg-input;
+  border: 1px solid v.$border-medium;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12.5px;
+  color: v.$text-primary;
+  font-family: inherit;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    border-color: v.$accent;
+  }
 }
 
 .gm-console-changelog-seeder {

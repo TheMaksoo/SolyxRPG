@@ -41,7 +41,7 @@ const metrics = ref(null);
 function formatCents(cents) {
   return ((cents || 0) / 100).toFixed(2);
 }
-const TAB_KEYS = ['overview', 'activity', 'content', 'players', 'economy', 'progression', 'revenue', 'flags', 'tickets', 'broadcast', 'commands', 'audit'];
+const TAB_KEYS = ['overview', 'activity', 'content', 'players', 'development', 'economy', 'progression', 'revenue', 'flags', 'tickets', 'broadcast', 'commands', 'audit'];
 // Supports deep-linking straight to a tab (e.g. /admin?tab=tickets from the Settings page's
 // "manage tickets" link) while still defaulting to the overview tab otherwise.
 const tab = ref(TAB_KEYS.includes(route.query.tab) ? route.query.tab : 'overview');
@@ -50,6 +50,7 @@ const TABS = [
   { key: 'activity', label: 'Activity' },
   { key: 'content', label: 'Content' },
   { key: 'players', label: 'Players' },
+  { key: 'development', label: 'Development' },
   { key: 'economy', label: 'Economy' },
   { key: 'progression', label: 'Progression' },
   { key: 'revenue', label: 'Revenue' },
@@ -880,11 +881,85 @@ async function executeCommand() {
   }
 }
 
+// Testers tab — pending tester applications queue (dev environment only).
+const testers = ref([]);
+const testerMessage = ref('');
+const rejectReasonForms = ref({});
+
+const autoApproveFlag = computed(() => flags.value.find((f) => f.key === 'tester_auto_approve'));
+const autoApproveMinutesRow = computed(() => config.value.find((r) => r.key === 'tester_auto_approve_minutes'));
+
+async function loadTesters() {
+  const { data } = await api.get('/gm/testers');
+  testers.value = data.applications;
+}
+
+async function approveTester(user) {
+  testerMessage.value = '';
+  try {
+    const { data } = await api.post(`/gm/testers/${user.id}/approve`);
+    testerMessage.value = data.message;
+    testers.value = testers.value.filter((u) => u.id !== user.id);
+  } catch (e) {
+    testerMessage.value = e.response?.data?.message || 'Could not approve.';
+  }
+}
+
+async function rejectTester(user) {
+  testerMessage.value = '';
+  const reason = rejectReasonForms.value[user.id] || '';
+  try {
+    const { data } = await api.post(`/gm/testers/${user.id}/reject`, { reason });
+    testerMessage.value = data.message;
+    testers.value = testers.value.filter((u) => u.id !== user.id);
+  } catch (e) {
+    testerMessage.value = e.response?.data?.message || 'Could not reject.';
+  }
+}
+
+// Update Approvals — GM view of changelog entries awaiting push-live + bug reports.
+const updateApprovals = ref([]);
+const updateApprovalsMessage = ref('');
+const acknowledgeArea = ref({});    // report_id -> area string
+const acknowledgeSeverity = ref({}); // report_id -> severity string
+
+async function loadUpdateApprovals() {
+  const { data } = await api.get('/gm/development/updates');
+  updateApprovals.value = data.entries;
+}
+
+async function pushLive(entry) {
+  updateApprovalsMessage.value = '';
+  try {
+    const { data } = await api.post(`/gm/development/updates/${entry.id}/push-live`);
+    updateApprovalsMessage.value = data.message;
+    entry.pushed_live_at = new Date().toISOString();
+  } catch (e) {
+    updateApprovalsMessage.value = e.response?.data?.message || 'Could not push live.';
+  }
+}
+
+async function acknowledgeBugReport(report) {
+  updateApprovalsMessage.value = '';
+  try {
+    const { data } = await api.post(`/gm/development/bug-reports/${report.id}/acknowledge`, {
+      area: acknowledgeArea.value[report.id] || 'General',
+      severity: acknowledgeSeverity.value[report.id] || 'minor',
+    });
+    updateApprovalsMessage.value = data.message;
+    report.status = 'acknowledged';
+    report.known_bug_id = data.bug?.id;
+  } catch (e) {
+    updateApprovalsMessage.value = e.response?.data?.message || 'Could not acknowledge.';
+  }
+}
+
 function switchTab(key) {
   tab.value = key;
   if (key === 'overview') loadOverview();
   if (key === 'activity') { loadActivity(); loadRevenue(); }
   if (key === 'players') loadPlayers();
+  if (key === 'development') { loadTesters(); loadUpdateApprovals(); loadFlags(); loadConfig(); }
   if (key === 'economy') loadConfig();
   if (key === 'revenue') { loadRevenueDashboard(); loadPurchaseLog(); }
   if (key === 'flags') loadFlags();
@@ -1744,9 +1819,126 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- TESTERS -->
+    <div v-else-if="tab === 'development'">
+      <!-- ── Update Approvals ─────────────────────────────────────────────── -->
+      <h3 class="gm-console-section-heading">⚗ Update Approvals</h3>
+      <p class="gm-console-intro">Changelog entries awaiting GM review. Push live when testers have signed off, or acknowledge reported bugs.</p>
+
+      <p v-if="updateApprovalsMessage" class="gm-console-action-msg">{{ updateApprovalsMessage }}</p>
+      <div v-if="!updateApprovals.length" class="gm-console-empty">No changelog entries found.</div>
+      <div v-for="entry in updateApprovals" :key="entry.id" class="gm-console-dev-update-card">
+        <div class="gm-console-player-header">
+          <span class="gm-console-player-name">v{{ entry.version }} — {{ entry.title }}</span>
+          <span class="gm-console-player-meta">{{ entry.tag }} · {{ entry.visibility }}</span>
+          <span class="gm-console-player-meta">👍 {{ entry.votes_count }} votes · 🐞 {{ entry.bug_reports_count }} bugs</span>
+          <span v-if="entry.pushed_live_at" class="gm-console-badge gm-console-badge--success">✓ Live</span>
+          <button v-else class="gm-console-btn gm-console-btn--approve" @click="pushLive(entry)">
+            🚀 Push Live
+          </button>
+        </div>
+
+        <!-- Bug reports on this entry -->
+        <div v-if="entry.bug_reports && entry.bug_reports.length" class="gm-console-bug-reports">
+          <div v-for="report in entry.bug_reports" :key="report.id" class="gm-console-bug-report">
+            <div class="gm-console-bug-report__head">
+              <span class="gm-console-player-name" style="font-size:13px">🐞 {{ report.title }}</span>
+              <span class="gm-console-player-meta">by {{ report.user?.name ?? 'Unknown' }}</span>
+              <span v-if="report.status === 'acknowledged'" class="gm-console-badge gm-console-badge--success">✓ Acknowledged</span>
+            </div>
+            <p class="gm-console-bug-report__desc">{{ report.description }}</p>
+            <div v-if="report.status !== 'acknowledged'" class="gm-console-bug-report__actions">
+              <select v-model="acknowledgeArea[report.id]" class="gm-console-select">
+                <option value="">Area (optional)</option>
+                <option value="General">General</option>
+                <option value="Combat">Combat</option>
+                <option value="Inventory">Inventory</option>
+                <option value="UI">UI</option>
+                <option value="Crafting">Crafting</option>
+                <option value="Economy">Economy</option>
+                <option value="Quests">Quests</option>
+                <option value="Social">Social</option>
+              </select>
+              <select v-model="acknowledgeSeverity[report.id]" class="gm-console-select">
+                <option value="minor">Minor</option>
+                <option value="major">Major</option>
+                <option value="critical">Critical</option>
+              </select>
+              <button class="gm-console-btn gm-console-btn--approve" @click="acknowledgeBugReport(report)">
+                ✓ Acknowledge → Known Bug
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Tester Applications ──────────────────────────────────────────── -->
+      <h3 class="gm-console-section-heading" style="margin-top:28px">🧪 Tester Applications</h3>
+      <p class="gm-console-intro">Pending applications — approve to grant dev access, reject to decline.</p>
+
+      <!-- Auto-approve settings -->
+      <div v-if="autoApproveFlag" class="gm-console-tester-auto-panel">
+        <div class="gm-console-tester-auto-panel__row">
+          <label class="gm-console-tester-auto-panel__label">
+            Auto-approve testers
+            <span class="gm-console-tester-auto-panel__hint">When on, pending applications are approved automatically after the wait time below.</span>
+          </label>
+          <label class="toggle-switch">
+            <input
+              type="checkbox"
+              aria-label="Auto-approve testers toggle"
+              :checked="autoApproveFlag.enabled"
+              @change="toggleFlag(autoApproveFlag, 'enabled')"
+            />
+            <span class="toggle-switch__track"><span class="toggle-switch__knob"></span></span>
+          </label>
+        </div>
+        <div v-if="autoApproveMinutesRow" class="gm-console-tester-auto-panel__row gm-console-tester-auto-panel__row--wait">
+          <label class="gm-console-tester-auto-panel__label" :for="`auto-approve-minutes`">
+            Wait time (minutes)
+          </label>
+          <div class="gm-console-tester-auto-panel__input-group">
+            <input
+              id="auto-approve-minutes"
+              v-model.number="autoApproveMinutesRow.value"
+              type="number"
+              min="1"
+              max="10080"
+              class="gm-console-config-input gm-console-tester-auto-panel__minutes-input"
+            />
+            <button class="gm-console-config-save-btn" @click="saveConfig(autoApproveMinutesRow)">Save</button>
+          </div>
+        </div>
+      </div>
+
+      <p v-if="testerMessage" class="gm-console-action-msg">{{ testerMessage }}</p>
+      <div v-if="!testers.length" class="gm-console-empty">No pending applications.</div>
+      <div v-for="user in testers" :key="user.id" class="gm-console-player-card">
+        <div class="gm-console-player-header">
+          <span class="gm-console-player-name">{{ user.name }}</span>
+          <span class="gm-console-player-meta">{{ user.email }}</span>
+          <span class="gm-console-player-meta">Applied {{ new Date(user.tester_applied_at).toLocaleDateString() }}</span>
+        </div>
+        <div class="gm-console-tester-actions">
+          <button class="gm-console-btn gm-console-btn--approve" @click="approveTester(user)">
+            ✓ Approve
+          </button>
+          <div class="gm-console-tester-reject-row">
+            <input
+              v-model="rejectReasonForms[user.id]"
+              placeholder="Rejection reason (optional)"
+              class="gm-console-input"
+            />
+            <button class="gm-console-btn gm-console-btn--danger" @click="rejectTester(user)">
+              ✗ Reject
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ECONOMY -->
-    <div v-else-if="tab === 'economy'">
-      <p class="gm-console-intro">Global multipliers applied to every battle reward.</p>
+    <div v-else-if="tab === 'economy'">      <p class="gm-console-intro">Global multipliers applied to every battle reward.</p>
       <p class="gm-console-note">
         Luck and crafting are tunable here, including vip_luck_*, luck_combat_*, crafted_roll_* and crafted_value_* keys.
       </p>

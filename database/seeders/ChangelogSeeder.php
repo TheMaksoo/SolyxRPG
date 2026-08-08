@@ -161,7 +161,10 @@ class ChangelogSeeder extends Seeder
     ];
 
     /** Keyed on version, not create() — re-running db:seed on live must never duplicate or reset
-     * GM-edited changelog entries. */
+     * GM-edited changelog entries.
+     *
+     * Entry format: [version, title, body, tag, published_at] — all existing entries are player-visible.
+     * New entries from the changelog agent include a 6th element: visibility ('player'|'tester'|'gm'). */
     public function run(): void
     {
         foreach (self::ENTRIES as $entry) {

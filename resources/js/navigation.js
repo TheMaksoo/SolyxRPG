@@ -32,6 +32,7 @@ export const NAV_FOOTER = [
   { path: 'https://discord.gg/WhCmHm3KaS', name: 'discord-link', label: 'Join Discord', icon: '💬', external: true },
   { path: '/wiki', name: 'wiki-link', label: 'Wiki', icon: '📖' },
   { path: '/known-bugs', name: 'known-bugs-link', label: 'Known Bugs', icon: '🐞' },
+  { path: '/development', name: 'development-link', label: 'Development', icon: '⚗' },
   { path: '/changelog', name: 'changelog-link', label: 'Changelog', icon: '📜' },
   { path: '/hall-of-founders', name: 'hall-of-founders-link', label: 'Hall of Founders', icon: '⚜️' },
   { path: '/admin', name: 'admin', label: 'GM Console', icon: '🛠' },

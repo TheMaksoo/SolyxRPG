@@ -1,0 +1,21 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    # Start at level 5 — catches real bugs without being overwhelming.
+    # Raise to 6 or 7 as the codebase matures.
+    level: 5
+
+    paths:
+        - app
+
+    excludePaths:
+        - app/Http/Middleware/HandleInertiaRequests.php
+
+    # Ignore baseline issues from existing code so CI only fails on new problems.
+    # Run `vendor/bin/phpstan analyse --generate-baseline` to regenerate after
+    # fixing a batch of issues.
+    # ignoreErrors: []
+
+    checkMissingIterableValueType: false
+    checkGenericClassInNonGenericObjectType: false

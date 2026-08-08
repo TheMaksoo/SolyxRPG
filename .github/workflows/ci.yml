@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [dev]
+
+jobs:
+  test:
+    name: Tests & Code Quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo, pdo_sqlite, sqlite3
+          coverage: none
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Copy environment file
+        run: cp .env.example .env
+
+      - name: Generate application key
+        run: php artisan key:generate
+
+      - name: Run PHPUnit tests
+        run: php artisan test --no-interaction
+
+      # Non-blocking for now: the existing codebase predates Pint and currently fails this check
+      # against ~100 files that have nothing to do with whatever PR triggered this run. Flip
+      # continue-on-error off once a one-time `vendor/bin/pint` formatting pass has been merged —
+      # until then, blocking on this would fail every single PR regardless of what it touches.
+      - name: Run Laravel Pint (code style)
+        run: vendor/bin/pint --test
+        continue-on-error: true
+
+      - name: Run PHPStan (static analysis)
+        run: vendor/bin/phpstan analyse --no-progress --memory-limit=512M
