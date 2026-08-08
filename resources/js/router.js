@@ -90,7 +90,7 @@ gameChildren.push(
 );
 
 const routes = [
-  { path: '/', redirect: '/dashboard' },
+  { path: '/', name: 'home', component: pageImport('HomePage') },
   { path: '/landing', name: 'landing', component: pageImport('LandingPage') },
   { path: '/oauth/callback', name: 'oauth-callback', component: pageImport('OAuthCallbackPage') },
   { path: '/forgot-password', name: 'forgot-password', component: pageImport('ForgotPasswordPage') },
@@ -127,11 +127,13 @@ router.beforeEach(async (to) => {
     await auth.fetchMe();
   }
 
+  const isHome = to.path === '/';
   const isLanding = to.path === '/landing';
   const isCreate = to.path === '/character/create';
   const isSelect = to.path === '/characters';
   const isLevelRequired = to.path === '/level-required';
   const isPublic =
+    isHome ||
     isLanding ||
     to.path === '/oauth/callback' ||
     to.path === '/wiki' ||
@@ -143,11 +145,11 @@ router.beforeEach(async (to) => {
   if (!auth.isAuthenticated && !isPublic) {
     return '/landing';
   }
-  if (auth.isAuthenticated && !auth.hasCharacter && !isCreate && !isSelect && !isLanding) {
+  if (auth.isAuthenticated && !auth.hasCharacter && !isCreate && !isSelect && !isLanding && !isHome) {
     const hasAnyCharacters = (auth.user?.characters?.length ?? 0) > 0;
     return hasAnyCharacters ? '/characters' : '/character/create';
   }
-  if (auth.isAuthenticated && auth.hasCharacter && isLanding) {
+  if (auth.isAuthenticated && auth.hasCharacter && (isLanding || isHome)) {
     return '/dashboard';
   }
   if (to.meta.requiresGm && !['gm', 'owner'].includes(auth.user?.role)) {

@@ -1,11 +1,6 @@
 @use '../../scss/variables' as v;
 @use '../../scss/mixins' as m;
 
-@keyframes landing-pulse {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 1; }
-}
-
 @keyframes landing-fade-up {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
@@ -29,6 +24,8 @@
   display: flex;
   align-items: center;
   gap: 11px;
+  text-decoration: none;
+  color: inherit;
 }
 
 .landing-brand__icon {
@@ -51,83 +48,13 @@
   margin-left: 4px;
 }
 
-.landing-online {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: v.$text-muted-55;
-}
-
-.landing-online__dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: v.$success-strong;
-  animation: landing-pulse 2s infinite;
-}
-
-.landing-hero {
+.landing-center {
   flex: 1;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 60px;
   padding: 40px 28px;
-  max-width: 1180px;
-  margin: 0 auto;
   width: 100%;
-}
-
-.landing-hero__pitch {
-  flex: 1;
-  min-width: 300px;
-  max-width: 560px;
-  animation: landing-fade-up 0.5s ease;
-}
-
-.landing-hero__logo {
-  width: 150px;
-  height: auto;
-  margin-bottom: 26px;
-  filter: drop-shadow(0 0 26px v.$accent-tint-30);
-}
-
-.landing-hero__title {
-  font-size: clamp(38px, 6vw, 64px);
-  line-height: 1.04;
-  margin: 0 0 20px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-}
-
-.landing-hero__title-accent {
-  color: v.$accent;
-}
-
-.landing-hero__tagline {
-  font-size: 17px;
-  line-height: 1.6;
-  color: v.$text-muted-55;
-  margin: 0 0 34px;
-  max-width: 460px;
-}
-
-.landing-stats {
-  display: flex;
-  gap: 34px;
-}
-
-.landing-stat__value {
-  font-size: 28px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
-
-.landing-stat__label {
-  font-size: 12px;
-  color: v.$text-muted-45;
 }
 
 .landing-auth-card {
@@ -373,34 +300,8 @@
     display: none;
   }
 
-  .landing-hero {
-    gap: 32px;
+  .landing-center {
     padding: 24px 16px 32px;
-  }
-
-  .landing-hero__pitch {
-    min-width: 0;
-    max-width: 100%;
-    text-align: center;
-  }
-
-  .landing-hero__logo {
-    width: 100px;
-    margin-bottom: 18px;
-  }
-
-  .landing-hero__title {
-    margin: 0 0 14px;
-  }
-
-  .landing-hero__tagline {
-    margin: 0 auto 26px;
-  }
-
-  .landing-stats {
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 22px;
   }
 
   .landing-auth-card {
@@ -422,18 +323,6 @@
 }
 
 @media (max-width: 480px) {
-  .landing-hero__title {
-    font-size: clamp(30px, 9vw, 40px);
-  }
-
-  .landing-stats {
-    gap: 16px 20px;
-  }
-
-  .landing-stat__value {
-    font-size: 22px;
-  }
-
   .landing-auth-card {
     padding: 18px 14px;
   }

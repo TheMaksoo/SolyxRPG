@@ -4,7 +4,7 @@
 <template>
   <div class="terms-page">
     <div class="terms-page__inner">
-      <router-link to="/landing" class="terms-page__back">← Back to Solyx</router-link>
+      <router-link to="/" class="terms-page__back">← Back to Solyx</router-link>
       <h1 class="ox terms-page__title">Privacy Policy</h1>
       <p class="terms-page__updated">Last updated: 2026</p>
 

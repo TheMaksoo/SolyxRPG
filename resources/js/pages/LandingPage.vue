@@ -20,7 +20,6 @@ const showPassword = ref(false);
 const tosAccepted = ref(false);
 const error = ref('');
 const loading = ref(false);
-const stats = ref(null);
 const referrerName = ref(null);
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
@@ -103,6 +102,9 @@ onMounted(async () => {
     } catch {
       // No banner if the lookup fails — the referral code still works for signup either way.
     }
+  } else if (route.query.mode === 'register') {
+    // Deep-linked here from a homepage "Play Free" / "Sign up" CTA rather than an invite link.
+    mode.value = 'register';
   }
 
   if (mode.value === 'register') nextTick(renderTurnstile);
@@ -111,71 +113,21 @@ onMounted(async () => {
     error.value = OAUTH_ERROR_MESSAGES[route.query.oauth_error] || 'Sign-in failed.';
     router.replace({ query: {} });
   }
-
-  try {
-    const { data } = await api.get('/stats/public');
-    stats.value = data;
-  } catch {
-    // Landing page still works fine without the live stat row.
-  }
 });
 </script>
 
 <template>
   <div class="landing-page">
     <div class="landing-topbar">
-      <div class="landing-brand">
+      <router-link to="/" class="landing-brand">
         <img src="/images/solyx-icon.png" alt="" class="landing-brand__icon" />
         <span class="ox landing-brand__name">SOLYX</span>
         <span class="landing-brand__tag">RPG</span>
         <span class="landing-brand__tag">Beta version!</span>
-      </div>
-      <div v-if="stats" class="landing-online">
-        <span class="landing-online__dot"></span>
-        {{ stats.players_online }} online
-      </div>
+      </router-link>
     </div>
 
-    <div class="landing-hero">
-      <div class="landing-hero__pitch">
-        <img
-          src="/images/solyx-logo.png"
-          alt="Solyx"
-          class="landing-hero__logo"
-          width="150"
-          height="137"
-          fetchpriority="high"
-        />
-        <h1 class="ox landing-hero__title">Solyx <span class="landing-hero__title-accent">Web Game</span></h1>
-        <h6>Beta version!</h6>
-        <p class="landing-hero__tagline">
-          A browser RPG built on the Solyx Discord bot. Forge a class, battle monsters, raid dungeons with your
-          guild, and climb the world leaderboard.
-        </p>
-        <div v-if="stats" class="landing-stats">
-          <div class="landing-stat">
-            <div class="ox landing-stat__value">{{ stats.adventurers }}</div>
-            <div class="landing-stat__label">Adventures</div>
-          </div>
-          <div class="landing-stat">
-            <div class="ox landing-stat__value">{{ stats.zones_dungeons }}</div>
-            <div class="landing-stat__label">Zones &amp; dungeons</div>
-          </div>
-          <div class="landing-stat">
-            <div class="ox landing-stat__value">{{ stats.classes }}</div>
-            <div class="landing-stat__label">Playable classes</div>
-          </div>
-          <div class="landing-stat">
-            <div class="ox landing-stat__value">{{ stats.quests }}</div>
-            <div class="landing-stat__label">Total quests</div>
-          </div>
-          <div class="landing-stat">
-            <div class="ox landing-stat__value">{{ stats.items }}</div>
-            <div class="landing-stat__label">Total items</div>
-          </div>
-        </div>
-      </div>
-
+    <div class="landing-center">
       <div class="landing-auth-card">
         <div v-if="referrerName" class="landing-referral-banner">
           🎁 {{ referrerName }} invited you — join and you both earn gems!
