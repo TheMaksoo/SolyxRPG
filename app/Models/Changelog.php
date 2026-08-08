@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Changelog extends Model
 {
-    protected $fillable = ['version', 'title', 'body', 'tag', 'published_at', 'pushed_live_at', 'visibility'];
+    protected $fillable = ['version', 'title', 'body', 'tag', 'visibility', 'published_at', 'pushed_live_at'];
 
     protected $casts = [
         'published_at' => 'datetime',

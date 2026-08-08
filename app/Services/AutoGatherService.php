@@ -87,7 +87,9 @@ class AutoGatherService
         GemLedger::log($character->user, -$cost, "auto_gather:{$skillKey}:{$minutes}min", $character);
         $character->refresh();
 
-        $this->extend($character, $skillKey, $targetKey, $minutes);
+        $bonusPct = $character->user->vipAutoPassBonusPct();
+        $adjustedMinutes = (int) round($minutes * (1 + $bonusPct / 100));
+        $this->extend($character, $skillKey, $targetKey, $adjustedMinutes);
     }
 
     /** Re-targets an already-running pass to a different skill/target, without touching remaining time or
@@ -145,6 +147,22 @@ class AutoGatherService
         }
     }
 
+    /** Called by StoreController's webhook when a cash auto_gather_480 SKU is fulfilled.
+     * Stacks onto time already remaining rather than overwriting it. Requires an active
+     * gathering session — throws if no session is running, since skill/target are not known. */
+    public function extendFromPurchase(Character $character, int $minutes): void
+    {
+        $isActive = $character->auto_gather_expires_at && $character->auto_gather_expires_at->isFuture()
+            && $character->auto_gather_skill && $character->auto_gather_target;
+
+        if (! $isActive) {
+            throw new \RuntimeException('No active auto-gather session to extend. Start a gathering session first.');
+        }
+
+        $character->auto_gather_expires_at = $character->auto_gather_expires_at->copy()->addMinutes($minutes);
+        $character->save();
+    }
+
     private function extend(Character $character, string $skillKey, string $targetKey, int $minutes): void
     {
         $grantedMinutes = $this->grantedMinutesFor($minutes);
@@ -191,8 +209,9 @@ class AutoGatherService
         $tool = $this->equippedToolBonus($character, $skillKey);
         $speedPoints = $character->attributes_?->{self::SPEED_ATTR_BY_SKILL[$skillKey] ?? ''} ?? 0;
         $petGatherSpeedPct = $character->effectiveStats()['pet_gather_speed_pct'] ?? 0;
-        $actionSeconds = max(1, $this->tradeSkills->actionSeconds($skillKey, $targetKey, $row->level, $speedPoints, $tool['speed_pct'] + $petGatherSpeedPct));
-        $luckBonusPct = $this->luckBonusPct($character);
+        $vipGatherSpeedPct = $character->user->vipGatherSpeedPct();
+        $actionSeconds = max(1, $this->tradeSkills->actionSeconds($skillKey, $targetKey, $row->level, $speedPoints, $tool['speed_pct'] + $petGatherSpeedPct + $vipGatherSpeedPct));
+        $luckBonusPct = $this->luckBonusPct($character) + $character->user->vipGatherYieldBonusPct();
 
         $elapsed = max(0, $windowEnd->getTimestamp() - $lastTick->getTimestamp());
         $actionsToRun = min(self::MAX_ACTIONS_PER_TICK, intdiv($elapsed, $actionSeconds));

@@ -334,6 +334,12 @@
     opacity: 0.45;
     cursor: default;
   }
+
+  &--cash {
+    background: v.$accent-tint-15;
+    border-color: v.$accent;
+    color: v.$accent-soft;
+  }
 }
 
 .gem-sink-grid {

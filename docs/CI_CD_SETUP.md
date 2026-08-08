@@ -71,25 +71,24 @@ Same steps as dev deploy but targets the live server (`main` branch, `/var/www/R
 
 ---
 
-### 4. `changelog-agent.yml` — Auto Changelog
+### 4. `auto-changelog.yml` — Auto Changelog
 
-**Triggers:** Every PR merged into `dev`
+**Triggers:** Every PR merged into `main` (or `master`)
 
 **What it does:**
-- Reads PR title, body, and labels
-- Determines the tag (`feature`, `fix`, `balance`, `misc`) from labels or title prefix
-- Calculates the next version number (feature bumps minor, everything else bumps patch)
-- Appends a new entry to `database/seeders/ChangelogSeeder.php`
-- Commits and pushes the update back to `dev`
+- Reads the PR title, body, labels, and diff stat
+- Calls OpenAI (`OPENAI_API_KEY` secret) to classify the change and draft a changelog entry —
+  tag (`feature`/`fix`/`balance`/`misc`), visibility (`player`/`tester`/`gm`), title, and body
+- Computes the next version (feature → minor bump, everything else → patch bump off the current minor)
+- Appends the entry to `database/seeders/ChangelogSeeder.php` and commits + pushes directly back to
+  the base branch
 
-**Tag rules:**
-| PR label | Changelog tag | Version bump |
-|---|---|---|
-| `feature`, `feat`, `enhancement` | `feature` | Minor (1.70 → 1.71) |
-| `bug`, `fix`, `hotfix` | `fix` | Patch (1.70 → 1.70.1) |
-| `balance`, `rebalance` | `balance` | Patch |
-| `chore`, `docs`, `refactor`, `misc` | `misc` | Patch |
-| *(none / unrecognised)* | Parsed from PR title prefix (`fix:`, `feat:`) or `misc` | Patch |
+**Override labels:** `changelog:feature` / `changelog:fix` / `changelog:balance` / `changelog:misc` and
+`audience:player` / `audience:tester` / `audience:gm` are passed to the model as hints; `changelog:skip`
+skips the whole step for that PR.
+
+Once this repo has a `dev` branch, retarget this workflow's trigger (or add a second one) to fire on
+merges into `dev` instead of/alongside `main`, matching this doc's branch strategy above.
 
 ---
 

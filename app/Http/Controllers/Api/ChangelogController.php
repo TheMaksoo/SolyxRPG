@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Changelog;
 use Illuminate\Http\Request;
-use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Read-only player-facing changelog list, managed via the GM Console's Content tab → Changelog
@@ -21,39 +20,25 @@ class ChangelogController extends Controller
 {
     public function index(Request $request)
     {
+        $user = request()->user();
+
+        $allowed = ['player'];
+        if ($user->isTester()) {
+            $allowed[] = 'tester';
+        }
+        if ($user->isGm()) {
+            $allowed[] = 'gm';
+        }
+
         return response()->json([
-            'entries' => Changelog::orderByDesc('published_at')
-                ->where(fn (Builder $q) => $this->applyVisibility($q, $request))
-                ->get(),
+            'entries' => Changelog::whereIn('visibility', $allowed)->orderByDesc('published_at')->get(),
         ]);
     }
 
-    public function current(Request $request)
+    public function current()
     {
-        $latest = Changelog::orderByDesc('published_at')
-            ->where(fn (Builder $q) => $this->applyVisibility($q, $request))
-            ->first();
+        $latest = Changelog::where('visibility', 'player')->orderByDesc('published_at')->first();
 
         return response()->json(['version' => $latest?->version ?? 'dev']);
-    }
-
-    /** Restrict changelog rows to those the current user is allowed to see. */
-    private function applyVisibility(Builder $query, Request $request): void
-    {
-        $user = $request->user();
-
-        if (! $user || $user->isGm()) {
-            // GMs see every entry (no filter needed).
-            return;
-        }
-
-        if ($user->is_tester || $user->role === 'tester') {
-            // Testers see player + tester entries.
-            $query->whereIn('visibility', ['player', 'tester']);
-            return;
-        }
-
-        // Regular players see only player-visible entries.
-        $query->where('visibility', 'player');
     }
 }

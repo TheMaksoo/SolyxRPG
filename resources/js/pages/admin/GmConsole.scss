@@ -1941,31 +1941,267 @@
   }
 }
 
-.gm-console-audit-row {
-  @extend %gm-tile-base;
-  padding: 12px 16px;
+.gm-audit {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.gm-console-audit-row__head {
+// ---- Stats / filter chips ----
+.gm-audit-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gm-audit-stats__chip {
+  @extend %gm-btn-base;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: v.$bg-card;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-pill;
+  font-size: 12.5px;
+  color: v.$text-muted-55;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+
+  &:hover {
+    border-color: v.$border-medium;
+    color: v.$text-primary;
+  }
+
+  &.is-active {
+    background: var(--chip-bg, v.$accent-tint-12);
+    border-color: var(--chip-color, v.$accent);
+    color: var(--chip-color, v.$accent);
+  }
+}
+
+.gm-audit-stats__chip-icon { font-size: 13px; line-height: 1; }
+.gm-audit-stats__chip-label { font-weight: 600; }
+.gm-audit-stats__chip-count {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: inherit;
+}
+
+// ---- Search bar ----
+.gm-audit-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: v.$bg-card;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-md;
+  overflow: hidden;
+  transition: border-color 0.15s;
+
+  &:focus-within { border-color: v.$border-medium; }
+}
+
+.gm-audit-search__icon {
+  padding: 0 10px 0 12px;
+  font-size: 13px;
+  pointer-events: none;
+  flex: none;
+  opacity: 0.5;
+}
+
+.gm-audit-search__input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 9px 0;
+  font-size: 13px;
+  color: v.$text-primary;
+
+  &::placeholder { color: v.$text-muted-40; }
+}
+
+.gm-audit-search__clear {
+  @extend %gm-btn-base;
+  padding: 0 12px;
+  font-size: 12px;
+  color: v.$text-muted-45;
+  align-self: stretch;
+
+  &:hover { color: v.$text-primary; }
+}
+
+// ---- Timeline ----
+.gm-audit-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+}
+
+.gm-audit-entry {
+  display: grid;
+  grid-template-columns: 38px 16px 1fr;
+  gap: 0 0;
+  position: relative;
+  cursor: pointer;
+
+  &:last-child .gm-audit-entry__line { display: none; }
+}
+
+.gm-audit-entry__icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  flex: none;
+  z-index: 1;
+  margin-top: 2px;
+}
+
+.gm-audit-entry__line {
+  width: 2px;
+  background: v.$border-subtle;
+  margin: 0 auto;
+  grid-row: 2;
+  grid-column: 1;
+  min-height: 14px;
+  align-self: stretch;
+}
+
+.gm-audit-entry__card {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  background: v.$bg-card;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-md;
+  padding: 10px 14px;
+  margin: 0 0 10px 10px;
+  transition: border-color 0.15s, background 0.15s;
+
+  .gm-audit-entry:hover & {
+    border-color: v.$border-medium;
+    background: #1a1a1c;
+  }
+
+  .gm-audit-entry.is-expanded & {
+    border-color: v.$border-strong;
+  }
+}
+
+.gm-audit-entry__top {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
-.gm-console-audit-row__action {
+.gm-audit-entry__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.gm-audit-entry__category-tag {
+  font-size: 10.5px;
   font-weight: 700;
-  font-size: 13px;
+  padding: 2px 8px;
+  border-radius: v.$radius-pill;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  flex: none;
 }
 
-.gm-console-audit-row__meta {
-  font-size: 11px;
+.gm-audit-entry__action {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: v.$text-body;
+}
+
+.gm-audit-entry__right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.gm-audit-entry__gm {
+  font-size: 12px;
+  color: v.$text-muted-55;
+  font-weight: 600;
+}
+
+.gm-audit-entry__time {
+  font-size: 11.5px;
   color: v.$text-muted-40;
 }
 
-.gm-console-audit-row__target {
+.gm-audit-entry__expand-icon {
+  font-size: 9px;
+  color: v.$text-muted-40;
+}
+
+.gm-audit-entry__target {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.gm-audit-entry__target-type {
+  font-size: 11px;
+  color: v.$text-muted-55;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-sm;
+  padding: 1px 7px;
+}
+
+.gm-audit-entry__target-id {
+  font-size: 11px;
+  color: v.$text-muted-40;
+  font-family: monospace;
+}
+
+.gm-audit-entry__meta {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid v.$border-subtle;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gm-audit-entry__meta-row {
+  display: flex;
+  gap: 8px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
-  margin-top: 4px;
+  overflow: hidden;
+}
+
+.gm-audit-entry__meta-key {
+  color: v.$text-muted-55;
+  font-weight: 600;
+  flex: none;
+  min-width: 100px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gm-audit-entry__meta-val {
+  color: v.$text-body;
+  word-break: break-all;
+  font-family: monospace;
+  font-size: 11.5px;
 }
 
 .gm-console-ticket-card__row {
@@ -2404,10 +2640,15 @@
   }
 
   .gm-console-ticket-card__row,
-  .gm-console-audit-row__head {
+  .gm-audit-entry__top {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
+  }
+
+  .gm-audit-entry__right {
+    flex-wrap: wrap;
+    gap: 6px;
   }
 
   .gm-console-resolve-btn,
@@ -2772,4 +3013,39 @@
     outline: none;
     border-color: v.$accent;
   }
+}
+
+.gm-console-changelog-seeder {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid v.$border-subtle;
+}
+
+.gm-console-changelog-seeder-btn {
+  padding: 8px 16px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    opacity: 0.85;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.gm-console-changelog-seeder-msg {
+  font-size: 13px;
+  color: v.$text-muted-70;
 }

@@ -68,6 +68,14 @@ class Character extends Model
             'battles_won' => 'integer',
             'battles_lost' => 'integer',
             'bosses_slain' => 'integer',
+            // Gathering/crafting counters added in 2026_08_01_000015 — must be cast to integer so the
+            // frontend receives proper JSON numbers rather than strings, otherwise arithmetic like
+            // totalGathered in ProfilePage.vue silently does string concatenation instead of addition.
+            'times_mined' => 'integer',
+            'times_chopped' => 'integer',
+            'times_smelted' => 'integer',
+            'times_foraged' => 'integer',
+            'times_crafted' => 'integer',
             'pvp_attempts_used' => 'integer',
             'pvp_wins_today' => 'integer',
             'dungeon_attempts_used' => 'integer',
@@ -306,6 +314,8 @@ class Character extends Model
         $gearLuck = 0;
         $gearDodge = 0;
         $gearLifesteal = 0;
+        $gearCrit = 0;
+        $gearMp = 0;
         $hasArmorSlotEquipped = false;
         foreach ($equipped as $slot) {
             if ($slot->durability_max !== null && $slot->durability <= 0) {
@@ -318,6 +328,11 @@ class Character extends Model
             $gearLuck += $stats['luck'] ?? 0;
             $gearDodge += $stats['dodge_pct'] ?? 0;
             $gearLifesteal += $stats['lifesteal_pct'] ?? 0;
+            // Gear crit (flat % bonus, e.g. +5 Crit on a dagger) and gear mp (flat mana pool bonus,
+            // e.g. +35 Mana on a staff) were previously accumulated but never wired into the final
+            // stat formulas — they showed in item tooltips (rarity.js formatStats) but had no effect.
+            $gearCrit += $stats['crit'] ?? 0;
+            $gearMp += $stats['mp'] ?? 0;
             if ($slot->item->type === 'shield') {
                 // Only warriors have shield-type gear (buckler/kite shield/aegis/bulwark — see
                 // ItemSeeder) — their 2nd defensive slot alongside regular chest armor.
@@ -361,11 +376,11 @@ class Character extends Model
         $hpSubtotal = $this->hp_max + $attr->hp_cap * 30;
         $effHpMax = (int) round($hpSubtotal * (1 + ($classPassives['hp_pct'] + $specPassives['hp_pct']) / 100));
 
-        $mpSubtotal = $this->mana_max + $attr->mana_cap * 20;
+        $mpSubtotal = $this->mana_max + $attr->mana_cap * 20 + $gearMp;
         $effMpMax = (int) round($mpSubtotal * (1 + ($party['mp_pct'] + $classPassives['mp_pct'] + $specPassives['mp_pct']) / 100));
 
         $effEnergyMax = $this->energy_max + ($attr->energy_cap ?? 0) * 15;
-        $critChance = 18 + $attr->crit * 2 + $petCritPct + $party['crit_chance'] + $specPassives['crit_chance_flat'];
+        $critChance = 18 + $attr->crit * 2 + $gearCrit + $petCritPct + $party['crit_chance'] + $specPassives['crit_chance_flat'];
         $critDamageMult = round(1.8 + ($attr->crit_damage ?? 0) * 0.02, 2);
         $guildLuckBonusPct = ($this->guildMembership?->guild?->upgradeBonusPct('luck') ?? 0) / 100;
         $luckSubtotal = ($attr->luck ?? 0) + $gearLuck + ($this->user?->vipLuckBonus() ?? 0) + $party['luck'];
@@ -416,6 +431,7 @@ class Character extends Model
             'eff_mp_max' => $this->statSourceBreakdown($effMpMax, [
                 ['label' => 'Base', 'value' => $this->mana_max, 'always' => true],
                 ['label' => 'Attributes (Mana Cap x20)', 'value' => $attr->mana_cap * 20],
+                ['label' => 'Gear', 'value' => $gearMp],
             ], $mpSubtotal, [
                 ['label' => 'Party Bonus', 'value' => $party['mp_pct']],
                 ['label' => 'Class Passive', 'value' => $classPassives['mp_pct']],
@@ -428,6 +444,7 @@ class Character extends Model
             'crit_chance' => $this->statSourceBreakdown($critChance, [
                 ['label' => 'Base', 'value' => 18, 'always' => true],
                 ['label' => 'Attributes (Crit x2)', 'value' => $attr->crit * 2],
+                ['label' => 'Gear', 'value' => $gearCrit],
                 ['label' => 'Pet Bonus', 'value' => $petCritPct],
                 ['label' => 'Party Bonus', 'value' => $party['crit_chance']],
                 ['label' => 'Subclass Passive', 'value' => $specPassives['crit_chance_flat']],

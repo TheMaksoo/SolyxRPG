@@ -41,12 +41,15 @@ return [
 
     'debug' => (bool) env('APP_DEBUG', false),
 
-    // Controls whether the public registration endpoint is open.
-    // Set to false on live (play.solyx.gg) to restrict sign-ups.
-    // Set to true on dev (dev.solyx.gg) so testers can create accounts freely.
-    'tester_registration' => (bool) env('TESTER_REGISTRATION', true),
+    // Controls whether the public registration endpoint is gated behind tester approval.
+    // Defaults to false (the live/play.solyx.gg behavior: open registration, no approval gate) so an
+    // environment that forgets to set this var doesn't silently lock out every existing player behind
+    // EnsureTesterApproved — only the dev environment should explicitly opt in via TESTER_REGISTRATION=true.
+    'tester_registration' => (bool) env('TESTER_REGISTRATION', false),
 
     /*
+    |--------------------------------------------------------------------------
+    | Application URL
     |--------------------------------------------------------------------------
     |
     | This URL is used by the console to properly generate URLs when using

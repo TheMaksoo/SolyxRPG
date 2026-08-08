@@ -583,10 +583,105 @@ async function sendBroadcast() {
 
 // Audit Log
 const auditLogs = ref([]);
+const auditSearch = ref('');
+const auditCategoryFilter = ref('all');
+const auditExpandedId = ref(null);
 
 async function loadAuditLog() {
   const { data } = await api.get('/gm/audit-log');
   auditLogs.value = data.logs;
+}
+
+const AUDIT_CATEGORIES = {
+  player:    { label: 'Player',    icon: '👤', color: '#60a5fa', bg: 'rgba(96,165,250,0.12)'  },
+  content:   { label: 'Content',   icon: '📝', color: '#a78bfa', bg: 'rgba(167,139,250,0.12)' },
+  config:    { label: 'Config',    icon: '⚙️', color: '#fbbf24', bg: 'rgba(251,191,36,0.12)'  },
+  flag:      { label: 'Flags',     icon: '🚩', color: '#fb923c', bg: 'rgba(251,146,60,0.12)'  },
+  ticket:    { label: 'Ticket',    icon: '🎫', color: '#4ade80', bg: 'rgba(74,222,128,0.12)'  },
+  broadcast: { label: 'Broadcast', icon: '📢', color: '#e8482f', bg: 'rgba(232,72,47,0.12)'   },
+  other:     { label: 'Other',     icon: '🔧', color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' },
+};
+
+const AUDIT_ACTION_LABELS = {
+  'gm.player.update':          'Updated player account',
+  'gm.player.grant':           'Granted items / currency',
+  'gm.player.mail':            'Sent player mail',
+  'gm.player.ban':             'Banned player',
+  'gm.player.unban':           'Unbanned player',
+  'gm.player.clear_stuck_state': 'Cleared stuck state',
+  'gm.content.create':         'Created content entry',
+  'gm.content.update':         'Updated content entry',
+  'gm.content.delete':         'Deleted content entry',
+  'gm.config.update':          'Updated game config',
+  'gm.flag.update':            'Toggled feature flag',
+  'gm.ticket.resolve':         'Resolved support ticket',
+  'gm.ticket.message':         'Replied to support ticket',
+  'gm.broadcast':              'Sent server broadcast',
+};
+
+function auditCategoryKey(action) {
+  if (action.startsWith('gm.player.'))    return 'player';
+  if (action.startsWith('gm.content.'))   return 'content';
+  if (action.startsWith('gm.config.'))    return 'config';
+  if (action.startsWith('gm.flag.'))      return 'flag';
+  if (action.startsWith('gm.ticket.'))    return 'ticket';
+  if (action === 'gm.broadcast')          return 'broadcast';
+  return 'other';
+}
+
+function auditCategoryMeta(action) {
+  return AUDIT_CATEGORIES[auditCategoryKey(action)] ?? AUDIT_CATEGORIES.other;
+}
+
+function auditLabel(action) {
+  return AUDIT_ACTION_LABELS[action] ?? action;
+}
+
+function auditRelativeTime(ts) {
+  if (!ts) return '';
+  const diff = Date.now() - new Date(ts).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1)   return 'just now';
+  if (mins < 60)  return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)   return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+function auditFullTime(ts) {
+  if (!ts) return '';
+  return new Date(ts).toLocaleString();
+}
+
+const auditCategoryCounts = computed(() => {
+  const counts = {};
+  for (const log of auditLogs.value) {
+    const key = auditCategoryKey(log.action);
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+  return counts;
+});
+
+const filteredAuditLogs = computed(() => {
+  let list = auditLogs.value;
+  if (auditCategoryFilter.value !== 'all') {
+    list = list.filter(l => auditCategoryKey(l.action) === auditCategoryFilter.value);
+  }
+  const q = auditSearch.value.trim().toLowerCase();
+  if (q) {
+    list = list.filter(l =>
+      l.action.toLowerCase().includes(q) ||
+      (l.gm?.name ?? '').toLowerCase().includes(q) ||
+      (l.target_type ?? '').toLowerCase().includes(q) ||
+      auditLabel(l.action).toLowerCase().includes(q)
+    );
+  }
+  return list;
+});
+
+function toggleAuditExpand(id) {
+  auditExpandedId.value = auditExpandedId.value === id ? null : id;
 }
 
 // Progression tab — per-level XP curve straight from Character::xpForLevel() (see GmProgressionController),
@@ -681,6 +776,27 @@ const commandMessage = ref('');
 // Seeder selection
 const availableSeeders = ref([]);
 const selectedSeeder = ref(null);
+
+// Quick changelog seeder run (from Content tab)
+const changelogSeederRunning = ref(false);
+const changelogSeederMessage = ref('');
+
+async function runChangelogSeeder() {
+  changelogSeederRunning.value = true;
+  changelogSeederMessage.value = '';
+  try {
+    const { data } = await api.post('/gm/artisan-commands/execute', {
+      command: 'db:seed',
+      seeder_class: 'ChangelogSeeder',
+      force: false,
+    });
+    changelogSeederMessage.value = data.success ? '✅ Changelog seeder ran successfully.' : '❌ Seeder failed: ' + (data.output || data.message);
+  } catch (e) {
+    changelogSeederMessage.value = '❌ ' + (e.response?.data?.error || e.message);
+  } finally {
+    changelogSeederRunning.value = false;
+  }
+}
 
 async function loadArtisanCommands() {
   const { data } = await api.get('/gm/artisan-commands');
@@ -1644,6 +1760,16 @@ onMounted(() => {
         </button>
       </div>
       <GmContentEditor :resource="resource" :key="resource" />
+      <div v-if="resource === 'changelogs'" class="gm-console-changelog-seeder">
+        <button
+          @click="runChangelogSeeder"
+          :disabled="changelogSeederRunning"
+          class="gm-console-changelog-seeder-btn"
+        >
+          {{ changelogSeederRunning ? 'Running…' : '▶ Run Changelog Seeder' }}
+        </button>
+        <span v-if="changelogSeederMessage" class="gm-console-changelog-seeder-msg">{{ changelogSeederMessage }}</span>
+      </div>
     </div>
 
     <!-- PLAYERS -->
@@ -2018,18 +2144,102 @@ onMounted(() => {
     </div>
 
     <!-- AUDIT LOG -->
-    <div v-else-if="tab === 'audit'">
-      <div class="gm-console-list gm-console-list--wide">
-        <div v-for="log in auditLogs" :key="log.id" class="gm-console-audit-row">
-          <div class="gm-console-audit-row__head">
-            <span class="ox gm-console-audit-row__action">{{ log.action }}</span>
-            <span class="gm-console-audit-row__meta">{{ log.gm?.name ?? 'unknown' }} · {{ log.created_at }}</span>
-          </div>
-          <div v-if="log.target_type" class="gm-console-audit-row__target">
-            {{ log.target_type }}<span v-if="log.target_id"> #{{ log.target_id }}</span>
+    <div v-else-if="tab === 'audit'" class="gm-audit">
+
+      <!-- Stats bar -->
+      <div class="gm-audit-stats">
+        <button
+          class="gm-audit-stats__chip"
+          :class="{ 'is-active': auditCategoryFilter === 'all' }"
+          @click="auditCategoryFilter = 'all'"
+        >
+          <span class="gm-audit-stats__chip-label">All</span>
+          <span class="gm-audit-stats__chip-count">{{ auditLogs.length }}</span>
+        </button>
+        <button
+          v-for="(cat, key) in AUDIT_CATEGORIES"
+          :key="key"
+          class="gm-audit-stats__chip"
+          :class="{ 'is-active': auditCategoryFilter === key }"
+          :style="auditCategoryFilter === key ? { '--chip-color': cat.color, '--chip-bg': cat.bg } : {}"
+          @click="auditCategoryFilter = key"
+        >
+          <span class="gm-audit-stats__chip-icon">{{ cat.icon }}</span>
+          <span class="gm-audit-stats__chip-label">{{ cat.label }}</span>
+          <span class="gm-audit-stats__chip-count">{{ auditCategoryCounts[key] ?? 0 }}</span>
+        </button>
+      </div>
+
+      <!-- Search bar -->
+      <div class="gm-audit-search">
+        <span class="gm-audit-search__icon">🔍</span>
+        <input
+          v-model="auditSearch"
+          type="text"
+          class="gm-audit-search__input"
+          placeholder="Search by action, GM name, or target…"
+        />
+        <button v-if="auditSearch" class="gm-audit-search__clear" @click="auditSearch = ''">✕</button>
+      </div>
+
+      <!-- Timeline -->
+      <div class="gm-audit-timeline">
+        <div
+          v-for="log in filteredAuditLogs"
+          :key="log.id"
+          class="gm-audit-entry"
+          :class="{ 'is-expanded': auditExpandedId === log.id }"
+          @click="toggleAuditExpand(log.id)"
+        >
+          <!-- Left: category icon -->
+          <div
+            class="gm-audit-entry__icon"
+            :style="{ background: auditCategoryMeta(log.action).bg, color: auditCategoryMeta(log.action).color }"
+          >{{ auditCategoryMeta(log.action).icon }}</div>
+
+          <!-- Connector line -->
+          <div class="gm-audit-entry__line"></div>
+
+          <!-- Card body -->
+          <div class="gm-audit-entry__card">
+            <div class="gm-audit-entry__top">
+              <div class="gm-audit-entry__left">
+                <span
+                  class="gm-audit-entry__category-tag"
+                  :style="{ background: auditCategoryMeta(log.action).bg, color: auditCategoryMeta(log.action).color }"
+                >{{ auditCategoryMeta(log.action).label }}</span>
+                <span class="gm-audit-entry__action">{{ auditLabel(log.action) }}</span>
+              </div>
+              <div class="gm-audit-entry__right">
+                <span class="gm-audit-entry__gm">{{ log.gm?.name ?? 'unknown' }}</span>
+                <span class="gm-audit-entry__time" :title="auditFullTime(log.created_at)">
+                  {{ auditRelativeTime(log.created_at) }}
+                </span>
+                <span v-if="log.meta_json && Object.keys(log.meta_json).length" class="gm-audit-entry__expand-icon">
+                  {{ auditExpandedId === log.id ? '▲' : '▼' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Target badge -->
+            <div v-if="log.target_type" class="gm-audit-entry__target">
+              <span class="gm-audit-entry__target-type">{{ log.target_type }}</span>
+              <span v-if="log.target_id" class="gm-audit-entry__target-id">#{{ log.target_id }}</span>
+            </div>
+
+            <!-- Expanded meta -->
+            <div v-if="auditExpandedId === log.id && log.meta_json && Object.keys(log.meta_json).length" class="gm-audit-entry__meta">
+              <div v-for="(val, key) in log.meta_json" :key="key" class="gm-audit-entry__meta-row">
+                <span class="gm-audit-entry__meta-key">{{ key }}</span>
+                <span class="gm-audit-entry__meta-val">{{ typeof val === 'object' ? JSON.stringify(val) : val }}</span>
+              </div>
+            </div>
           </div>
         </div>
-        <div v-if="!auditLogs.length" class="gm-console-empty">No audit log entries yet.</div>
+
+        <div v-if="!filteredAuditLogs.length" class="gm-console-empty">
+          {{ auditLogs.length ? 'No entries match your filter.' : 'No audit log entries yet.' }}
+        </div>
       </div>
     </div>
 

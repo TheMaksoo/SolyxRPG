@@ -33,9 +33,8 @@ class AutoBattleService
         return self::DURATIONS;
     }
 
-    /** Gem prices scale so the 60-minute pass is the best per-minute value — ~100 gems (~€0.50 base rate,
-     * €0.99 via real money); 30 min costs proportionally more per minute, and 15 min is the worst value.
-     * The 60-minute pass is also the only one with a real-money option (see StoreController's `auto_battle_60` SKU). */
+    /** Gem prices scale so the 60-minute pass is the best per-minute value — ~100 gems (~€0.50 base rate);
+     * 30 min costs proportionally more per minute, and 15 min is the worst value. */
     public function costFor(int $minutes): int
     {
         $fallback = match ($minutes) {
@@ -66,11 +65,13 @@ class AutoBattleService
         GemLedger::log($character->user, -$cost, "auto_battle:{$minutes}min", $character);
         $character->refresh();
 
-        $this->extend($character, $minutes);
+        $bonusPct = $character->user->vipAutoPassBonusPct();
+        $grantedMinutes = (int) round($minutes * (1 + $bonusPct / 100));
+        $this->extend($character, $grantedMinutes);
     }
 
-    /** Extends/starts the pass by the given minutes, regardless of how it was paid for (gems here, real money via
-     * StoreController's `auto_battle_60` SKU). Stacks onto time already remaining rather than overwriting it. */
+    /** Extends/starts the pass by the given minutes, regardless of how it was paid for (gems or real money via
+     * StoreController's `auto_battle_480` SKU). Stacks onto time already remaining rather than overwriting it. */
     public function extend(Character $character, int $minutes): void
     {
         $isExtending = $character->auto_battle_expires_at && $character->auto_battle_expires_at->isFuture();
