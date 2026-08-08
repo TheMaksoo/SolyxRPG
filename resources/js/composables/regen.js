@@ -106,28 +106,52 @@ export function useRegen() {
     effectScope(true).run(() => {
       watch(() => characterStore.character?.hp, (val) => {
         if (val == null) return;
+        // Only reseed the projection baseline when the incoming value differs meaningfully from what
+        // we're already projecting — a difference of more than 1 avoids re-anchoring on every periodic
+        // sync-tick echo (which sends Math.round of the projection back and may receive ±1 due to
+        // server-side rounding) while still immediately anchoring on any real change (damage taken,
+        // potion used, level-up HP refill, etc.).
+        const projected = hpSeeded
+          ? Math.round(projectRegen(hpBaseline.value, hpBaselineAt.value, hpRatePerSecond.value, lastKnownHpMax, Date.now()))
+          : -Infinity;
+        if (Math.abs(val - projected) > 1) {
+          hpBaseline.value = val;
+          hpBaselineAt.value = Date.now();
+        }
         hpSeeded = true;
-        hpBaseline.value = val;
-        hpBaselineAt.value = Date.now();
         hpRatePerSecond.value = (characterStore.regenPerTick ?? 0) / RATE_TICK_SECONDS;
       }, { immediate: true });
 
       watch(() => characterStore.character?.mana, (val) => {
         if (val == null) return;
-        manaSeeded = true;
-        manaBaseline.value = val;
-        manaBaselineAt.value = Date.now();
+        // Same echo-skip as the HP watcher above — prevents a visible mana-bar dip every sync cycle
+        // when the server echoes back the rounded integer the client already sent.
         // Mana regen is paused for the whole of an active manual battle (see Character::applyPassiveRegen
         // / CharacterController::saveTick) — only skill/item costs should move it mid-fight, not the
         // passive rate, or the bar visibly climbs back up right after a skill drains it.
-        manaRatePerSecond.value = activeBattleId.value != null ? 0 : (characterStore.manaRegenPerTick ?? 0) / RATE_TICK_SECONDS;
+        const newRate = activeBattleId.value != null ? 0 : (characterStore.manaRegenPerTick ?? 0) / RATE_TICK_SECONDS;
+        const projected = manaSeeded
+          ? Math.round(projectRegen(manaBaseline.value, manaBaselineAt.value, manaRatePerSecond.value, lastKnownMpMax, Date.now()))
+          : -Infinity;
+        if (Math.abs(val - projected) > 1) {
+          manaBaseline.value = val;
+          manaBaselineAt.value = Date.now();
+        }
+        manaSeeded = true;
+        manaRatePerSecond.value = newRate;
       }, { immediate: true });
 
       watch(() => characterStore.character?.energy, (val) => {
         if (val == null) return;
+        // Same echo-skip as above.
+        const projected = energySeeded
+          ? Math.round(projectRegen(energyBaseline.value, energyBaselineAt.value, energyRatePerSecond.value, lastKnownEnergyMax, Date.now()))
+          : -Infinity;
+        if (Math.abs(val - projected) > 1) {
+          energyBaseline.value = val;
+          energyBaselineAt.value = Date.now();
+        }
         energySeeded = true;
-        energyBaseline.value = val;
-        energyBaselineAt.value = Date.now();
         energyRatePerSecond.value = (characterStore.energyRegenPerTick ?? 0) / RATE_TICK_SECONDS;
       }, { immediate: true });
 
