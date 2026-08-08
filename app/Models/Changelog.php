@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Changelog extends Model
 {
-    protected $fillable = ['version', 'title', 'body', 'tag', 'published_at'];
+    protected $fillable = ['version', 'title', 'body', 'tag', 'visibility', 'published_at'];
 
     protected $casts = [
         'published_at' => 'datetime',

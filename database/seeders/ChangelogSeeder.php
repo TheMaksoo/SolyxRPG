@@ -157,16 +157,18 @@ class ChangelogSeeder extends Seeder
         ['1.72.1', "Marketplace Fee & VIP Economy Rebalance", "The Marketplace sale fee has been raised from 5% to 10% to better reflect a healthy player economy. VIP fee reductions have been rebalanced across all tiers to remain meaningful at the new baseline. Diamond VIP members also gained a new Gather Yield perk, increasing the amount of resources collected per auto-gather cycle.", 'balance', '2026-08-05 21:29:00'],
         ['1.72.2', "VIP Cancel-Fee Discount & Marketplace UI", "The VIP fee reduction now also applies to the early cancel fee on your own Marketplace listings (previously only applied to sale fees). The Marketplace page and VIP perks page both now display the current fee rates and exact VIP discounts clearly, so you always know what you'll actually pay.", 'balance', '2026-08-06 06:56:00'],
         ['1.73', "Shareable Referral Card", "You can now download a personalised referral card from the Invite Friends page — save it and share it anywhere to show off your invite link. Referral links also now include a rich preview image when posted on Discord, Twitter/X, or any other platform that supports link previews.", 'feature', '2026-08-06 07:30:00'],
+        ['1.73.1', "Changelog Visibility Tiers", "Changelog entries now support three visibility tiers: Player (visible to all), Tester (visible to testers and GMs), and GM (visible to GMs only). Testers see player and tester entries; GMs see everything. Visibility is enforced server-side on the changelog API.", 'misc', '2026-08-06 21:38:00', 'gm'],
     ];
 
     /** Keyed on version, not create() — re-running db:seed on live must never duplicate or reset
      * GM-edited changelog entries. */
     public function run(): void
     {
-        foreach (self::ENTRIES as [$version, $title, $body, $tag, $publishedAt]) {
+        foreach (self::ENTRIES as $entry) {
+            [$version, $title, $body, $tag, $publishedAt, $visibility] = $entry + [5 => 'player'];
             Changelog::firstOrCreate(
                 ['version' => $version],
-                ['title' => $title, 'body' => $body, 'tag' => $tag, 'published_at' => $publishedAt]
+                ['title' => $title, 'body' => $body, 'tag' => $tag, 'visibility' => $visibility, 'published_at' => $publishedAt]
             );
         }
     }

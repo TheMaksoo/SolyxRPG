@@ -1,0 +1,302 @@
+name: Auto-Generate Changelog Entry
+
+# Runs when a PR is merged into main. Inspects the diff, PR title/labels/body,
+# classifies the change with OpenAI, then appends a new entry to ChangelogSeeder.php
+# and commits it back to main automatically.
+#
+# Required secrets (set in repo Settings → Secrets → Actions):
+#   OPENAI_API_KEY  — any GPT-4o-capable key
+#
+# Optional labels on the PR (not required — AI infers if absent):
+#   changelog:feature | changelog:fix | changelog:balance | changelog:misc
+#   audience:player   | audience:tester | audience:gm
+#
+# To skip auto-changelog on a PR entirely, add the label: changelog:skip
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main, master]
+
+jobs:
+  generate-changelog:
+    # Only run on actual merges, not closes/rejections
+    if: github.event.pull_request.merged == true
+
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          fetch-depth: 0
+
+      # ── Gather PR metadata ────────────────────────────────────────────────
+      - name: Collect PR info
+        id: pr
+        env:
+          PR_NUMBER:    ${{ github.event.pull_request.number }}
+          PR_TITLE:     ${{ github.event.pull_request.title }}
+          PR_BODY:      ${{ github.event.pull_request.body }}
+          PR_LABELS:    ${{ toJson(github.event.pull_request.labels.*.name) }}
+          MERGE_COMMIT: ${{ github.event.pull_request.merge_commit_sha }}
+          BASE_SHA:     ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA:     ${{ github.event.pull_request.head.sha }}
+        run: |
+          echo "pr_number=$PR_NUMBER"   >> "$GITHUB_OUTPUT"
+          echo "pr_title=$PR_TITLE"     >> "$GITHUB_OUTPUT"
+          # Capture labels as a comma-separated string
+          labels=$(echo "$PR_LABELS" | python3 -c "import json,sys; l=json.load(sys.stdin); print(','.join(l))")
+          echo "labels=$labels"         >> "$GITHUB_OUTPUT"
+          echo "base_sha=$BASE_SHA"     >> "$GITHUB_OUTPUT"
+          echo "head_sha=$HEAD_SHA"     >> "$GITHUB_OUTPUT"
+
+          # Check for skip label
+          if echo "$labels" | grep -q "changelog:skip"; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip check
+        if: steps.pr.outputs.skip == 'true'
+        run: |
+          echo "PR labelled changelog:skip — skipping auto-changelog."
+          exit 0
+
+      # ── Fetch diff ───────────────────────────────────────────────────────
+      - name: Get diff (changed files + patch summary)
+        id: diff
+        if: steps.pr.outputs.skip != 'true'
+        env:
+          BASE_SHA: ${{ steps.pr.outputs.base_sha }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+        run: |
+          # Stat summary (filenames + lines changed, no raw patch to save tokens)
+          STAT=$(git diff --stat "$BASE_SHA".."$HEAD_SHA" 2>/dev/null || git diff --stat HEAD~1..HEAD)
+          # File list only
+          FILES=$(git diff --name-only "$BASE_SHA".."$HEAD_SHA" 2>/dev/null || git diff --name-only HEAD~1..HEAD)
+
+          # Write to tmp files to avoid shell quoting issues
+          echo "$STAT"  > /tmp/diff_stat.txt
+          echo "$FILES" > /tmp/diff_files.txt
+
+      # ── Determine next version ────────────────────────────────────────────
+      - name: Compute next version
+        id: version
+        if: steps.pr.outputs.skip != 'true'
+        run: |
+          python3 - <<'PYEOF'
+          import re, os
+
+          seeder = open("database/seeders/ChangelogSeeder.php").read()
+          # Extract all version strings from the ENTRIES array
+          versions = re.findall(r"\['(\d+\.\d+(?:\.\d+)?)'", seeder)
+          if not versions:
+              next_ver = "1.0"
+          else:
+              last = versions[-1]
+              parts = last.split(".")
+              # Bump patch; caller (AI) may override to minor bump for 'feature'
+              if len(parts) == 2:
+                  next_ver = f"{parts[0]}.{int(parts[1])+1}"
+              else:
+                  next_ver = f"{parts[0]}.{parts[1]}.{int(parts[2])+1}"
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"next_version={next_ver}\n")
+              f.write(f"last_version={versions[-1] if versions else '1.0'}\n")
+          print(f"Last version: {versions[-1] if versions else 'none'}  →  next suggestion: {next_ver}")
+          PYEOF
+
+      # ── Call OpenAI to classify & draft the entry ─────────────────────────
+      - name: Generate changelog entry via OpenAI
+        id: ai
+        if: steps.pr.outputs.skip != 'true'
+        env:
+          OPENAI_API_KEY:   ${{ secrets.OPENAI_API_KEY }}
+          PR_TITLE:         ${{ github.event.pull_request.title }}
+          PR_BODY:          ${{ github.event.pull_request.body }}
+          PR_LABELS:        ${{ steps.pr.outputs.labels }}
+          LAST_VERSION:     ${{ steps.version.outputs.last_version }}
+          SUGGESTED_NEXT:   ${{ steps.version.outputs.next_version }}
+        run: |
+          DIFF_STAT=$(cat /tmp/diff_stat.txt)
+          DIFF_FILES=$(cat /tmp/diff_files.txt)
+
+          python3 - <<'PYEOF'
+          import os, json, urllib.request, urllib.error
+
+          api_key        = os.environ["OPENAI_API_KEY"]
+          pr_title       = os.environ["PR_TITLE"]
+          pr_body        = os.environ.get("PR_BODY", "") or ""
+          labels         = os.environ.get("PR_LABELS", "") or ""
+          last_version   = os.environ["LAST_VERSION"]
+          suggested_next = os.environ["SUGGESTED_NEXT"]
+          diff_stat      = open("/tmp/diff_stat.txt").read()[:3000]
+          diff_files     = open("/tmp/diff_files.txt").read()[:2000]
+
+          system_prompt = """You are a changelog writer for SolyxRPG, a browser-based RPG.
+          Your job is to analyse a merged PR and produce a structured changelog entry.
+
+          Versioning rules (strict):
+            - feature  → bump minor:  1.73 → 1.74  (drop any existing patch segment)
+            - fix / balance / misc → bump patch off current minor: 1.73 → 1.73.1,  1.73.1 → 1.73.2
+
+          Visibility rules:
+            - 'player'  — user-facing gameplay / UI changes players will notice
+            - 'tester'  — internal beta/test features, configuration, staging changes
+            - 'gm'      — backend infrastructure, GM tooling, security, internal-only changes
+
+          Tag options: feature | fix | balance | misc
+
+          Always respond with ONLY valid JSON (no markdown, no code fences), e.g.:
+          {
+            "version":    "1.74",
+            "title":      "Short headline (≤60 chars)",
+            "body":       "One clear paragraph describing what changed and why it matters to the audience. 1–3 sentences.",
+            "tag":        "feature",
+            "visibility": "player"
+          }
+          """
+
+          user_prompt = f"""PR title: {pr_title}
+          PR body:
+          {pr_body[:1500]}
+
+          PR labels: {labels}
+
+          Changed files:
+          {diff_files}
+
+          Diff stat:
+          {diff_stat}
+
+          Last seeder version: {last_version}
+          Suggested next version (auto-computed patch bump): {suggested_next}
+
+          Produce the JSON changelog entry. Use the versioning rules above to decide if this is a
+          feature (minor bump) or fix/balance/misc (patch bump). Override the suggested version
+          if needed. Use PR labels (changelog:feature, changelog:fix, etc.) as a hint if present."""
+
+          payload = {
+              "model": "gpt-4o",
+              "messages": [
+                  {"role": "system", "content": system_prompt},
+                  {"role": "user",   "content": user_prompt},
+              ],
+              "temperature": 0.2,
+              "max_tokens":  400,
+          }
+
+          req = urllib.request.Request(
+              "https://api.openai.com/v1/chat/completions",
+              data=json.dumps(payload).encode(),
+              headers={
+                  "Content-Type":  "application/json",
+                  "Authorization": "Bearer " + api_key,
+              },
+          )
+
+          try:
+              with urllib.request.urlopen(req, timeout=60) as resp:
+                  result = json.load(resp)
+          except urllib.error.HTTPError as e:
+              print(f"OpenAI API error {e.code}: {e.read().decode()}")
+              raise
+
+          raw = result["choices"][0]["message"]["content"].strip()
+          # Strip any accidental markdown fences
+          if raw.startswith("```"):
+              raw = "\n".join(raw.split("\n")[1:])
+          if raw.endswith("```"):
+              raw = "\n".join(raw.split("\n")[:-1])
+
+          entry = json.loads(raw)
+
+          # Validate required keys
+          for k in ["version", "title", "body", "tag", "visibility"]:
+              assert k in entry, f"Missing key: {k}"
+
+          # Sanitise — escape single quotes for PHP string embedding
+          def esc(s):
+              return s.replace("\\", "\\\\").replace("'", "\\'")
+
+          version    = esc(entry["version"])
+          title      = esc(entry["title"])
+          body       = esc(entry["body"])
+          tag        = esc(entry["tag"])
+          visibility = esc(entry["visibility"])
+
+          from datetime import datetime, timezone
+          published_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+          # Build the PHP array line
+          if visibility == "player":
+              php_line = f"        ['{version}', \"{title}\", \"{body}\", '{tag}', '{published_at}'],"
+          else:
+              php_line = f"        ['{version}', \"{title}\", \"{body}\", '{tag}', '{published_at}', '{visibility}'],"
+
+          with open("/tmp/new_entry.php", "w") as f:
+              f.write(php_line)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"version={version}\n")
+              f.write(f"title={title}\n")
+              f.write(f"visibility={visibility}\n")
+
+          print(f"\n✅ Generated entry:\n{php_line}\n")
+          PYEOF
+
+      # ── Inject the new line into ChangelogSeeder.php ──────────────────────
+      - name: Patch ChangelogSeeder.php
+        if: steps.pr.outputs.skip != 'true'
+        run: |
+          NEW_LINE=$(cat /tmp/new_entry.php)
+          SEEDER="database/seeders/ChangelogSeeder.php"
+
+          # Insert the new line just before the closing bracket of ENTRIES (the line that is "];")
+          # We find the last "];" that ends the const array and insert before it.
+          python3 - <<PYEOF
+          new_line = open("/tmp/new_entry.php").read().rstrip()
+          path = "database/seeders/ChangelogSeeder.php"
+          content = open(path).read()
+
+          # The ENTRIES array ends with the line "    ];"
+          # We insert our new entry just before that closing marker.
+          marker = "    ];\n\n    /** Keyed on version"
+          if marker not in content:
+              # fallback: look for any "    ];" near run()
+              import re
+              content, n = re.subn(
+                  r"(    \];)\s*\n\s*/\*\* Keyed on version",
+                  f"    ];\n\n    /** Keyed on version",
+                  content
+              )
+          assert marker in content, "Could not locate ENTRIES closing bracket"
+
+          replacement = f"{new_line}\n{marker}"
+          content = content.replace(marker, replacement, 1)
+          open(path, "w").write(content)
+          print("Seeder patched successfully.")
+          PYEOF
+
+      # ── Commit & push ─────────────────────────────────────────────────────
+      - name: Commit changelog entry
+        if: steps.pr.outputs.skip != 'true'
+        env:
+          VERSION:    ${{ steps.ai.outputs.version }}
+          TITLE:      ${{ steps.ai.outputs.title }}
+          VISIBILITY: ${{ steps.ai.outputs.visibility }}
+          PR_NUMBER:  ${{ steps.pr.outputs.pr_number }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add database/seeders/ChangelogSeeder.php
+          git commit -m "chore: auto-changelog v${VERSION} — ${TITLE} [PR #${PR_NUMBER}] (visibility: ${VISIBILITY})"
+          git push origin ${{ github.event.pull_request.base.ref }}
