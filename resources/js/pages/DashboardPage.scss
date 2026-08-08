@@ -117,11 +117,24 @@
   @include m.grid-auto-fit(130px, 12px);
   grid-template-columns: repeat(5, minmax(0, 1fr));
   margin-bottom: 16px;
+
+  // Forcing exactly 5 columns regardless of width squeezes each tile hard whenever .dashboard__main
+  // itself is narrow — not just on phones, but on any desktop window where the fixed-width chat/rail
+  // columns are still eating space next to it (see the 1100px breakpoint below). A large Gold/HP
+  // number in a ~110px-wide tile has nowhere to go but overflow, since it's one unbroken numeric
+  // token with no natural line-break point.
+  @media (max-width: 1100px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .stat-tile {
   @include m.card(18px);
   text-align: center;
+  // Grid items default to a content-based min-width (min-width: auto), which lets an unbroken long
+  // number push the tile wider than its grid track instead of shrinking to fit it — this override is
+  // what actually lets the grid-template-columns sizing above take effect for long values.
+  min-width: 0;
 }
 
 // ---- XP gauge (ring around the level number) ----
@@ -161,6 +174,9 @@
 
 .stat-tile__value {
   font-weight: 800;
+  // Last-resort safety net for the rare case even 3 columns aren't enough room (very high gold/HP
+  // totals) — wraps onto a second line inside the tile instead of spilling past its edge.
+  overflow-wrap: anywhere;
 
   &--gold {
     font-size: 30px;
@@ -605,7 +621,18 @@
   margin-top: 1px;
 }
 
-@media (max-width: 768px) {
+// The three columns (chat-col 340px + main's own 320px min-width + rail 320px, plus 24px gaps twice)
+// need roughly 1030px of CONTENT width to sit side by side without wrapping — but that content sits
+// inside GameLayout's .layout-content (60px padding) next to its own 230px sidebar (see
+// GameLayout.scss), so the VIEWPORT itself needs to be ~1320px before the columns actually fit — well
+// above the generic 768px phone breakpoint used everywhere else in the app. Anywhere from 768px up to
+// that point (which covers plenty of ordinary un-maximized desktop windows and laptops, not just
+// tablets), `.dashboard`'s flex-wrap was already silently wrapping the fixed-width columns onto their
+// own lines, but neither column had switched to width: 100% yet, and WorldChat's `position: sticky`
+// (see WorldChat.scss) was still active — the combination let the wrapped rail-cards scroll up and
+// visually overlap the still-sticky chat panel. Stacking here, at the actual point columns stop
+// fitting, closes that gap instead of just moving where it happens.
+@media (max-width: 1350px) {
   .dashboard {
     gap: 16px;
   }
@@ -619,7 +646,9 @@
   .dashboard__chat-col {
     width: 100%;
   }
+}
 
+@media (max-width: 768px) {
   .zone-card {
     padding: 14px;
   }

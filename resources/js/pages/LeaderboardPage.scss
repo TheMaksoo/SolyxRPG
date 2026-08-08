@@ -696,11 +696,15 @@
   color: v.$text-muted-35;
 }
 
-@media (max-width: 768px) {
-  .lb-header__title {
-    font-size: 22px;
-  }
-
+// .lb-sidebar (236px) + .lb-main (min-width 640px) + .lb-rail (262px) + two 20px gaps need roughly
+// 1180px of CONTENT width to sit side by side — but that content sits inside GameLayout's
+// .layout-content (60px padding) next to its own 230px sidebar (see GameLayout.scss), so the VIEWPORT
+// needs to be ~1470px before these columns actually fit. Well past the generic 768px phone breakpoint
+// below. Anywhere in between (ordinary tablet and un-maximized-desktop/laptop widths), flex-wrap was
+// already wrapping these three fixed/min-width columns onto separate lines while none of them had
+// switched to width: 100%, leaving the wrapped columns mis-sized and overlapping page content below
+// (same root cause as the Dashboard's chat-col/main/rail gap — see DashboardPage.scss).
+@media (max-width: 1500px) {
   .lb-main {
     min-width: 0;
   }
@@ -708,6 +712,12 @@
   .lb-sidebar,
   .lb-rail {
     width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .lb-header__title {
+    font-size: 22px;
   }
 
   .lb-table__head {

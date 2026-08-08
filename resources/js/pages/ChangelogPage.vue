@@ -1,10 +1,12 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import api from '../api/client';
 import Skeleton from '../components/Skeleton.vue';
+import { TAG_META, tagMeta } from '../utils/changelogMeta';
 
 const entries = ref([]);
 const loading = ref(true);
+const filter = ref('all'); // 'all' | 'feature' | 'fix' | 'balance' | 'misc'
 
 async function load() {
   loading.value = true;
@@ -16,7 +18,16 @@ async function load() {
   }
 }
 
-const TAG_LABEL = { feature: 'New', fix: 'Fix', balance: 'Balance', misc: 'Misc' };
+const filtered = computed(() => {
+  if (filter.value === 'all') return entries.value;
+  return entries.value.filter((e) => e.tag === filter.value);
+});
+
+const tagCounts = computed(() => {
+  const counts = {};
+  for (const entry of entries.value) counts[entry.tag] = (counts[entry.tag] ?? 0) + 1;
+  return counts;
+});
 
 function formatDate(isoString) {
   return new Date(isoString).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
@@ -33,20 +44,45 @@ onMounted(load);
       <span v-if="entries.length" class="changelog-header__version">Current version: v{{ entries[0].version }}</span>
     </div>
 
+    <div v-if="!loading && entries.length" class="changelog-tabs">
+      <button class="changelog-tab" :class="{ 'changelog-tab--active': filter === 'all' }" @click="filter = 'all'">
+        All
+        <span class="changelog-tab__count">{{ entries.length }}</span>
+      </button>
+      <button
+        v-for="(meta, tag) in TAG_META"
+        :key="tag"
+        v-show="tagCounts[tag]"
+        class="changelog-tab"
+        :class="{ 'changelog-tab--active': filter === tag }"
+        @click="filter = tag"
+      >
+        {{ meta.icon }} {{ meta.label }}
+        <span class="changelog-tab__count">{{ tagCounts[tag] }}</span>
+      </button>
+    </div>
+
     <div v-if="loading" class="changelog-skeleton">
-      <Skeleton height="90px" :count="4" />
+      <Skeleton height="86px" :count="5" />
     </div>
     <div v-else class="changelog-list">
-      <div v-for="entry in entries" :key="entry.id" class="changelog-row">
-        <div class="changelog-row__head">
-          <span class="changelog-row__version">v{{ entry.version }}</span>
-          <span class="changelog-row__tag" :class="`changelog-row__tag--${entry.tag}`">{{ TAG_LABEL[entry.tag] ?? entry.tag }}</span>
-          <span class="ox changelog-row__title">{{ entry.title }}</span>
-          <span class="changelog-row__date">{{ formatDate(entry.published_at) }}</span>
+      <div v-for="entry in filtered" :key="entry.id" class="changelog-row" :class="`changelog-row--${entry.tag}`">
+        <div class="changelog-row__accent"></div>
+        <div class="changelog-row__body-wrap">
+          <div class="changelog-row__head">
+            <span class="changelog-row__tag" :class="`changelog-row__tag--${entry.tag}`">
+              {{ tagMeta(entry.tag).icon }} {{ tagMeta(entry.tag).label }}
+            </span>
+            <span class="ox changelog-row__title">{{ entry.title }}</span>
+            <span class="changelog-row__version">v{{ entry.version }}</span>
+            <span class="changelog-row__date">{{ formatDate(entry.published_at) }}</span>
+          </div>
+          <p class="changelog-row__body">{{ entry.body }}</p>
         </div>
-        <p class="changelog-row__body">{{ entry.body }}</p>
       </div>
-      <p v-if="!entries.length" class="changelog-empty">No updates logged yet.</p>
+      <p v-if="!filtered.length" class="changelog-empty">
+        {{ entries.length ? 'No updates match this filter.' : 'No updates logged yet.' }}
+      </p>
     </div>
   </div>
 </template>

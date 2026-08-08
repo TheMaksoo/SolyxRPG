@@ -310,6 +310,19 @@
   gap: 16px;
 }
 
+// .gm-revenue__col--main (min-width 420px) + .gm-revenue__col--side (320px) + one 16px gap need
+// ~756px of CONTENT width to fit side by side — but that sits inside GameLayout's .layout-content
+// (60px padding) next to its own 230px sidebar, so the VIEWPORT needs to be ~1050px, well past the
+// 768px breakpoint below. Anywhere in between, flex-wrap already wraps the columns without either one
+// switching to 100% width.
+@media (max-width: 1070px) {
+  .gm-revenue__col--main,
+  .gm-revenue__col--side {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
 .gm-revenue-card {
   padding: 16px 18px;
 }
@@ -2433,12 +2446,6 @@
   .gm-revenue__header {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .gm-revenue__col--main,
-  .gm-revenue__col--side {
-    width: 100%;
-    min-width: 0;
   }
 
   .gm-console-active-players__row {

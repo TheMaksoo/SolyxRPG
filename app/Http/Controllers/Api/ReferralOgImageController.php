@@ -36,16 +36,18 @@ class ReferralOgImageController extends Controller
 
         if ($code) {
             $referrer     = User::where('referral_code', $code)
-                ->orWhere('vanity_referral_code', $code)
                 ->select('name')
                 ->first();
             $referrerName = $referrer?->name;
         }
 
+        // Cached as base64 rather than the raw PNG bytes — the 'database' cache driver stores values
+        // in a text column, which raw binary (not valid UTF-8) fails to round-trip through.
         $cacheKey = 'referral_og_image:' . ($code ?: '_generic');
-        $png = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addHours(24), function () use ($referrerName) {
-            return $this->render($referrerName);
+        $encoded = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addHours(24), function () use ($referrerName) {
+            return base64_encode($this->render($referrerName));
         });
+        $png = base64_decode($encoded);
 
         return response($png, 200, [
             'Content-Type'  => 'image/png',

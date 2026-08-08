@@ -169,3 +169,102 @@
   color: rgba(255, 255, 255, 0.35);
   font-size: 12.5px;
 }
+
+.gm-changelog-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gm-changelog-card {
+  @include m.card(14px);
+}
+
+.gm-changelog-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.gm-changelog-card__version {
+  font-size: 11px;
+  font-weight: 800;
+  color: v.$text-muted-45;
+  font-variant-numeric: tabular-nums;
+}
+
+.gm-changelog-card__tag,
+.gm-changelog-card__visibility {
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 3px 9px;
+  border-radius: v.$radius-pill;
+  white-space: nowrap;
+}
+
+.gm-changelog-card__tag {
+  &--feature {
+    color: v.$success;
+    background: v.$success-tint-12;
+  }
+  &--fix {
+    color: v.$info-strong;
+    background: rgba(56, 189, 248, 0.14);
+  }
+  &--balance {
+    color: v.$warning;
+    background: v.$warning-tint-12;
+  }
+  &--misc {
+    color: v.$text-muted-45;
+    background: v.$bg-input;
+  }
+}
+
+// Kept visually distinct from the tag pills above (rounded-square vs pill isn't an option here, so
+// color does the work) — a GM scanning this list needs to tell "what kind of change" (tag) apart from
+// "who can see it" (visibility) at a glance.
+.gm-changelog-card__visibility {
+  &--player {
+    color: v.$accent-soft;
+    background: v.$accent-tint-12;
+  }
+  &--tester {
+    color: v.$purple;
+    background: v.$purple-tint-12;
+  }
+  &--gm {
+    color: v.$text-muted-45;
+    background: v.$bg-input;
+  }
+}
+
+.gm-changelog-card__title {
+  font-weight: 700;
+  font-size: 13.5px;
+  flex: 1;
+  min-width: 160px;
+}
+
+.gm-changelog-card__date {
+  font-size: 11px;
+  color: v.$text-muted-40;
+  white-space: nowrap;
+}
+
+.gm-changelog-card__body {
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.5;
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+}
+
+.gm-changelog-card__actions {
+  display: flex;
+  justify-content: flex-end;
+}

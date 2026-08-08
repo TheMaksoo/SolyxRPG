@@ -18,7 +18,6 @@
         $referrerName = null;
         if ($refCode) {
             $referrer = \App\Models\User::where('referral_code', trim($refCode))
-                ->orWhere('vanity_referral_code', trim($refCode))
                 ->select('name')
                 ->first();
             $referrerName = $referrer?->name;

@@ -177,9 +177,7 @@ class ReferralController extends Controller
             return response()->json(['name' => null]);
         }
 
-        $referrer = \App\Models\User::where('referral_code', $code)
-            ->orWhere('vanity_referral_code', $code)
-            ->first();
+        $referrer = \App\Models\User::where('referral_code', $code)->first();
 
         return response()->json(['name' => $referrer?->name]);
     }

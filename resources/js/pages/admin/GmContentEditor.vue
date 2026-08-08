@@ -1,7 +1,8 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 import api from '../../api/client';
 import { RESOURCE_SCHEMAS } from './resourceSchemas';
+import { tagMeta, visibilityMeta } from '../../utils/changelogMeta';
 
 const props = defineProps({ resource: { type: String, required: true } });
 
@@ -12,10 +13,20 @@ const message = ref('');
 
 const schema = () => RESOURCE_SCHEMAS[props.resource];
 
+// Changelogs get a dedicated card layout (see template below) instead of the generic table —
+// body text and visibility need more room than a table cell gives them. Newest first, since
+// that's what a GM editing/checking recent entries actually wants (the API itself orders by id
+// for every other resource, which is fine for those but reads backwards for a changelog).
+const isChangelogs = computed(() => props.resource === 'changelogs');
+const changelogRows = computed(() => [...rows.value].sort((a, b) => new Date(b.published_at) - new Date(a.published_at)));
+
 function blankForm() {
   const f = {};
   for (const field of schema().fields) {
-    f[field.name] = field.type === 'checkbox' ? false : field.type === 'json' ? '{}' : '';
+    if (field.type === 'checkbox') f[field.name] = false;
+    else if (field.type === 'json') f[field.name] = '{}';
+    else if (field.type === 'select') f[field.name] = field.options?.[0] ?? '';
+    else f[field.name] = '';
   }
   return f;
 }
@@ -136,7 +147,33 @@ watch(() => props.resource, load, { immediate: true });
       </div>
     </div>
 
-    <div class="twrap gm-editor-table-wrap">
+    <div v-if="isChangelogs" class="gm-changelog-cards">
+      <div v-for="row in changelogRows" :key="row.id" class="gm-changelog-card">
+        <div class="gm-changelog-card__head">
+          <span class="gm-changelog-card__version">v{{ row.version }}</span>
+          <span class="gm-changelog-card__tag" :class="`gm-changelog-card__tag--${row.tag}`">
+            {{ tagMeta(row.tag).icon }} {{ tagMeta(row.tag).label }}
+          </span>
+          <span
+            class="gm-changelog-card__visibility"
+            :class="`gm-changelog-card__visibility--${row.visibility}`"
+            :title="visibilityMeta(row.visibility).hint"
+          >
+            {{ visibilityMeta(row.visibility).icon }} {{ visibilityMeta(row.visibility).label }}
+          </span>
+          <span class="ox gm-changelog-card__title">{{ row.title }}</span>
+          <span class="gm-changelog-card__date">{{ row.published_at }}</span>
+        </div>
+        <p class="gm-changelog-card__body">{{ row.body }}</p>
+        <div class="gm-changelog-card__actions">
+          <button @click="startEdit(row)" class="gm-editor-edit-link">Edit</button>
+          <button @click="remove(row)" class="gm-editor-delete-link">Delete</button>
+        </div>
+      </div>
+      <div v-if="!changelogRows.length" class="gm-editor-empty">No entries yet.</div>
+    </div>
+
+    <div v-else class="twrap gm-editor-table-wrap">
       <table class="gm-editor-table">
         <thead>
           <tr class="gm-editor-table__head-row">

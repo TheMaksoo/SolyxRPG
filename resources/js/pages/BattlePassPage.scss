@@ -732,6 +732,19 @@
   flex: none;
 }
 
+// .battlepass-earn-panel (min-width 380px) + .battlepass-sidebar (322px) + one 16px gap need ~718px
+// of CONTENT width to fit side by side — but that sits inside GameLayout's .layout-content (60px
+// padding) next to its own 230px sidebar, so the VIEWPORT needs to be ~1010px, past the 768px
+// breakpoint below. Anywhere in between, flex-wrap already wraps these columns without either one
+// switching to 100% width.
+@media (max-width: 1030px) {
+  .battlepass-earn-panel,
+  .battlepass-sidebar {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
 .battlepass-earn-card {
   background: v.$bg-card;
   border: 1px solid v.$border-subtle;
@@ -876,12 +889,6 @@
 
   .tier-tile__currency {
     font-size: 8px;
-  }
-
-  .battlepass-earn-panel,
-  .battlepass-sidebar {
-    min-width: 0;
-    width: 100%;
   }
 
   .battlepass-objective__name {
