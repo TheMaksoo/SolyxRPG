@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Battle extends Model
 {
-    protected $fillable = ['character_id', 'monster_id', 'grade', 'character_hp', 'monster_hp', 'monster_hp_max', 'status', 'is_auto', 'log_json', 'revived_with_skill', 'monster_cooldowns_json', 'skill_cooldowns_json'];
-    protected $casts = ['character_id' => 'integer', 'log_json' => 'array', 'monster_cooldowns_json' => 'array', 'skill_cooldowns_json' => 'array'];
+    protected $fillable = ['character_id', 'monster_id', 'grade', 'character_hp', 'monster_hp', 'monster_hp_max', 'status', 'is_auto', 'log_json', 'revived_with_skill', 'monster_cooldowns_json', 'skill_cooldowns_json', 'tame_eligible'];
+    protected $casts = ['character_id' => 'integer', 'log_json' => 'array', 'monster_cooldowns_json' => 'array', 'skill_cooldowns_json' => 'array', 'tame_eligible' => 'boolean'];
 
     public function character(): BelongsTo
     {
@@ -25,5 +25,12 @@ class Battle extends Model
     public function battleMonsters(): HasMany
     {
         return $this->hasMany(BattleMonster::class)->orderBy('slot');
+    }
+
+    /** Tamed companions fighting alongside the player this battle — empty unless the character has at
+     * least one active TamedCompanion (see CombatService::start()). */
+    public function battleCompanions(): HasMany
+    {
+        return $this->hasMany(BattleCompanion::class)->orderBy('slot');
     }
 }

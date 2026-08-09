@@ -29,7 +29,7 @@ class BattleController extends Controller
         $character = $request->user()->character;
         abort_unless($character, 404);
 
-        $battle = Battle::where('character_id', $character->id)->where('status', 'active')->where('is_auto', false)->with(['monster', 'battleMonsters.monster'])->first();
+        $battle = Battle::where('character_id', $character->id)->where('status', 'active')->where('is_auto', false)->with(['monster', 'battleMonsters.monster', 'battleCompanions.tamedCompanion'])->first();
         $dungeonRun = null;
         if ($battle) {
             $this->combat->regenInBattle($battle, $character);
@@ -78,7 +78,7 @@ class BattleController extends Controller
         $battle = $this->combat->start($character, $monster, $grade);
         $character->update(['last_action' => "Fighting {$monster->name}"]);
 
-        return response()->json(['battle' => $battle->load(['monster', 'battleMonsters.monster']), 'grade' => $this->grades->meta($grade)]);
+        return response()->json(['battle' => $battle->load(['monster', 'battleMonsters.monster', 'battleCompanions.tamedCompanion']), 'grade' => $this->grades->meta($grade)]);
     }
 
     public function show(Request $request, Battle $battle)
@@ -87,7 +87,7 @@ class BattleController extends Controller
 
         $this->combat->regenInBattle($battle, $request->user()->character);
 
-        return response()->json(['battle' => $battle->load(['monster', 'battleMonsters.monster'])]);
+        return response()->json(['battle' => $battle->load(['monster', 'battleMonsters.monster', 'battleCompanions.tamedCompanion'])]);
     }
 
     public function action(Request $request, Battle $battle)
@@ -95,7 +95,7 @@ class BattleController extends Controller
         $this->authorizeBattle($request, $battle);
 
         $data = $request->validate([
-            'type' => ['required', Rule::in(['attack', 'skill', 'item', 'flee'])],
+            'type' => ['required', Rule::in(['attack', 'skill', 'item', 'flee', 'tame'])],
             'skill_id' => ['nullable', 'exists:skills,id'],
             'item_id' => ['nullable', 'exists:items,id'],
             'target_monster_id' => ['nullable', 'exists:battle_monsters,id'],
@@ -112,14 +112,16 @@ class BattleController extends Controller
             return response()->json($result);
         }
 
-        $result = $this->combat->act(
-            $battle,
-            $character,
-            $data['type'],
-            $data['skill_id'] ?? null,
-            $data['item_id'] ?? null,
-            $data['target_monster_id'] ?? null,
-        );
+        $result = $data['type'] === 'tame'
+            ? $this->combat->attemptTame($battle, $character)
+            : $this->combat->act(
+                $battle,
+                $character,
+                $data['type'],
+                $data['skill_id'] ?? null,
+                $data['item_id'] ?? null,
+                $data['target_monster_id'] ?? null,
+            );
 
         $outcome = $result['result']['outcome'] ?? null;
         if ($outcome !== null && Schema::hasTable('dungeon_runs')) {

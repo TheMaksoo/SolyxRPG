@@ -177,6 +177,46 @@ class User extends Authenticatable
         return max($levelSlots, $vipSlots);
     }
 
+    /** How many tamed companions this account may own (active + benched) at once — fully separate pool
+     * from catalog Companions/Pets above. Standard accounts get 3; VIP raises the roster, not just the
+     * active count (see activeTameSlots). */
+    private const STANDARD_TAME_ROSTER_CAP = 3;
+    public const VIP_TIER_TAME_ROSTER_CAP = ['bronze' => 4, 'gold' => 5, 'diamond' => 6];
+
+    /** Flat bonus added to the tame-success roll per VIP tier (see CombatService::attemptTame) — stacks
+     * with the Luck-derived bonus, mirrors every other vip*Bonus() method's GameConfig-override pattern. */
+    public const VIP_TIER_TAME_BONUS = ['bronze' => 5, 'gold' => 10, 'diamond' => 15];
+
+    public function tameRosterCap(): int
+    {
+        if (! $this->hasActiveVip()) {
+            return self::STANDARD_TAME_ROSTER_CAP;
+        }
+
+        $fallback = self::VIP_TIER_TAME_ROSTER_CAP[$this->vip_tier] ?? self::STANDARD_TAME_ROSTER_CAP;
+
+        return (int) round(GameConfig::number("tame_roster_cap_{$this->vip_tier}", $fallback));
+    }
+
+    public function vipTameBonus(): int
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_TAME_BONUS[$this->vip_tier] ?? 0;
+
+        return (int) round(GameConfig::number("vip_tame_bonus_{$this->vip_tier}", $fallback));
+    }
+
+    /** How many tamed companions may be active (fighting) at once: 1 base, +1 every 100 character
+     * levels, capped by the account's roster size (tameRosterCap) — e.g. a Diamond VIP (roster cap 6)
+     * at level 600 can field all 6 simultaneously. */
+    public function activeTameSlots(Character $character): int
+    {
+        return min($this->tameRosterCap(), 1 + intdiv($character->level, 100));
+    }
+
     public function hasActiveVip(): bool
     {
         if ($this->vip_lifetime) {

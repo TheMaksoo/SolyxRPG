@@ -17,13 +17,17 @@ class ZoneController extends Controller
         abort_unless(FeatureFlag::gate('world_map', $request->user()), 403, 'The World Map is not currently available.');
 
         $character = $request->user()->character;
+        $frontier = $character ? Zone::frontierFor($character) : null;
 
-        $zones = Zone::where('enabled', true)->orderBy('sort_order')->get()->map(function (Zone $zone) use ($character) {
+        $zones = Zone::where('enabled', true)->orderBy('sort_order')->get()->map(function (Zone $zone) use ($character, $frontier) {
             $unlocked = $character && $character->level >= $zone->min_level && ! $zone->locked;
 
             return [
                 'zone' => $zone,
                 'unlocked' => $unlocked,
+                'reward_penalty_pct' => $character && $unlocked ? (int) round(Zone::frontierPenaltyPct($character, $zone)) : 0,
+                'pet_food_bonus_pct' => (int) round(Zone::petFoodBonusPct($zone->danger)),
+                'is_frontier' => $frontier && $frontier->id === $zone->id,
             ];
         });
 

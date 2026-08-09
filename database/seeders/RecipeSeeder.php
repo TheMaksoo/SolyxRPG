@@ -29,7 +29,8 @@ class RecipeSeeder extends Seeder
             'silverplate_harness', 'nightsilver_leathers', 'silverleaf_cloak', 'silverweave_robe',
             'aegis_plate', 'duskblade_leathers', 'stormwatch_cloak', 'gilded_aether_robe',
             'mythril_aegis', 'titanplate_cuirass', 'voidsilk_leathers', 'wraithwind_cloak', 'mythril_aether_robe',
-            'fletchers_quiver',
+            'fletchers_quiver', 'hunters_quiver', 'silvered_quiver', 'gilded_quiver', 'mythril_quiver',
+            'steel_kite_shield', 'silverguard_aegis', 'guardians_bulwark',
             'stone_pickaxe', 'iron_pickaxe', 'silver_pickaxe', 'gold_pickaxe', 'mythril_pickaxe',
             'wood_axe', 'oak_axe', 'ironwood_axe', 'elderwood_axe', 'moonwood_axe',
             'stone_sickle', 'iron_sickle', 'silver_sickle', 'gold_sickle', 'mythril_sickle',
@@ -40,6 +41,7 @@ class RecipeSeeder extends Seeder
             'sunroot_poultice', 'sunroot_draught', 'sunroot_tonic',
             'phoenix_elixir', 'phoenix_draught', 'phoenix_tonic',
             'common_repair_pack', 'rare_repair_pack', 'epic_repair_pack', 'legendary_repair_pack', 'mythic_repair_pack',
+            'tattered_revive_charm', 'sage_revive_charm', 'moonlit_revive_charm', 'sunroot_revive_charm', 'phoenix_feather',
         ])->pluck('id', 'key');
 
         // level => [material, qty, craft_seconds, gold_cost] — the single-material tier chain every
@@ -69,6 +71,7 @@ class RecipeSeeder extends Seeder
             ['name' => 'Craft Wood Hammer', 'result' => 'wood_hammer', 'materials' => [['item' => 'wood', 'qty' => 8]], 'craft_seconds' => 40, 'min_level' => 1, 'gold_cost' => 300],
             ['name' => 'Brew Herbal Poultice', 'result' => 'herbal_poultice', 'materials' => [['item' => 'herb', 'qty' => 6]], 'craft_seconds' => 35, 'min_level' => 1],
             ['name' => 'Brew Herbal Draught', 'result' => 'herbal_draught', 'materials' => [['item' => 'herb', 'qty' => 6]], 'craft_seconds' => 35, 'min_level' => 1],
+            ['name' => 'Craft Tattered Revive Charm', 'result' => 'tattered_revive_charm', 'materials' => [['item' => 'herb', 'qty' => 8]], 'craft_seconds' => 60, 'min_level' => 1],
             ['name' => 'Craft Common Repair Pack', 'result' => 'common_repair_pack', 'result_qty' => 5, 'materials' => [['item' => 'stone', 'qty' => 10]], 'craft_seconds' => 30, 'min_level' => 1],
 
             // ---- Level 8 (common tier — 1 weapon + 1 armor per class, stone only) ----
@@ -92,6 +95,7 @@ class RecipeSeeder extends Seeder
             ['name' => 'Brew Sage Poultice', 'result' => 'sage_poultice', 'materials' => [['item' => 'sage_leaf', 'qty' => 5], ['item' => 'herb', 'qty' => 3]], 'craft_seconds' => 110, 'min_level' => 8],
             ['name' => 'Brew Sage Draught', 'result' => 'sage_draught', 'materials' => [['item' => 'sage_leaf', 'qty' => 5], ['item' => 'herb', 'qty' => 3]], 'craft_seconds' => 110, 'min_level' => 8],
             ['name' => 'Brew Sage Tonic', 'result' => 'sage_tonic', 'materials' => [['item' => 'sage_leaf', 'qty' => 5], ['item' => 'herb', 'qty' => 3]], 'craft_seconds' => 110, 'min_level' => 8],
+            ['name' => 'Craft Sage Revive Charm', 'result' => 'sage_revive_charm', 'materials' => [['item' => 'sage_leaf', 'qty' => 6], ['item' => 'herb', 'qty' => 4]], 'craft_seconds' => 150, 'min_level' => 8],
             ['name' => 'Craft Rare Repair Pack', 'result' => 'rare_repair_pack', 'result_qty' => 5, 'materials' => [['item' => 'iron_bar', 'qty' => 6]], 'craft_seconds' => 45, 'min_level' => 8],
 
             // ---- Level 15 (rare tier — iron_bar only) ----
@@ -103,6 +107,11 @@ class RecipeSeeder extends Seeder
             $gearFor('Shadowweave Jerkin', 'shadowweave_jerkin', 15),
             $gearFor("Fletcher's Cloak", 'fletchers_cloak', 15),
             $gearFor('Woven Mana Robe', 'woven_mana_robe', 15),
+            // Warrior's shield and ranger's quiver 2nd-slot lines were left out of the original
+            // single-material refactor at levels 8/50 only (see the note above) — filling in the
+            // rare/epic/legendary gap tiers here with the same $gearFor chain everything else uses.
+            $gearFor("Hunter's Quiver", 'hunters_quiver', 15),
+            $gearFor('Steel Kite Shield', 'steel_kite_shield', 15),
 
             // ---- Level 20 (epic tier — silver_bar only) ----
             $gearFor('Silvered Broadsword', 'silvered_blade', 20),
@@ -113,6 +122,8 @@ class RecipeSeeder extends Seeder
             $gearFor('Nightsilver Leathers', 'nightsilver_leathers', 20),
             $gearFor('Silverleaf Cloak', 'silverleaf_cloak', 20),
             $gearFor('Silverweave Robe', 'silverweave_robe', 20),
+            $gearFor('Silvered Quiver', 'silvered_quiver', 20),
+            $gearFor('Silverguard Aegis', 'silverguard_aegis', 20),
             ['name' => 'Craft Silver Pickaxe', 'result' => 'silver_pickaxe', 'materials' => [['item' => 'silver_bar', 'qty' => 5]], 'craft_seconds' => 140, 'min_level' => 20, 'gold_cost' => 6200],
             ['name' => 'Craft Ironwood Axe', 'result' => 'ironwood_axe', 'materials' => [['item' => 'ironwood', 'qty' => 5]], 'craft_seconds' => 140, 'min_level' => 20, 'gold_cost' => 6200],
             ['name' => 'Craft Silver Sickle', 'result' => 'silver_sickle', 'materials' => [['item' => 'silver_bar', 'qty' => 5]], 'craft_seconds' => 140, 'min_level' => 20, 'gold_cost' => 6200],
@@ -121,6 +132,7 @@ class RecipeSeeder extends Seeder
             ['name' => 'Brew Moonpetal Poultice', 'result' => 'moonpetal_poultice', 'materials' => [['item' => 'moonpetal', 'qty' => 5], ['item' => 'sage_leaf', 'qty' => 3]], 'craft_seconds' => 200, 'min_level' => 20],
             ['name' => 'Brew Moonpetal Draught', 'result' => 'moonpetal_draught', 'materials' => [['item' => 'moonpetal', 'qty' => 5], ['item' => 'sage_leaf', 'qty' => 3]], 'craft_seconds' => 200, 'min_level' => 20],
             ['name' => 'Brew Moonpetal Tonic', 'result' => 'moonpetal_tonic', 'materials' => [['item' => 'moonpetal', 'qty' => 5], ['item' => 'sage_leaf', 'qty' => 3]], 'craft_seconds' => 200, 'min_level' => 20],
+            ['name' => 'Craft Moonlit Revive Charm', 'result' => 'moonlit_revive_charm', 'materials' => [['item' => 'moonpetal', 'qty' => 6], ['item' => 'sage_leaf', 'qty' => 4]], 'craft_seconds' => 260, 'min_level' => 20],
 
             // ---- Level 35 (legendary tier — gold_bar only) ----
             $gearFor('Gilded Broadsword', 'gilded_saber', 35),
@@ -131,6 +143,8 @@ class RecipeSeeder extends Seeder
             $gearFor('Duskblade Leathers', 'duskblade_leathers', 35),
             $gearFor('Stormwatch Cloak', 'stormwatch_cloak', 35),
             $gearFor('Gilded Aether Robe', 'gilded_aether_robe', 35),
+            $gearFor('Gilded Quiver', 'gilded_quiver', 35),
+            $gearFor("Guardian's Bulwark", 'guardians_bulwark', 35),
             ['name' => 'Craft Gold Pickaxe', 'result' => 'gold_pickaxe', 'materials' => [['item' => 'gold_bar', 'qty' => 5]], 'craft_seconds' => 220, 'min_level' => 35, 'gold_cost' => 18200],
             ['name' => 'Craft Elderwood Axe', 'result' => 'elderwood_axe', 'materials' => [['item' => 'elderwood', 'qty' => 5]], 'craft_seconds' => 220, 'min_level' => 35, 'gold_cost' => 18200],
             ['name' => 'Craft Gold Sickle', 'result' => 'gold_sickle', 'materials' => [['item' => 'gold_bar', 'qty' => 5]], 'craft_seconds' => 220, 'min_level' => 35, 'gold_cost' => 18200],
@@ -139,6 +153,7 @@ class RecipeSeeder extends Seeder
             ['name' => 'Brew Sunroot Poultice', 'result' => 'sunroot_poultice', 'materials' => [['item' => 'sunroot', 'qty' => 5], ['item' => 'moonpetal', 'qty' => 3]], 'craft_seconds' => 320, 'min_level' => 35],
             ['name' => 'Brew Sunroot Draught', 'result' => 'sunroot_draught', 'materials' => [['item' => 'sunroot', 'qty' => 5], ['item' => 'moonpetal', 'qty' => 3]], 'craft_seconds' => 320, 'min_level' => 35],
             ['name' => 'Brew Sunroot Tonic', 'result' => 'sunroot_tonic', 'materials' => [['item' => 'sunroot', 'qty' => 5], ['item' => 'moonpetal', 'qty' => 3]], 'craft_seconds' => 320, 'min_level' => 35],
+            ['name' => 'Craft Sunroot Revive Charm', 'result' => 'sunroot_revive_charm', 'materials' => [['item' => 'sunroot', 'qty' => 6], ['item' => 'moonpetal', 'qty' => 4]], 'craft_seconds' => 380, 'min_level' => 35],
 
             // ---- Level 50 (mythic tier — mythril_bar only) ----
             $gearFor('Mythril Greatblade', 'mythril_greatblade', 50),
@@ -149,6 +164,7 @@ class RecipeSeeder extends Seeder
             $gearFor('Voidsilk Leathers', 'voidsilk_leathers', 50),
             $gearFor('Wraithwind Cloak', 'wraithwind_cloak', 50),
             $gearFor('Mythril Aether Robe', 'mythril_aether_robe', 50),
+            $gearFor('Mythril Quiver', 'mythril_quiver', 50),
             ['name' => 'Craft Mythril Aegis', 'result' => 'mythril_aegis', 'materials' => [['item' => 'mythril_bar', 'qty' => 11], ['item' => 'moonwood', 'qty' => 9]], 'craft_seconds' => 480, 'min_level' => 50, 'gold_cost' => 46200],
             ['name' => 'Craft Mythril Pickaxe', 'result' => 'mythril_pickaxe', 'materials' => [['item' => 'mythril_bar', 'qty' => 5]], 'craft_seconds' => 400, 'min_level' => 50, 'gold_cost' => 46300],
             ['name' => 'Craft Moonwood Axe', 'result' => 'moonwood_axe', 'materials' => [['item' => 'moonwood', 'qty' => 5]], 'craft_seconds' => 400, 'min_level' => 50, 'gold_cost' => 46300],
@@ -157,6 +173,7 @@ class RecipeSeeder extends Seeder
             ['name' => 'Brew Phoenix Elixir', 'result' => 'phoenix_elixir', 'materials' => [['item' => 'phoenix_bloom', 'qty' => 4], ['item' => 'sunroot', 'qty' => 3]], 'craft_seconds' => 420, 'min_level' => 50],
             ['name' => 'Brew Phoenix Draught', 'result' => 'phoenix_draught', 'materials' => [['item' => 'phoenix_bloom', 'qty' => 4], ['item' => 'sunroot', 'qty' => 3]], 'craft_seconds' => 420, 'min_level' => 50],
             ['name' => 'Brew Phoenix Tonic', 'result' => 'phoenix_tonic', 'materials' => [['item' => 'phoenix_bloom', 'qty' => 4], ['item' => 'sunroot', 'qty' => 3]], 'craft_seconds' => 420, 'min_level' => 50],
+            ['name' => 'Craft Phoenix Feather', 'result' => 'phoenix_feather', 'materials' => [['item' => 'phoenix_bloom', 'qty' => 5], ['item' => 'sunroot', 'qty' => 4]], 'craft_seconds' => 480, 'min_level' => 50],
             ['name' => 'Craft Mythic Repair Pack', 'result' => 'mythic_repair_pack', 'result_qty' => 5, 'materials' => [['item' => 'mythril_bar', 'qty' => 3]], 'craft_seconds' => 130, 'min_level' => 50],
         ];
 

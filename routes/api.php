@@ -42,6 +42,7 @@ use App\Http\Controllers\Api\NavBadgeController;
 use App\Http\Controllers\Api\PartyController;
 use App\Http\Controllers\Api\PetController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\TamedCompanionController;
 use App\Http\Controllers\Api\PvpController;
 use App\Http\Controllers\Api\QuestController;
 use App\Http\Controllers\Api\ShopController;
@@ -172,6 +173,13 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::post('/pets/{pet}/unlock', [PetController::class, 'unlock']);
     Route::post('/pets/{pet}/activate', [PetController::class, 'activate']);
     Route::post('/pets/{pet}/rank-up', [PetController::class, 'rankUp']);
+
+    Route::get('/companions', [TamedCompanionController::class, 'index']);
+    Route::post('/companions/{companion}/activate', [TamedCompanionController::class, 'activate']);
+    Route::post('/companions/{companion}/release', [TamedCompanionController::class, 'release']);
+    Route::post('/companions/{companion}/feed', [TamedCompanionController::class, 'feed']);
+    Route::post('/companions/{companion}/rename', [TamedCompanionController::class, 'rename']);
+    Route::post('/companions/{companion}/revive', [TamedCompanionController::class, 'revive']);
 
     Route::get('/guild', [GuildController::class, 'index']);
     Route::post('/guild', [GuildController::class, 'store']);

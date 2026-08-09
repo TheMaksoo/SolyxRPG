@@ -42,6 +42,19 @@ const activePlayersHour = ref(null);
 const bugReportWidget = ref(null);
 const gameVersion = ref(null);
 
+// Zone list is fetched once here purely so the level-up watcher below can announce "Taming: <Zone>"
+// unlocks — taming's level gate (zone.min_level + 10) is derived per-zone rather than a static
+// navigation.js entry, so it can't be read off NAV like every other sidebar unlock.
+const zones = ref([]);
+async function loadZones() {
+  try {
+    const { data } = await api.get('/zones');
+    zones.value = data.zones.map((row) => row.zone);
+  } catch {
+    // Non-critical: worst case, a taming unlock just won't get its own toast line this level-up.
+  }
+}
+
 async function loadGameVersion() {
   try {
     const { data } = await api.get('/changelog/current');
@@ -144,7 +157,11 @@ watch(
   () => characterStore.character?.level,
   (newLevel, oldLevel) => {
     if (!oldLevel || !newLevel || newLevel <= oldLevel) return;
-    const unlocked = NAV.filter((n) => n.unlockLevel > oldLevel && n.unlockLevel <= newLevel);
+    const navUnlocked = NAV.filter((n) => n.unlockLevel > oldLevel && n.unlockLevel <= newLevel);
+    const tamingUnlocked = zones.value
+      .filter((z) => z.enabled !== false && z.min_level + 10 > oldLevel && z.min_level + 10 <= newLevel)
+      .map((z) => ({ path: null, label: `Taming: ${z.name}` }));
+    const unlocked = [...navUnlocked, ...tamingUnlocked];
     clearTimeout(levelUpMessageTimer);
     if (unlocked.length) {
       const names = unlocked.map((n) => n.label).join(', ');
@@ -230,6 +247,7 @@ onMounted(() => {
   loadNavBadges();
   loadActivePlayers();
   loadGameVersion();
+  loadZones();
   pvpQueue.init();
   craftingQueue.init();
   gatherCooldowns.init();

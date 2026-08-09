@@ -9,6 +9,7 @@ import { useRegen } from '../composables/regen';
 import AdBanner from '../components/AdBanner.vue';
 import WorldChat from '../components/WorldChat.vue';
 import Skeleton from '../components/Skeleton.vue';
+import { gradeMeta as gradeMetaFor } from '../utils/grade';
 
 const { tickCount } = useGameTick();
 const AUTO_BATTLE_POLL_TICKS = 20;
@@ -210,13 +211,7 @@ const displayedBattleLog = computed(() =>
   auth.user?.preferences?.compact_battle_log ? compactBattleLog.value : fullBattleLog.value
 );
 
-const GRADE_META = {
-  common: { label: 'Common', color: '#cbd5e1' },
-  elite: { label: 'Elite', color: '#5cc7f5' },
-  champion: { label: 'Champion', color: '#a78bfa' },
-  legendary: { label: 'Legendary', color: '#eab308' },
-};
-const gradeMeta = computed(() => GRADE_META[battle.value?.grade] ?? GRADE_META.common);
+const gradeMeta = computed(() => gradeMetaFor(battle.value?.grade));
 const monsterHpMax = computed(() => battle.value?.monster_hp_max ?? monster.value?.hp ?? 0);
 
 /** Monster-identity rank badge (fixed per monster) — distinct from the per-encounter grade roll above. */
@@ -230,22 +225,43 @@ const rankMeta = computed(() => {
   return null;
 });
 
-const resultIcon = computed(() => (result.value?.outcome === 'won' ? '🏆' : '💀'));
-const resultTitle = computed(() => (result.value?.outcome === 'won' ? 'Victory!' : 'Defeated'));
-const resultColor = computed(() => (result.value?.outcome === 'won' ? '#4ade80' : '#ff6a4d'));
+const RESULT_META = {
+  won: { icon: '🏆', title: 'Victory!', color: '#4ade80' },
+  tamed: { icon: '🐾', title: 'Tamed!', color: '#a78bfa' },
+};
+const resultIcon = computed(() => RESULT_META[result.value?.outcome]?.icon ?? '💀');
+const resultTitle = computed(() => RESULT_META[result.value?.outcome]?.title ?? 'Defeated');
+const resultColor = computed(() => RESULT_META[result.value?.outcome]?.color ?? '#ff6a4d');
+
+// Tamed companions fighting alongside the player this battle — empty unless at least one is active
+// (see CombatService::start()). Each row has hp/hp_max plus a nested tamed_companion (name/glyph).
+const companions = computed(() => battle.value?.battle_companions ?? []);
+const hasCompanions = computed(() => companions.value.length > 0);
+
+// Taming only works in 1v1 fights (no adds) once the target's ≤10% hp and it's not a boss — mirrors
+// the exact guards CombatService::attemptTame() enforces server-side, so the button simply doesn't
+// appear for an attempt that would just 422. tame_eligible === false means the (one-time, free)
+// eligibility roll for THIS monster already came back "can't be tamed" — that's cached for the rest
+// of the fight, so leaving the button up would just invite endless no-op clicks with zero feedback.
+const canAttemptTame = computed(() =>
+  battle.value?.status === 'active' &&
+  !hasAdds.value &&
+  !monster.value?.is_boss &&
+  battle.value?.tame_eligible !== false &&
+  hpPct(battle.value?.monster_hp, monsterHpMax.value) <= 10
+);
 
 const playerAtk = computed(() => characterStore.stats?.eff_atk ?? 0);
 const playerDef = computed(() => characterStore.stats?.eff_def ?? 0);
 
 const phaseLabel = computed(() => {
   if (!battle.value) return 'Idle';
-  if (battle.value.status !== 'active') return result.value?.outcome === 'won' ? 'Victory' : 'Defeated';
+  if (battle.value.status !== 'active') return RESULT_META[result.value?.outcome]?.title.replace('!', '') ?? 'Defeated';
   return 'In combat';
 });
 const phaseDotColor = computed(() => {
   if (battle.value?.status === 'active') return '#eab308';
-  if (result.value?.outcome === 'won') return '#4ade80';
-  if (result.value) return '#e8482f';
+  if (result.value?.outcome) return RESULT_META[result.value.outcome]?.color ?? '#e8482f';
   return 'rgba(255,255,255,.25)';
 });
 
@@ -591,12 +607,18 @@ onMounted(() => {
               <div class="reward-chip--gold">+{{ result.gold }} Gold</div>
               <div class="reward-chip--xp">+{{ result.xp }} XP</div>
               <div v-if="result.gems" class="reward-chip--gems">+{{ result.gems }} Gems</div>
+              <div v-if="result.pet_food_dropped" class="reward-chip--gold">🍖 {{ result.pet_food_dropped }} +1</div>
               <div v-if="result.leveled_up" class="reward-chip--level">
                 Level up! +{{ result.leveled_up * 3 }} attr · +{{ result.leveled_up }} skill pts
               </div>
               <div v-if="dungeonRun?.completed" class="reward-chip--gold">
                 Dungeon cleared!<span v-if="dungeonRun.bonus?.gold"> +{{ dungeonRun.bonus.gold }}g</span><span v-if="dungeonRun.bonus?.gems"> +{{ dungeonRun.bonus.gems }} gems</span>
               </div>
+            </div>
+
+            <div v-else-if="result.outcome === 'tamed'" class="reward-chips">
+              <div class="reward-chip--gold">{{ result.companion.glyph }} {{ result.companion.name }} joined your Companions!</div>
+              <div class="reward-banner__subtitle">Caught, not killed — no gold/xp/gems from this one.</div>
             </div>
 
             <div v-else class="reward-chips">
@@ -621,6 +643,7 @@ onMounted(() => {
                   <div v-if="result.breakdown.gold.luck_pct" class="reward-breakdown__line reward-breakdown__line--luck">Luck: +{{ result.breakdown.gold.luck_pct }}%</div>
                   <div v-if="result.breakdown.gold.vip_pct" class="reward-breakdown__line">Rank: +{{ result.breakdown.gold.vip_pct }}%</div>
                   <div v-if="result.breakdown.gold.guild_pct" class="reward-breakdown__line">Guild: +{{ result.breakdown.gold.guild_pct }}%</div>
+                  <div v-if="result.breakdown.gold.zone_penalty_pct" class="reward-breakdown__line reward-breakdown__line--penalty">Below your zone: -{{ result.breakdown.gold.zone_penalty_pct }}%</div>
                 </div>
                 <div class="reward-breakdown__section">
                   <div class="reward-breakdown__label">✦ XP Breakdown</div>
@@ -630,12 +653,14 @@ onMounted(() => {
                   <div v-if="result.breakdown.xp.vip_pct" class="reward-breakdown__line">Rank: +{{ result.breakdown.xp.vip_pct }}%</div>
                   <div v-if="result.breakdown.xp.guild_pct" class="reward-breakdown__line">Guild: +{{ result.breakdown.xp.guild_pct }}%</div>
                   <div v-if="result.breakdown.xp.pet_pct" class="reward-breakdown__line">Pet: +{{ result.breakdown.xp.pet_pct }}%</div>
+                  <div v-if="result.breakdown.xp.zone_penalty_pct" class="reward-breakdown__line reward-breakdown__line--penalty">Below your zone: -{{ result.breakdown.xp.zone_penalty_pct }}%</div>
                 </div>
                 <div v-if="result.breakdown.gems" class="reward-breakdown__section">
                   <div class="reward-breakdown__label">💎 Gems Breakdown</div>
                   <div class="reward-breakdown__line">Base: {{ result.breakdown.gems.base }} gems</div>
                   <div v-if="result.breakdown.gems.grade_mult > 1" class="reward-breakdown__line">Grade: ×{{ result.breakdown.gems.grade_mult }}</div>
                   <div v-if="result.breakdown.gems.luck_pct" class="reward-breakdown__line reward-breakdown__line--luck">Luck: +{{ result.breakdown.gems.luck_pct }}%</div>
+                  <div v-if="result.breakdown.gems.zone_penalty_pct" class="reward-breakdown__line reward-breakdown__line--penalty">Below your zone: -{{ result.breakdown.gems.zone_penalty_pct }}%</div>
                 </div>
               </div>
             </div>
@@ -727,6 +752,28 @@ onMounted(() => {
           </div>
         </div>
 
+        <div v-if="hasCompanions" class="adds-panel companions-panel">
+          <div
+            v-for="c in companions"
+            :key="c.id"
+            class="add-card"
+            :class="{ 'add-card--dead': c.hp <= 0 }"
+          >
+            <div class="add-card__name">
+              {{ c.tamed_companion?.glyph }} {{ c.hp > 0 ? c.tamed_companion?.name : `${c.tamed_companion?.name} (down)` }}
+              <span
+                v-if="c.tamed_companion?.grade"
+                class="add-card__grade"
+                :style="{ color: gradeMetaFor(c.tamed_companion.grade).color, borderColor: gradeMetaFor(c.tamed_companion.grade).color }"
+              >{{ gradeMetaFor(c.tamed_companion.grade).label }}</span>
+            </div>
+            <div class="stat-bar-track add-card__bar">
+              <div class="stat-bar-fill--hp" :style="{ width: hpPct(c.hp, c.hp_max) + '%' }"></div>
+            </div>
+            <div class="add-card__hp">{{ c.hp }} / {{ c.hp_max }} HP · {{ c.tamed_companion?.effective_atk }} ATK · {{ c.tamed_companion?.effective_def }} DEF</div>
+          </div>
+        </div>
+
         <div v-if="hasAdds && battle?.status === 'active'" class="target-hint">
           Targeting: <strong>{{ selectedTargetId ? extraMonsters.find((m) => m.id === selectedTargetId)?.monster?.name : monster?.name }}</strong>
           <span v-if="activeSkillRows.some((r) => r.skill.effect_json?.aoe)"> — AOE skills hit everyone regardless</span>
@@ -744,6 +791,15 @@ onMounted(() => {
           {{ primaryLabel }}
         </button>
         <button v-else class="btn-attack" @click="walk" :disabled="loading">{{ primaryLabel }}</button>
+
+        <button
+          v-if="canAttemptTame"
+          class="btn-attack btn-tame"
+          @click="act('tame')"
+          :disabled="loading"
+        >
+          🐾 Attempt to Tame
+        </button>
 
         <!-- Skills while actually fighting — full-width rows, color-coded by effect (blue = damage,
         violet = AOE, green = heal/support), with Consumables as its own centered button below rather

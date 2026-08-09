@@ -14,6 +14,7 @@ use App\Models\GemLedger;
 use App\Models\GuildMember;
 use App\Models\MarketListing;
 use App\Models\PvpMatch;
+use App\Models\TamedCompanion;
 use App\Services\BattlePassService;
 use App\Services\LeaderboardService;
 use Illuminate\Http\Request;
@@ -45,6 +46,7 @@ class ProfileController extends Controller
             'gear_score' => array_sum(array_column($gear, 'score')),
             'recent_activity' => $this->recentActivity($character),
             'guild_card' => $this->guildCard($character),
+            'companions' => $this->companions($character),
             'rankings' => $this->rankings($character),
             'battle_pass_summary' => $this->battlePassSummary($character),
             'pvp_summary' => $this->pvpSummary($character),
@@ -442,6 +444,27 @@ class ProfileController extends Controller
             'level' => $membership->guild->level,
             'member_count' => $membership->guild->members()->count(),
         ];
+    }
+
+    /** Active tamed companions (see CombatService::attemptTame) — the roster's benched/archived entries
+     * stay on the Companions page itself, this is just what's actually fighting alongside the character
+     * right now, same "at a glance" framing as the guild card above. */
+    private function companions(Character $character): array
+    {
+        return TamedCompanion::where('character_id', $character->id)
+            ->whereNull('archived_at')
+            ->where('active', true)
+            ->orderByDesc('level')
+            ->get()
+            ->map(fn (TamedCompanion $c) => [
+                'name' => $c->name,
+                'glyph' => $c->glyph,
+                'grade' => $c->grade,
+                'level' => $c->level,
+                'max_level' => $c->maxLevel(),
+            ])
+            ->values()
+            ->all();
     }
 
     /** The 4 categories this character actually ranks best in, out of all 18 leaderboard boards — not a

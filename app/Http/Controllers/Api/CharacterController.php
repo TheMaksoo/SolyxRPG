@@ -269,9 +269,13 @@ class CharacterController extends Controller
         if (array_key_exists('mana', $data)) {
             if ($battle) {
                 // Mana regen is paused for the whole of an active manual battle, same as passive HP regen
-                // (see Character::applyPassiveRegen) — only real drains (skill costs, items) can move it
-                // here, so the ceiling can't grow above whatever's already saved.
-                $character->mana = min($data['mana'], $character->mana);
+                // (see Character::applyPassiveRegen) — only real drains (skill costs, items) and
+                // CombatService::regenInBattle() can move it, both of which write straight to the DB.
+                // The client's own $data['mana'] here is whatever it was displaying when this periodic
+                // sync request was built, which can already be stale by the time it's processed (an
+                // action or a battle poll may have changed mana server-side in between) — taking min()
+                // against that stale value used to let a late sync silently claw back real mana gains.
+                // The client has no authority over mana during battle either way, so just leave it alone.
             } else {
                 $ceiling = $character->maxPlausibleValue($character->mana, $character->last_mana_regen_at, $stats['eff_mp_max'], $character->manaRegenPerTick());
                 $character->mana = min($data['mana'], $ceiling);

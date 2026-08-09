@@ -187,7 +187,15 @@ class GmAnalyticsController extends Controller
             'type' => 'recipe',
         ]);
 
-        return $zones->concat($dungeons)->concat($monsters)->concat($skills)->concat($recipes)
+        // Taming isn't a static level_req column anywhere — CombatService::attemptTame() gates it
+        // per-zone at zone.min_level + 10, so it's derived here rather than read off a model field.
+        $taming = Zone::where('enabled', true)->get()->map(fn (Zone $z) => [
+            'level' => $z->min_level + 10,
+            'name' => "Taming: {$z->name}",
+            'type' => 'taming',
+        ]);
+
+        return $zones->concat($dungeons)->concat($monsters)->concat($skills)->concat($recipes)->concat($taming)
             ->sortBy('level')->values()->map(fn ($row) => [
                 ...$row,
                 'cumulative_xp' => $this->cumulativeXpForLevel($row['level']),

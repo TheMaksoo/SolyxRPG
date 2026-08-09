@@ -3,14 +3,19 @@
 namespace App\Services;
 
 use App\Models\Battle;
+use App\Models\BattleCompanion;
 use App\Models\BattleMonster;
 use App\Models\Character;
 use App\Models\CharacterPet;
 use App\Models\GameConfig;
 use App\Models\GemLedger;
 use App\Models\Inventory;
+use App\Models\Item;
 use App\Models\Monster;
 use App\Models\Skill;
+use App\Models\TamedCompanion;
+use App\Models\TamedCompanionLog;
+use App\Models\Zone;
 
 class CombatService
 {
@@ -81,6 +86,29 @@ class CombatService
             ]);
         }
 
+        // Tamed companions carry their HP across battles (regenTick() catches up passive regen since
+        // the last fight) rather than getting a full heal every encounter — a companion still recovering
+        // from its last fight joins this one already hurt, and one at 0 hp (dead) never joins at all.
+        $companions = TamedCompanion::where('character_id', $character->id)
+            ->whereNull('archived_at')
+            ->where('active', true)
+            ->get();
+        foreach ($companions->values() as $i => $companion) {
+            if ($companion->regenTick()) {
+                $companion->save();
+            }
+            if ($companion->current_hp <= 0) {
+                continue;
+            }
+            BattleCompanion::create([
+                'battle_id' => $battle->id,
+                'tamed_companion_id' => $companion->id,
+                'hp' => $companion->current_hp,
+                'hp_max' => $companion->effectiveHpMax(),
+                'slot' => $i + 1,
+            ]);
+        }
+
         return $battle;
     }
 
@@ -100,10 +128,12 @@ class CombatService
         $stats = $character->effectiveStats();
 
         $newHp = min($stats['eff_hp_max'], $battle->character_hp + $ticks * $character->regenPerTick());
-        if ($newHp !== $battle->character_hp) {
-            $battle->character_hp = $newHp;
-            $battle->save();
-        }
+        $battle->character_hp = $newHp;
+        // touch() unconditionally, not just when HP changed — battle.updated_at is the tick anchor for
+        // BOTH hp and mana above. If hp is already at cap while mana isn't, a plain save() would skip
+        // the query entirely (nothing dirty) and leave the anchor stale, so the next call recomputes
+        // $ticks from the same old timestamp and re-credits mana for time that was already paid out.
+        $battle->touch();
 
         $newMana = min($stats['eff_mp_max'], $character->mana + $ticks * $character->manaRegenPerTick());
         if ($newMana !== $character->mana) {
@@ -196,6 +226,7 @@ class CombatService
             abort_if($inventory->qty < 1, 422, 'Out of that item.');
 
             $item = $inventory->item;
+            abort_if($item->type === 'pet_food', 422, 'Feed this to a companion from the Companions page, not mid-battle.');
             $healHpPct = $item->stat_json['heal_hp_pct'] ?? 0;
             $healMpPct = $item->stat_json['heal_mp_pct'] ?? 0;
             $healHpFlat = $item->stat_json['heal_hp_flat'] ?? 0;
@@ -242,6 +273,10 @@ class CombatService
             }
         }
 
+        if ($battle->battleCompanions->isNotEmpty()) {
+            $log = $this->applyCompanionAttacks($battle, $targetMonsterId, $log);
+        }
+
         if ($this->allEnemiesDefeated($battle)) {
             return $this->resolveWin($battle, $character, $log);
         }
@@ -256,7 +291,7 @@ class CombatService
             $freshCharacter = $character->fresh(['attributes_', 'inventory.item', 'skills.skill']);
 
             return [
-                'battle' => $battle->fresh(['monster', 'battleMonsters.monster']),
+                'battle' => $battle->fresh(['monster', 'battleMonsters.monster', 'battleCompanions.tamedCompanion']),
                 'result' => null,
                 'character' => $freshCharacter,
                 'stats' => $freshCharacter->effectiveStats(),
@@ -272,7 +307,7 @@ class CombatService
             $freshCharacter = $character->fresh(['attributes_', 'inventory.item', 'skills.skill']);
 
             return [
-                'battle' => $battle->fresh(['monster', 'battleMonsters.monster']),
+                'battle' => $battle->fresh(['monster', 'battleMonsters.monster', 'battleCompanions.tamedCompanion']),
                 'result' => null,
                 'character' => $freshCharacter,
                 'stats' => $freshCharacter->effectiveStats(),
@@ -297,7 +332,7 @@ class CombatService
         $freshCharacter = $character->fresh(['attributes_', 'inventory.item', 'skills.skill']);
 
         return [
-            'battle' => $battle->fresh(['monster', 'battleMonsters.monster']),
+            'battle' => $battle->fresh(['monster', 'battleMonsters.monster', 'battleCompanions.tamedCompanion']),
             'result' => null,
             'character' => $freshCharacter,
             'stats' => $freshCharacter->effectiveStats(),
@@ -348,6 +383,35 @@ class CombatService
         return $log;
     }
 
+    /** Every living tamed companion attacks the same target the player just did (or the primary monster
+     * if that target's already dead/no target was given) — mirrors applyPlayerDamage's single-target
+     * resolution, but companions never have AOE abilities. Returns the updated log array. */
+    private function applyCompanionAttacks(Battle $battle, ?int $targetMonsterId, array $log): array
+    {
+        foreach ($battle->battleCompanions as $bc) {
+            if ($bc->hp <= 0) {
+                continue;
+            }
+
+            $companion = $bc->tamedCompanion;
+            $dmg = max(1, (int) round($companion->effectiveAtk() * $this->rand(0.8, 1.2)));
+
+            $target = $targetMonsterId ? $battle->battleMonsters->firstWhere('id', $targetMonsterId) : null;
+            if ($target && $target->hp > 0) {
+                $target->hp = max(0, $target->hp - $dmg);
+                $target->save();
+                $hitName = $target->monster->name;
+            } else {
+                $battle->monster_hp = max(0, $battle->monster_hp - $dmg);
+                $hitName = $battle->monster->name;
+            }
+
+            $log[] = "{$companion->name} hits {$hitName} for {$dmg}.";
+        }
+
+        return $log;
+    }
+
     /** Runs the primary monster's full ability/cooldown AI turn (if it's still alive), then has every living
      * "add" basic-attack once each. Returns the updated log array. */
     private function resolveEnemyTurn(Battle $battle, array $stats, ?Inventory $armorRow, array $log): array
@@ -366,16 +430,19 @@ class CombatService
             } else {
                 $hits = max(1, $ability['hits'] ?? 1);
                 $gradeAtkMult = $this->grades->atkMult($battle->grade);
+                // Damage is computed against the player's own defense exactly as if there were no
+                // companions at all — the redirect split (applyRedirectedDamage) happens AFTER, on the
+                // post-armor total, not before.
                 $enemyDmg = 0;
                 for ($i = 0; $i < $hits; $i++) {
                     $enemyDmg += max(2, (int) round($monster->atk * $gradeAtkMult * ($ability['dmg_mult'] ?? 1.0) * $this->rand(0.7, 1.3) - $stats['eff_def'] * 0.25));
                 }
-                $battle->character_hp = max(0, $battle->character_hp - $enemyDmg);
+                [$playerDmg, $petNote] = $this->applyRedirectedDamage($battle, $enemyDmg);
                 if (($ability['key'] ?? null) === 'basic_attack') {
-                    $log[] = "{$monster->name} hits you for {$enemyDmg}.";
+                    $log[] = "{$monster->name} hits you for {$playerDmg}.{$petNote}";
                 } else {
                     $hitNote = $hits > 1 ? " ({$hits} hits)" : '';
-                    $log[] = "{$monster->name} uses {$ability['name']} for {$enemyDmg}{$hitNote}.";
+                    $log[] = "{$monster->name} uses {$ability['name']} for {$playerDmg}{$hitNote} on you.{$petNote}";
                 }
                 $this->decayGear($armorRow);
             }
@@ -389,11 +456,86 @@ class CombatService
             }
             $gradeAtkMult = $this->grades->atkMult($battle->grade);
             $addDmg = max(2, (int) round($extra->monster->atk * $gradeAtkMult * $this->rand(0.7, 1.3) - $stats['eff_def'] * 0.25));
-            $battle->character_hp = max(0, $battle->character_hp - $addDmg);
-            $log[] = "{$extra->monster->name} hits you for {$addDmg}.";
+            [$addPlayerDmg, $addPetNote] = $this->applyRedirectedDamage($battle, $addDmg);
+            $log[] = "{$extra->monster->name} hits you for {$addPlayerDmg}.{$addPetNote}";
         }
 
         return $log;
+    }
+
+    /** Splits one already-armor-mitigated hit between the player and every active, living companion —
+     * each pet redirects a flat GM-tunable % of the hit onto itself (companion_damage_redirect_pct_per_
+     * pet, default 10%), stacking per pet up to a safety cap (companion_damage_redirect_pct_cap, default
+     * 90%) so the player always still takes something. The redirected total is split evenly (remainder
+     * to the first few pets) and taken exactly as-is — deliberately NOT further reduced by the pet's own
+     * Defense, since layering that mitigation on top of an already-small shard made most hits vanish to
+     * 0 before a pet ever felt them, which undercut the whole "-10% per pet" deal. Defense still matters
+     * for direct hits from other mechanics, just not this split. A pet whose share downs it goes through
+     * downCompanion() (revive-eligible) rather than an immediate kill. Returns [playerDamageTaken,
+     * logSuffix] — logSuffix is '' when there's nothing to report. */
+    private function applyRedirectedDamage(Battle $battle, int $dmg): array
+    {
+        $eligible = $battle->battleCompanions->where('hp', '>', 0)->values();
+        if ($eligible->isEmpty()) {
+            $battle->character_hp = max(0, $battle->character_hp - $dmg);
+
+            return [$dmg, ''];
+        }
+
+        $pctPerPet = GameConfig::number('companion_damage_redirect_pct_per_pet', 10);
+        $cap = GameConfig::number('companion_damage_redirect_pct_cap', 90);
+        $redirectPct = min($cap, $eligible->count() * $pctPerPet);
+        $redirectedTotal = (int) round($dmg * $redirectPct / 100);
+        $playerDmg = $dmg - $redirectedTotal;
+        $battle->character_hp = max(0, $battle->character_hp - $playerDmg);
+
+        $baseShare = intdiv($redirectedTotal, $eligible->count());
+        $remainder = $redirectedTotal % $eligible->count();
+        $notes = [];
+
+        foreach ($eligible as $i => $defender) {
+            $petDmg = $baseShare + ($i < $remainder ? 1 : 0);
+            if ($petDmg <= 0) {
+                continue;
+            }
+
+            $companion = $defender->tamedCompanion;
+            $defender->hp = max(0, $defender->hp - $petDmg);
+            $defender->save();
+
+            if ($defender->hp <= 0) {
+                $this->downCompanion($defender);
+                $notes[] = "{$companion->name} goes down absorbing {$petDmg}";
+            } else {
+                $companion->current_hp = $defender->hp;
+                $companion->save();
+                $notes[] = "{$companion->name} absorbs {$petDmg}";
+            }
+        }
+
+        return [$playerDmg, $notes ? ' ('.implode(', ', $notes).')' : ''];
+    }
+
+    /** A companion reaching 0 hp in battle no longer dies outright — it goes "downed" (see
+     * TamedCompanion::is_downed) and sits out the rest of this fight and any future one until revived
+     * from the Companions page (TamedCompanionController::revive) with a Pet Revive Potion, or archived
+     * for good after companion_revive_max_attempts failed tries. If revives are disabled entirely
+     * (GM sets max attempts to 0), it archives immediately exactly like the old behavior. */
+    private function downCompanion(BattleCompanion $defender): void
+    {
+        $defender->defeated_at = now();
+        $defender->save();
+
+        $companion = $defender->tamedCompanion;
+        if (GameConfig::number('companion_revive_max_attempts', 2) <= 0) {
+            $companion->archive('died');
+
+            return;
+        }
+
+        $companion->is_downed = true;
+        $companion->current_hp = 0;
+        $companion->save();
     }
 
     /** True once the primary monster and every "add" (if any) are at 0 HP. */
@@ -430,7 +572,7 @@ class CombatService
         $freshCharacter = $character->fresh(['attributes_', 'inventory.item', 'skills.skill']);
 
         return [
-            'battle' => $battle->fresh(['monster', 'battleMonsters.monster']),
+            'battle' => $battle->fresh(['monster', 'battleMonsters.monster', 'battleCompanions.tamedCompanion']),
             'result' => ['outcome' => 'fled', 'hp_lost' => $fleeDmg],
             'character' => $freshCharacter,
             'stats' => $freshCharacter->effectiveStats(),
@@ -461,10 +603,12 @@ class CombatService
 
         $petXpBonus = max(0, (float) ($stats['pet_xp_bonus_pct'] ?? 0)) / 100;
         $gradeRewardMult = $this->grades->rewardMult($battle->grade);
+        $zonePenaltyPct = Zone::frontierPenaltyPct($character, $monster->zone);
+        $zoneMult = 1 - $zonePenaltyPct / 100;
 
-        $goldGain = (int) round($allMonsters->sum('gold') * $goldMult * $gradeRewardMult * (1 + $luckBonus + $vipGoldXpBonus + $guildXpBonus + $guildGoldFindBonus));
-        $xpGain = (int) round($allMonsters->sum('xp') * $xpMult * $gradeRewardMult * (1 + ($luckBonus * $xpFactor) + $petXpBonus + $vipGoldXpBonus + $guildXpBonus + $guildXpUpgradeBonus));
-        $gemGain = (int) round($allMonsters->sum('gems') * $gemMult * $gradeRewardMult * (1 + ($luckBonus * $gemFactor)));
+        $goldGain = (int) round($allMonsters->sum('gold') * $goldMult * $gradeRewardMult * $zoneMult * (1 + $luckBonus + $vipGoldXpBonus + $guildXpBonus + $guildGoldFindBonus));
+        $xpGain = (int) round($allMonsters->sum('xp') * $xpMult * $gradeRewardMult * $zoneMult * (1 + ($luckBonus * $xpFactor) + $petXpBonus + $vipGoldXpBonus + $guildXpBonus + $guildXpUpgradeBonus));
+        $gemGain = (int) round($allMonsters->sum('gems') * $gemMult * $gradeRewardMult * $zoneMult * (1 + ($luckBonus * $gemFactor)));
 
         // Reward breakdown for result popup
         $baseGold = (int) round($allMonsters->sum('gold'));
@@ -478,6 +622,7 @@ class CombatService
                 'luck_pct' => (int) round($luckBonus * 100),
                 'vip_pct' => (int) round($vipGoldXpBonus * 100),
                 'guild_pct' => (int) round(($guildXpBonus + $guildGoldFindBonus) * 100),
+                'zone_penalty_pct' => (int) round($zonePenaltyPct),
                 'total' => $goldGain,
             ],
             'xp' => [
@@ -487,6 +632,7 @@ class CombatService
                 'vip_pct' => (int) round($vipGoldXpBonus * 100),
                 'guild_pct' => (int) round(($guildXpBonus + $guildXpUpgradeBonus) * 100),
                 'pet_pct' => (int) round($petXpBonus * 100),
+                'zone_penalty_pct' => (int) round($zonePenaltyPct),
                 'total' => $xpGain,
             ],
         ];
@@ -495,6 +641,7 @@ class CombatService
                 'base' => $baseGems,
                 'grade_mult' => $gradeRewardMult,
                 'luck_pct' => (int) round($luckBonus * $gemFactor * 100),
+                'zone_penalty_pct' => (int) round($zonePenaltyPct),
                 'total' => $gemGain,
             ];
         }
@@ -526,6 +673,7 @@ class CombatService
         foreach ($petResults as $petResult) {
             $log[] = "{$petResult['name']} gained companion XP.".($petResult['leveled_up'] ? " Now level {$petResult['level']}!" : '');
         }
+        $petFoodDropped = $this->maybeDropPetFood($character, $monster, $log);
         $battle->update(['status' => 'won', 'log_json' => $log]);
 
         $this->quests->progress($character, 'battles_won', $monster);
@@ -533,7 +681,7 @@ class CombatService
         $newAchievements = $this->achievements->check($freshCharacter, $monster->is_boss ? $monster : null);
 
         return [
-            'battle' => $battle->fresh(['monster', 'battleMonsters.monster']),
+            'battle' => $battle->fresh(['monster', 'battleMonsters.monster', 'battleCompanions.tamedCompanion']),
             'result' => [
                 'outcome' => 'won',
                 'gold' => $goldGain,
@@ -542,6 +690,7 @@ class CombatService
                 'breakdown' => $rewardBreakdown,
                 'leveled_up' => $leveledUp,
                 'pets' => $petResults,
+                'pet_food_dropped' => $petFoodDropped,
                 'character' => $freshCharacter,
                 'stats' => $freshCharacter->effectiveStats(),
                 'achievements' => $newAchievements,
@@ -645,7 +794,7 @@ class CombatService
         $freshCharacter = $character->fresh(['attributes_', 'inventory.item', 'skills.skill']);
 
         return [
-            'battle' => $battle->fresh(['monster', 'battleMonsters.monster']),
+            'battle' => $battle->fresh(['monster', 'battleMonsters.monster', 'battleCompanions.tamedCompanion']),
             'result' => [
                 'outcome' => 'lost',
                 'gold_lost' => $penalty['gold_lost'],
@@ -759,4 +908,181 @@ class CombatService
             $row->update(['durability' => max(0, $row->durability - DurabilityService::DECAY_PER_ACTION)]);
         }
     }
+
+    /** Chance to grant one Pet Food on a battle win — the only way to level a tamed companion (see
+     * TamedCompanionController::feed). Scales up with the zone's danger (see Zone::petFoodBonusPct) so
+     * grinding higher zones is the real source of pet food, not a flat rate everywhere. Appends a log
+     * line by reference (resolveWin() already has a $log array in flight at the call site) and also
+     * returns the item name so the result payload can show a proper reward chip — the log line alone is
+     * invisible in compact-battle-log mode. */
+    private function maybeDropPetFood(Character $character, Monster $monster, array &$log): ?string
+    {
+        $chance = GameConfig::number('pet_food_drop_chance_pct', 15) + Zone::petFoodBonusPct($monster->zone?->danger);
+        if (! $this->rollPercent($chance)) {
+            return null;
+        }
+
+        $item = Item::where('type', 'pet_food')->first();
+        if (! $item) {
+            return null;
+        }
+
+        $inventory = Inventory::firstOrNew(['character_id' => $character->id, 'item_id' => $item->id, 'equipped' => false]);
+        $inventory->qty = ($inventory->qty ?? 0) + 1;
+        $inventory->save();
+
+        $log[] = "{$item->name} dropped!";
+
+        return $item->name;
+    }
+
+    /** % penalty applied to a tame roll for a monster in a dangerous zone — same $prefix pattern feeds
+     * both the eligibility roll ('tame_eligibility') and the success roll ('tame_success'), each GM-tunable
+     * independently via GmConfigController. */
+    private function tameZonePenalty(Monster $monster, string $prefix): float
+    {
+        return match ($monster->zone?->danger) {
+            'high' => GameConfig::number("{$prefix}_zone_high_penalty_pct", 10),
+            'deadly' => GameConfig::number("{$prefix}_zone_deadly_penalty_pct", 20),
+            default => 0,
+        };
+    }
+
+    /**
+     * Attempts to tame the battle's target once it's ≤10% hp — 1v1 fights only. Two independent rolls:
+     * (1) whether the target is tameable at all this fight, cached on the battle so repeated attempts
+     * don't re-roll it (a "no" costs nothing — it's a free check, not an attempt); (2) if eligible,
+     * whether the attempt itself succeeds, boosted by Luck + VIP. A failed attempt-2 consumes the turn
+     * exactly like a whiffed attack. Success ends the battle with the monster captured — no kill rewards,
+     * since it was caught rather than killed.
+     */
+    public function attemptTame(Battle $battle, Character $character): array
+    {
+        abort_if($battle->status !== 'active', 422, 'Battle already finished.');
+        abort_if($battle->battleMonsters->isNotEmpty(), 422, 'Taming only works in 1v1 fights.');
+
+        $this->regenInBattle($battle, $character);
+
+        $monster = $battle->monster;
+        abort_if($monster->is_boss, 422, 'Bosses cannot be tamed.');
+
+        $hpPct = $battle->monster_hp_max ? $battle->monster_hp / $battle->monster_hp_max : 1;
+        abort_if($hpPct > 0.10, 422, 'This enemy is still too strong to tame — wear it down first.');
+
+        // Taming a zone's monsters only unlocks once the player has meaningfully outgrown that zone,
+        // not the moment they can first walk into it.
+        $unlockLevel = ($monster->zone?->min_level ?? 1) + 10;
+        abort_if($character->level < $unlockLevel, 422, "You need to be level {$unlockLevel} to tame monsters from this zone.");
+
+        $user = $character->user;
+        $rosterCount = TamedCompanion::where('character_id', $character->id)->whereNull('archived_at')->count();
+        abort_if($rosterCount >= $user->tameRosterCap(), 422, 'Your companion roster is full — release one from the Companions page first.');
+
+        $log = $battle->log_json ?? [];
+
+        if ($battle->tame_eligible === null) {
+            $chance = GameConfig::number('tame_eligibility_base_pct', 40)
+                - ($monster->is_elite ? GameConfig::number('tame_eligibility_elite_penalty_pct', 20) : 0)
+                - $this->tameZonePenalty($monster, 'tame_eligibility');
+            $battle->tame_eligible = $this->rollPercent(max(5, min(95, $chance)));
+            $battle->save();
+        }
+
+        if (! $battle->tame_eligible) {
+            $log[] = "{$monster->name} was unable to tame.";
+            $battle->log_json = $log;
+            $battle->save();
+
+            return $this->continuingBattlePayload($battle, $character);
+        }
+
+        $stats = $character->effectiveStats();
+        $luck = max(0, (int) ($stats['luck'] ?? 0));
+        $luckBonus = min(
+            GameConfig::number('luck_tame_bonus_cap', 30),
+            $luck * GameConfig::number('luck_tame_bonus_per_point', 1)
+        );
+        $successChance = GameConfig::number('tame_success_base_pct', 50)
+            + $luckBonus
+            + $user->vipTameBonus()
+            - ($monster->is_elite ? GameConfig::number('tame_success_elite_penalty_pct', 20) : 0)
+            - $this->tameZonePenalty($monster, 'tame_success');
+
+        if ($this->rollPercent(max(5, min(95, $successChance)))) {
+            // Only auto-activates if there's a free active slot — a level-gated cap below the roster
+            // size (see User::activeTameSlots) means a freshly-tamed companion can land benched, same
+            // as PetController::activate rejects rather than silently swapping out an existing one.
+            $activeCount = TamedCompanion::where('character_id', $character->id)->whereNull('archived_at')->where('active', true)->count();
+            // Base stats are snapshotted at the encounter's own grade multiplier (see GradeService) —
+            // a companion tamed from a Champion/Legendary roll is a genuinely stronger catch, not just a
+            // cosmetically different tag, same as that grade made the live monster hit harder in the fight.
+            $companion = TamedCompanion::create([
+                'character_id' => $character->id,
+                'monster_id' => $monster->id,
+                'name' => $monster->name,
+                'glyph' => $monster->glyph,
+                'is_elite' => $monster->is_elite,
+                'grade' => $battle->grade,
+                'base_hp' => (int) round($monster->hp * $this->grades->hpMult($battle->grade)),
+                'base_atk' => (int) round($monster->atk * $this->grades->atkMult($battle->grade)),
+                'level' => 1,
+                'xp' => 0,
+                'current_hp' => 0,
+                'last_regen_at' => now(),
+                'active' => $activeCount < $user->activeTameSlots($character),
+            ]);
+            $companion->current_hp = $companion->effectiveHpMax();
+            $companion->save();
+            TamedCompanionLog::log($companion, 'captured');
+
+            $log[] = "You tamed {$monster->name}!";
+            $battle->update(['status' => 'tamed', 'log_json' => $log]);
+
+            $freshCharacter = $character->fresh(['attributes_', 'inventory.item', 'skills.skill']);
+
+            return [
+                'battle' => $battle->fresh(['monster', 'battleMonsters.monster', 'battleCompanions.tamedCompanion']),
+                'result' => [
+                    'outcome' => 'tamed',
+                    'companion' => $companion,
+                    'character' => $freshCharacter,
+                    'stats' => $freshCharacter->effectiveStats(),
+                ],
+            ];
+        }
+
+        $log[] = 'Taming attempt failed!';
+        $armorRow = $this->equippedGear($character, 'armor');
+        $log = $this->resolveEnemyTurn($battle, $stats, $armorRow, $log);
+
+        if ($battle->character_hp <= 0) {
+            if (! empty($stats['has_undying']) && ! $battle->revived_with_skill) {
+                $battle->character_hp = 1;
+                $battle->revived_with_skill = true;
+                $log[] = 'Undying triggers! You survive with 1 HP.';
+            } else {
+                return $this->resolveLoss($battle, $character, $log, $stats);
+            }
+        }
+
+        $battle->log_json = $log;
+        $battle->save();
+
+        return $this->continuingBattlePayload($battle, $character);
+    }
+
+    /** The "nothing decisive happened, battle continues" response shape shared by act()'s free-action/
+     * dodge/normal-round returns and attemptTame()'s ineligible/failed-attempt returns. */
+    private function continuingBattlePayload(Battle $battle, Character $character): array
+    {
+        $freshCharacter = $character->fresh(['attributes_', 'inventory.item', 'skills.skill']);
+
+        return [
+            'battle' => $battle->fresh(['monster', 'battleMonsters.monster', 'battleCompanions.tamedCompanion']),
+            'result' => null,
+            'character' => $freshCharacter,
+            'stats' => $freshCharacter->effectiveStats(),
+        ];
+    }
+
 }

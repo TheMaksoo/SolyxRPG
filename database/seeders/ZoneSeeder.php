@@ -22,6 +22,8 @@ class ZoneSeeder extends Seeder
             ['key' => 'emberpeak_volcano', 'name' => 'Emberpeak Volcano', 'glyph' => '🌋', 'danger' => 'high', 'min_level' => 32, 'locked' => false, 'sort_order' => 3],
             ['key' => 'sunken_abyss', 'name' => 'Sunken Abyss', 'glyph' => '🌊', 'danger' => 'deadly', 'min_level' => 50, 'locked' => false, 'sort_order' => 4],
             ['key' => 'the_void', 'name' => 'The Void', 'glyph' => '🌌', 'danger' => 'deadly', 'min_level' => 100, 'locked' => false, 'sort_order' => 5],
+            ['key' => 'crimson_wastes', 'name' => 'Crimson Wastes', 'glyph' => '🏜', 'danger' => 'deadly', 'min_level' => 150, 'locked' => false, 'sort_order' => 6],
+            ['key' => 'astral_expanse', 'name' => 'Astral Expanse', 'glyph' => '🌠', 'danger' => 'deadly', 'min_level' => 200, 'locked' => false, 'sort_order' => 7],
         ];
 
         foreach ($zones as $zone) {

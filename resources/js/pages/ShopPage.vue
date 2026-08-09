@@ -34,6 +34,7 @@ const tabs = [
   { key: 'sickle', label: 'Sickles', glyph: '🔪' },
   { key: 'hammer', label: 'Hammers', glyph: '🔨' },
   { key: 'consumable', label: 'Consumables', glyph: '🧪' },
+  { key: 'pet_revive_potion', label: 'Revive Charms', glyph: '🧿' },
   { key: 'repair_pack', label: 'Repair Packs', glyph: '🧰' },
   { key: 'material', label: 'Materials', glyph: '🪨' },
   { key: 'cosmetic', label: 'Cosmetics', glyph: '👑' },

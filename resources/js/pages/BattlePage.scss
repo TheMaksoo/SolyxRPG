@@ -328,6 +328,13 @@
   margin: -8px 0 16px;
 }
 
+// Tamed companions fighting alongside the player — same card shape as the enemy "adds" panel, but
+// never clickable (there's nothing to target here) and tinted purple to read as "yours."
+.companions-panel .add-card {
+  cursor: default;
+  border-color: v.$purple-tint-12;
+}
+
 .add-card {
   @include m.card(12px);
   flex: 1;
@@ -360,6 +367,17 @@
 .add-card__hp {
   font-size: 11px;
   color: v.$text-muted-45;
+}
+
+.add-card__grade {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border: 1px solid;
+  border-radius: v.$radius-pill;
+  font-size: 10px;
+  font-weight: 700;
+  vertical-align: middle;
 }
 
 .target-hint {
@@ -628,6 +646,12 @@
   padding: 14px;
   font-weight: 700;
   margin-bottom: 16px;
+
+  &.btn-tame {
+    background: v.$purple-tint-12;
+    border: 1px solid v.$purple;
+    color: v.$purple;
+  }
 
   &:disabled {
     opacity: 0.6;
@@ -1024,6 +1048,11 @@ $action-tile-tones: (
 
   &--luck {
     color: v.$warning;
+    font-weight: 600;
+  }
+
+  &--penalty {
+    color: v.$danger;
     font-weight: 600;
   }
 }

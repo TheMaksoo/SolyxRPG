@@ -1823,6 +1823,49 @@
   text-transform: capitalize;
 }
 
+.companions-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.companions-summary__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid v.$border-subtle;
+  font-size: 13px;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.companions-summary__glyph {
+  font-size: 16px;
+}
+
+.companions-summary__name {
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+}
+
+.companions-summary__grade {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 1px solid;
+  border-radius: v.$radius-pill;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.companions-summary__level {
+  color: v.$text-muted-40;
+  font-size: 11.5px;
+}
+
 // ---- Trophy Showcase picker (Customize) ----
 .achievement-card--pickable {
   cursor: pointer;

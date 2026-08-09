@@ -74,6 +74,14 @@ onMounted(load);
             </span>
           </div>
           <div class="zone-card__level">Recommended Lv.{{ row.zone.min_level }}+</div>
+          <div v-if="row.unlocked" class="zone-card__safety">
+            <span v-if="row.is_frontier" class="zone-card__safety-tag zone-card__safety-tag--frontier">⚔ Frontier · full rewards</span>
+            <span v-else-if="row.reward_penalty_pct > 0" class="zone-card__safety-tag zone-card__safety-tag--penalty">
+              ⚠ Outleveled · -{{ row.reward_penalty_pct }}% rewards
+            </span>
+            <span v-else class="zone-card__safety-tag zone-card__safety-tag--safe">✓ Full rewards</span>
+            <span v-if="row.pet_food_bonus_pct > 0" class="zone-card__safety-tag zone-card__safety-tag--food">🍖 +{{ row.pet_food_bonus_pct }}% pet food</span>
+          </div>
           <button @click="travel(row)" :disabled="!row.unlocked" class="zone-card__travel-btn">
             {{ row.unlocked ? 'Travel' : `Requires Lv.${row.zone.min_level}` }}
           </button>

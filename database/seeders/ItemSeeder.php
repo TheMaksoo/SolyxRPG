@@ -21,6 +21,11 @@ class ItemSeeder extends Seeder
             ['key' => 'greater_mana_potion', 'name' => 'Greater Mana Potion', 'type' => 'consumable', 'rarity' => 'rare', 'glyph' => '💧', 'description' => 'Restores 240 MP instantly in battle.', 'stat_json' => ['heal_mp_flat' => 240], 'price_gold' => 290, 'price_gems' => null],
             ['key' => 'vitality_tonic', 'name' => 'Vitality Tonic', 'type' => 'consumable', 'rarity' => 'rare', 'glyph' => '🌿', 'description' => '+50% HP regen rate for 10 minutes. Usable anytime, even outside battle.', 'stat_json' => ['hp_regen_pct_buff' => 50, 'duration_seconds' => 600], 'price_gold' => 350, 'price_gems' => null],
             ['key' => 'focus_tonic', 'name' => 'Focus Tonic', 'type' => 'consumable', 'rarity' => 'rare', 'glyph' => '🔷', 'description' => '+50% mana regen rate for 10 minutes. Usable anytime, even outside battle.', 'stat_json' => ['mana_regen_pct_buff' => 50, 'duration_seconds' => 600], 'price_gold' => 350, 'price_gems' => null],
+            // Drop-only (no price_gold/price_gems, so it never appears in the Shop — see
+            // ShopController's whereNotNull filter) — the only way to level a tamed companion
+            // (see TamedCompanionController::feed). Fed from the Companions page, not usable mid-battle
+            // (CombatService::act rejects the type there).
+            ['key' => 'pet_food', 'name' => 'Pet Food', 'type' => 'pet_food', 'rarity' => 'common', 'glyph' => '🍖', 'description' => 'Feed this to a tamed companion to grant it experience.', 'stat_json' => ['pet_xp' => 50], 'price_gold' => null, 'price_gems' => null],
             ['key' => 'elixir_of_vigor', 'name' => 'Elixir of Vigor', 'type' => 'consumable', 'rarity' => 'epic', 'glyph' => '✨', 'description' => '+40% HP and mana regen rate for 15 minutes. Usable anytime, even outside battle.', 'stat_json' => ['hp_regen_pct_buff' => 40, 'mana_regen_pct_buff' => 40, 'duration_seconds' => 900], 'price_gold' => null, 'price_gems' => 500],
             ['key' => 'elixir_of_power', 'name' => 'Elixir of Power', 'type' => 'consumable', 'rarity' => 'legendary', 'glyph' => '⚗', 'description' => 'Grants +50% ATK for your next three fights.', 'stat_json' => ['atk_pct_buff' => 50, 'buff_fights' => 3], 'price_gold' => null, 'price_gems' => 2000],
             ['key' => 'golden_crown', 'name' => 'Golden Crown', 'type' => 'cosmetic', 'rarity' => 'legendary', 'glyph' => '👑', 'description' => 'A pure flex — no combat stats, all prestige.', 'stat_json' => [], 'price_gold' => null, 'price_gems' => 2000],
@@ -164,6 +169,15 @@ class ItemSeeder extends Seeder
             ['key' => 'phoenix_elixir', 'name' => 'Phoenix Elixir', 'type' => 'consumable', 'rarity' => 'mythic', 'glyph' => '⚗', 'description' => 'Restores 40% HP and grants +30% ATK for your next two fights.', 'stat_json' => ['heal_hp_pct' => 40, 'atk_pct_buff' => 30, 'buff_fights' => 2], 'price_gold' => 6800, 'price_gems' => 4500],
             ['key' => 'phoenix_draught', 'name' => 'Phoenix Draught', 'type' => 'consumable', 'rarity' => 'mythic', 'glyph' => '🧪', 'description' => 'Restores 40% of your max MP instantly in battle.', 'stat_json' => ['heal_mp_pct' => 40], 'price_gold' => 6800, 'price_gems' => 4200],
             ['key' => 'phoenix_tonic', 'name' => 'Phoenix Tonic', 'type' => 'consumable', 'rarity' => 'mythic', 'glyph' => '🍵', 'description' => '+90% HP and mana regen rate for 25 minutes. Usable anytime, even outside battle.', 'stat_json' => ['hp_regen_pct_buff' => 90, 'mana_regen_pct_buff' => 90, 'duration_seconds' => 1500], 'price_gold' => 7200, 'price_gems' => 4800],
+
+            // Pet Revive Potions — one per herb tier, same escalating curve as the Poultice/Draught/Tonic
+            // line above. Used from the Companions page on a downed tamed companion (see
+            // TamedCompanionController::revive), never in the normal in-battle 'item' action.
+            ['key' => 'tattered_revive_charm', 'name' => 'Tattered Revive Charm', 'type' => 'pet_revive_potion', 'rarity' => 'common', 'glyph' => '🧿', 'description' => 'A worn charm. 25% chance to revive a downed companion.', 'stat_json' => ['revive_chance_pct' => 25], 'price_gold' => 90, 'price_gems' => null],
+            ['key' => 'sage_revive_charm', 'name' => 'Sage Revive Charm', 'type' => 'pet_revive_potion', 'rarity' => 'rare', 'glyph' => '🧿', 'description' => 'A sage-blessed charm. 40% chance to revive a downed companion.', 'stat_json' => ['revive_chance_pct' => 40], 'price_gold' => 300, 'price_gems' => null],
+            ['key' => 'moonlit_revive_charm', 'name' => 'Moonlit Revive Charm', 'type' => 'pet_revive_potion', 'rarity' => 'epic', 'glyph' => '🧿', 'description' => 'A moonpetal-blessed charm. 55% chance to revive a downed companion.', 'stat_json' => ['revive_chance_pct' => 55], 'price_gold' => 1300, 'price_gems' => 500],
+            ['key' => 'sunroot_revive_charm', 'name' => 'Sunroot Revive Charm', 'type' => 'pet_revive_potion', 'rarity' => 'legendary', 'glyph' => '🧿', 'description' => 'A sunroot-blessed charm. 70% chance to revive a downed companion.', 'stat_json' => ['revive_chance_pct' => 70], 'price_gold' => 900, 'price_gems' => 2000],
+            ['key' => 'phoenix_feather', 'name' => 'Phoenix Feather', 'type' => 'pet_revive_potion', 'rarity' => 'mythic', 'glyph' => '🪶', 'description' => 'A feather still warm with rebirth. 90% chance to revive a downed companion.', 'stat_json' => ['revive_chance_pct' => 90], 'price_gold' => 7000, 'price_gems' => 4600],
         ];
 
         foreach ($items as $item) {

@@ -55,7 +55,9 @@ class DungeonService
             return null;
         }
 
-        if ($outcome !== 'won') {
+        // Taming a stage's monster instead of killing it still clears the stage — the monster's gone
+        // either way, the player just chose to capture it instead of collecting the kill reward for it.
+        if (! in_array($outcome, ['won', 'tamed'], true)) {
             $run->update(['status' => 'abandoned']);
 
             return ['stage' => $run->stage, 'total_stages' => $run->total_stages, 'completed' => false, 'abandoned' => true];

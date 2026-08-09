@@ -6,6 +6,7 @@ import { useAuthStore } from '../stores/auth';
 import { useGameTick } from '../composables/gameTick';
 import api from '../api/client';
 import { RARITY_COLORS, RARITY_LABELS } from '../rarity';
+import { gradeMeta } from '../utils/grade';
 import ActivityChart from '../components/admin/ActivityChart.vue';
 
 const RARITY_ORDER = ['common', 'rare', 'epic', 'legendary', 'mythic'];
@@ -925,6 +926,26 @@ onMounted(() => {
               </div>
             </div>
             <p v-else class="panel-card__empty">No recent activity yet.</p>
+          </div>
+
+          <div class="panel-card">
+            <div class="panel-card__head">
+              <span class="panel-card__eyebrow">COMPANIONS</span>
+              <router-link to="/pets" class="panel-card__link-btn">View companions</router-link>
+            </div>
+            <div v-if="panels?.companions?.length" class="companions-summary">
+              <div v-for="c in panels.companions" :key="c.name + c.level" class="companions-summary__row">
+                <span class="companions-summary__glyph">{{ c.glyph }}</span>
+                <span class="companions-summary__name">{{ c.name }}</span>
+                <span
+                  v-if="c.grade"
+                  class="companions-summary__grade"
+                  :style="{ color: gradeMeta(c.grade).color, borderColor: gradeMeta(c.grade).color }"
+                >{{ gradeMeta(c.grade).label }}</span>
+                <span class="companions-summary__level">Lv.{{ c.level }}/{{ c.max_level }}</span>
+              </div>
+            </div>
+            <p v-else class="panel-card__empty">No active companions — tame one by weakening a wild monster to 10% HP in battle.</p>
           </div>
 
           <div v-if="panels?.guild_card" class="panel-card">

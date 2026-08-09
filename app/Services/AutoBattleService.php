@@ -246,18 +246,21 @@ class AutoBattleService
             Inventory::where('id', $inventoryId)->update(['durability' => $durability]);
         }
 
-        foreach ($snapshot['inventory_qty'] as $itemId => $qty) {
-            Inventory::updateOrCreate(
-                ['character_id' => $character->id, 'item_id' => $itemId, 'equipped' => false],
-                ['qty' => $qty]
-            );
+        // Only undoes a DECREASE (a potion the AI drank mid-fight) — training is risk-free, so spent
+        // consumables come back. A row at or ABOVE its pre-fight qty means the fight actually granted
+        // real loot (e.g. CombatService::maybeDropPetFood's pet food drop), which must survive — this
+        // used to unconditionally force every row back to its pre-fight qty and delete anything new,
+        // which silently erased any item gained for the first time (or restacked) during auto-battle.
+        foreach ($snapshot['inventory_qty'] as $itemId => $originalQty) {
+            $row = Inventory::where('character_id', $character->id)
+                ->where('item_id', $itemId)->where('equipped', false)->first();
+            if (! $row || $row->qty < $originalQty) {
+                Inventory::updateOrCreate(
+                    ['character_id' => $character->id, 'item_id' => $itemId, 'equipped' => false],
+                    ['qty' => $originalQty]
+                );
+            }
         }
-
-        // Delete any consumable rows the fight created that didn't exist beforehand (shouldn't normally happen).
-        Inventory::where('character_id', $character->id)
-            ->where('equipped', false)
-            ->whereNotIn('item_id', array_keys($snapshot['inventory_qty']->all()))
-            ->delete();
     }
 
     /**

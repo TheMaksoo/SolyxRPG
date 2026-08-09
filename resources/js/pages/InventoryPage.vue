@@ -40,7 +40,7 @@ const BAG_SECTIONS = [
   { key: 'armor', label: 'Armor', glyph: '🛡', types: ['armor', 'shield'] },
   { key: 'quiver', label: 'Quivers', glyph: '🎯', types: ['quiver'] },
   { key: 'tools', label: 'Tools', glyph: '⛏', types: ['pickaxe', 'axe', 'sickle', 'hammer'] },
-  { key: 'consumable', label: 'Consumables', glyph: '🧪', types: ['consumable'] },
+  { key: 'consumable', label: 'Consumables', glyph: '🧪', types: ['consumable', 'pet_food'] },
   { key: 'repair_pack', label: 'Repair Packs', glyph: '🧰', types: ['repair_pack'] },
   { key: 'cosmetic', label: 'Cosmetics', glyph: '👑', types: ['cosmetic'] },
   { key: 'material', label: 'Materials', glyph: '🪨', types: ['material'] },

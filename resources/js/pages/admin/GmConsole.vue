@@ -207,8 +207,9 @@ const UNLOCK_TYPE_COLORS = {
   monster: '#ff8163',
   skill: '#a78bfa',
   recipe: '#eab308',
+  taming: '#f472b6',
 };
-const UNLOCK_TYPE_LABELS = { zone: 'Zone', dungeon: 'Dungeon', feature: 'Feature', monster: 'Monster', skill: 'Skill', recipe: 'Recipe' };
+const UNLOCK_TYPE_LABELS = { zone: 'Zone', dungeon: 'Dungeon', feature: 'Feature', monster: 'Monster', skill: 'Skill', recipe: 'Recipe', taming: 'Taming' };
 
 function truncateNames(names, max = 8) {
   return names.length > max ? [...names.slice(0, max), `+${names.length - max} more`] : names;
