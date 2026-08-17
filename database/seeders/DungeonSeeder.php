@@ -24,8 +24,17 @@ class DungeonSeeder extends Seeder
             ['key' => 'haunted_crypt', 'name' => 'Haunted Crypt', 'glyph' => '⚰', 'difficulty' => 'normal', 'boss_monster_id' => $bossId('rogue_knight'), 'min_level' => 23, 'party_size' => 1, 'drops_json' => ['gold' => 1200, 'gems' => 3]],
             ['key' => 'wyrms_hollow', 'name' => "Wyrm's Hollow", 'glyph' => '🐲', 'difficulty' => 'hard', 'boss_monster_id' => $bossId('frost_wyrm'), 'min_level' => 31, 'party_size' => 2, 'drops_json' => ['gold' => 2500, 'gems' => 8]],
             ['key' => 'dragon_lair', 'name' => 'Dragon Lair', 'glyph' => '🐉', 'difficulty' => 'raid', 'boss_monster_id' => $bossId('ashfang_dragon'), 'min_level' => 50, 'party_size' => 4, 'drops_json' => ['gems' => 20]],
+            // Three new dungeons, one per bridge zone added in ZoneSeeder (drowned_spire/sundered_rift/
+            // emberfall_ridge) — same 'raid' tier as their neighbors, min_level matched to the zone's own
+            // min_level (mirrors dragon_lair's own pattern) rather than its boss's min_level, since the
+            // boss never wanders anyway and the dungeon is the only way to fight it.
+            ['key' => 'drowned_spire_ruins', 'name' => 'The Drowned Spire', 'glyph' => '🗼', 'difficulty' => 'raid', 'boss_monster_id' => $bossId('spire_warden'), 'min_level' => 75, 'party_size' => 4, 'drops_json' => ['gold' => 3000, 'gems' => 25]],
             ['key' => 'krakens_trench', 'name' => "Kraken's Trench", 'glyph' => '🦑', 'difficulty' => 'raid', 'boss_monster_id' => $bossId('abyss_kraken'), 'min_level' => 99, 'party_size' => 4, 'drops_json' => ['gold' => 6000, 'gems' => 30]],
+            ['key' => 'sundered_rift_maw', 'name' => 'The Sundered Maw', 'glyph' => '🌀', 'difficulty' => 'raid', 'boss_monster_id' => $bossId('rift_sovereign'), 'min_level' => 120, 'party_size' => 4, 'drops_json' => ['gold' => 7500, 'gems' => 38]],
             ['key' => 'the_void_throne', 'name' => 'The Void Throne', 'glyph' => '👁', 'difficulty' => 'mythic', 'boss_monster_id' => $bossId('void_sovereign'), 'min_level' => 140, 'party_size' => 6, 'drops_json' => ['gems' => 50]],
+            ['key' => 'crimson_bastion', 'name' => 'Crimson Bastion', 'glyph' => '💀', 'difficulty' => 'raid', 'boss_monster_id' => $bossId('sandstorm_titan'), 'min_level' => 155, 'party_size' => 4, 'drops_json' => ['gold' => 9000, 'gems' => 45]],
+            ['key' => 'emberfall_forge', 'name' => 'The Emberfall Forge', 'glyph' => '🔥', 'difficulty' => 'raid', 'boss_monster_id' => $bossId('ember_sovereign'), 'min_level' => 175, 'party_size' => 4, 'drops_json' => ['gold' => 12000, 'gems' => 60]],
+            ['key' => 'astral_sanctum', 'name' => 'Astral Sanctum', 'glyph' => '🌟', 'difficulty' => 'mythic', 'boss_monster_id' => $bossId('astral_emperor'), 'min_level' => 210, 'party_size' => 6, 'drops_json' => ['gems' => 90]],
         ];
 
         foreach ($dungeons as $dungeon) {

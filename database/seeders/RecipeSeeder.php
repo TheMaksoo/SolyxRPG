@@ -30,7 +30,10 @@ class RecipeSeeder extends Seeder
             'aegis_plate', 'duskblade_leathers', 'stormwatch_cloak', 'gilded_aether_robe',
             'mythril_aegis', 'titanplate_cuirass', 'voidsilk_leathers', 'wraithwind_cloak', 'mythril_aether_robe',
             'fletchers_quiver', 'hunters_quiver', 'silvered_quiver', 'gilded_quiver', 'mythril_quiver',
+            'leather_knife_holder', 'honed_knife_holder', 'silvered_knife_holder', 'gilded_knife_holder', 'mythril_knife_holder',
             'steel_kite_shield', 'silverguard_aegis', 'guardians_bulwark',
+            'travelers_charm', 'warded_charm', 'silvered_charm', 'gilded_charm', 'mythril_charm',
+            'runed_focus', 'warded_focus', 'silvered_focus', 'gilded_focus', 'mythril_focus',
             'stone_pickaxe', 'iron_pickaxe', 'silver_pickaxe', 'gold_pickaxe', 'mythril_pickaxe',
             'wood_axe', 'oak_axe', 'ironwood_axe', 'elderwood_axe', 'moonwood_axe',
             'stone_sickle', 'iron_sickle', 'silver_sickle', 'gold_sickle', 'mythril_sickle',
@@ -42,6 +45,7 @@ class RecipeSeeder extends Seeder
             'phoenix_elixir', 'phoenix_draught', 'phoenix_tonic',
             'common_repair_pack', 'rare_repair_pack', 'epic_repair_pack', 'legendary_repair_pack', 'mythic_repair_pack',
             'tattered_revive_charm', 'sage_revive_charm', 'moonlit_revive_charm', 'sunroot_revive_charm', 'phoenix_feather',
+            ...self::specialtyGearKeys(),
         ])->pluck('id', 'key');
 
         // level => [material, qty, craft_seconds, gold_cost] — the single-material tier chain every
@@ -88,6 +92,11 @@ class RecipeSeeder extends Seeder
             // neither was part of this pass's "weapon + armor" scope.
             ['name' => 'Craft Iron Buckler', 'result' => 'iron_buckler', 'materials' => [['item' => 'iron_bar', 'qty' => 10]], 'craft_seconds' => 100, 'min_level' => 8, 'gold_cost' => 630],
             ['name' => "Craft Fletcher's Quiver", 'result' => 'fletchers_quiver', 'materials' => [['item' => 'wood', 'qty' => 14], ['item' => 'iron_bar', 'qty' => 2]], 'craft_seconds' => 60, 'min_level' => 8, 'gold_cost' => 630],
+            $gearFor('Leather Knife Holder', 'leather_knife_holder', 8),
+            // Universal Charm (any class) and mage's Arcane Focus — the new 'trinket' slot's own 2nd-slot
+            // lines, following the same single-material $gearFor chain as shield/quiver above.
+            $gearFor("Traveler's Charm", 'travelers_charm', 8),
+            $gearFor('Runed Focus', 'runed_focus', 8),
             ['name' => 'Craft Iron Pickaxe', 'result' => 'iron_pickaxe', 'materials' => [['item' => 'iron_bar', 'qty' => 5]], 'craft_seconds' => 75, 'min_level' => 8, 'gold_cost' => 700],
             ['name' => 'Craft Oak Axe', 'result' => 'oak_axe', 'materials' => [['item' => 'oak_wood', 'qty' => 5]], 'craft_seconds' => 75, 'min_level' => 8, 'gold_cost' => 700],
             ['name' => 'Craft Iron Sickle', 'result' => 'iron_sickle', 'materials' => [['item' => 'iron_bar', 'qty' => 5]], 'craft_seconds' => 75, 'min_level' => 8, 'gold_cost' => 700],
@@ -111,7 +120,10 @@ class RecipeSeeder extends Seeder
             // single-material refactor at levels 8/50 only (see the note above) — filling in the
             // rare/epic/legendary gap tiers here with the same $gearFor chain everything else uses.
             $gearFor("Hunter's Quiver", 'hunters_quiver', 15),
+            $gearFor('Honed Knife Holder', 'honed_knife_holder', 15),
             $gearFor('Steel Kite Shield', 'steel_kite_shield', 15),
+            $gearFor('Warded Charm', 'warded_charm', 15),
+            $gearFor('Warded Focus', 'warded_focus', 15),
 
             // ---- Level 20 (epic tier — silver_bar only) ----
             $gearFor('Silvered Broadsword', 'silvered_blade', 20),
@@ -123,7 +135,10 @@ class RecipeSeeder extends Seeder
             $gearFor('Silverleaf Cloak', 'silverleaf_cloak', 20),
             $gearFor('Silverweave Robe', 'silverweave_robe', 20),
             $gearFor('Silvered Quiver', 'silvered_quiver', 20),
+            $gearFor('Silvered Knife Holder', 'silvered_knife_holder', 20),
             $gearFor('Silverguard Aegis', 'silverguard_aegis', 20),
+            $gearFor('Silvered Charm', 'silvered_charm', 20),
+            $gearFor('Silvered Focus', 'silvered_focus', 20),
             ['name' => 'Craft Silver Pickaxe', 'result' => 'silver_pickaxe', 'materials' => [['item' => 'silver_bar', 'qty' => 5]], 'craft_seconds' => 140, 'min_level' => 20, 'gold_cost' => 6200],
             ['name' => 'Craft Ironwood Axe', 'result' => 'ironwood_axe', 'materials' => [['item' => 'ironwood', 'qty' => 5]], 'craft_seconds' => 140, 'min_level' => 20, 'gold_cost' => 6200],
             ['name' => 'Craft Silver Sickle', 'result' => 'silver_sickle', 'materials' => [['item' => 'silver_bar', 'qty' => 5]], 'craft_seconds' => 140, 'min_level' => 20, 'gold_cost' => 6200],
@@ -144,7 +159,10 @@ class RecipeSeeder extends Seeder
             $gearFor('Stormwatch Cloak', 'stormwatch_cloak', 35),
             $gearFor('Gilded Aether Robe', 'gilded_aether_robe', 35),
             $gearFor('Gilded Quiver', 'gilded_quiver', 35),
+            $gearFor('Gilded Knife Holder', 'gilded_knife_holder', 35),
             $gearFor("Guardian's Bulwark", 'guardians_bulwark', 35),
+            $gearFor('Gilded Charm', 'gilded_charm', 35),
+            $gearFor('Gilded Focus', 'gilded_focus', 35),
             ['name' => 'Craft Gold Pickaxe', 'result' => 'gold_pickaxe', 'materials' => [['item' => 'gold_bar', 'qty' => 5]], 'craft_seconds' => 220, 'min_level' => 35, 'gold_cost' => 18200],
             ['name' => 'Craft Elderwood Axe', 'result' => 'elderwood_axe', 'materials' => [['item' => 'elderwood', 'qty' => 5]], 'craft_seconds' => 220, 'min_level' => 35, 'gold_cost' => 18200],
             ['name' => 'Craft Gold Sickle', 'result' => 'gold_sickle', 'materials' => [['item' => 'gold_bar', 'qty' => 5]], 'craft_seconds' => 220, 'min_level' => 35, 'gold_cost' => 18200],
@@ -165,7 +183,10 @@ class RecipeSeeder extends Seeder
             $gearFor('Wraithwind Cloak', 'wraithwind_cloak', 50),
             $gearFor('Mythril Aether Robe', 'mythril_aether_robe', 50),
             $gearFor('Mythril Quiver', 'mythril_quiver', 50),
+            $gearFor('Mythril Knife Holder', 'mythril_knife_holder', 50),
             ['name' => 'Craft Mythril Aegis', 'result' => 'mythril_aegis', 'materials' => [['item' => 'mythril_bar', 'qty' => 11], ['item' => 'moonwood', 'qty' => 9]], 'craft_seconds' => 480, 'min_level' => 50, 'gold_cost' => 46200],
+            $gearFor('Mythril Charm', 'mythril_charm', 50),
+            $gearFor('Mythril Focus', 'mythril_focus', 50),
             ['name' => 'Craft Mythril Pickaxe', 'result' => 'mythril_pickaxe', 'materials' => [['item' => 'mythril_bar', 'qty' => 5]], 'craft_seconds' => 400, 'min_level' => 50, 'gold_cost' => 46300],
             ['name' => 'Craft Moonwood Axe', 'result' => 'moonwood_axe', 'materials' => [['item' => 'moonwood', 'qty' => 5]], 'craft_seconds' => 400, 'min_level' => 50, 'gold_cost' => 46300],
             ['name' => 'Craft Mythril Sickle', 'result' => 'mythril_sickle', 'materials' => [['item' => 'mythril_bar', 'qty' => 5]], 'craft_seconds' => 400, 'min_level' => 50, 'gold_cost' => 46300],
@@ -175,6 +196,7 @@ class RecipeSeeder extends Seeder
             ['name' => 'Brew Phoenix Tonic', 'result' => 'phoenix_tonic', 'materials' => [['item' => 'phoenix_bloom', 'qty' => 4], ['item' => 'sunroot', 'qty' => 3]], 'craft_seconds' => 420, 'min_level' => 50],
             ['name' => 'Craft Phoenix Feather', 'result' => 'phoenix_feather', 'materials' => [['item' => 'phoenix_bloom', 'qty' => 5], ['item' => 'sunroot', 'qty' => 4]], 'craft_seconds' => 480, 'min_level' => 50],
             ['name' => 'Craft Mythic Repair Pack', 'result' => 'mythic_repair_pack', 'result_qty' => 5, 'materials' => [['item' => 'mythril_bar', 'qty' => 3]], 'craft_seconds' => 130, 'min_level' => 50],
+            ...self::specialtyGearRecipes(),
         ];
 
         foreach ($recipes as $recipe) {
@@ -186,10 +208,85 @@ class RecipeSeeder extends Seeder
                     'craft_seconds' => $recipe['craft_seconds'],
                     'result_qty' => $recipe['result_qty'] ?? 1,
                     'min_level' => $recipe['min_level'],
+                    'requires_branch_key' => $recipe['requires_branch_key'] ?? null,
                     'gold_cost' => $recipe['gold_cost'] ?? 0,
                     'enabled' => true,
                 ]
             );
         }
+    }
+
+    /** Every specialty-gear item key from ItemSeeder::specialtyGearItems() — kept here as the single
+     * source of truth for the branch list so the $ids lookup and the recipe generator below can't drift. */
+    private static function specialtyGearKeys(): array
+    {
+        $keys = [];
+        foreach (self::SPECIALTY_BRANCHES as [$key, , , $pole]) {
+            $keys[] = $pole === 'offense' ? "{$key}_signature_weapon" : "{$key}_signature_armor";
+        }
+
+        return $keys;
+    }
+
+    /** [branch key, class, level, pole] for all 40 ClassProgression branches — see ClassSeeder for names/
+     * descriptions and ItemSeeder::specialtyGearItems() for the matching item stats. Only the fields this
+     * recipe generator actually needs are repeated here. */
+    private const SPECIALTY_BRANCHES = [
+        ['berserker', 'warrior', 20, 'offense'], ['guardian', 'warrior', 20, 'defense'],
+        ['warlord', 'warrior', 50, 'offense'], ['vanguard', 'warrior', 50, 'defense'],
+        ['warmonger', 'warrior', 100, 'offense'], ['titan', 'warrior', 100, 'defense'],
+        ['bloodfury', 'warrior', 150, 'offense'], ['aegis_warden', 'warrior', 150, 'defense'],
+        ['godslayer', 'warrior', 200, 'offense'], ['immortal_bulwark', 'warrior', 200, 'defense'],
+
+        ['shadowmage', 'mage', 20, 'offense'], ['elementalist', 'mage', 20, 'defense'],
+        ['necromancer', 'mage', 50, 'offense'], ['stormweaver', 'mage', 50, 'defense'],
+        ['archmage', 'mage', 100, 'offense'], ['voidcaller', 'mage', 100, 'defense'],
+        ['dreadlich', 'mage', 150, 'offense'], ['stormsovereign', 'mage', 150, 'defense'],
+        ['worldender', 'mage', 200, 'offense'], ['astral_oracle', 'mage', 200, 'defense'],
+
+        ['assassin', 'rogue', 20, 'offense'], ['trickster', 'rogue', 20, 'defense'],
+        ['shadowblade', 'rogue', 50, 'offense'], ['duskrunner', 'rogue', 50, 'defense'],
+        ['nightblade', 'rogue', 100, 'offense'], ['wraith', 'rogue', 100, 'defense'],
+        ['bloodreaper', 'rogue', 150, 'offense'], ['phantom_dancer', 'rogue', 150, 'defense'],
+        ['deathbringer', 'rogue', 200, 'offense'], ['shadowveil_sovereign', 'rogue', 200, 'defense'],
+
+        ['hunter', 'ranger', 20, 'offense'], ['beastmaster', 'ranger', 20, 'defense'],
+        ['sharpshooter', 'ranger', 50, 'offense'], ['pathfinder', 'ranger', 50, 'defense'],
+        ['stormcaller', 'ranger', 100, 'offense'], ['beastlord', 'ranger', 100, 'defense'],
+        ['windrunner', 'ranger', 150, 'offense'], ['wildwarden', 'ranger', 150, 'defense'],
+        ['skysovereign', 'ranger', 200, 'offense'], ['primal_avatar', 'ranger', 200, 'defense'],
+    ];
+
+    /** No new ore chain exists past mythril_bar (see the level-50 tier above, the last one on the books),
+     * so every specialty recipe draws from the same tier chain everything else already uses — silver_bar
+     * at level 20 (matching general epic-tier recipes), mythril_bar at 50+ with quantity/gold scaling up
+     * per tier as the only lever available, since introducing a whole new ore/smelting chain is out of
+     * scope here (flagged to the user rather than silently expanded). */
+    private static function specialtyGearRecipes(): array
+    {
+        $tier = [
+            20 => ['silver_bar', 20, 450, 9000],
+            50 => ['mythril_bar', 16, 900, 60000],
+            100 => ['mythril_bar', 24, 1400, 150000],
+            150 => ['mythril_bar', 34, 1900, 320000],
+            200 => ['mythril_bar', 46, 2400, 600000],
+        ];
+
+        $rows = [];
+        foreach (self::SPECIALTY_BRANCHES as [$key, , $level, $pole]) {
+            [$material, $qty, $seconds, $gold] = $tier[$level];
+            $result = $pole === 'offense' ? "{$key}_signature_weapon" : "{$key}_signature_armor";
+            $rows[] = [
+                'name' => 'Craft '.ucwords(str_replace('_', ' ', $result)),
+                'result' => $result,
+                'materials' => [['item' => $material, 'qty' => $qty]],
+                'craft_seconds' => $seconds,
+                'min_level' => $level,
+                'gold_cost' => $gold,
+                'requires_branch_key' => $key,
+            ];
+        }
+
+        return $rows;
     }
 }

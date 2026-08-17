@@ -9,12 +9,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class CharacterSkill extends Model
 {
     public $timestamps = false;
-    protected $fillable = ['character_id', 'skill_id', 'unlocked_at', 'level', 'cooldown_expires_at'];
+    protected $fillable = ['character_id', 'skill_id', 'unlocked_at', 'level', 'cooldown_expires_at', 'free_grant'];
     protected $casts = [
         'unlocked_at' => 'datetime',
         'cooldown_expires_at' => 'datetime',
         'level' => 'integer',
         'times_used' => 'integer',
+        'free_grant' => 'boolean',
     ];
     protected $appends = ['effect_description', 'next_rank_effect_description', 'cooldown_remaining'];
 

@@ -1,21 +1,25 @@
 <script setup>
-import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
+import { ref, computed, nextTick, onMounted, watch } from 'vue';
 import api from '../api/client';
 import VipBadge from './VipBadge.vue';
 import MentionInput from './MentionInput.vue';
 import { useCharacterStore } from '../stores/character';
 import { useAuthStore } from '../stores/auth';
+import { useStatusPoll } from '../composables/statusPoll';
 import { renderChatBody, mentionsMe } from '../chatMentions';
 
-defineProps({ fullHeight: { type: Boolean, default: false } });
+// embedded drops this component's own card chrome (border/background/fixed width/header) for when a
+// parent already provides that shell — e.g. DashboardPage's tabbed Tavern rail, which puts its own
+// "Chat" tab label above this instead of the redundant "World Chat" header.
+defineProps({ fullHeight: { type: Boolean, default: false }, embedded: { type: Boolean, default: false } });
 
 const characterStore = useCharacterStore();
 const auth = useAuthStore();
+const { lastMessageId: polledMessageId } = useStatusPoll();
 const messages = ref([]);
 const body = ref('');
 const messagesEl = ref(null);
 const lastMessageId = ref(0);
-let interval = null;
 
 // World chat has no fixed roster to draw @mention suggestions from — best effort using whoever's
 // visible in the last few messages.
@@ -46,18 +50,6 @@ async function load() {
   }
 }
 
-async function checkForNewMessages() {
-  try {
-    const { data } = await api.get('/status/check');
-    // Only fetch full messages if there are new ones
-    if (data.last_message_id > lastMessageId.value) {
-      await load();
-    }
-  } catch {
-    // silent
-  }
-}
-
 async function send() {
   const trimmed = body.value.trim();
   if (!trimmed) return;
@@ -66,17 +58,15 @@ async function send() {
   await load();
 }
 
-onMounted(() => {
-  load();
-  // Poll the cheap check every 5s, not a full reload — checkForNewMessages() hits /status/check
-  // (a lightweight "is there anything new" probe already shared with other panels) and only escalates
-  // to the full /chat/world fetch when there's actually a new message to show.
-  interval = setInterval(checkForNewMessages, 5000);
+// Escalates to the full /chat/world fetch only when the shared /status/check poll (see
+// composables/statusPoll.js) actually reports a newer message id — no dedicated interval of this
+// component's own, so having World Chat mounted no longer adds a second, overlapping poll loop against
+// the same endpoint GameLayout's nav-badge check already polls.
+watch(polledMessageId, (id) => {
+  if (id > lastMessageId.value) load();
 });
 
-onUnmounted(() => {
-  if (interval) clearInterval(interval);
-});
+onMounted(load);
 </script>
 
 <template>

@@ -182,14 +182,14 @@ const playtimeLabel = computed(() => {
                 <div class="ox public-profile-h2h__value public-profile-h2h__value--them">{{ headToHead.their_wins }}</div>
                 <div class="public-profile-h2h__label">their wins</div>
               </div>
-              <div class="public-profile-h2h__dash">—</div>
+              <div class="public-profile-h2h__dash">vs</div>
               <div class="public-profile-h2h__side">
                 <div class="ox public-profile-h2h__value public-profile-h2h__value--you">{{ headToHead.your_wins }}</div>
                 <div class="public-profile-h2h__label">your wins</div>
               </div>
             </div>
             <div class="public-profile-h2h__note">
-              Last duel: {{ headToHead.last_result === 'win' ? 'you won' : 'they won' }} — {{ new Date(headToHead.last_played_at).toLocaleDateString() }}
+              Last duel: {{ headToHead.last_result === 'win' ? 'you won' : 'they won' }} on {{ new Date(headToHead.last_played_at).toLocaleDateString() }}
             </div>
             <router-link to="/pvp" class="public-profile-h2h__queue-btn">Queue for a duel →</router-link>
           </div>
@@ -198,7 +198,7 @@ const playtimeLabel = computed(() => {
             <div class="public-profile-panel__eyebrow">RANKINGS</div>
             <div v-for="r in rankings" :key="r.category" class="public-profile-ranking-row">
               <span class="public-profile-ranking-row__label">{{ r.label }}</span>
-              <span class="ox public-profile-ranking-row__rank">{{ r.rank ? `#${r.rank}` : '—' }}</span>
+              <span class="ox public-profile-ranking-row__rank">{{ r.rank ? `#${r.rank}` : 'N/A' }}</span>
             </div>
           </div>
 

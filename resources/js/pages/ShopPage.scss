@@ -201,6 +201,8 @@
 // ---- Mobile ----
 @media (max-width: 768px) {
   .shop-header {
+    justify-content: center;
+    text-align: center;
     gap: 10px;
     margin-bottom: 16px;
   }

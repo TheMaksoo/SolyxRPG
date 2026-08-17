@@ -82,6 +82,13 @@ class User extends Authenticatable
         return in_array($this->role, ['gm', 'owner'], true);
     }
 
+    /** GMs/owners can always do everything an artist can (submit art), same reasoning as isTester() —
+     * they need it to fill gaps or cover for an absent artist, not just review submissions. */
+    public function isArtist(): bool
+    {
+        return $this->isGm() || $this->role === 'artist';
+    }
+
     /** Testers get every title/color/banner unlocked and can freely switch between them — but only while
      * a GM has the "global_tester_mode" feature flag switched on; a designated tester's is_tester flag
      * or role is otherwise inert. GMs/owners always get tester perks regardless, since they need them to
@@ -158,6 +165,13 @@ class User extends Authenticatable
     /** % bonus yield on every auto-gather action per VIP tier — stacks with luck and tool yield bonuses. */
     public const VIP_TIER_GATHER_YIELD_PCT = ['bronze' => 10, 'gold' => 20, 'diamond' => 40];
 
+    /** Extra lootboxes that may sit unlocking at once (on top of the base 1) per VIP tier — see
+     * CrateService::maxConcurrentUnlocks(). */
+    public const VIP_TIER_LOOTBOX_SLOTS = ['bronze' => 1, 'gold' => 2, 'diamond' => 3];
+
+    /** % reduction to every lootbox's unlock timer per VIP tier — see CrateService::unlockMinutesFor(). */
+    public const VIP_TIER_LOOTBOX_TIME_REDUCTION_PCT = ['bronze' => 5, 'gold' => 10, 'diamond' => 15];
+
     /** Level milestones that raise the level-earned active pet cap (cumulative — highest reached wins). */
     private const PET_LEVEL_SLOT_TIERS = [1 => 1, 50 => 2, 100 => 3];
 
@@ -178,10 +192,12 @@ class User extends Authenticatable
     }
 
     /** How many tamed companions this account may own (active + benched) at once — fully separate pool
-     * from catalog Companions/Pets above. Standard accounts get 3; VIP raises the roster, not just the
-     * active count (see activeTameSlots). */
-    private const STANDARD_TAME_ROSTER_CAP = 3;
-    public const VIP_TIER_TAME_ROSTER_CAP = ['bronze' => 4, 'gold' => 5, 'diamond' => 6];
+     * from catalog Companions/Pets above. Standard accounts get 4; VIP raises the roster, not just the
+     * active count (see activeTameSlots). Each tier keeps one roster slot free above what's actively
+     * fightable so a player can always tame a better replacement without being forced to release one
+     * of their current companions sight-unseen first. */
+    private const STANDARD_TAME_ROSTER_CAP = 5;
+    public const VIP_TIER_TAME_ROSTER_CAP = ['bronze' => 6, 'gold' => 7, 'diamond' => 8];
 
     /** Flat bonus added to the tame-success roll per VIP tier (see CombatService::attemptTame) — stacks
      * with the Luck-derived bonus, mirrors every other vip*Bonus() method's GameConfig-override pattern. */
@@ -210,11 +226,14 @@ class User extends Authenticatable
     }
 
     /** How many tamed companions may be active (fighting) at once: 1 base, +1 every 100 character
-     * levels, capped by the account's roster size (tameRosterCap) — e.g. a Diamond VIP (roster cap 6)
-     * at level 600 can field all 6 simultaneously. */
+     * levels, capped at one BELOW the account's roster size (tameRosterCap) — not the roster size
+     * itself. That's what actually delivers the "always a free bench slot" guarantee the roster-cap
+     * doc comment above promises: capping at the full roster size would let a high-enough-level
+     * character fill every single slot with active companions, leaving none free to hold a fresh catch
+     * without releasing one first. */
     public function activeTameSlots(Character $character): int
     {
-        return min($this->tameRosterCap(), 1 + intdiv($character->level, 100));
+        return min($this->tameRosterCap() - 1, 1 + intdiv($character->level, 100));
     }
 
     public function hasActiveVip(): bool
@@ -255,6 +274,31 @@ class User extends Authenticatable
     public function vipCharacterSlots(): int
     {
         return $this->hasActiveVip() ? (self::VIP_TIER_SLOTS[$this->vip_tier] ?? 0) : 0;
+    }
+
+    /** Extra lootboxes that may sit unlocking at once, on top of CrateService's base 1, from an active
+     * VIP subscription. */
+    public function vipLootboxExtraSlots(): int
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_LOOTBOX_SLOTS[$this->vip_tier] ?? 0;
+
+        return (int) round(GameConfig::number("vip_lootbox_extra_slots_{$this->vip_tier}", $fallback));
+    }
+
+    /** % reduction to every lootbox's unlock timer from an active VIP subscription. */
+    public function vipLootboxTimeReductionPct(): float
+    {
+        if (! $this->hasActiveVip()) {
+            return 0;
+        }
+
+        $fallback = self::VIP_TIER_LOOTBOX_TIME_REDUCTION_PCT[$this->vip_tier] ?? 0;
+
+        return GameConfig::number("vip_lootbox_time_reduction_pct_{$this->vip_tier}", $fallback);
     }
 
     /** Extra concurrent active Marketplace listing slots from an active VIP subscription, on top of

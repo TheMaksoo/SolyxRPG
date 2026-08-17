@@ -1,11 +1,23 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import api, { ensureCsrfCookie } from '../api/client';
+import Toast from '../components/Toast.vue';
 
 const email = ref('');
 const message = ref('');
 const error = ref('');
 const loading = ref(false);
+
+let messageToastTimer = null;
+watch(message, (val) => {
+  clearTimeout(messageToastTimer);
+  if (val) messageToastTimer = setTimeout(() => { message.value = ''; }, 4000);
+});
+let errorToastTimer = null;
+watch(error, (val) => {
+  clearTimeout(errorToastTimer);
+  if (val) errorToastTimer = setTimeout(() => { error.value = ''; }, 5000);
+});
 
 async function submit() {
   message.value = '';
@@ -42,8 +54,8 @@ async function submit() {
         required
         class="forgot-password-page__input"
       />
-      <p v-if="message" class="forgot-password-page__message">{{ message }}</p>
-      <p v-if="error" class="forgot-password-page__error">{{ error }}</p>
+      <Toast :message="message" type="success" />
+      <Toast :message="error" type="error" />
       <button type="submit" :disabled="loading" class="forgot-password-page__submit">
         {{ loading ? 'Sending…' : 'Send reset link' }}
       </button>

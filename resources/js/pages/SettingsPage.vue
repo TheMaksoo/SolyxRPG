@@ -14,9 +14,12 @@ const tutorialMessage = ref('');
 async function replayTutorial() {
   tutorialMessage.value = '';
   try {
-    await api.post('/character/tutorial/restart');
-    if (characterStore.character) characterStore.character.tutorial_seen = false;
-    router.push('/dashboard');
+    const { data } = await api.post('/character/tutorial/restart');
+    if (characterStore.character) {
+      characterStore.character.tutorial_seen = data.character.tutorial_seen;
+      characterStore.character.tutorial_step = data.character.tutorial_step;
+    }
+    router.push('/battle');
   } catch (e) {
     tutorialMessage.value = e.response?.data?.message || 'Could not restart the tour.';
   }
@@ -76,6 +79,7 @@ const preferencesMessage = ref('');
 // is opt-out, compact log is opt-in.
 const highlightMentions = computed(() => auth.user?.preferences?.highlight_mentions !== false);
 const compactBattleLog = computed(() => !!auth.user?.preferences?.compact_battle_log);
+const animateCombat = computed(() => auth.user?.preferences?.animate_combat !== false);
 
 async function togglePreference(key, currentValue) {
   preferencesMessage.value = '';
@@ -258,6 +262,18 @@ onMounted(() => {
                 aria-label="Condensed battle log"
                 :checked="compactBattleLog"
                 @change="togglePreference('compact_battle_log', compactBattleLog)"
+              />
+              <span class="toggle-switch__track"><span class="toggle-switch__knob"></span></span>
+            </label>
+          </div>
+          <div class="preferences-row">
+            <span class="preferences-row__label">Animate battles (damage numbers, hit flashes, turn-by-turn playback)</span>
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                aria-label="Animate battles"
+                :checked="animateCombat"
+                @change="togglePreference('animate_combat', animateCombat)"
               />
               <span class="toggle-switch__track"><span class="toggle-switch__knob"></span></span>
             </label>

@@ -87,8 +87,9 @@ class GmContentController extends Controller
 
         AuditLog::record($request->user()->id, 'gm.content.create', $resource, $row->id, $request->all());
         $this->syncWiki($resource, $row);
+        $seederSynced = $this->seederSync->create($resource, $row);
 
-        return response()->json([$resource => $row], 201);
+        return response()->json([$resource => $row, 'seeder_synced' => $seederSynced], 201);
     }
 
     public function update(Request $request, string $resource, int $id)
@@ -105,17 +106,16 @@ class GmContentController extends Controller
 
         AuditLog::record($request->user()->id, 'gm.content.update', $resource, $row->id, $request->all());
         $this->syncWiki($resource, $row->fresh());
-        
-        // Sync to seeder file so changes persist across db:seed runs
-        $this->seederSync->syncToSeeder($resource, $row->fresh());
+        $seederSynced = $this->seederSync->update($resource, $row->fresh());
 
-        return response()->json([$resource => $row->fresh()]);
+        return response()->json([$resource => $row->fresh(), 'seeder_synced' => $seederSynced]);
     }
 
     public function destroy(Request $request, string $resource, int $id)
     {
         $model = $this->resolve($resource);
         $row = $model::findOrFail($id);
+        $this->seederSync->delete($resource, $row);
         $row->delete();
 
         AuditLog::record($request->user()->id, 'gm.content.delete', $resource, $id);
@@ -124,6 +124,17 @@ class GmContentController extends Controller
         }
 
         return response()->json(['message' => 'Deleted.']);
+    }
+
+    public function downloadSeeder(string $resource)
+    {
+        $this->resolve($resource);
+        abort_unless($this->seederSync->isEligible($resource), 404, 'This resource is not seeder-backed.');
+
+        $path = $this->seederSync->seederPath($resource);
+        abort_unless($path && file_exists($path), 404, 'Seeder file not found.');
+
+        return response()->download($path, basename($path));
     }
 
     private function resolve(string $resource): string
@@ -145,13 +156,13 @@ class GmContentController extends Controller
     private function friendlyDbError(QueryException $e, string $resource): string
     {
         if (str_contains($e->getMessage(), 'Duplicate entry')) {
-            return "A {$resource} record with that key/name already exists — choose a unique key.";
+            return "A {$resource} record with that key/name already exists, choose a unique key.";
         }
         if (str_contains($e->getMessage(), 'Data truncated') || str_contains($e->getMessage(), "doesn't have a default value")) {
             return 'One of the dropdown fields (e.g. type/rarity/difficulty) is blank or not a valid option.';
         }
 
-        return 'Could not save — check that referenced IDs (item/monster/zone) exist and required fields are filled in.';
+        return 'Could not save: check that referenced IDs (item/monster/zone) exist and required fields are filled in.';
     }
 
     private function syncWiki(string $resource, $row): void

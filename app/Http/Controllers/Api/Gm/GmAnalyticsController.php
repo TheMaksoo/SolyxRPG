@@ -7,14 +7,18 @@ use App\Models\Battle;
 use App\Models\BattlePass;
 use App\Models\Character;
 use App\Models\CharacterQuest;
+use App\Models\ClassProgression;
 use App\Models\CraftingJob;
 use App\Models\Dungeon;
 use App\Models\DungeonRun;
 use App\Models\ErrorLog;
+use App\Models\GameConfig;
 use App\Models\GemLedger;
+use App\Models\Item;
 use App\Models\Monster;
 use App\Models\Purchase;
 use App\Models\PvpLiveMatch;
+use App\Models\PvpRecord;
 use App\Models\Recipe;
 use App\Models\Skill;
 use App\Models\SupportTicket;
@@ -23,6 +27,7 @@ use App\Models\User;
 use App\Models\Zone;
 use App\Services\ReferralService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Real activity/engagement metrics for the GM Overview → Activity tab — a Cloudflare-analytics-style
@@ -57,6 +62,8 @@ class GmAnalyticsController extends Controller
                 ->groupBy('base_class')
                 ->pluck('count', 'base_class'),
             'level_distribution' => $this->levelDistribution(),
+            'pvp_tier_distribution' => $this->pvpTierDistribution(),
+            'vip_tier_distribution' => $this->vipTierDistribution(),
             'retention' => $this->retention(),
             'top_players' => $this->topPlayers(),
             'active_players' => $this->activePlayers(),
@@ -66,6 +73,97 @@ class GmAnalyticsController extends Controller
                 'open_tickets' => SupportTicket::whereIn('status', ['open', 'pending'])->count(),
             ],
         ]);
+    }
+
+    /** Item balancing data for the GM console's Balancing tab — previously there was no aggregate view
+     * of items at all (only the raw per-item CRUD editor), so a mispriced or over/under-stated item
+     * (like the legendary-gold-price dip and dominated common-tier tools fixed earlier this pass) had to
+     * be spotted by manually reading the seeder rather than seeing it in a chart. Static content data
+     * (not player activity), so it's a separate endpoint from index() rather than another `days`-windowed
+     * series. */
+    public function itemBalance(Request $request)
+    {
+        // Was a fixed column list including 'stat_json' — that column no longer exists (see Item's
+        // STAT_KEYS/getStatJsonAttribute()), and the accessor needs every real stat column loaded on the
+        // model to assemble it, so this now just fetches every column rather than hand-listing them.
+        $items = Item::all();
+
+        $statUsage = [];
+        $rows = [];
+        foreach ($items as $item) {
+            $statTotal = 0;
+            foreach ((array) $item->stat_json as $statKey => $value) {
+                if (! is_numeric($value)) {
+                    continue; // skips flavor-only keys like arm_path_name, duration_seconds, etc.
+                }
+                $statUsage[$statKey] = ($statUsage[$statKey] ?? 0) + 1;
+                $statTotal += abs((float) $value);
+            }
+
+            $rows[] = [
+                'key' => $item->key,
+                'name' => $item->name,
+                'type' => $item->type,
+                'rarity' => $item->rarity,
+                'min_level' => $item->min_level,
+                'price_gold' => $item->price_gold,
+                'price_gems' => $item->price_gems,
+                // A rough, unweighted sum of every numeric stat_json value — stat_json deliberately mixes
+                // flat stats (atk/def) with percentages (crit/dodge_pct) and situational bonuses
+                // (gather_yield_bonus), so this is a coarse "how loaded is this item" signal for spotting
+                // outliers at a glance, not a precise power score.
+                'stat_total' => round($statTotal, 1),
+            ];
+        }
+
+        $rarityOrder = ['common', 'rare', 'epic', 'legendary', 'mythic'];
+
+        return response()->json([
+            'total_items' => $items->count(),
+            'rarity_distribution' => $items->countBy('rarity')->sortKeysUsing(fn ($a, $b) => array_search($a, $rarityOrder) <=> array_search($b, $rarityOrder)),
+            'price_currency_split' => [
+                'gold_only' => $items->filter(fn ($i) => $i->price_gold !== null && $i->price_gems === null)->count(),
+                'gems_only' => $items->filter(fn ($i) => $i->price_gems !== null && $i->price_gold === null)->count(),
+                'both' => $items->filter(fn ($i) => $i->price_gold !== null && $i->price_gems !== null)->count(),
+                'neither' => $items->filter(fn ($i) => $i->price_gold === null && $i->price_gems === null)->count(),
+            ],
+            'price_distribution' => [
+                'gold' => $this->bucketPrices($items->pluck('price_gold')->filter(fn ($p) => $p !== null)),
+                // Bucket edges are gem counts, not EUR — the Gem Store's flat ~€0.005/gem rate (see
+                // StoreController::GEM_PACKS) means 2000 gems is the €10 real-money ceiling every item is
+                // meant to respect; the top bucket is exactly the overage this was built to catch.
+                'gems' => $this->bucketPrices($items->pluck('price_gems')->filter(fn ($p) => $p !== null), [100, 500, 1000, 2000]),
+            ],
+            'stat_usage' => collect($statUsage)->sortDesc(),
+            'items' => $rows,
+        ]);
+    }
+
+    /** Buckets a list of prices into named ranges for a histogram — default edges suit gold's much wider
+     * spread, pass gem-scale edges (see itemBalance()) for the gems side. $edges are the upper bound of
+     * every bucket except the last, which is "edge N and up". */
+    private function bucketPrices($prices, array $edges = [100, 1000, 10000]): array
+    {
+        $labels = [];
+        $prev = 0;
+        foreach ($edges as $edge) {
+            $labels[] = "{$prev}-{$edge}";
+            $prev = $edge;
+        }
+        $labels[] = "{$prev}+";
+
+        $counts = array_fill_keys($labels, 0);
+        foreach ($prices as $price) {
+            foreach ($edges as $i => $edge) {
+                if ($price <= $edge) {
+                    $counts[$labels[$i]]++;
+                    continue 2;
+                }
+            }
+            $counts[end($labels)]++;
+        }
+
+        return $counts;
     }
 
     /** Referral breakdown for the doughnut chart (pending vs. qualified referees) plus the two
@@ -86,29 +184,89 @@ class GmAnalyticsController extends Controller
         ];
     }
 
-    /** Cumulative XP required to reach each level, sampled every 5 levels through 150 — the top of
-     * currently-authored content (see Character::MAX_LEVEL's comment: there's no real cap, but nothing
-     * new unlocks past 150, it's just further attribute/skill grind on xpForLevel()'s linear curve). */
+    /** Real seconds one simulated fight "costs" for the assumed-hours estimate below — same constant
+     * AutoBattleService uses for its own real-world pacing assumption. */
+    private const ASSUMED_SECONDS_PER_FIGHT = 20;
+
+    /** Cumulative XP required to reach each level, sampled every 10 levels through 250 — the class-tier
+     * ladder, Skill Mastery, and Reforging now extend real content out to level 200+ (see
+     * unlockTimeline() below), so this samples the same range rather than stopping at the old level-150
+     * ceiling. Paired with two time-to-reach estimates: an "assumed" figure from the same cumulative-kill
+     * model killsToLevelUp() uses, and the REAL average playtime_seconds of characters currently sitting
+     * at each sampled level — the latter is necessarily noisy for high levels reached before playtime
+     * tracking existed (added 2026-08-04, see the 'tracked_since' field below), so sample_size is
+     * included for every point rather than presenting it as more reliable than it is. */
     private function levelGrowth(): array
     {
-        $sampleEvery = 5;
-        $topLevel = 150;
+        $sampleEvery = 10;
+        $topLevel = 250;
+        $trackingStartedAt = '2026-08-04';
+
+        $monsters = Monster::where('enabled', true)->where('is_boss', false)->orderBy('min_level')->get(['min_level', 'xp']);
+
+        $sampleLevels = [];
+        for ($level = 1; $level <= $topLevel; $level++) {
+            if ($level === 1 || $level % $sampleEvery === 0) {
+                $sampleLevels[] = $level;
+            }
+        }
+
+        // One query for every sample's cohort instead of one query per sample (previously ~26 round
+        // trips) — conditional aggregation computes each bucket's count/avg in the same pass, preserving
+        // the original per-bucket ranges exactly (including the intentional overlap at each bucket's
+        // edges, e.g. level 10 counts toward both the level-1 and level-10 buckets).
+        // Plain query builder, not Eloquent — Character::query()->first() would return a Model whose
+        // (array) cast exposes internal object properties, not the selected columns.
+        $cohortQuery = DB::table('characters');
+        foreach ($sampleLevels as $level) {
+            $bucketTop = $level + $sampleEvery - 1;
+            $cohortQuery->selectRaw("COUNT(CASE WHEN level BETWEEN ? AND ? THEN 1 END) AS cnt_{$level}", [$level, $bucketTop]);
+            $cohortQuery->selectRaw("AVG(CASE WHEN level BETWEEN ? AND ? THEN playtime_seconds END) AS avg_{$level}", [$level, $bucketTop]);
+        }
+        $cohorts = (array) $cohortQuery->first();
 
         $cumulative = 0;
+        $cumulativeKills = 0;
         $labels = [];
         $data = [];
+        $assumedHours = [];
+        $realAvgHours = [];
+        $sampleSizes = [];
 
         for ($level = 1; $level <= $topLevel; $level++) {
             if ($level > 1) {
                 $cumulative += Character::xpForLevel($level - 1);
             }
+
+            $reachable = $monsters->filter(fn (Monster $m) => $m->min_level <= $level && $m->xp > 0);
+            if ($reachable->isNotEmpty()) {
+                $avgXp = $reachable->avg('xp');
+                $cumulativeKills += ceil(Character::xpForLevel($level) / $avgXp);
+            }
+
             if ($level === 1 || $level % $sampleEvery === 0) {
                 $labels[] = (string) $level;
                 $data[] = $cumulative;
+                $assumedHours[] = round($cumulativeKills * self::ASSUMED_SECONDS_PER_FIGHT / 3600, 1);
+
+                // "Currently sitting at this level" (this sample up to the next one) as a proxy cohort for
+                // "took roughly this long to get here" — not a historical snapshot, since we don't record
+                // playtime-at-level-X, only a character's current total.
+                $count = (int) $cohorts["cnt_{$level}"];
+                $avgSeconds = $cohorts["avg_{$level}"];
+                $sampleSizes[] = $count;
+                $realAvgHours[] = $count ? round($avgSeconds / 3600, 1) : null;
             }
         }
 
-        return ['labels' => $labels, 'data' => $data];
+        return [
+            'labels' => $labels,
+            'data' => $data,
+            'assumed_hours' => $assumedHours,
+            'real_avg_hours' => $realAvgHours,
+            'sample_sizes' => $sampleSizes,
+            'playtime_tracked_since' => $trackingStartedAt,
+        ];
     }
 
     /** Every 10 levels, the TOTAL kills from level 1 to get there — not just the last level's step —
@@ -123,7 +281,7 @@ class GmAnalyticsController extends Controller
 
         $rows = [];
         $cumulativeKills = 0;
-        for ($level = 1; $level < 150; $level++) {
+        for ($level = 1; $level < 250; $level++) {
             $reachable = $monsters->filter(fn (Monster $m) => $m->min_level <= $level && $m->xp > 0);
             if ($reachable->isEmpty()) {
                 continue;
@@ -175,11 +333,28 @@ class GmAnalyticsController extends Controller
             'type' => 'monster',
         ]);
 
-        $skills = Skill::all()->map(fn (Skill $s) => [
-            'level' => $s->level_req,
-            'name' => "{$s->name} ({$s->class_scope})",
-            'type' => 'skill',
-        ]);
+        // Rank-ups beyond the first (rank_levels[0] === level_req, already the base entry below) are
+        // real additional unlock moments — a chosen branch keeps granting stronger ranks well past its
+        // own level_req (see SkillSeeder's +8/+10/+15-per-rank offsets), but were previously invisible
+        // here, making this chart overstate how empty the stretch between zone/dungeon/class-tier
+        // milestones actually feels for a player who's committed to a branch.
+        $skills = Skill::all()->flatMap(function (Skill $s) {
+            $entries = collect([[
+                'level' => $s->level_req,
+                'name' => "{$s->name} ({$s->class_scope})",
+                'type' => 'skill',
+            ]]);
+
+            foreach (array_slice($s->rank_levels ?? [], 1) as $i => $rankLevel) {
+                $entries->push([
+                    'level' => $rankLevel,
+                    'name' => "{$s->name} rank ".($i + 2)." ({$s->class_scope})",
+                    'type' => 'skill',
+                ]);
+            }
+
+            return $entries;
+        });
 
         $recipes = Recipe::where('enabled', true)->get()->map(fn (Recipe $r) => [
             'level' => $r->min_level,
@@ -195,7 +370,33 @@ class GmAnalyticsController extends Controller
             'type' => 'taming',
         ]);
 
+        // One entry per class-ladder tier (t20/t50/t100/t150/t200) rather than all 40 ClassProgression
+        // rows (8 per level_cap, since each tier has 2 branches × 4 classes) — the level is the real
+        // unlock moment; which specific branch a player picks doesn't need its own timeline point.
+        $tierNames = [20 => 'Specialization', 50 => 'Profession', 100 => 'Ascension', 150 => 'Apex', 200 => 'Transcendence'];
+        $classTiers = ClassProgression::select('level_cap')->distinct()->orderBy('level_cap')->pluck('level_cap')
+            ->map(fn (int $level) => [
+                'level' => $level,
+                'name' => 'Class Path: '.($tierNames[$level] ?? "Tier {$level}"),
+                'type' => 'class_tier',
+            ]);
+
+        // Skill Mastery and Reforging aren't backed by any single model row — both are pure level gates
+        // plus GM-tunable config (see CharacterController::effectiveSkillMaxLevel, ReforgeService), so
+        // they're synthesized here the same way taming is above.
+        $mastery = collect([[
+            'level' => (int) GameConfig::number('skill_mastery_unlock_level', 150),
+            'name' => 'Skill Mastery (bonus skill ranks)',
+            'type' => 'mastery',
+        ]]);
+        $reforging = collect([[
+            'level' => (int) GameConfig::number('reforge_unlock_level', 200),
+            'name' => 'Reforging (gear enchanting)',
+            'type' => 'reforging',
+        ]]);
+
         return $zones->concat($dungeons)->concat($monsters)->concat($skills)->concat($recipes)->concat($taming)
+            ->concat($classTiers)->concat($mastery)->concat($reforging)
             ->sortBy('level')->values()->map(fn ($row) => [
                 ...$row,
                 'cumulative_xp' => $this->cumulativeXpForLevel($row['level']),
@@ -375,6 +576,45 @@ class GmAnalyticsController extends Controller
             ->orderBy('bucket')
             ->get()
             ->map(fn ($row) => ['bucket' => "{$row->bucket}-".($row->bucket + 9), 'count' => $row->count]);
+    }
+
+    /** How the ranked PvP population is spread across PvpRecord::PVP_TIERS — previously PvP had zero
+     * GM-console visibility beyond a raw 7-day match count. Bucketed by rating threshold in SQL (the
+     * thresholds come from a hardcoded const array, never user input) rather than fetching every row and
+     * bucketing in PHP, so this stays cheap regardless of ranked population size. */
+    private function pvpTierDistribution()
+    {
+        $tiers = PvpRecord::PVP_TIERS;
+        $case = 'CASE ';
+        for ($i = count($tiers) - 1; $i >= 0; $i--) {
+            $case .= 'WHEN rating >= '.(int) $tiers[$i]['min_rating']." THEN '{$tiers[$i]['name']}' ";
+        }
+        $case .= "ELSE '{$tiers[0]['name']}' END as tier";
+
+        return PvpRecord::query()
+            ->selectRaw($case)
+            ->selectRaw('count(*) as count')
+            ->groupBy('tier')
+            ->pluck('count', 'tier');
+    }
+
+    /** How the player base splits across VIP tiers right now (lifetime / active bronze-gold-diamond /
+     * none-or-expired) — previously vip_tier was only editable per-player, never visualized in aggregate
+     * despite driving dozens of GameConfig perk multipliers. Expired-but-not-renewed subscriptions count
+     * as 'none' here, matching User::hasActiveVip()'s own definition of "active" exactly. */
+    private function vipTierDistribution()
+    {
+        return User::query()
+            ->selectRaw("
+                CASE
+                    WHEN vip_lifetime = 1 THEN 'lifetime'
+                    WHEN vip_tier != 'none' AND vip_expires_at IS NOT NULL AND vip_expires_at > ? THEN vip_tier
+                    ELSE 'none'
+                END as bucket
+            ", [now()])
+            ->selectRaw('count(*) as count')
+            ->groupBy('bucket')
+            ->pluck('count', 'bucket');
     }
 
     /** Battle pass statistics for current season — shows how many players are engaged with the battle

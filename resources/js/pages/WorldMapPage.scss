@@ -20,12 +20,6 @@
   margin: 0 0 18px;
 }
 
-.world-map-error {
-  color: v.$danger;
-  font-size: 13px;
-  margin-bottom: 14px;
-}
-
 .zone-grid {
   @include m.grid-auto-fill(260px, 16px);
 }

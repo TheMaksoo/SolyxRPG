@@ -40,7 +40,7 @@ class CraftingController extends Controller
      * 'quiver' is the ranger's second, simultaneously-equippable slot alongside their bow (weapon) — see
      * ItemSeeder for the quiver line and InventoryController::equip() for how the generic per-type equip
      * logic makes that "just work" without any bow/quiver conflict handling needed. */
-    private const GEAR_TYPES = ['weapon', 'armor', 'shield', 'pickaxe', 'axe', 'sickle', 'hammer', 'quiver'];
+    private const GEAR_TYPES = ['weapon', 'armor', 'shield', 'pickaxe', 'axe', 'sickle', 'hammer', 'quiver', 'trinket'];
 
     public function __construct(
         private CraftingService $crafting,
@@ -100,10 +100,17 @@ class CraftingController extends Controller
             $isGear = in_array($recipe->resultItem->type, self::GEAR_TYPES, true);
             $levelUnlocked = $character->level >= $recipe->min_level;
             $canAffordGold = $recipe->gold_cost <= 0 || $character->gold >= $recipe->gold_cost;
+            // Specialty class-path gear (see ClassSeeder/ItemSeeder's 40 signature branches) is only
+            // craftable by the character who's actually chosen that exact branch — checked against all 5
+            // tier-pick columns since a recipe doesn't know in advance which tier its key came from.
+            $branchOk = ! $recipe->requires_branch_key || in_array($recipe->requires_branch_key, [
+                $character->spec_class, $character->profession, $character->ascension, $character->apex_path, $character->transcendence,
+            ], true);
             // Any class can craft any class's gear — lets a dedicated crafter ("smithy" playstyle) supply
             // the whole roster and sell the results on the marketplace rather than only their own class's kit.
             // Quivers are the one shared slot (Ranger + Rogue both wear one — see InventoryController::equip()),
-            // so neither sees the "other class" flag for it despite the item's class_key being 'ranger'.
+            // so neither sees the "other class" flag for it regardless of which class the item's own
+            // class_key was seeded for (ranger's Quiver line vs. rogue's Knife Holder line).
             $wearsQuiver = $recipe->resultItem->type === 'quiver' && in_array($character->base_class, ['ranger', 'rogue'], true);
             $otherClass = $recipe->resultItem->class_key !== null && $recipe->resultItem->class_key !== $character->base_class && ! $wearsQuiver;
 
@@ -120,7 +127,9 @@ class CraftingController extends Controller
                 'can_afford_gold' => $canAffordGold,
                 'level_unlocked' => $levelUnlocked,
                 'other_class' => $otherClass,
-                'can_craft' => $levelUnlocked && $canAffordGold && ! $materialsDetailed->contains(fn (array $m) => ! $m['has_enough']),
+                'requires_branch_key' => $recipe->requires_branch_key,
+                'branch_unlocked' => $branchOk,
+                'can_craft' => $levelUnlocked && $branchOk && $canAffordGold && ! $materialsDetailed->contains(fn (array $m) => ! $m['has_enough']),
                 'is_gear' => $isGear,
                 'craft_seconds' => $this->craftSeconds($recipe->craft_seconds, $craftSpeedPct, $craftSpeedAttr, $hammerSpeedPct),
             ];
@@ -143,10 +152,17 @@ class CraftingController extends Controller
             return response()->json(['message' => "Requires character level {$recipe->min_level}."], 422);
         }
 
+        if ($recipe->requires_branch_key) {
+            $chosenBranchKeys = [$character->spec_class, $character->profession, $character->ascension, $character->apex_path, $character->transcendence];
+            if (! in_array($recipe->requires_branch_key, $chosenBranchKeys, true)) {
+                return response()->json(['message' => 'This recipe is only craftable by the matching Class Path branch.'], 422);
+            }
+        }
+
         $maxSlots = $this->maxQueueSlots($character, $request->user());
         $activeJobs = CraftingJob::where('character_id', $character->id)->whereNull('collected_at')->count();
         if ($activeJobs >= $maxSlots) {
-            return response()->json(['message' => "Crafting queue full ({$activeJobs}/{$maxSlots}) — collect a finished craft first."], 422);
+            return response()->json(['message' => "Crafting queue full ({$activeJobs}/{$maxSlots}), collect a finished craft first."], 422);
         }
 
         foreach ($recipe->materials_json as $material) {
@@ -263,7 +279,7 @@ class CraftingController extends Controller
         abort_if($job->collected_at !== null, 422, 'Already collected.');
 
         if (! $job->isReady()) {
-            return response()->json(['message' => 'Still crafting — not ready yet.'], 422);
+            return response()->json(['message' => 'Still crafting, not ready yet.'], 422);
         }
 
         $resultItem = $job->resultItem;
@@ -432,6 +448,13 @@ class CraftingController extends Controller
         $rollValue = (int) round(max(0, $multiplier - 1) * $baseValue * $rollWeight);
         $luckValue = (int) round(max(0, $luck) * $luckWeight);
 
-        return max($baseValue, $baseValue + $statsValue + $rollValue + $luckValue);
+        // Cap the roll/luck/stat bonus as a multiple of the item's own base value — otherwise a
+        // high-Luck, high-Crafting-rank player's suggested resale value grows faster than the flat
+        // recipe-cost table was tuned for, quietly inflating the marketplace over time.
+        $bonusCapMult = max(0, GameConfig::number('crafted_value_bonus_cap_mult', 1.5));
+        $bonusCap = (int) round($baseValue * $bonusCapMult);
+        $bonusTotal = min($statsValue + $rollValue + $luckValue, $bonusCap);
+
+        return $baseValue + $bonusTotal;
     }
 }

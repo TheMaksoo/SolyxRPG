@@ -9,7 +9,10 @@ use App\Models\GemLedger;
 use App\Models\Inventory;
 use App\Models\TamedCompanion;
 use App\Models\TamedCompanionLog;
+use App\Services\CombatService;
+use App\Services\GradeService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /** Tamed monster companions (see CombatService::attemptTame) — a separate feature from the catalog
  * Companions/Pets system (Pet/CharacterPet/PetController): these fight as their own combatant in
@@ -17,6 +20,12 @@ use Illuminate\Http\Request;
  * shared code with the catalog-pet flows. Both live under the same "Companions" nav tab client-side. */
 class TamedCompanionController extends Controller
 {
+    public function __construct(
+        private CombatService $combat = new CombatService(),
+        private GradeService $grades = new GradeService(),
+    ) {
+    }
+
     public function index(Request $request)
     {
         abort_unless(FeatureFlag::gate('pets', $request->user()), 403, 'Companions are not currently available.');
@@ -66,14 +75,14 @@ class TamedCompanionController extends Controller
         abort_unless($character, 404);
         abort_unless($companion->character_id === $character->id, 404);
         abort_if($companion->isArchived(), 422, 'This companion is gone.');
-        abort_if($companion->is_downed, 422, 'This companion is downed — revive it first.');
+        abort_if($companion->is_downed, 422, 'This companion is downed, revive it first.');
 
         if (! $companion->active) {
             $maxSlots = $request->user()->activeTameSlots($character);
             $activeCount = TamedCompanion::where('character_id', $character->id)->whereNull('archived_at')->where('active', true)->count();
             if ($activeCount >= $maxSlots) {
                 return response()->json([
-                    'message' => "You can only have {$maxSlots} companion".($maxSlots === 1 ? '' : 's')." active at once — bench one first.",
+                    'message' => "You can only have {$maxSlots} companion".($maxSlots === 1 ? '' : 's')." active at once, bench one first.",
                 ], 422);
             }
         }
@@ -84,7 +93,13 @@ class TamedCompanionController extends Controller
     }
 
     /** Permanent — the companion is archived (not deleted, so the log stays intact) and immediately frees
-     * a roster slot. There's no un-release; the frontend must confirm before calling this. */
+     * a roster slot. There's no un-release; the frontend must confirm before calling this.
+     *
+     * Pays a small parting reward instead of just discarding everything put into it: the monster's own
+     * base gold/xp (the same reward a normal kill would've paid, scaled by the grade it was caught at
+     * — see GradeService), plus a modest cut of the XP actually invested via feeding. Deliberately not
+     * a full refund of either — this is a consolation for releasing, not a reason to feed-then-release
+     * as a grinding shortcut. */
     public function release(Request $request, TamedCompanion $companion)
     {
         $character = $request->user()->character;
@@ -92,9 +107,35 @@ class TamedCompanionController extends Controller
         abort_unless($companion->character_id === $character->id, 404);
         abort_if($companion->isArchived(), 422, 'This companion is already gone.');
 
+        $monster = $companion->monster;
+        $gradeRewardMult = $this->grades->rewardMult($companion->grade);
+        $goldReward = (int) round(($monster?->gold ?? 0) * $gradeRewardMult);
+        $killEquivalentXp = (int) round(($monster?->xp ?? 0) * $gradeRewardMult);
+
+        // TamedCompanion::xpForLevel() is 40 * level, so the total XP spent reaching the start of the
+        // current level is 40 * sum(1..level-1) = 20 * level * (level - 1); its own partial xp toward
+        // the next level adds on top.
+        $totalXpFed = 20 * $companion->level * ($companion->level - 1) + $companion->xp;
+        $feedXpRefundPct = GameConfig::number('tame_companion_release_feed_xp_refund_pct', 25);
+        $feedXpReward = (int) round($totalXpFed * $feedXpRefundPct / 100);
+
+        $xpReward = $killEquivalentXp + $feedXpReward;
+
         $companion->archive('freed');
 
-        return response()->json(['message' => "{$companion->name} was set free."]);
+        if ($goldReward > 0) {
+            $character->increment('gold', $goldReward);
+        }
+        if ($xpReward > 0) {
+            $this->combat->grantXp($character, $xpReward);
+        }
+
+        return response()->json([
+            'message' => "{$companion->name} was set free.",
+            'gold_gained' => $goldReward,
+            'xp_gained' => $xpReward,
+            'character' => $character->fresh(),
+        ]);
     }
 
     /** Flat gem-cost rename, no free tier — same idea as ProfileController::rename() for characters,
@@ -120,42 +161,57 @@ class TamedCompanionController extends Controller
         return response()->json(['companion' => $this->present($companion->fresh())]);
     }
 
-    /** Grants a tamed companion XP from a pet_food item — the only way they level (unlike catalog pets,
-     * which auto-gain a slice of battle XP). Mirrors InventoryController::use()'s ownership/qty pattern. */
+    private const FEED_QTY_OPTIONS = [1, 5, 25, 50, 100];
+
+    /** Grants a tamed companion XP from `qty` pet_food items at once (1/5/25/50/100 — the 100x option
+     * is a VIP perk, any tier) — the only way they level (unlike catalog pets, which auto-gain a slice
+     * of battle XP). Mirrors InventoryController::use()'s ownership/qty pattern. Stops consuming items
+     * (and refunds the unused rest) the moment the companion hits max level rather than burning through
+     * the whole requested batch for nothing past that point. */
     public function feed(Request $request, TamedCompanion $companion)
     {
         $character = $request->user()->character;
         abort_unless($character, 404);
         abort_unless($companion->character_id === $character->id, 404);
         abort_if($companion->isArchived(), 422, 'This companion is gone.');
-        abort_if($companion->is_downed, 422, 'This companion is downed — revive it first.');
+        abort_if($companion->is_downed, 422, 'This companion is downed, revive it first.');
 
-        $data = $request->validate(['item_id' => ['required', 'exists:items,id']]);
+        $data = $request->validate([
+            'item_id' => ['required', 'exists:items,id'],
+            'qty' => ['sometimes', 'integer', Rule::in(self::FEED_QTY_OPTIONS)],
+        ]);
+        $qty = $data['qty'] ?? 1;
+        abort_if($qty === 100 && ! $request->user()->hasActiveVip(), 403, 'Feeding 100 at once is a VIP perk.');
 
         $inventory = Inventory::where('character_id', $character->id)->where('item_id', $data['item_id'])->firstOrFail();
         abort_if($inventory->qty < 1, 422, 'Out of that item.');
         abort_if($inventory->item->type !== 'pet_food', 422, 'That item is not pet food.');
 
-        $xpGain = (int) ($inventory->item->stat_json['pet_xp'] ?? 0);
-        abort_if($xpGain <= 0, 422, 'That item has no feeding value.');
-
-        $inventory->decrement('qty');
-        if ($inventory->qty <= 0) {
-            $inventory->delete();
-        }
+        $xpPerItem = (int) ($inventory->item->stat_json['pet_xp'] ?? 0);
+        abort_if($xpPerItem <= 0, 422, 'That item has no feeding value.');
 
         $maxLevel = $companion->maxLevel();
-        $xp = $companion->xp + $xpGain;
         $level = $companion->level;
+        $xp = $companion->xp;
         $leveledUp = false;
+        $itemsUsed = 0;
 
-        while ($level < $maxLevel && $xp >= TamedCompanion::xpForLevel($level)) {
-            $xp -= TamedCompanion::xpForLevel($level);
-            $level++;
-            $leveledUp = true;
+        for ($i = 0; $i < min($qty, $inventory->qty) && $level < $maxLevel; $i++) {
+            $itemsUsed++;
+            $xp += $xpPerItem;
+            while ($level < $maxLevel && $xp >= TamedCompanion::xpForLevel($level)) {
+                $xp -= TamedCompanion::xpForLevel($level);
+                $level++;
+                $leveledUp = true;
+            }
         }
         if ($level >= $maxLevel) {
             $xp = 0;
+        }
+
+        $inventory->decrement('qty', $itemsUsed);
+        if ($inventory->qty <= 0) {
+            $inventory->delete();
         }
 
         // Leveling up raises effectiveHpMax — carry the same absolute HP forward rather than clamping
@@ -165,6 +221,7 @@ class TamedCompanionController extends Controller
         return response()->json([
             'companion' => $this->present($companion->fresh()),
             'leveled_up' => $leveledUp,
+            'items_used' => $itemsUsed,
         ]);
     }
 

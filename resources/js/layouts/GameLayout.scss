@@ -25,6 +25,14 @@
   display: none;
 }
 
+// Hidden on desktop (the sidebar is the primary nav there) — shown as a fixed bottom bar only below
+// the phone breakpoint, see the 768px block further down. Without this base rule it falls back to the
+// browser's default inline layout for a <nav> full of links/buttons on any WIDER viewport instead of
+// just not being there.
+.mobile-bottom-nav {
+  display: none;
+}
+
 .topbar__hamburger {
   display: none;
 }
@@ -459,12 +467,13 @@ html.reduce-motion .topbar__pill--crafting-ready {
 @media (max-width: 768px) {
   .sidebar {
     position: fixed;
-    left: 0;
+    left: auto;
+    right: 0;
     top: 0;
     width: min(280px, 82vw);
     max-width: 82vw;
     z-index: 41;
-    transform: translateX(-100%);
+    transform: translateX(100%);
     box-shadow: 0 0 24px rgba(0, 0, 0, 0.4);
 
     &--open {
@@ -480,8 +489,11 @@ html.reduce-motion .topbar__pill--crafting-ready {
     z-index: 40;
   }
 
+  // Stays hidden on mobile too now (base rule) — the bottom tab bar's own "More" button opens this
+  // same drawer (see toggleMobileNav), so a second hamburger up top was a redundant way to do the
+  // same thing.
   .topbar__hamburger {
-    display: flex;
+    display: none;
     flex-direction: column;
     justify-content: center;
     gap: 4px;
@@ -563,5 +575,54 @@ html.reduce-motion .topbar__pill--crafting-ready {
 
   .layout-content {
     padding: 14px 12px;
+    // Bottom tab bar takes over as the primary nav affordance on mobile — reserved here (once, for
+    // every page) rather than each page having to remember its own bottom padding to avoid the last
+    // bit of content sitting hidden underneath the fixed bar.
+    padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+  }
+
+  // Global bottom tab bar (see GameLayout.vue) — the primary nav affordance below the phone
+  // breakpoint, replacing the sidebar (which becomes the off-canvas drawer above instead).
+  .mobile-bottom-nav {
+    display: flex;
+    align-items: center;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 66px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: v.$bg-card;
+    border-top: 1px solid v.$border-subtle;
+    z-index: 40;
+  }
+
+  .mobile-bottom-nav__item {
+    @include m.btn-reset;
+    flex: 1;
+    min-height: 52px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    background: transparent;
+    color: v.$text-muted-45;
+    text-decoration: none;
+
+    &.is-active {
+      color: v.$accent;
+    }
+  }
+
+  .mobile-bottom-nav__icon {
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  .mobile-bottom-nav__label {
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
   }
 }

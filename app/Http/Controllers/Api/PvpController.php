@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Character;
 use App\Models\FeatureFlag;
+use App\Models\GameConfig;
 use App\Models\PvpLiveMatch;
 use App\Models\PvpMatch;
 use App\Models\PvpQueueEntry;
@@ -104,6 +105,11 @@ class PvpController extends Controller
 
         $character = $request->user()->character;
         abort_unless($character, 404);
+
+        // PvP, unlike every other system (zones/dungeons/skills/gear/class-path), had no level floor at
+        // all — a level-1 character could queue immediately. GM-tunable like every other balance number.
+        $minLevel = (int) GameConfig::number('pvp_min_level', 10);
+        abort_if($character->level < $minLevel, 422, "Reach character level {$minLevel} to enter the PvP Arena.");
 
         abort_if($this->matchmaking->activeMatchFor($character->id), 422, 'You are already in an active PvP match.');
         abort_if($this->matchmaking->queueEntryFor($character->id), 422, 'You are already searching for a match.');

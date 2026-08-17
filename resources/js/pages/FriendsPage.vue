@@ -3,6 +3,7 @@ import { ref, watch, onMounted } from 'vue';
 import api from '../api/client';
 import { useCharacterStore } from '../stores/character';
 import AdBanner from '../components/AdBanner.vue';
+import Toast from '../components/Toast.vue';
 
 const characterStore = useCharacterStore();
 const friends = ref([]);
@@ -15,6 +16,11 @@ const draft = ref('');
 const message = ref('');
 const search = ref('');
 let searchTimer = null;
+let messageToastTimer = null;
+watch(message, (val) => {
+  clearTimeout(messageToastTimer);
+  if (val) messageToastTimer = setTimeout(() => { message.value = ''; }, 5000);
+});
 
 async function load() {
   const { data } = await api.get('/friends', { params: { search: search.value.trim() } });
@@ -86,7 +92,7 @@ onMounted(() => {
       <h1 class="ox friends-title">Friends</h1>
     </div>
 
-    <p v-if="message" class="friends-message">{{ message }}</p>
+    <Toast :message="message" type="error" />
 
     <AdBanner variant="inline" />
 
@@ -122,7 +128,7 @@ onMounted(() => {
             </div>
             <button @click.stop="toggleFavorite(row)" class="friend-row__favorite">{{ row.favorite ? '★' : '☆' }}</button>
           </div>
-          <div v-if="!friends.length" class="friend-list-panel__empty">No friends yet — add some below.</div>
+          <div v-if="!friends.length" class="friend-list-panel__empty">No friends yet. Add some below.</div>
         </div>
       </div>
 
@@ -140,7 +146,7 @@ onMounted(() => {
             >
               <div class="friend-message__bubble">{{ m.body }}</div>
             </div>
-            <div v-if="!messages.length" class="chat-panel__empty">No messages yet — say hi!</div>
+            <div v-if="!messages.length" class="chat-panel__empty">No messages yet, say hi!</div>
           </div>
           <div class="chat-panel__composer">
             <input v-model="draft" @keyup.enter="send" placeholder="Message…" class="chat-panel__input" />

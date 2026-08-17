@@ -221,7 +221,7 @@ onUnmounted(stopAllPolling);
             </div>
             <div class="rank-card__attempts-wrap">
               <template v-if="pvpQueue.searching">
-                <div class="searching-pill" title="Feel free to browse the rest of the game — we'll bring you back the moment an opponent's found.">
+                <div class="searching-pill" title="Feel free to browse the rest of the game. We'll bring you back the moment an opponent's found.">
                   <span class="searching-pill__dot"></span>
                   Searching… <span class="ox searching-pill__timer">{{ searchDuration }}</span>
                   <button type="button" class="searching-pill__cancel" @click="cancelSearch" :disabled="loading" aria-label="Cancel search">✕</button>
@@ -372,7 +372,7 @@ onUnmounted(stopAllPolling);
           :disabled="loading || !match.is_my_turn || match.me.mana < skill.mp_cost || !skillReady(skill, match.me)"
         >
           <template v-if="!skillReady(skill, match.me)">
-            {{ skill.glyph }} {{ skill.name }} — {{ skillCooldownTurns(skill, match.me) }} turn{{ skillCooldownTurns(skill, match.me) > 1 ? 's' : '' }}
+            {{ skill.glyph }} {{ skill.name }} ({{ skillCooldownTurns(skill, match.me) }} turn{{ skillCooldownTurns(skill, match.me) > 1 ? 's' : '' }})
           </template>
           <template v-else>
             {{ skill.glyph }} {{ skill.name }} ({{ skill.mp_cost }} MP)
@@ -384,7 +384,7 @@ onUnmounted(stopAllPolling);
           class="btn-potion"
           @click="act('item', null, potion.item_id)"
           :disabled="loading || !match.is_my_turn"
-          :title="`Free action — doesn't end your turn`"
+          :title="`Free action: doesn't end your turn`"
         >
           {{ potion.glyph }} {{ potion.name }} ×{{ potion.qty }}
         </button>

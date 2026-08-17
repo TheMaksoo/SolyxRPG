@@ -8,12 +8,6 @@
   margin-bottom: 16px;
 }
 
-.profile-message {
-  font-size: 13px;
-  color: v.$danger;
-  margin-bottom: 14px;
-}
-
 // The equipped banner paints the entire hero card, top to bottom — not just the art band above —
 // so there's a single continuous background instead of a hard seam where a band-scoped gradient
 // meets the plain card color underneath.

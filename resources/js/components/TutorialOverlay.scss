@@ -39,6 +39,15 @@
   margin-bottom: 10px;
 }
 
+.tutorial-card__progress {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: v.$text-muted-40;
+  margin-bottom: 8px;
+}
+
 .tutorial-card__title {
   font-size: 22px;
   font-weight: 800;
@@ -52,36 +61,12 @@
   margin-bottom: 20px;
 }
 
-.tutorial-card__dots {
-  display: flex;
-  justify-content: center;
-  gap: 6px;
-  margin-bottom: 22px;
-}
-
-.tutorial-card__dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: v.$border-medium;
-  transition: background 0.2s ease;
-
-  &.is-active {
-    background: v.$accent;
-  }
-}
-
 .tutorial-card__actions {
   display: flex;
   justify-content: center;
   gap: 10px;
   flex-wrap: wrap;
-}
-
-.tutorial-card__back {
-  @include m.btn-secondary;
-  padding: 10px 20px;
-  font-size: 13px;
+  margin-top: 22px;
 }
 
 .tutorial-card__cta {

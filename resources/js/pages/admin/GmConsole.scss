@@ -216,7 +216,7 @@
 
 .gm-console-flags-row {
   display: grid;
-  grid-template-columns: 1.6fr 90px 90px;
+  grid-template-columns: 1.6fr 90px 90px 90px;
   padding: 12px 18px;
   align-items: center;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
@@ -237,6 +237,12 @@
 
 .gm-console-flag-name {
   font-size: 13px;
+  font-weight: 600;
+}
+
+.gm-console-flag-level {
+  font-size: 12px;
+  color: v.$text-muted-55;
   font-weight: 600;
 }
 
@@ -1051,6 +1057,22 @@
   font-weight: 700;
 }
 
+// ---- Balancing: item price/stat table — same list chrome as active-players, but 7 columns
+// (Item/Type/Rarity/Lvl/Gold/Gems/Stat total) instead of 6, so it needs its own grid template.
+.gm-console-item-balance__row {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 0.9fr 0.5fr 0.8fr 0.8fr 0.9fr;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid v.$border-subtle;
+  font-size: 12px;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
 // ---- Activity: error log drill-down ----
 .gm-console-error-log__close {
   margin-left: auto;
@@ -1318,6 +1340,12 @@
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 14px;
+}
+
+.gm-console-chart-caveat {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: v.$warning;
 }
 
 .gm-console-kills-chip {
@@ -2452,6 +2480,10 @@
     grid-template-columns: 1.2fr 0.5fr 1fr;
   }
 
+  .gm-console-item-balance__row {
+    grid-template-columns: 1.4fr 0.6fr 0.6fr;
+  }
+
   .gm-console-active-players__account,
   .gm-console-active-players__class,
   .gm-console-active-players__doing {
@@ -2873,6 +2905,296 @@
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+}
+
+// Art Review tab — coverage cards + a two-pane master-detail review queue (narrow list on the left,
+// full compare/approve panel on the right), mirroring how the rest of this file's Players/Tickets tabs
+// already do list+detail, just with an actual image comparison instead of text fields.
+
+.gm-art-coverage-bar {
+  height: 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.gm-art-coverage-bar__fill {
+  height: 100%;
+  background: v.$accent;
+  border-radius: 4px;
+}
+
+.gm-art-review-queue-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 20px 0 14px;
+}
+
+.gm-art-review-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.gm-art-review-list {
+  width: 360px;
+  flex: none;
+  @include m.card(0);
+  overflow: hidden;
+}
+
+.gm-art-review-list-item {
+  @include m.btn-reset;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  text-align: left;
+  padding: 13px 15px;
+  border-bottom: 1px solid v.$border-subtle;
+  background: transparent;
+  border-left: 3px solid transparent;
+  color: v.$text-primary;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &.is-selected {
+    background: v.$accent-tint-12;
+    border-left-color: v.$accent;
+  }
+}
+
+.gm-art-review-list-item__thumb {
+  width: 46px;
+  height: 46px;
+  flex: none;
+  border-radius: v.$radius-md;
+  overflow: hidden;
+  @include m.art-placeholder;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+}
+
+.gm-art-review-list-item__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.gm-art-review-list-item__name {
+  font-size: 13px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gm-art-review-list-item__chips {
+  display: flex;
+  gap: 5px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.gm-art-review-chip {
+  @include m.badge(v.$text-muted-45, rgba(255, 255, 255, 0.06));
+}
+
+.gm-art-review-detail {
+  flex: 1;
+  min-width: 380px;
+  @include m.card(18px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.gm-art-review-detail__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.gm-art-review-detail__title {
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.gm-art-review-detail__chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.gm-art-review-label--purple {
+  color: v.$purple;
+}
+
+.gm-art-review-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.gm-art-review-compare__frame {
+  aspect-ratio: 1;
+  border-radius: v.$radius-lg;
+  border: 1px solid v.$border-subtle;
+  @include m.art-placeholder;
+  margin-top: 8px;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  &--submitted {
+    border-color: rgba(167, 139, 250, 0.3);
+  }
+}
+
+.gm-art-review-compare__empty {
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: v.$text-muted-35;
+  line-height: 1.6;
+}
+
+.gm-art-review-info-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.gm-art-review-info-tile {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-md;
+  padding: 10px 12px;
+}
+
+.gm-art-review-info-tile__value {
+  font-size: 12.5px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.gm-art-review-checks {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-md;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.gm-art-review-check-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+  color: v.$text-muted-70;
+}
+
+.gm-art-review-check-row__icon {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 800;
+  color: v.$danger;
+  background: rgba(255, 106, 77, 0.15);
+
+  &.is-ok {
+    color: v.$success;
+    background: v.$success-tint-12;
+  }
+}
+
+.gm-art-review-check-row__value {
+  margin-left: auto;
+  color: v.$text-muted-40;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+
+.gm-art-review-artist-note {
+  padding: 12px 14px;
+  background: v.$purple-tint-12;
+  border: 1px solid rgba(167, 139, 250, 0.22);
+  border-radius: v.$radius-md;
+  font-size: 12.5px;
+  color: v.$text-muted-70;
+  line-height: 1.5;
+}
+
+.gm-art-review-action-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gm-art-review-action-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.gm-art-review-btn {
+  @include m.btn-reset;
+  border-radius: v.$radius-md;
+  padding: 12px 22px;
+  font-weight: 700;
+  font-size: 13px;
+
+  &.is-approve {
+    background: v.$success;
+    color: #0b0b0c;
+  }
+
+  &.is-reject {
+    background: transparent;
+    border: 1px solid v.$border-strong;
+    color: v.$danger;
+  }
+}
+
+.gm-art-review-action-row__hint {
+  flex: 1;
+  font-size: 11.5px;
+  color: v.$text-muted-40;
+  text-align: right;
+  min-width: 180px;
+}
+
+@media (max-width: 900px) {
+  .gm-art-review-list {
+    width: 100%;
+  }
+
+  .gm-art-review-compare {
+    grid-template-columns: 1fr;
   }
 }
 

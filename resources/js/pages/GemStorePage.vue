@@ -99,7 +99,7 @@ async function buyAutoGather(minutes) {
       seconds_remaining: data.seconds_remaining,
       gems: data.gems,
     };
-    autoGatherMessage.value = `Auto-Gather started — ${autoGather.value.granted_minutes[minutes] ?? minutes * 2} minutes added.`;
+    autoGatherMessage.value = `Auto-Gather started: ${autoGather.value.granted_minutes[minutes] ?? minutes * 2} minutes added.`;
     characterStore.fetch();
   } catch (e) {
     autoGatherMessage.value = e.response?.data?.message || 'Could not start Auto-Gather.';
@@ -114,7 +114,7 @@ async function buyAutoBattle(minutes) {
   try {
     const { data } = await api.post('/auto-battle/purchase', { minutes });
     autoBattle.value = { ...autoBattle.value, active: true, seconds_remaining: data.seconds_remaining, gems: data.gems };
-    autoBattleMessage.value = `Training started — ${minutes} minutes added.`;
+    autoBattleMessage.value = `Training started: ${minutes} minutes added.`;
     characterStore.fetch();
   } catch (e) {
     autoBattleMessage.value = e.response?.data?.message || 'Could not start training.';
@@ -175,7 +175,7 @@ onMounted(async () => {
         <div class="remove-ads-card__icon">🚫</div>
         <div>
           <div class="remove-ads-card__title">Remove Ads</div>
-          <div class="remove-ads-card__desc">One-time purchase — removes ads permanently (also included with any Rank tier).</div>
+          <div class="remove-ads-card__desc">One-time purchase that removes ads permanently (also included with any Rank tier).</div>
         </div>
       </div>
       <button @click="checkout('remove_ads')" class="remove-ads-card__buy">
@@ -187,8 +187,8 @@ onMounted(async () => {
       <div class="ad-free-card__info">
         <div class="ad-free-card__icon">🎬</div>
         <div>
-          <div class="ad-free-card__title">Free gems — watch a short ad</div>
-          <div class="ad-free-card__desc">Not wired up yet — needs a real ad-network SDK (e.g. AdSense rewarded ads).</div>
+          <div class="ad-free-card__title">Free gems: watch a short ad</div>
+          <div class="ad-free-card__desc">Not wired up yet, needs a real ad-network SDK (e.g. AdSense rewarded ads).</div>
         </div>
       </div>
       <router-link to="/vip" class="ad-free-card__cta">Go ad-free with Premium</router-link>
@@ -201,13 +201,13 @@ onMounted(async () => {
         <div>
           <div class="auto-battle-store-card__title">Training</div>
           <div class="auto-battle-store-card__desc">
-            Fights for you using your stats while you're away — fully risk-free: no HP, mana, potions, or gear durability are ever spent.
+            Fights for you using your stats while you're away. Fully risk-free: no HP, mana, potions, or gear durability are ever spent.
           </div>
         </div>
       </div>
       <p v-if="autoBattleMessage" class="auto-battle-store-card__message">{{ autoBattleMessage }}</p>
       <div v-if="autoBattle.active" class="auto-battle-store-card__status">
-        Active — {{ formatDuration(autoBattle.seconds_remaining) }} remaining
+        Active: {{ formatDuration(autoBattle.seconds_remaining) }} remaining
       </div>
       <div class="auto-battle-store-card__options">
         <button
@@ -217,7 +217,7 @@ onMounted(async () => {
           :disabled="(characterStore.character?.account_gems ?? 0) < (autoBattle.costs[minutes] ?? 0)"
           @click="buyAutoBattle(minutes)"
         >
-          {{ minutes }}m · 💎{{ autoBattle.costs[minutes] ?? '—' }}
+          {{ minutes }}m · 💎{{ autoBattle.costs[minutes] ?? 'N/A' }}
         </button>
         <button class="auto-battle-store-card__option auto-battle-store-card__option--cash" @click="checkout('auto_battle_480')">
           8h · {{ formatCents(99) }}
@@ -231,13 +231,13 @@ onMounted(async () => {
         <div>
           <div class="auto-gather-store-card__title">Auto-Gather</div>
           <div class="auto-gather-store-card__desc">
-            Gathers resources for you while you're away — same price as Training, double the duration.
+            Gathers resources for you while you're away, at the same price as Training but double the duration.
           </div>
         </div>
       </div>
       <p v-if="autoGatherMessage" class="auto-gather-store-card__message">{{ autoGatherMessage }}</p>
       <div v-if="autoGather.active" class="auto-gather-store-card__status">
-        🤖 Auto-{{ autoGather.skill }} active — gathering {{ autoGather.target }} — {{ formatDuration(autoGather.seconds_remaining) }} remaining
+        🤖 Auto-{{ autoGather.skill }} active: gathering {{ autoGather.target }}, {{ formatDuration(autoGather.seconds_remaining) }} remaining
       </div>
       <template v-else>
         <div class="auto-gather-store-card__picker">
@@ -256,7 +256,7 @@ onMounted(async () => {
             :disabled="!autoGatherTarget || (characterStore.character?.account_gems ?? 0) < (autoGather.costs[minutes] ?? 0)"
             @click="buyAutoGather(minutes)"
           >
-            {{ autoGather.granted_minutes[minutes] ?? minutes * 2 }}m · 💎{{ autoGather.costs[minutes] ?? '—' }}
+            {{ autoGather.granted_minutes[minutes] ?? minutes * 2 }}m · 💎{{ autoGather.costs[minutes] ?? 'N/A' }}
           </button>
         </div>
       </template>

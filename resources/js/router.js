@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import GameLayout from './layouts/GameLayout.vue';
 import { NAV } from './navigation';
 import { useAuthStore } from './stores/auth';
+import { homePath } from './utils/homePath';
 
 const pageImport = (name) => () => import(`./pages/${name}.vue`);
 
@@ -12,6 +13,8 @@ const PAGE_COMPONENT = {
   '/quests': 'QuestsPage',
   '/shop': 'ShopPage',
   '/inventory': 'InventoryPage',
+  '/forge': 'ForgePage',
+  '/crates': 'CratesPage',
   '/skills': 'SkillsPage',
   '/world-map': 'WorldMapPage',
   '/dungeons': 'DungeonsPage',
@@ -29,7 +32,6 @@ const PAGE_COMPONENT = {
   '/battle-pass': 'BattlePassPage',
   '/vip': 'VipPage',
   '/profile': 'ProfilePage',
-  '/settings': 'SettingsPage',
 };
 
 const gameChildren = NAV.map((n) => ({
@@ -58,6 +60,12 @@ gameChildren.push(
     meta: { requiresGm: true },
   },
   {
+    path: 'art-studio',
+    name: 'art-studio',
+    component: () => import('./pages/ArtStudioPage.vue'),
+    meta: { requiresArtist: true },
+  },
+  {
     path: 'inbox',
     name: 'inbox',
     component: pageImport('InboxPage'),
@@ -81,6 +89,11 @@ gameChildren.push(
     path: 'hall-of-founders',
     name: 'hall-of-founders',
     component: pageImport('HallOfFoundersPage'),
+  },
+  {
+    path: 'settings',
+    name: 'settings',
+    component: pageImport('SettingsPage'),
   },
   {
     path: 'characters/:id/profile',
@@ -150,10 +163,13 @@ router.beforeEach(async (to) => {
     return hasAnyCharacters ? '/characters' : '/character/create';
   }
   if (auth.isAuthenticated && auth.hasCharacter && (isLanding || isHome)) {
-    return '/dashboard';
+    return homePath(auth);
   }
   if (to.meta.requiresGm && !['gm', 'owner'].includes(auth.user?.role)) {
-    return '/dashboard';
+    return homePath(auth);
+  }
+  if (to.meta.requiresArtist && !['artist', 'gm', 'owner'].includes(auth.user?.role)) {
+    return homePath(auth);
   }
   
   // Check level requirements for pages

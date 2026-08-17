@@ -1,8 +1,9 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import api from '../api/client';
 import { formatCents } from '../currency';
 import { useCharacterStore } from '../stores/character';
+import Toast from '../components/Toast.vue';
 
 const store = useCharacterStore();
 const founderPreviewName = computed(() => store.character?.name || 'You');
@@ -10,7 +11,22 @@ const founderPreviewInitials = computed(() => founderPreviewName.value.slice(0, 
 
 const info = ref(null);
 const message = ref('');
+let errorToastTimer = null;
+watch(message, (val) => {
+  clearTimeout(errorToastTimer);
+  if (val) errorToastTimer = setTimeout(() => { message.value = ''; }, 5000);
+});
 const period = ref('month'); // 'month' | 'year' — yearly is ~20% off, see VipController::YEARLY_PRICE_CENTS
+
+// Which tier cards have their full perk list expanded — collapsed by default so the page reads as 3
+// compact, comparable cards instead of a wall of text; per-card, so comparing two tiers' full lists
+// side by side is still possible.
+const expandedTiers = ref(new Set());
+function toggleExpanded(key) {
+  const next = new Set(expandedTiers.value);
+  next.has(key) ? next.delete(key) : next.add(key);
+  expandedTiers.value = next;
+}
 
 const TIER_RANK = { none: 0, bronze: 1, gold: 2, diamond: 3 };
 
@@ -36,6 +52,15 @@ const COSMETIC_PERKS = {
   diamond: ['Ad-free experience', 'Diamond Rank name badge'],
 };
 
+// The handful of bonuses that matter most at a glance — shown on every tier card whether it's expanded
+// or not, so a player can compare tiers without opening anything. The rest (daily limits, auto-pass,
+// crafting, roster, ...) is real but secondary, and lives behind the "Full details" toggle below.
+const HEADLINE_PERKS = [
+  (tier) => `+${tier.gold_xp_pct_bonus}% gold & XP from every battle`,
+  (tier) => `+${tier.monthly_gems} gems every month, free`,
+  (tier) => `${tier.market_fee_reduction_pct}% lower Marketplace fees`,
+];
+
 // Grouped, ordered perk sections. Each entry maps a tiers[key] field to a display line.
 // Grouping mirrors the real mechanical categories in User.php's VIP_TIER_* consts so this list
 // stays a 1:1 mirror of what's actually implemented server-side, not aspirational copy.
@@ -58,7 +83,7 @@ const PERK_SECTIONS = [
     perks: [
       (tier) => `+${tier.gold_xp_pct_bonus}% gold & XP from battles`,
       (tier) => `+${tier.monthly_gems} gems every month, free`,
-      (tier) => `${tier.market_fee_reduction_pct}% lower Marketplace fees — sale fee (base 10% → ${10 - tier.market_fee_reduction_pct}%) and cancel fee (base 10% → ${10 - tier.market_fee_reduction_pct}%)`,
+      (tier) => `${tier.market_fee_reduction_pct}% lower Marketplace fees: sale fee (base 10% → ${10 - tier.market_fee_reduction_pct}%) and cancel fee (base 10% → ${10 - tier.market_fee_reduction_pct}%)`,
       (tier) => `+${tier.market_listing_bonus} active Marketplace listing${tier.market_listing_bonus > 1 ? 's' : ''} (up to ${10 + tier.market_listing_bonus} total)`,
     ],
   },
@@ -68,6 +93,13 @@ const PERK_SECTIONS = [
       (tier) => `+${tier.auto_pass_pct_bonus}% bonus duration on gem-purchased passes (e.g. 60m gem pass → ${Math.round(60 * (1 + tier.auto_pass_pct_bonus / 100))}m)`,
       (tier) => `+${tier.gather_speed_pct_bonus}% Auto-Gather action speed`,
       (tier) => `+${tier.gather_yield_pct_bonus}% Auto-Gather item yield per action`,
+    ],
+  },
+  {
+    title: 'Loot Crates',
+    perks: [
+      (tier) => `+${tier.lootbox_extra_slots} concurrent lootbox${tier.lootbox_extra_slots > 1 ? 'es' : ''} unlocking at once (up to ${1 + tier.lootbox_extra_slots} total)`,
+      (tier) => `${tier.lootbox_time_reduction_pct}% faster lootbox unlock timers`,
     ],
   },
   {
@@ -90,9 +122,24 @@ const PERK_SECTIONS = [
     perks: [
       (tier) => `+${tier.slots} character slot${tier.slots > 1 ? 's' : ''} (up to ${1 + tier.slots} total with subscription)`,
       (tier) => `${tier.pet_slots} active companion pet slot${tier.pet_slots > 1 ? 's' : ''}`,
+      (tier) => `Companion roster cap of ${tier.tame_roster_cap} tamed companions (base is 5)`,
+      (tier) => `+${tier.tame_success_bonus_pct}% higher tame success chance`,
+    ],
+  },
+  {
+    title: 'Battle Pass',
+    perks: [
+      (tier) => `+${tier.bp_xp_pct_bonus}% Battle Pass Points from every quest`,
     ],
   },
 ];
+
+// Total perk count hidden behind "full details," shown on the collapsed card so it's clear there's
+// more than the 3 headline lines without having to open it first.
+const EXTRA_PERK_COUNT = PERK_SECTIONS.reduce((sum, section) => sum + section.perks.length, 0);
+function extraPerkCount(key) {
+  return EXTRA_PERK_COUNT + (COSMETIC_PERKS[key]?.length ?? 0);
+}
 
 async function load() {
   const { data } = await api.get('/vip');
@@ -131,7 +178,7 @@ async function subscribe(tier) {
       return;
     }
     // In-place tier switch — no checkout redirect, the existing subscription was updated directly.
-    message.value = `Switched to ${tier} Rank — your next bill reflects the prorated difference.`;
+    message.value = `Switched to ${tier} Rank. Your next bill reflects the prorated difference.`;
     await load();
   } catch (e) {
     message.value = e.response?.data?.message || 'Subscriptions unavailable.';
@@ -162,7 +209,7 @@ async function cancelSubscription() {
   cancelling.value = true;
   try {
     await api.post('/vip/cancel');
-    message.value = "Subscription cancelled — you'll keep your perks until it runs out, then it won't renew.";
+    message.value = "Subscription cancelled. You'll keep your perks until it runs out, then it won't renew.";
     await load();
   } catch (e) {
     message.value = e.response?.data?.message || 'Could not cancel.';
@@ -176,7 +223,7 @@ async function resumeSubscription() {
   cancelling.value = true;
   try {
     await api.post('/vip/resume');
-    message.value = "Subscription resumed — you won't be charged again until your current period runs out.";
+    message.value = "Subscription resumed. You won't be charged again until your current period runs out.";
     await load();
   } catch (e) {
     message.value = e.response?.data?.message || 'Could not resume.';
@@ -215,7 +262,7 @@ onMounted(() => {
           <p class="vip-founder-card__desc">
             Five cosmetics that can never be earned again, plus {{ (founder?.gem_bonus ?? 0).toLocaleString() }} gems and your
             name in the <router-link to="/hall-of-founders" class="vip-founder-card__link">Hall of Founders</router-link>.
-            One-time purchase — never sold again once Solyx leaves beta, still ongoing, so it's available now.
+            One-time purchase: never sold again once Solyx leaves beta, still ongoing, so it's available now.
           </p>
         </div>
         <div class="vip-founder-card__buy">
@@ -251,7 +298,7 @@ onMounted(() => {
               </div>
             </div>
           </div>
-          <p class="vip-founder-preview__note">Live sunrise art — drifting stars and a breathing sun. The only animated banner in Solyx.</p>
+          <p class="vip-founder-preview__note">Live sunrise art, drifting stars and a breathing sun. The only animated banner in Solyx.</p>
         </div>
 
         <div class="vip-founder-preview">
@@ -268,7 +315,7 @@ onMounted(() => {
             </div>
             <p>Crowned gold frame that pulses with a slow glow.</p>
           </div>
-          <p class="vip-founder-preview__note">Shows on your avatar everywhere — chat, arena, leaderboards.</p>
+          <p class="vip-founder-preview__note">Shows on your avatar everywhere: chat, arena, leaderboards.</p>
         </div>
 
         <div class="vip-founder-preview">
@@ -293,7 +340,7 @@ onMounted(() => {
           </div>
           <div class="vip-founder-badge-demo">
             <div class="vip-founder-badge-demo__hex">🎖️</div>
-            <p>Shows next to your name everywhere — chat, leaderboards, profile.</p>
+            <p>Shows next to your name everywhere: chat, leaderboards, profile.</p>
           </div>
           <p class="vip-founder-preview__note">A small gold emblem that marks you as one of the first.</p>
         </div>
@@ -309,7 +356,7 @@ onMounted(() => {
             </div>
             <p>Your name in gold, everywhere it's shown.</p>
           </div>
-          <p class="vip-founder-preview__note">Retired from the Gem Store — gold is exclusive to Founders now.</p>
+          <p class="vip-founder-preview__note">Retired from the Gem Store, gold is exclusive to Founders now.</p>
         </div>
 
         <div class="vip-founder-preview">
@@ -324,7 +371,7 @@ onMounted(() => {
               <div v-if="founder?.gem_bonus_value_cents" class="vip-founder-gems-demo__value">
                 worth {{ formatCents(founder.gem_bonus_value_cents) }} at Gem Store rates
               </div>
-              <p>Credited the moment you buy — spend it anywhere gems are spent.</p>
+              <p>Credited the moment you buy, spend it anywhere gems are spent.</p>
             </div>
           </div>
           <p class="vip-founder-preview__note">A cash-value bonus on top of the cosmetics, not the point of the pack.</p>
@@ -333,25 +380,25 @@ onMounted(() => {
 
       <div class="vip-founder-card__footer">
         <span><b class="ox">{{ founder?.founders?.length ?? 0 }}</b> founder{{ (founder?.founders?.length ?? 0) === 1 ? '' : 's' }} so far</span>
-        <span>Cosmetic only — no stat or progression advantage</span>
+        <span>Cosmetic only, no stat or progression advantage</span>
         <span>Applies instantly to this account</span>
       </div>
     </div>
 
     <div class="vip-header">
       <div class="ox vip-header__title">Solyx Premium</div>
-      <p class="vip-header__subtitle">Monthly membership. Boosts, convenience, and cosmetics — cancel anytime.</p>
+      <p class="vip-header__subtitle">Monthly membership. Boosts, convenience, and cosmetics; cancel anytime.</p>
       <p v-if="info" class="vip-header__current-tier">
         Current rank: <strong>{{ info.vip_tier }}</strong>
       </p>
     </div>
 
-    <p v-if="message" class="vip-message">{{ message }}</p>
+    <Toast :message="message" type="error" />
 
     <div v-if="info?.has_stripe_subscription && info.vip_tier !== 'none'" class="vip-subscription-status">
       <template v-if="info.vip_cancel_at_period_end">
         <p>
-          Your subscription is <strong>cancelled</strong> — you'll keep {{ info.vip_tier }} Rank until
+          Your subscription is <strong>cancelled</strong>: you'll keep {{ info.vip_tier }} Rank until
           <strong>{{ formatDate(info.vip_expires_at) }}</strong>, then it won't renew or charge you again.
         </p>
         <button type="button" class="vip-cancel-btn" :disabled="cancelling" @click="resumeSubscription">
@@ -394,7 +441,17 @@ onMounted(() => {
           <span class="ox vip-tier-card__price-amount">{{ formatCents(period === 'year' ? tier.yearly_price_cents : tier.price_cents) }}</span>
           <span class="vip-tier-card__price-period">{{ period === 'year' ? '/yr' : '/mo' }}</span>
         </div>
-        <div class="vip-tier-card__perks">
+        <div class="vip-tier-card__headline-perks">
+          <div v-for="(perkFn, i) in HEADLINE_PERKS" :key="i" class="vip-tier-card__perk vip-tier-card__perk--headline">
+            <span class="vip-tier-card__perk-check">✔</span>{{ perkFn(tier) }}
+          </div>
+        </div>
+
+        <button type="button" class="vip-tier-card__expand-btn" @click="toggleExpanded(key)">
+          {{ expandedTiers.has(key) ? 'Hide full details ▲' : `+${extraPerkCount(key)} more benefits ▾` }}
+        </button>
+
+        <div v-if="expandedTiers.has(key)" class="vip-tier-card__perks">
           <div v-for="section in PERK_SECTIONS" :key="section.title" class="vip-perk-section">
             <div class="vip-perk-section__title">{{ section.title }}</div>
             <div v-for="(perkFn, i) in section.perks" :key="i" class="vip-tier-card__perk">
@@ -423,7 +480,7 @@ onMounted(() => {
       <div class="vip-lifetime-card__badge">ONE-TIME · NO RENEWALS</div>
       <div class="ox vip-lifetime-card__label">{{ info.lifetime.label }}</div>
       <p class="vip-lifetime-card__desc">
-        Pay once, keep {{ info.tiers[info.lifetime.grants_tier]?.label }} perks forever — no recurring billing, ever.
+        Pay once, keep {{ info.tiers[info.lifetime.grants_tier]?.label }} perks forever, no recurring billing, ever.
       </p>
       <div class="vip-lifetime-card__price">
         <span class="ox vip-lifetime-card__price-amount">{{ formatCents(info.lifetime.price_cents) }}</span>
@@ -441,7 +498,7 @@ onMounted(() => {
 
     <div class="vip-footer">
       Ad-free is included in every Rank tier.
-      <router-link to="/gem-store" class="vip-footer__link">Or remove ads only — a one-time gem-store purchase</router-link>
+      <router-link to="/gem-store" class="vip-footer__link">Or remove ads only, a one-time gem-store purchase</router-link>
     </div>
   </div>
 </template>

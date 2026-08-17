@@ -15,7 +15,7 @@ onMounted(async () => {
 
 const FEATURES = [
   { icon: '✦', title: 'Classes & Skills', text: 'Forge a class and master a build with a deep, evolving skill tree.' },
-  { icon: '🏰', title: 'Dungeons', text: 'Scout dangerous dungeons solo or with a party — the first opens at level 15.' },
+  { icon: '🏰', title: 'Dungeons', text: 'Scout dangerous dungeons solo or with a party; the first opens at level 14.' },
   { icon: '🔨', title: 'Crafting & Gathering', text: 'Gather raw materials and craft gear, potions, and consumables.' },
   { icon: '🛡', title: 'Guilds & Parties', text: 'Team up with friends, found a guild, and tackle content together.' },
   { icon: '⚔', title: 'PvP Arena', text: 'Test your build against other players in the arena.' },
@@ -58,7 +58,7 @@ const FEATURES = [
       <h1 class="ox home-hero__title">Solyx <span class="home-hero__title-accent">Web Game</span></h1>
       <p class="home-hero__tagline">
         A free browser RPG built on the Solyx Discord bot. Forge a class, battle monsters, raid dungeons
-        with your guild, and climb the world leaderboard — all from your browser, no download required.
+        with your guild, and climb the world leaderboard, all from your browser, no download required.
       </p>
       <div class="home-hero__ctas">
         <router-link :to="{ path: '/landing', query: { mode: 'register' } }" class="home-cta-btn home-cta-btn--primary">
@@ -104,7 +104,7 @@ const FEATURES = [
     <div class="home-section home-section--community">
       <h2 class="ox home-section__title">Built in the open</h2>
       <p class="home-section__lead">
-        Solyx is in active beta — new content ships regularly and the community shapes what comes next.
+        Solyx is in active beta: new content ships regularly and the community shapes what comes next.
       </p>
       <div class="home-community-links">
         <a href="https://discord.gg/WhCmHm3KaS" target="_blank" rel="noopener" class="home-community-link">

@@ -15,82 +15,10 @@
   margin: 0;
 }
 
-.inventory-section-heading {
-  font-size: 13px;
-  color: v.$text-muted-40;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 10px;
-}
-
-.inventory-bag-heading-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-
-  .inventory-section-heading {
-    margin-bottom: 0;
-  }
-}
-
-.bag-section {
-  margin-bottom: 20px;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-}
-
-.bag-section-eyebrow {
-  @include m.section-eyebrow;
-  margin-bottom: 10px;
-}
-
-.bag-section-eyebrow__count {
-  font-size: 10.5px;
-  color: v.$text-muted-40;
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: v.$radius-pill;
-  padding: 1px 7px;
-  margin-left: 4px;
-}
-
-.bag-section-group-label {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: v.$text-muted-45;
-  margin: 12px 0 8px;
-
-  &:first-child {
-    margin-top: 0;
-  }
-}
-
-.inventory-bag-search {
-  background: v.$bg-input;
-  border: 1px solid v.$border-medium;
-  border-radius: v.$radius-md;
-  padding: 7px 12px;
-  color: v.$text-primary;
-  font-size: 12.5px;
-  width: 220px;
-  max-width: 100%;
-}
-
 .inventory-bag-empty {
   font-size: 12.5px;
   color: v.$text-muted-40;
-  margin: 4px 0 14px;
-}
-
-.inventory-message {
-  color: v.$success;
-  font-size: 13px;
-  margin-bottom: 14px;
+  margin: 10px 0;
 }
 
 .scrap-result-card {
@@ -138,169 +66,317 @@
   color: v.$text-muted-40;
 }
 
-.inventory-char-summary {
+.inventory-forge-hints {
   display: flex;
-  gap: v.$space-5;
-  margin-bottom: 20px;
-}
-
-.inventory-char-stat {
-  text-align: center;
-  background: v.$bg-card;
-  border: 1px solid v.$border-subtle;
-  border-radius: 10px;
-  padding: 8px 16px;
-}
-
-.inventory-char-stat__value {
-  font-size: 18px;
-  font-weight: 800;
-  color: v.$text-primary;
-}
-
-.inventory-char-stat__label {
-  font-size: 10px;
-  color: v.$text-muted-40;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.equipment-groups {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
-  margin-bottom: 24px;
+  flex-wrap: wrap;
+  margin: -6px 0 16px;
+}
 
-  @media (max-width: 900px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.inventory-forge-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: v.$accent;
+  text-decoration: none;
 
-  @media (max-width: 560px) {
-    grid-template-columns: 1fr;
+  &:hover {
+    text-decoration: underline;
   }
 }
 
-.equipment-group__eyebrow {
-  @include m.section-eyebrow;
-  margin-bottom: 10px;
+// ---- Two-panel layout: paper doll (fixed width) + bag (flexible) ----
+.inventory-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
 }
 
-.equipment-group__grid {
+.doll-card,
+.bag-card {
+  @include m.card(18px);
+}
+
+.doll-card {
+  flex: none;
+  width: 420px;
+  max-width: 100%;
+}
+
+.bag-card {
+  flex: 1;
+  min-width: 320px;
+}
+
+// ---- Doll card ----
+.doll-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.doll-card__name {
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.doll-card__sub {
+  font-size: 11.5px;
+  color: v.$text-muted-45;
+  margin-top: 3px;
+  text-transform: capitalize;
+}
+
+.doll-card__stats {
+  display: flex;
+  gap: 6px;
+}
+
+.doll-stat {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid v.$border-subtle;
+  border-radius: 9px;
+  padding: 7px 11px;
+  text-align: center;
+  min-width: 52px;
+}
+
+.doll-stat__value {
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+
+  &--atk {
+    color: v.$accent-soft;
+  }
+
+  &--def {
+    color: v.$info;
+  }
+
+  &--pwr {
+    color: v.$warning;
+  }
+}
+
+.doll-stat__label {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  font-weight: 800;
+  color: v.$text-muted-35;
+  margin-top: 2px;
+}
+
+.doll-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 8px;
+  grid-template-columns: 74px 1fr 74px;
+  gap: 12px;
   align-items: start;
 }
 
-.equipment-slot-row {
+.doll-col {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  background: v.$bg-card;
-  border: 1px solid v.$accent;
-  border-radius: 10px 10px 0 0;
-  padding: 10px 12px;
+  flex-direction: column;
+  gap: 9px;
+}
 
-  &--empty {
-    border: 1px dashed v.$border-medium;
-    border-radius: 10px;
+.doll-slot {
+  @include m.btn-reset;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 11px;
+  border: 1px dashed v.$border-medium;
+  background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+
+  &--filled {
+    border-style: solid;
+  }
+
+  &--selected {
+    box-shadow: 0 0 0 1px v.$accent;
+    border-color: v.$accent;
   }
 }
 
-.equipment-slot-row__glyph {
-  font-size: 18px;
-  flex: none;
+.doll-slot__glyph {
+  font-size: 22px;
+  line-height: 1;
   opacity: 0.9;
 }
 
-.equipment-slot-row--empty .equipment-slot-row__glyph {
-  opacity: 0.35;
+.doll-slot:not(.doll-slot--filled) .doll-slot__glyph {
+  opacity: 0.3;
 }
 
-.equipment-slot-row__body {
-  min-width: 0;
+.doll-slot__label {
+  font-size: 8px;
+  letter-spacing: 0.05em;
+  font-weight: 800;
+  color: v.$text-muted-45;
+}
+
+.doll-slot__broken {
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  font-size: 9px;
+  font-weight: 800;
+  color: v.$danger;
+}
+
+.doll-portrait {
+  border-radius: 12px;
+  border: 1px solid v.$border-subtle;
+  background: radial-gradient(circle at 50% 34%, rgba(232, 72, 47, 0.14), rgba(255, 255, 255, 0.015) 62%);
+  min-height: 250px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.doll-portrait__glyph {
+  font-size: 44px;
+  opacity: 0.85;
+}
+
+// ---- Shared detail panel (equipped slot OR bag cell) ----
+.detail-panel {
+  margin-top: 16px;
+  border-radius: 12px;
+  padding: 14px;
+  border: 1px solid v.$border-subtle;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.detail-panel__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.detail-panel__art {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  border: 1px solid v.$border-subtle;
+}
+
+.detail-panel__title {
   flex: 1;
+  min-width: 0;
 }
 
-.equipment-slot-row__label {
-  font-size: 9.5px;
-  color: v.$text-muted-40;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.detail-panel__name {
+  font-size: 14.5px;
+  font-weight: 800;
 }
 
-.equipment-slot-row__item {
-  font-size: 12.5px;
+.detail-panel__type {
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
   font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: v.$text-muted-40;
+  margin-top: 3px;
+  text-transform: capitalize;
 }
 
-.equipment-slot-row__empty {
-  font-size: 11.5px;
-  color: v.$text-muted-35;
-}
-
-.equipment-slot-detail {
-  background: v.$bg-card;
-  border: 1px solid v.$accent;
-  border-top: none;
-  border-radius: 0 0 10px 10px;
-  padding: 10px 12px 12px;
-}
-
-.equipment-slot__actions {
+.detail-panel__chips {
   display: flex;
   gap: 6px;
-  margin-top: 10px;
+  flex-wrap: wrap;
+  margin-top: 7px;
 }
 
-.equipment-slot__action-btn {
-  @include m.btn-reset;
-  flex: 1;
-  padding: 6px;
-  border-radius: 7px;
-  border: 1px solid v.$border-medium;
-  background: transparent;
-  color: #fff;
+.detail-panel__stats {
   font-size: 11.5px;
+  color: v.$text-muted-45;
+  margin-top: 12px;
+}
 
-  &--danger {
-    border-color: v.$danger;
+.detail-panel__requires {
+  font-size: 10.5px;
+  color: v.$text-muted-45;
+  margin-top: 6px;
+
+  &.is-locked {
     color: v.$danger;
   }
 }
 
-.inventory-bag-grid {
-  @include m.grid-auto-fill(200px, 12px);
-}
-
-.inventory-equipped-card {
-  background: v.$bg-card;
-  border: 1px solid v.$accent;
-  border-radius: 11px;
-  padding: 14px;
-}
-
-.inventory-equipped-card__icon {
-  font-size: 20px;
-  margin-right: 8px;
-}
-
-.inventory-equipped-card__name {
-  font-weight: 700;
-  font-size: 13.5px;
-}
-
-.inventory-card__head {
+.detail-panel__actions {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  gap: 8px;
+  margin-top: 12px;
   flex-wrap: wrap;
-  margin-bottom: 6px;
 }
 
+.detail-panel__btn {
+  @include m.btn-reset;
+  border-radius: 9px;
+  padding: 9px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid v.$border-medium;
+  background: v.$bg-input;
+  color: v.$text-muted-70;
+  text-align: center;
+  text-decoration: none;
+
+  &:disabled {
+    color: v.$text-muted-40;
+    cursor: default;
+  }
+
+  &--sell {
+    border-color: v.$warning;
+    color: v.$warning;
+  }
+
+  &--locked {
+    color: v.$text-muted-40;
+  }
+
+  &--danger {
+    border-color: v.$danger;
+    color: v.$danger;
+    background: transparent;
+  }
+}
+
+.detail-panel__empty {
+  text-align: center;
+  padding: 6px 0;
+}
+
+.detail-panel__empty-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.detail-panel__empty-hint {
+  font-size: 11.5px;
+  color: v.$text-muted-45;
+  margin-top: 5px;
+  line-height: 1.5;
+}
+
+// ---- Rarity + roll chips (shared by detail panel and bag cells) ----
 .inventory-rarity-chip {
   display: inline-block;
   font-size: 10px;
@@ -310,26 +386,6 @@
   padding: 3px 7px;
   border-radius: v.$radius-sm;
   flex: none;
-
-  &--inline {
-    margin-left: 0;
-  }
-}
-
-.equipment-slot-row__chips {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
-  flex: none;
-}
-
-.inventory-bag-card__chips {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
 }
 
 .roll-chip {
@@ -346,15 +402,9 @@
   }
 }
 
-.inventory-card__stats {
-  font-size: 11.5px;
-  color: v.$text-muted-45;
-  margin-bottom: 8px;
-}
-
 // ---- Durability ----
 .durability {
-  margin-top: 6px;
+  margin-top: 12px;
 }
 
 .durability__track {
@@ -395,11 +445,6 @@
   color: v.$text-body;
   font-size: 11px;
   padding: 6px 8px;
-
-  &--full {
-    width: 100%;
-    margin-bottom: 6px;
-  }
 }
 
 .repair-row__btn {
@@ -419,101 +464,163 @@
   }
 }
 
-.inventory-bag-card {
-  position: relative;
-  background: v.$bg-card;
-  border: 1px solid v.$border-subtle;
-  border-radius: 11px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-}
-
-.inventory-bag-card__footer {
-  margin-top: auto;
-  padding-top: 10px;
-  padding-right: 32px; // room for the corner scrap button
-}
-
-.inventory-bag-card__header {
+// ---- Bag card ----
+.bag-card__head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
 }
 
-.inventory-bag-card__icon {
-  font-size: 26px;
+.bag-card__title-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
 }
 
-.inventory-bag-card__name {
-  font-weight: 700;
-  font-size: 15.5px;
+.bag-card__title {
+  font-size: 15px;
+  font-weight: 800;
 }
 
-.inventory-bag-card__qty {
-  margin-left: auto;
-  font-size: 13px;
-  color: v.$text-muted-40;
-}
-
-.inventory-bag-card__equip-btn {
-  display: block;
-  width: 100%;
-  padding: 5px;
-  border-radius: 6px;
-  border: 1px solid v.$border-medium;
-  background: transparent;
-  color: #fff;
+.bag-card__count {
   font-size: 10.5px;
-  text-align: center;
-  text-decoration: none;
-  cursor: pointer;
-  margin-bottom: 6px;
-  box-sizing: border-box;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: v.$text-muted-45;
+  border: 1px solid v.$border-medium;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  padding: 4px 9px;
+}
 
-  &--repair {
+.bag-card__search {
+  background: v.$bg-input;
+  border: 1px solid v.$border-medium;
+  border-radius: v.$radius-md;
+  padding: 7px 12px;
+  color: v.$text-primary;
+  font-size: 12.5px;
+  width: 220px;
+  max-width: 100%;
+}
+
+.bag-card__filters {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.bag-filter-chip {
+  @include m.btn-reset;
+  border-radius: v.$radius-pill;
+  padding: 6px 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  background: v.$bg-input;
+  color: v.$text-muted-70;
+  border: 1px solid v.$border-medium;
+
+  &--active {
+    background: v.$accent;
+    color: #fff;
     border-color: v.$accent;
-    color: v.$accent;
-
-    &:disabled {
-      border-color: v.$border-medium;
-      color: v.$text-muted-40;
-    }
-  }
-
-  &--sell {
-    border-color: v.$warning;
-    color: v.$warning;
   }
 }
 
-.inventory-bag-card__scrap-btn {
-  position: absolute;
-  bottom: 14px;
-  right: 14px;
+.bag-filter-chip__count {
+  opacity: 0.6;
+  margin-left: 5px;
+}
+
+.bag-cell-grid {
+  @include m.grid-auto-fill(72px, 8px);
+}
+
+.bag-cell {
+  @include m.btn-reset;
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  padding: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border-radius: 50%;
-  border: 1px solid v.$border-medium;
-  background: v.$bg-input;
-  color: v.$text-muted-40;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  overflow: hidden;
+  border: 1px solid v.$border-subtle;
 
-  &:hover:not(:disabled) {
-    border-color: v.$danger;
-    color: v.$danger;
-    background: rgba(v.$danger, 0.1);
+  &--selected {
+    box-shadow: 0 0 0 1px v.$accent;
+    border-color: v.$accent;
   }
-  cursor: pointer;
 }
 
-.inventory-bag-card__scrap-icon {
-  font-size: 13px;
+.bag-cell__rail {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+}
+
+.bag-cell__glyph {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.bag-cell__qty {
+  position: absolute;
+  right: 3px;
+  bottom: 2px;
+  font-family: v.$font-display;
+  font-size: 10px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 1px 2px #000;
+}
+
+.bag-cell__dur {
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 2px;
+}
+
+.bag-card__legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid v.$border-subtle;
+}
+
+.bag-card__legend-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  font-weight: 800;
+  color: v.$text-muted-35;
+}
+
+.bag-card__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: v.$text-muted-45;
+}
+
+.bag-card__legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
 }
 
 // ---- Scrap confirmation modal (same treatment as CharacterSelectPage's delete-modal) ----
@@ -553,6 +660,41 @@
   color: v.$text-primary;
 }
 
+.scrap-modal__qty-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.scrap-modal__qty-label {
+  font-size: 12px;
+  color: v.$text-muted-45;
+  flex: none;
+}
+
+.scrap-modal__qty-input {
+  width: 72px;
+  background: v.$bg-input;
+  border: 1px solid v.$border-medium;
+  border-radius: 7px;
+  color: v.$text-primary;
+  font-size: 13px;
+  padding: 6px 8px;
+}
+
+.scrap-modal__qty-max {
+  @include m.btn-reset;
+  font-size: 11px;
+  font-weight: 700;
+  color: v.$accent;
+  background: transparent;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 .scrap-modal__actions {
   display: flex;
   gap: 8px;
@@ -580,7 +722,7 @@
   font-size: 12px;
 }
 
-// ---- Mobile ----
+// ---- Mobile: single-column stack ----
 @media (max-width: 768px) {
   .inventory-header__icon {
     font-size: 24px;
@@ -590,76 +732,67 @@
     font-size: 22px;
   }
 
-  .inventory-char-summary {
-    gap: 10px;
-    margin-bottom: 16px;
+  .inventory-layout {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .doll-card,
+  .bag-card {
+    width: 100%;
+    padding: 14px;
+  }
+
+  .doll-grid {
+    grid-template-columns: 1fr 1fr;
+    grid-auto-flow: row;
+  }
+
+  .doll-col {
+    flex-direction: row;
     flex-wrap: wrap;
-  }
-
-  .inventory-char-stat {
-    padding: 7px 14px;
-  }
-
-  .equipment-groups {
-    gap: 12px;
-    margin-bottom: 18px;
-  }
-
-  .equipment-group__grid {
     gap: 8px;
   }
 
-  .equipment-slot-row {
-    padding: 9px 10px;
+  .doll-col .doll-slot {
+    flex: 1 1 calc(25% - 8px);
+    min-width: 60px;
   }
 
-  .equipment-slot__actions {
-    gap: 8px;
+  .doll-portrait {
+    order: -1;
+    grid-column: 1 / -1;
+    min-height: 120px;
   }
 
-  .equipment-slot__action-btn {
-    padding: 10px 6px;
-    min-height: 36px;
-    font-size: 12px;
+  .doll-portrait__glyph {
+    font-size: 34px;
+  }
+
+  .detail-panel__actions {
+    flex-direction: column;
+  }
+
+  .detail-panel__btn {
+    width: 100%;
+    min-height: 38px;
   }
 
   .repair-row {
     flex-direction: column;
   }
 
-  .repair-row__select {
-    padding: 8px;
-    min-height: 36px;
-  }
-
+  .repair-row__select,
   .repair-row__btn {
-    padding: 10px 12px;
     min-height: 36px;
   }
 
-  .inventory-bag-grid {
-    gap: 10px;
+  .bag-card__search {
+    width: 100%;
   }
 
-  .inventory-bag-card {
-    padding: 12px;
-  }
-
-  .inventory-bag-card__footer {
-    padding-right: 34px;
-  }
-
-  .inventory-bag-card__equip-btn {
-    padding: 9px;
-    min-height: 36px;
-    font-size: 12px;
-  }
-
-  .inventory-bag-card__scrap-btn {
-    width: 26px;
-    height: 26px;
-    bottom: 12px;
-    right: 12px;
+  .bag-cell-grid {
+    @include m.grid-auto-fill(56px, 7px);
   }
 
   .scrap-modal {

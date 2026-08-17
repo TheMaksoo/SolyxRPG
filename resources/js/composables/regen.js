@@ -5,8 +5,12 @@ import { useGameTick } from './gameTick';
 // Matches the server's Character::REGEN_TICK_SECONDS — regenPerTick/manaRegenPerTick/energyRegenPerTick
 // are amounts per this many seconds, not per single tick.
 const RATE_TICK_SECONDS = 5;
-// Batched server save/check cadence — persists the client-projected values, doesn't drive the display.
-const REGEN_SYNC_TICKS = 5;
+// Batched server save/check cadence — persists the client-projected values, doesn't drive the display
+// (the local projection below still animates every single tick regardless of this). Was 5 real seconds,
+// making /character/save-tick the single most frequent request in the whole app, firing for the entire
+// session even while completely idle — 15s keeps the persisted value from drifting far from what's on
+// screen while cutting that specific traffic by two-thirds.
+const REGEN_SYNC_TICKS = 15;
 
 /** Given a known value at a known time plus a steady rate, what should the value be right now? Mirrors
  * the server's own regenResource() — real elapsed time × rate — evaluated client-side every tick instead
@@ -48,6 +52,16 @@ let hpSeeded = false;
 let manaSeeded = false;
 let energySeeded = false;
 let watchersStarted = false;
+
+// What the server was last told, so the periodic sync below can skip the request (and the DB write
+// it causes server-side) entirely when nothing has actually changed — e.g. a character sitting at
+// full HP/mana/energy out of combat, which used to still fire a save-tick every cycle for as long as
+// the tab was open. `undefined` (not null/0) on all four so the very first tick always syncs and
+// establishes a baseline, matching the old always-sync behavior for that one call.
+let lastSyncedHp;
+let lastSyncedMana;
+let lastSyncedEnergy;
+let lastSyncedBattleId;
 
 // Last known-good effective max, held onto rather than falling back to a differently-scaled number
 // (the raw hp_max/mana_max/energy_max columns exclude attribute points and gear bonuses) whenever
@@ -126,10 +140,13 @@ export function useRegen() {
         if (val == null) return;
         // Same echo-skip as the HP watcher above — prevents a visible mana-bar dip every sync cycle
         // when the server echoes back the rounded integer the client already sent.
-        // Mana regen is paused for the whole of an active manual battle (see Character::applyPassiveRegen
-        // / CharacterController::saveTick) — only skill/item costs should move it mid-fight, not the
-        // passive rate, or the bar visibly climbs back up right after a skill drains it.
-        const newRate = activeBattleId.value != null ? 0 : (characterStore.manaRegenPerTick ?? 0) / RATE_TICK_SECONDS;
+        // Mana keeps regenerating at the same rate during an active manual battle too — mirrors
+        // CombatService::regenInBattle(), which credits mana (same manaRegenPerTick() formula, same
+        // 5s tick) every time a battle-related request comes in. Only the *passive* background regen
+        // (Character::applyPassiveRegen/saveTick) skips mana during battle, specifically to avoid
+        // double-crediting the same real elapsed time through both mechanisms — this projection is
+        // simulating regenInBattle's rate, not the passive one, so it must not zero out here.
+        const newRate = (characterStore.manaRegenPerTick ?? 0) / RATE_TICK_SECONDS;
         const projected = manaSeeded
           ? Math.round(projectRegen(manaBaseline.value, manaBaselineAt.value, manaRatePerSecond.value, lastKnownMpMax, Date.now()))
           : -Infinity;
@@ -177,16 +194,6 @@ export function useRegen() {
         energyRatePerSecond.value = (rate ?? 0) / RATE_TICK_SECONDS;
       });
 
-      // Entering/leaving a manual battle flips whether mana regen applies at all — rebase from wherever
-      // the projection currently sits (same pattern as the rate-change watches above) so the transition
-      // doesn't jump, then switch the rate to match the new state.
-      watch(activeBattleId, (battleId) => {
-        if (!manaSeeded) return;
-        manaBaseline.value = projectRegen(manaBaseline.value, manaBaselineAt.value, manaRatePerSecond.value, mpMax.value, clockNow.value);
-        manaBaselineAt.value = Date.now();
-        manaRatePerSecond.value = battleId != null ? 0 : (characterStore.manaRegenPerTick ?? 0) / RATE_TICK_SECONDS;
-      });
-
       // The tick heartbeat never stops for combat/navigation — energy regens mid-battle too, and this is
       // the one periodic "game save" push, running for as long as any page anywhere is using the shared
       // game tick, regardless of which one is currently mounted. It sends exactly what's on screen right
@@ -195,12 +202,18 @@ export function useRegen() {
       watch(tickCount, (count) => {
         clockNow.value = Date.now();
         if (count % REGEN_SYNC_TICKS === 0) {
-          characterStore.syncRegen({
-            hp: Math.round(displayHp.value),
-            mana: Math.round(localMana.value),
-            energy: Math.round(localEnergy.value),
-            battle_id: activeBattleId.value,
-          });
+          const hp = Math.round(displayHp.value);
+          const mana = Math.round(localMana.value);
+          const energy = Math.round(localEnergy.value);
+          const battleId = activeBattleId.value;
+          const dirty = hp !== lastSyncedHp || mana !== lastSyncedMana
+            || energy !== lastSyncedEnergy || battleId !== lastSyncedBattleId;
+          if (!dirty) return;
+          lastSyncedHp = hp;
+          lastSyncedMana = mana;
+          lastSyncedEnergy = energy;
+          lastSyncedBattleId = battleId;
+          characterStore.syncRegen({ hp, mana, energy, battle_id: battleId });
         }
       });
     });

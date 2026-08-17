@@ -15,7 +15,7 @@ class TamedCompanion extends Model
     public const MAX_LEVEL = 100;
 
     protected $fillable = [
-        'character_id', 'monster_id', 'name', 'glyph', 'is_elite', 'grade',
+        'character_id', 'monster_id', 'name', 'glyph', 'is_elite', 'role', 'grade',
         'base_hp', 'base_atk', 'level', 'xp', 'current_hp', 'is_downed', 'revive_attempts_used',
         'last_regen_at', 'active', 'archived_at', 'archived_reason',
     ];

@@ -64,9 +64,12 @@ defineProps({
   pointer-events: none;
 }
 
+// :focus-visible (not :focus/:focus-within) deliberately excludes a plain tap/click — on touch
+// devices tapping this icon was giving it focus and popping the bubble open until something else
+// was tapped, reading as "click opens it" instead of the intended hover-to-preview behavior.
+// :focus-visible still shows it for keyboard (Tab) navigation, so it stays reachable without a mouse.
 .info-tooltip:hover .info-tooltip__bubble,
-.info-tooltip:focus .info-tooltip__bubble,
-.info-tooltip:focus-within .info-tooltip__bubble {
+.info-tooltip:focus-visible .info-tooltip__bubble {
   opacity: 1;
   visibility: visible;
   transform: translateX(-50%) translateY(0);

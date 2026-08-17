@@ -1,10 +1,11 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import api from '../api/client';
 import { useCharacterStore } from '../stores/character';
 import { useAuthStore } from '../stores/auth';
 import MentionInput from '../components/MentionInput.vue';
 import AdBanner from '../components/AdBanner.vue';
+import Toast from '../components/Toast.vue';
 import { renderChatBody, mentionsMe } from '../chatMentions';
 
 const characterStore = useCharacterStore();
@@ -16,6 +17,11 @@ const friends = ref([]);
 const message = ref('');
 const busy = ref(false);
 const chatBody = ref('');
+let messageToastTimer = null;
+watch(message, (val) => {
+  clearTimeout(messageToastTimer);
+  if (val) messageToastTimer = setTimeout(() => { message.value = ''; }, 5000);
+});
 
 const mentionCandidates = computed(
   () => party.value?.members?.map((m) => ({ id: m.character.id, name: m.character.name })) ?? []
@@ -132,13 +138,13 @@ onMounted(() => {
       <h1 class="ox party-title">Party</h1>
     </div>
     <p class="party-subtitle">
-      Team up with up to 4 friends — every distinct class present buffs the whole party, and fighting in the
+      Team up with up to 4 friends: every distinct class present buffs the whole party, and fighting in the
       same zone shares a cut of gold, XP, and gems with whoever's online alongside you.
     </p>
 
     <AdBanner variant="inline" />
 
-    <p v-if="message" class="party-message">{{ message }}</p>
+    <Toast :message="message" type="error" />
 
     <template v-if="!party">
       <button class="party-create-btn" @click="createParty" :disabled="busy">+ Start a Party</button>
@@ -220,7 +226,7 @@ onMounted(() => {
       <div v-if="isLeader" class="party-invite-panel">
         <div class="party-invite-panel__eyebrow">INVITE A FRIEND</div>
         <div v-if="!invitableFriends.length" class="party-invite-panel__empty">
-          No friends available to invite — everyone's already in a party, or you have none yet.
+          No friends available to invite: everyone's already in a party, or you have none yet.
         </div>
         <div v-for="row in invitableFriends" :key="row.character.id" class="party-invite-candidate">
           <span class="party-invite-candidate__name">{{ row.character.name }} <span class="party-invite-candidate__meta">· {{ row.character.base_class }} Lv.{{ row.character.level }}</span></span>

@@ -22,12 +22,6 @@
   margin-bottom: 20px;
 }
 
-.party-message {
-  font-size: 13px;
-  color: v.$text-muted-70;
-  margin-bottom: 14px;
-}
-
 .party-create-btn {
   @include m.btn-primary;
   padding: 12px 24px;

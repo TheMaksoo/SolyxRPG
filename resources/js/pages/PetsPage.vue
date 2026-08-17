@@ -1,13 +1,41 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import api from '../api/client';
 import { useCharacterStore } from '../stores/character';
+import { useAuthStore } from '../stores/auth';
 import { gradeMeta } from '../utils/grade';
+import ConfirmModal from '../components/ConfirmModal.vue';
+import Toast from '../components/Toast.vue';
 
 const characterStore = useCharacterStore();
+const auth = useAuthStore();
+const notice = ref('');
+
+// Keeps a companion's own attack from landing the killing blow on a monster the player could still
+// go on to tame (see CombatService::sparesTameableEnemies()) — an unlucky auto-battle round otherwise
+// could rob them of the Attempt to Tame window before they ever get to click it.
+const spareTameableEnemies = computed(() => auth.user?.preferences?.spare_tameable_enemies === true);
+async function toggleSpareTameableEnemies() {
+  try {
+    const { data } = await api.put('/me/preferences', { spare_tameable_enemies: !spareTameableEnemies.value });
+    auth.user.preferences = data.preferences;
+  } catch (e) {
+    message.value = e.response?.data?.message || 'Could not save preference.';
+  }
+}
 
 const pets = ref([]);
 const message = ref('');
+let noticeToastTimer = null;
+watch(notice, (val) => {
+  clearTimeout(noticeToastTimer);
+  if (val) noticeToastTimer = setTimeout(() => { notice.value = ''; }, 4000);
+});
+let errorToastTimer = null;
+watch(message, (val) => {
+  clearTimeout(errorToastTimer);
+  if (val) errorToastTimer = setTimeout(() => { message.value = ''; }, 5000);
+});
 const maxActiveSlots = ref(1);
 const activeCount = ref(0);
 
@@ -23,7 +51,7 @@ async function load() {
 // Tamed companions — a separate pool from the catalog pets above (own roster/active caps, see
 // User::tameRosterCap/activeTameSlots), fought as real combatants rather than a passive % bonus.
 const tamedCompanions = ref([]);
-const tameRosterCap = ref(3);
+const tameRosterCap = ref(4);
 const activeTameSlots = ref(1);
 const activeTameCount = ref(0);
 const tameLog = ref([]);
@@ -119,26 +147,57 @@ async function activateTamed(companion) {
   }
 }
 
-async function releaseTamed(companion) {
-  if (!confirm(`Set ${companion.name} free? This can't be undone.`)) return;
+const releaseConfirmTarget = ref(null);
+
+function releaseTamed(companion) {
+  releaseConfirmTarget.value = companion;
+}
+
+async function confirmRelease() {
+  const companion = releaseConfirmTarget.value;
+  if (!companion) return;
   releasingId.value = companion.id;
   message.value = '';
   try {
-    await api.post(`/companions/${companion.id}/release`);
+    const { data } = await api.post(`/companions/${companion.id}/release`);
+    const rewardBits = [];
+    if (data.gold_gained) rewardBits.push(`+${data.gold_gained} gold`);
+    if (data.xp_gained) rewardBits.push(`+${data.xp_gained} XP`);
+    notice.value = rewardBits.length ? `${data.message} (${rewardBits.join(', ')})` : data.message;
+    if (data.character) characterStore.character = data.character;
     await loadTamed();
+    releaseConfirmTarget.value = null;
   } catch (e) {
+    // Keep the confirm dialog open on failure — closing it here (the old behavior) hid the error's
+    // context, leaving only a toast that appeared after the modal had already vanished. Staying open
+    // lets the player see what happened and decide to retry or cancel.
     message.value = e.response?.data?.message || 'Could not release that companion.';
   } finally {
     releasingId.value = null;
   }
 }
 
-async function feedTamed(companion) {
+const FEED_QTY_OPTIONS = [1, 5, 25, 50, 100];
+
+// AdBanner.vue gates the exact same way off auth.user directly — vip_lifetime always counts, otherwise
+// any tier other than 'none' with a still-future expiry (mirrors User::hasActiveVip() server-side).
+const hasActiveVip = computed(() => {
+  const u = auth.user;
+  if (!u) return false;
+  if (u.vip_lifetime) return true;
+
+  return (u.vip_tier ?? 'none') !== 'none' && !!u.vip_expires_at && new Date(u.vip_expires_at) > new Date();
+});
+
+async function feedTamed(companion, qty = 1) {
   if (!ownedPetFood.value) return;
   feedingId.value = companion.id;
   message.value = '';
   try {
-    await api.post(`/companions/${companion.id}/feed`, { item_id: ownedPetFood.value.item_id });
+    const { data } = await api.post(`/companions/${companion.id}/feed`, { item_id: ownedPetFood.value.item_id, qty });
+    notice.value = data.leveled_up
+      ? `${companion.name} leveled up! (fed ${data.items_used})`
+      : `Fed ${companion.name} ${data.items_used} pet food.`;
     await loadTamed();
     await characterStore.fetch();
   } catch (e) {
@@ -198,7 +257,8 @@ onMounted(() => {
       <span class="pets-header__slots">{{ activeCount }} / {{ maxActiveSlots }} active</span>
     </div>
 
-    <p v-if="message" class="pets-message">{{ message }}</p>
+    <Toast :message="notice" type="success" />
+    <Toast :message="message" type="error" />
 
     <div class="pets-grid">
       <div
@@ -232,27 +292,32 @@ onMounted(() => {
           @click="unlock(row)"
           class="pet-card__btn--unlock"
         >
-          <template v-if="row.pet.unlock_gold">Unlock — {{ row.pet.unlock_gold }}🪙</template>
-          <template v-else>Unlock — {{ row.pet.unlock_gems }}◆</template>
+          <template v-if="row.pet.unlock_gold">Unlock: {{ row.pet.unlock_gold }}🪙</template>
+          <template v-else>Unlock: {{ row.pet.unlock_gems }}◆</template>
         </button>
-        <button
-          v-else-if="row.can_rank_up"
-          @click="rankUp(row)"
-          :disabled="rankingUp === row.pet.id"
-          class="pet-card__btn--rank-up"
-        >
-          {{ rankingUp === row.pet.id ? 'Ranking up…' : `Rank Up — ${row.rank_up_cost.gold}🪙${row.rank_up_cost.gems ? ` + ${row.rank_up_cost.gems}◆` : ''}` }}
-        </button>
-        <button
-          v-else-if="!row.active"
-          @click="activate(row)"
-          class="pet-card__btn--activate"
-        >
-          Activate
-        </button>
-        <button v-else @click="activate(row)" class="pet-card__status--active">
-          ✔ Active — click to bench
-        </button>
+        <template v-else>
+          <!-- Being ready to rank up used to replace the activate/bench button entirely (v-else-if
+          chain) — there was no way to bench a pet once it hit that state. Rank Up and the
+          activate/bench toggle are independent actions, so both render together now. -->
+          <button
+            v-if="row.can_rank_up"
+            @click="rankUp(row)"
+            :disabled="rankingUp === row.pet.id"
+            class="pet-card__btn--rank-up"
+          >
+            {{ rankingUp === row.pet.id ? 'Ranking up…' : `Rank Up — ${row.rank_up_cost.gold}🪙${row.rank_up_cost.gems ? ` + ${row.rank_up_cost.gems}◆` : ''}` }}
+          </button>
+          <button
+            v-if="!row.active"
+            @click="activate(row)"
+            class="pet-card__btn--activate"
+          >
+            Activate
+          </button>
+          <button v-else @click="activate(row)" class="pet-card__status--active">
+            ✔ Active — click to bench
+          </button>
+        </template>
       </div>
     </div>
 
@@ -269,6 +334,19 @@ onMounted(() => {
       alongside you from then on. More active slots unlock every 100 levels; release one to make room
       for a new capture once your roster is full.
     </p>
+
+    <div class="tame-toggle-row">
+      <span class="tame-toggle-row__label">Don't let my companions finish off a tameable enemy</span>
+      <label class="toggle-switch">
+        <input
+          type="checkbox"
+          aria-label="Don't let my companions finish off a tameable enemy"
+          :checked="spareTameableEnemies"
+          @change="toggleSpareTameableEnemies"
+        />
+        <span class="toggle-switch__track"><span class="toggle-switch__knob"></span></span>
+      </label>
+    </div>
 
     <div v-if="!tamedCompanions.length" class="tame-empty-hint">No tamed companions yet.</div>
 
@@ -337,15 +415,25 @@ onMounted(() => {
         </div>
 
         <button
-          @click="feedTamed(c)"
-          :disabled="!ownedPetFood || feedingId === c.id || c.level >= c.max_level"
+          v-if="c.level >= c.max_level || !ownedPetFood"
+          disabled
           class="pet-card__btn--activate"
         >
-          <template v-if="feedingId === c.id">Feeding…</template>
-          <template v-else-if="c.level >= c.max_level">MAX LEVEL</template>
-          <template v-else-if="ownedPetFood">🍖 Feed (own {{ ownedPetFood.qty }})</template>
+          <template v-if="c.level >= c.max_level">MAX LEVEL</template>
           <template v-else>No Pet Food</template>
         </button>
+        <div v-else class="pet-card__feed-row">
+          <button
+            v-for="qty in FEED_QTY_OPTIONS"
+            :key="qty"
+            class="pet-card__feed-btn"
+            :disabled="feedingId === c.id || ownedPetFood.qty < qty || (qty === 100 && !hasActiveVip)"
+            :title="qty === 100 && !hasActiveVip ? 'Feeding 100 at once is a VIP perk' : `Feed ${qty} pet food`"
+            @click="feedTamed(c, qty)"
+          >
+            {{ feedingId === c.id ? '…' : (qty === 100 && !hasActiveVip ? '100🔒' : qty) }}
+          </button>
+        </div>
         <button v-if="!c.active" @click="activateTamed(c)" class="pet-card__btn--activate">
           Activate
         </button>
@@ -408,6 +496,17 @@ onMounted(() => {
         <span class="tame-log__level">Lv.{{ entry.level }}</span>
       </div>
     </div>
+
+    <ConfirmModal
+      :open="!!releaseConfirmTarget"
+      title="Set this companion free?"
+      :message="releaseConfirmTarget ? `Set ${releaseConfirmTarget.name} free? This can't be undone.` : ''"
+      confirm-label="Set free"
+      danger
+      :busy="releasingId === releaseConfirmTarget?.id"
+      @confirm="confirmRelease"
+      @cancel="releaseConfirmTarget = null"
+    />
   </div>
 </template>
 

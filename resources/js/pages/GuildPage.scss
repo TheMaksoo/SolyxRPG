@@ -15,12 +15,6 @@
   margin: 0;
 }
 
-.guild-message {
-  font-size: 13px;
-  color: v.$danger;
-  margin-bottom: 14px;
-}
-
 // ---- Guild panel (member view) ----
 .guild-panel {
   @include m.centered-column(600px);
@@ -257,12 +251,6 @@
 .guild-wars__officer-hint {
   font-size: 12px;
   color: v.$text-muted-45;
-  margin: 0 0 10px;
-}
-
-.guild-wars__message {
-  font-size: 12px;
-  color: v.$danger;
   margin: 0 0 10px;
 }
 

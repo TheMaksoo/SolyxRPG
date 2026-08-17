@@ -90,37 +90,6 @@
   justify-content: center;
 }
 
-// ── Toast ─────────────────────────────────────────────────────────────────────
-.mp-toast {
-  padding: 11px 16px;
-  border-radius: v.$radius-md;
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 16px;
-
-  &--error {
-    background: rgba(255, 106, 77, 0.12);
-    color: v.$danger;
-    border: 1px solid rgba(255, 106, 77, 0.2);
-  }
-
-  &--success {
-    background: v.$success-tint-12;
-    color: v.$success;
-    border: 1px solid rgba(74, 222, 128, 0.2);
-  }
-}
-
-.mp-fade-enter-active,
-.mp-fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-.mp-fade-enter-from,
-.mp-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-4px);
-}
-
 // ── Filters ─────────────────────────────────────────────────────────────────
 .mp-filters {
   display: flex;

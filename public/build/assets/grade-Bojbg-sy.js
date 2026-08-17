@@ -1,1 +1,0 @@
-const o={common:{label:"Common",color:"#cbd5e1"},elite:{label:"Elite",color:"#5cc7f5"},champion:{label:"Champion",color:"#a78bfa"},legendary:{label:"Legendary",color:"#eab308"}};function l(e){return o[e]??o.common}export{l as g};

@@ -11,11 +11,13 @@ use App\Models\ClassProgression;
 use App\Models\Cosmetic;
 use App\Models\DungeonRun;
 use App\Models\FeatureFlag;
+use App\Models\GameConfig;
 use App\Models\GemLedger;
 use App\Models\LegacyDiscordUser;
 use App\Models\PvpLiveMatch;
 use App\Models\PvpMatch;
 use App\Models\User;
+use App\Models\Zone;
 use App\Services\AttributeService;
 use App\Services\LeaderboardService;
 use App\Services\QuestService;
@@ -193,7 +195,7 @@ class CharacterController extends Controller
     public function show(Request $request)
     {
         $character = $request->user()->character()
-            ->with(['attributes_', 'zone', 'inventory.item', 'skills.skill', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon', 'activeFrame', 'user'])
+            ->with(['attributes_', 'zone', 'inventory.item', 'skills.skill', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon', 'activeFrame', 'user', 'dailyClaim'])
             ->first();
 
         if (! $character) {
@@ -204,7 +206,7 @@ class CharacterController extends Controller
         $vipGemsGranted = $request->user()->grantMonthlyVipGemsIfDue($character);
 
         return response()->json([
-            'character' => $vipGemsGranted > 0 ? $character->fresh(['attributes_', 'zone', 'inventory.item', 'skills.skill', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon', 'activeFrame', 'user']) : $character,
+            'character' => $vipGemsGranted > 0 ? $character->fresh(['attributes_', 'zone', 'inventory.item', 'skills.skill', 'activeTitle', 'activeColor', 'activeBanner', 'activeIcon', 'activeFrame', 'user', 'dailyClaim']) : $character,
             'stats' => $character->effectiveStats() + [
                 'xp_max' => Character::xpForLevel($character->level),
                 'xp_min' => $character->level > 1 ? Character::xpForLevel($character->level - 1) : 0,
@@ -384,13 +386,33 @@ class CharacterController extends Controller
         return response()->json(['character' => $character->fresh()]);
     }
 
+    /** Persists how far into the guided tour this character has gotten — TutorialOverlay.vue calls this
+     * on every "Got it" instead of tracking progress in localStorage. That used to race against the
+     * character loading in the first place (read the wrong key before the real id was known, then every
+     * dismiss wrote somewhere that read could never see again, so the tour looked like it kept resetting
+     * on every visit to Battle) — a real column on the character arrives with every other character
+     * field, with nothing client-side left to get out of sync. Only ever moves forward: a stale/duplicate
+     * request for an earlier step can't un-advance progress already recorded. */
+    public function advanceTutorial(Request $request)
+    {
+        $character = $request->user()->character;
+        abort_unless($character, 404);
+
+        $data = $request->validate(['step' => ['required', 'integer', 'min:0', 'max:255']]);
+        if ($data['step'] > $character->tutorial_step) {
+            $character->update(['tutorial_step' => $data['step']]);
+        }
+
+        return response()->json(['character' => $character->fresh()]);
+    }
+
     /** Lets a player replay the guided tour on demand (e.g. from Settings) instead of only ever seeing it once. */
     public function restartTutorial(Request $request)
     {
         $character = $request->user()->character;
         abort_unless($character, 404);
 
-        $character->update(['tutorial_seen' => false]);
+        $character->update(['tutorial_seen' => false, 'tutorial_step' => 0]);
 
         return response()->json(['character' => $character->fresh()]);
     }
@@ -574,6 +596,11 @@ class CharacterController extends Controller
             'mana_max' => $mp,
             'base_atk' => $baseAtk,
             'base_def' => $baseDef,
+            // Assigned up front rather than left null — previously a fresh character had no zone at all
+            // until they visited World Map, relying on BattleController::walk()'s zone filter silently
+            // widening to "every zone" as an (undocumented, fragile) fallback. Every character now starts
+            // somewhere real, ready for normal zone-based battles the moment the tutorial roster hands off.
+            'current_zone_id' => Zone::where('key', 'whispering_meadows')->value('id'),
         ]);
 
         $character->attributes_()->create([]);
@@ -630,9 +657,10 @@ class CharacterController extends Controller
         }
 
         $existing = $character->skills()->where('skill_id', $skill->id)->first();
+        $effectiveMaxLevel = $this->effectiveSkillMaxLevel($character, $skill);
 
         if ($existing) {
-            if ($existing->level >= $skill->max_level) {
+            if ($existing->level >= $effectiveMaxLevel) {
                 return response()->json(['message' => 'Already at max rank.'], 422);
             }
             $nextRank = $existing->level + 1;
@@ -650,32 +678,92 @@ class CharacterController extends Controller
             if ($character->level < $skill->level_req) {
                 return response()->json(['message' => "Requires level {$skill->level_req}."], 422);
             }
-            if ($skill->requires_profession && ! $character->spec_class) {
-                return response()->json(['message' => 'Choose a profession (Lv.20, see Class Path) first.'], 422);
+            if ($skill->requires_branch_key) {
+                $chosenBranchKeys = [$character->spec_class, $character->profession, $character->ascension, $character->apex_path, $character->transcendence];
+                if (! in_array($skill->requires_branch_key, $chosenBranchKeys, true)) {
+                    return response()->json(['message' => 'Choose the matching Class Path branch first.'], 422);
+                }
             }
-            // Same branch, one tier below — matches SkillsPage.vue's `prevUnlocked` gating on the frontend.
-            // That frontend check was purely cosmetic until now: nothing server-side stopped a client from
-            // unlocking a tier-2/3 skill directly (skipping tier-1) as long as level_req + skill_points
-            // were met, since only those two conditions were enforced here.
-            $prevSkill = \App\Models\Skill::where('branch', $skill->branch)
-                ->where('class_scope', $skill->class_scope)
-                ->where('tier', '<', $skill->tier)
-                ->orderByDesc('tier')
-                ->first();
-            if ($prevSkill && ! $character->skills()->where('skill_id', $prevSkill->id)->exists()) {
-                return response()->json(['message' => "Unlock {$prevSkill->name} first."], 422);
+            // Explicit prerequisite (see SkillSeeder's treeNodes()) if this node has one — needed once a
+            // branch's tree stops being a straight line: LEFT and RIGHT arms both fork off the same hub
+            // in parallel, so the old "highest tier below mine in this branch" lookup below can't tell
+            // which of two same-tier siblings a node actually depends on. Falls back to that tier-based
+            // lookup for skills without one (core class skills, which are still a straight line).
+            if ($skill->prereq_skill_key) {
+                $prereq = \App\Models\Skill::where('class_scope', $skill->class_scope)->where('key', $skill->prereq_skill_key)->first();
+                if ($prereq && ! $character->skills()->where('skill_id', $prereq->id)->exists()) {
+                    return response()->json(['message' => "Unlock {$prereq->name} first."], 422);
+                }
+            } else {
+                // Same branch, one tier below — matches SkillsPage.vue's `prevUnlocked` gating on the
+                // frontend. That frontend check was purely cosmetic until now: nothing server-side stopped
+                // a client from unlocking a tier-2/3 skill directly (skipping tier-1) as long as
+                // level_req + skill_points were met, since only those two conditions were enforced here.
+                $prevSkill = \App\Models\Skill::where('branch', $skill->branch)
+                    ->where('class_scope', $skill->class_scope)
+                    ->where('tier', '<', $skill->tier)
+                    ->orderByDesc('tier')
+                    ->first();
+                if ($prevSkill && ! $character->skills()->where('skill_id', $prevSkill->id)->exists()) {
+                    return response()->json(['message' => "Unlock {$prevSkill->name} first."], 422);
+                }
             }
+
+            // Committing to a LEFT-arm node permanently locks every RIGHT-arm node in the same branch
+            // (and vice versa) until a respec — "one side each" per gate, same as the imported design.
+            $nodeSlot = (string) $skill->node_slot;
+            $arm = match (true) {
+                str_starts_with($nodeSlot, 'left_') => 'left_',
+                str_starts_with($nodeSlot, 'right_') => 'right_',
+                default => null,
+            };
+            if ($arm) {
+                $otherArm = $arm === 'left_' ? 'right_' : 'left_';
+                $givenUp = \App\Models\Skill::where('branch', $skill->branch)
+                    ->where('class_scope', $skill->class_scope)
+                    ->where('node_slot', 'like', "{$otherArm}%")
+                    ->pluck('id');
+                if ($character->skills()->whereIn('skill_id', $givenUp)->exists()) {
+                    return response()->json(['message' => 'You already committed to the other side of this branch: only a respec reopens it.'], 422);
+                }
+            }
+
             if ($character->skill_points < 1) {
                 return response()->json(['message' => 'No skill points available.'], 422);
             }
             $character->skills()->create(['skill_id' => $skill->id, 'unlocked_at' => now(), 'level' => 1]);
             $this->quests->progressSkillUnlock($character, $skill->key);
             $character->decrement('skill_points');
+
+            // Committing to an arm (its first node) grants that arm's capstone free at rank 1 — matches
+            // the imported design's "Soul Siphon granted free — now upgradeable to rank 3" copy exactly.
+            if ($arm && str_ends_with((string) $skill->node_slot, '_1')) {
+                $capstone = \App\Models\Skill::where('branch', $skill->branch)
+                    ->where('class_scope', $skill->class_scope)
+                    ->where('node_slot', "{$arm}cap")
+                    ->first();
+                if ($capstone && ! $character->skills()->where('skill_id', $capstone->id)->exists()) {
+                    $character->skills()->create(['skill_id' => $capstone->id, 'unlocked_at' => now(), 'level' => 1, 'free_grant' => true]);
+                }
+            }
         }
 
         $character->refresh();
         $character->load(['attributes_', 'skills.skill', 'zone', 'inventory.item']);
         return response()->json(['character' => $character]);
+    }
+
+    /** A skill's real rank ceiling — its own max_level, plus GM-tunable bonus ranks once the character
+     * has hit skill_mastery_unlock_level (see SkillSeeder's extended rank_levels arrays, which define
+     * real level gates for these bonus ranks even though the skill's own max_level column never changes).
+     * Mirrored in SkillsPage.vue's own maxed/nextRankLevel computation. */
+    private function effectiveSkillMaxLevel(Character $character, \App\Models\Skill $skill): int
+    {
+        $bonus = $character->level >= GameConfig::number('skill_mastery_unlock_level', 150)
+            ? GameConfig::number('skill_mastery_bonus_levels', 3)
+            : 0;
+
+        return $skill->max_level + $bonus;
     }
 
     public function chooseProfession(Request $request)
@@ -684,7 +772,7 @@ class CharacterController extends Controller
         abort_unless($character, 404);
 
         $data = $request->validate([
-            'tier' => ['required', Rule::in(['t20', 't40', 't60'])],
+            'tier' => ['required', Rule::in(['t20', 't50', 't100', 't150', 't200'])],
             'key' => ['required', 'string'],
         ]);
 
@@ -697,18 +785,81 @@ class CharacterController extends Controller
             return response()->json(['message' => "Requires level {$progression->level_cap}."], 422);
         }
 
-        $column = ['t20' => 'spec_class', 't40' => 'profession', 't60' => 'ascension'][$data['tier']];
+        // Fully linear 5-rung chain: each tier's column, and the prior tier's column that must already
+        // be set. t20 has no prior.
+        $column = ['t20' => 'spec_class', 't50' => 'profession', 't100' => 'ascension', 't150' => 'apex_path', 't200' => 'transcendence'][$data['tier']];
+        $priorColumn = ['t20' => null, 't50' => 'spec_class', 't100' => 'profession', 't150' => 'ascension', 't200' => 'apex_path'][$data['tier']];
+        $priorLabel = ['spec_class' => 'Lv.20 specialization', 'profession' => 'Lv.50 profession', 'ascension' => 'Lv.100 ascension', 'apex_path' => 'Lv.150 apex'][$priorColumn ?? ''] ?? null;
 
-        if ($data['tier'] !== 't20' && ! $character->spec_class) {
-            return response()->json(['message' => 'Choose your Lv.20 specialization first.'], 422);
-        }
-        if ($data['tier'] === 't60' && ! $character->profession) {
-            return response()->json(['message' => 'Choose your Lv.40 profession first.'], 422);
+        if ($priorColumn && ! $character->{$priorColumn}) {
+            return response()->json(['message' => "Choose your {$priorLabel} first."], 422);
         }
 
         $character->update([$column => $progression->key]);
 
         return response()->json(['character' => $character->fresh()]);
+    }
+
+    /** Sets which unlocked ACTIVE skills (mp_cost > 0 — passives are always on, never slotted) are usable
+     * in battle, capped at 6 (see the imported Skill Tree design's "Active Deck"). BattlePage.vue's skill
+     * tiles only show a skill if it's both unlocked and in this list — null/empty (never set) means
+     * "every unlocked active is usable", so existing characters aren't soft-locked the moment this ships.
+     */
+    public function setActiveDeck(Request $request)
+    {
+        $character = $request->user()->character;
+        abort_unless($character, 404);
+
+        $data = $request->validate([
+            'skill_ids' => ['required', 'array', 'max:6'],
+            'skill_ids.*' => ['integer'],
+        ]);
+
+        $unlockedActiveIds = $character->skills()
+            ->whereHas('skill', fn ($q) => $q->where('mp_cost', '>', 0))
+            ->pluck('skill_id');
+
+        $ids = collect($data['skill_ids'])->unique()->values();
+        abort_if($ids->diff($unlockedActiveIds)->isNotEmpty(), 422, "Deck can only contain active skills you've unlocked.");
+
+        $character->update(['active_deck_json' => $ids->all()]);
+
+        return response()->json(['character' => $character->fresh(['attributes_', 'skills.skill'])]);
+    }
+
+    /** Refunds every skill point ever spent unlocking/upgrading skills and resets the 5-tier branch-pick
+     * ladder (spec_class/profession/ascension/apex_path/transcendence) so a respec truly "reopens the
+     * side you gave up" — costs gems (GM-tunable) rather than skill points, so it's a real economic sink
+     * instead of free churn. Attribute points are untouched (see AttributeService — a separate pool with
+     * its own spend flow, not part of the skill tree). */
+    public function respecSkills(Request $request)
+    {
+        $character = $request->user()->character;
+        abort_unless($character, 404);
+
+        $cost = (int) GameConfig::number('skill_respec_cost_gems', 1500);
+        $user = $character->user;
+        abort_if($user->gems < $cost, 422, "Respec costs {$cost} gems.");
+
+        // Rank N of a skill costs N points, so the total ever spent reaching level L is 1+2+...+L —
+        // except a free_grant skill (an arm's capstone, auto-granted at rank 1 for 0 points when you
+        // commit to that arm — see unlockSkill()), whose rank-1 point was never actually spent.
+        $refund = $character->skills->sum(function ($cs) {
+            $spent = (int) ($cs->level * ($cs->level + 1) / 2);
+
+            return $cs->free_grant ? $spent - 1 : $spent;
+        });
+
+        $character->skills()->delete();
+        $character->update([
+            'skill_points' => $character->skill_points + $refund,
+            'spec_class' => null, 'profession' => null, 'ascension' => null, 'apex_path' => null, 'transcendence' => null,
+            'active_deck_json' => null,
+        ]);
+        $user->decrement('gems', $cost);
+        GemLedger::log($user, -$cost, 'skill_respec', $character);
+
+        return response()->json(['character' => $character->fresh(['attributes_', 'skills.skill'])]);
     }
 
     /** Logs hard evidence (session id, resolved auth user, character's real owner) whenever a character

@@ -109,12 +109,6 @@
   justify-content: center;
 }
 
-.quests-message {
-  font-size: 13px;
-  color: v.$danger;
-  margin-bottom: 14px;
-}
-
 .quests-list {
   @include m.grid-auto-fill(360px, 14px);
 }

@@ -58,6 +58,11 @@ class VipController extends Controller
                 'market_fee_reduction_pct' => User::VIP_TIER_MARKET_FEE_REDUCTION_PCT[$key],
                 'gather_speed_pct_bonus' => User::VIP_TIER_GATHER_SPEED_PCT[$key],
                 'gather_yield_pct_bonus' => User::VIP_TIER_GATHER_YIELD_PCT[$key],
+                'lootbox_extra_slots' => User::VIP_TIER_LOOTBOX_SLOTS[$key],
+                'lootbox_time_reduction_pct' => User::VIP_TIER_LOOTBOX_TIME_REDUCTION_PCT[$key],
+                'bp_xp_pct_bonus' => User::VIP_TIER_BP_XP_PCT[$key],
+                'tame_roster_cap' => User::VIP_TIER_TAME_ROSTER_CAP[$key],
+                'tame_success_bonus_pct' => User::VIP_TIER_TAME_BONUS[$key],
             ])
             ->all();
 

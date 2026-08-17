@@ -27,90 +27,96 @@
   margin: 0 0 14px;
 }
 
-.dungeons-error {
-  color: v.$danger;
-  font-size: 13px;
-  margin-bottom: 14px;
-}
-
-.dungeon-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  max-width: 900px;
+// ---- Card grid — mirrors WorldMapPage.scss's .zone-grid/.zone-card exactly, so Dungeons and World Map
+// read as the same screen family instead of two different layout languages (list-of-rows vs. card-grid).
+.dungeon-grid {
+  @include m.grid-auto-fill(260px, 16px);
 }
 
 .dungeon-card {
-  @include m.card(18px);
-  display: flex;
-  gap: 18px;
-  flex-wrap: wrap;
-  align-items: center;
+  background: v.$bg-card;
+  border: 1px solid v.$border-subtle;
+  border-radius: 14px;
+  overflow: hidden;
 
-  &--locked {
+  &.is-locked {
+    border-color: rgba(255, 255, 255, 0.04);
     opacity: 0.6;
-    border-style: dashed;
   }
 }
 
 .dungeon-card__art {
-  width: 120px;
-  height: 90px;
-  flex: none;
-  border-radius: 11px;
-  background: repeating-linear-gradient(45deg, #1c1114, #1c1114 9px, #170e11 9px, #170e11 18px);
+  height: 120px;
   display: grid;
   place-items: center;
-  font-size: 36px;
+  font-size: 40px;
+  position: relative;
+  // Falls back to the same diagonal-stripe placeholder as before when a difficulty has no DIFF entry.
+  background: repeating-linear-gradient(45deg, #1c1114, #1c1114 9px, #170e11 9px, #170e11 18px);
+}
+
+.dungeon-card__lock {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
+  font-size: 26px;
 }
 
 .dungeon-card__body {
-  flex: 1;
-  min-width: 200px;
+  padding: 16px;
 }
 
-.dungeon-card__title-row {
+.dungeon-card__row {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .dungeon-card__name {
   font-weight: 700;
-  font-size: 17px;
+  font-size: 15px;
 }
 
 .dungeon-card__difficulty {
   font-size: 11px;
-  padding: 3px 9px;
-  border-radius: 6px;
+  padding: 2px 8px;
+  border-radius: 5px;
   font-weight: 600;
   text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.dungeon-card__level {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 6px 0 12px;
 }
 
 .dungeon-card__meta {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.5);
-  margin: 5px 0 8px;
-
-  &--locked {
-    letter-spacing: 0.3px;
-  }
+  margin: -6px 0 8px;
 }
 
 .dungeon-card__drops {
   font-size: 12px;
   color: v.$warning;
+  margin-bottom: 12px;
 }
 
-.dungeon-card__enter {
+.dungeon-card__enter-btn {
   @include m.btn-reset;
-  padding: 11px 22px;
-  border-radius: 10px;
+  width: 100%;
+  padding: 9px;
+  border-radius: v.$radius-sm;
   background: v.$accent;
   color: #fff;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 12.5px;
+  cursor: pointer;
 
   &:disabled {
     background: rgba(255, 255, 255, 0.08);
@@ -120,34 +126,35 @@
 
 // ---- Mobile ----
 @media (max-width: 768px) {
+  .dungeons-header__icon {
+    font-size: 24px;
+  }
+
   .dungeons-title {
     font-size: 22px;
   }
 
-  .dungeon-card {
-    padding: 14px;
-    flex-direction: column;
-    align-items: stretch;
-    text-align: center;
-    gap: 10px;
+  .dungeon-grid {
+    @include m.grid-auto-fill(220px, 12px);
   }
 
   .dungeon-card__art {
-    width: 100%;
-    height: 70px;
+    height: 96px;
+    font-size: 32px;
   }
 
   .dungeon-card__body {
-    min-width: 0;
+    padding: 13px;
   }
 
-  .dungeon-card__title-row {
-    justify-content: center;
-    flex-wrap: wrap;
+  .dungeon-card__enter-btn {
+    min-height: 36px;
+    padding: 10px;
   }
+}
 
-  .dungeon-card__enter {
-    width: 100%;
-    min-height: 40px;
+@media (max-width: 480px) {
+  .dungeon-grid {
+    grid-template-columns: 1fr;
   }
 }

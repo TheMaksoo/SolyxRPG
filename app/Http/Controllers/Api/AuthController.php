@@ -138,6 +138,8 @@ class AuthController extends Controller
             'highlight_mentions' => ['sometimes', 'boolean'],
             'compact_battle_log' => ['sometimes', 'boolean'],
             'reduce_motion' => ['sometimes', 'boolean'],
+            'animate_combat' => ['sometimes', 'boolean'],
+            'spare_tameable_enemies' => ['sometimes', 'boolean'],
         ]);
 
         $user = $request->user();

@@ -1,11 +1,68 @@
 @use '../../../scss/variables' as v;
 @use '../../../scss/mixins' as m;
 
+.gm-editor-group-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.gm-editor-group-row__label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: v.$text-muted-35;
+  margin-right: 4px;
+}
+
+.gm-editor-group-btn {
+  @include m.btn-reset;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: v.$radius-sm;
+  border: 1px solid v.$border-medium;
+  background: v.$bg-card;
+  color: v.$text-muted-70;
+  font-size: 12px;
+
+  &.is-active {
+    background: v.$accent-tint-15;
+    color: v.$accent-soft;
+  }
+}
+
+.gm-editor-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: v.$text-muted-55;
+
+  &:first-child {
+    margin-top: 0;
+  }
+}
+
+.gm-editor-section-header__count {
+  font-size: 11px;
+  font-weight: 700;
+  color: v.$text-muted-40;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: v.$radius-pill;
+  padding: 2px 8px;
+}
+
 .gm-editor-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 14px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .gm-editor-header__title {
@@ -13,38 +70,240 @@
   font-size: 15px;
 }
 
-.gm-editor-new-btn {
+.gm-editor-header__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.gm-editor-new-btn,
+.gm-editor-download-btn {
   @include m.btn-reset;
   padding: 8px 16px;
   border-radius: v.$radius-sm;
-  background: v.$accent;
-  color: #fff;
   font-weight: 700;
   font-size: 12.5px;
+}
+
+.gm-editor-new-btn {
+  background: v.$accent;
+  color: #fff;
+}
+
+.gm-editor-download-btn {
+  background: transparent;
+  border: 1px solid v.$border-medium;
+  color: v.$text-muted-70;
+
+  &:hover:not(:disabled) {
+    border-color: v.$accent-tint-30;
+    color: #fff;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.gm-editor-message {
+  font-size: 12.5px;
+  padding: 8px 12px;
+  border-radius: v.$radius-sm;
+  margin-bottom: 12px;
+  background: v.$accent-tint-12;
+  color: v.$text-muted-70;
+
+  &--error {
+    background: rgba(255, 106, 77, 0.12);
+    color: v.$danger;
+  }
+}
+
+// ---- Card grid ----
+
+.gm-editor-grid {
+  @include m.grid-auto-fit(260px, 12px);
+  align-items: start;
+}
+
+.gm-editor-card {
+  @include m.card(14px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.15s ease;
+
+  &--open {
+    border-color: v.$accent-tint-30;
+  }
+
+  &--new {
+    border-color: v.$accent-tint-30;
+    border-style: dashed;
+  }
+}
+
+.gm-editor-card__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gm-editor-card__glyph {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: v.$radius-sm;
+  background: v.$bg-input;
+  font-size: 18px;
+  font-weight: 700;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+}
+
+.gm-editor-card__heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.gm-editor-card__title {
+  font-weight: 700;
+  font-size: 13.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gm-editor-card__key {
+  font-size: 10.5px;
+  color: v.$text-muted-40;
+  font-family: ui-monospace, monospace;
+}
+
+.gm-editor-card__disabled-flag {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 3px 8px;
+  border-radius: v.$radius-pill;
+  background: v.$bg-input;
+  color: v.$text-muted-45;
+  white-space: nowrap;
+}
+
+.gm-editor-card__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.gm-editor-chip {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 11px;
+  padding: 4px 9px;
+  border-radius: v.$radius-pill;
+  background: v.$bg-input;
+  color: v.$text-muted-55;
+}
+
+.gm-editor-chip__label {
+  text-transform: uppercase;
+  font-size: 9.5px;
+  letter-spacing: 0.03em;
+  color: v.$text-muted-40;
+}
+
+.gm-editor-chip__value {
+  font-weight: 700;
+  color: #fff;
+}
+
+.gm-editor-chip--badge {
+  .gm-editor-chip__label { display: none; }
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 10.5px;
+
+  .gm-editor-chip__value { color: inherit; }
+}
+
+.gm-editor-chip--neutral {
+  background: v.$bg-input;
+  color: v.$text-muted-45;
+}
+
+.gm-editor-chip--blue {
+  background: v.$info-tint-25;
+  color: v.$info-strong;
+}
+
+.gm-editor-chip--green {
+  background: v.$success-tint-12;
+  color: v.$success;
+}
+
+.gm-editor-chip--gold {
+  background: v.$warning-tint-12;
+  color: v.$warning;
+}
+
+.gm-editor-chip--red {
+  background: v.$accent-tint-12;
+  color: v.$danger;
+}
+
+.gm-editor-chip--purple {
+  background: v.$purple-tint-12;
+  color: v.$purple;
+}
+
+.gm-editor-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+// ---- Inline expand-in-place edit form ----
+
+.gm-expand-enter-active,
+.gm-expand-leave-active {
+  transition: opacity 0.18s ease, max-height 0.22s ease;
+  overflow: hidden;
+}
+
+.gm-expand-enter-from,
+.gm-expand-leave-to {
+  opacity: 0;
+  max-height: 0;
+}
+
+.gm-expand-enter-to,
+.gm-expand-leave-from {
+  opacity: 1;
+  max-height: 900px;
 }
 
 .gm-editor-form {
-  background: v.$bg-card;
-  border: 1px solid v.$accent-tint-30;
-  border-radius: 12px;
-  padding: 18px;
-  margin-bottom: 16px;
-}
-
-.gm-editor-form__title {
-  font-weight: 700;
-  font-size: 13px;
-  margin-bottom: 12px;
-}
-
-.gm-editor-form__error {
-  font-size: 12.5px;
-  color: v.$danger;
-  margin-bottom: 10px;
+  background: v.$bg-input;
+  border: 1px solid v.$border-subtle;
+  border-radius: 10px;
+  padding: 14px;
 }
 
 .gm-editor-form__fields {
-  @include m.grid-auto-fit(180px, 10px);
+  @include m.grid-auto-fit(150px, 10px);
   margin-bottom: 14px;
 }
 
@@ -63,7 +322,7 @@
 .gm-editor-textarea,
 .gm-editor-input {
   width: 100%;
-  background: v.$bg-input;
+  background: v.$bg-card;
   border: 1px solid v.$border-medium;
   border-radius: 7px;
   padding: 8px;
@@ -107,46 +366,6 @@
   font-size: 12.5px;
 }
 
-.gm-editor-table-wrap {
-  overflow-x: auto;
-  background: v.$bg-card;
-  border: 1px solid v.$border-subtle;
-  border-radius: 12px;
-}
-
-.gm-editor-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12.5px;
-}
-
-.gm-editor-table__head-row {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.gm-editor-table__head-cell {
-  text-align: left;
-  padding: 10px 14px;
-  color: v.$text-muted-40;
-  font-weight: 600;
-  text-transform: uppercase;
-  font-size: 10.5px;
-}
-
-.gm-editor-table__row {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.gm-editor-table__cell {
-  padding: 9px 14px;
-}
-
-.gm-editor-table__cell--actions {
-  padding: 9px 14px;
-  text-align: right;
-  white-space: nowrap;
-}
-
 .gm-editor-edit-link {
   background: none;
   border: none;
@@ -169,6 +388,8 @@
   color: rgba(255, 255, 255, 0.35);
   font-size: 12.5px;
 }
+
+// ---- Changelog cards (dedicated layout, kept from before) ----
 
 .gm-changelog-cards {
   display: flex;
@@ -267,4 +488,5 @@
 .gm-changelog-card__actions {
   display: flex;
   justify-content: flex-end;
+  margin-bottom: 8px;
 }

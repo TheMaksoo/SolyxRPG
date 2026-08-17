@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->alias([
             'gm' => \App\Http\Middleware\EnsureIsGm::class,
+            'artist' => \App\Http\Middleware\EnsureIsArtist::class,
             'not-banned' => \App\Http\Middleware\EnsureNotBanned::class,
         ]);
     })

@@ -31,181 +31,210 @@
 .dashboard {
   display: flex;
   gap: 24px;
-  flex-wrap: wrap;
   align-items: flex-start;
 }
 
 .dashboard__main {
   flex: 1;
-  min-width: 320px;
-}
-
-.dashboard__rail {
-  width: 320px;
-  flex: none;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 18px;
 }
 
-// Explicit width rather than letting this column auto-size to its widest child's content — with
-// flex-basis: auto sizing, the plain rail-card children (which stretch to fill whatever width the
-// column resolves to) were nudging the column a few dozen px wider than World Chat's own fixed
-// width, leaving a gap down its right edge. A fixed width here keeps every card in the column,
-// including World Chat, pinned to the exact same width with no ambiguity.
-.dashboard__chat-col {
-  width: 340px;
-  flex: none;
+.rail-empty {
+  font-size: 12.5px;
+  color: v.$text-muted-35;
+}
+
+// ---- HERO ----
+.hero-card {
+  @include m.card(20px);
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  background: linear-gradient(115deg, v.$accent-tint-15, v.$bg-card 62%);
 }
 
-// ---- Zone card ----
-.zone-card {
-  @include m.card(18px);
-  display: flex;
-  gap: 16px;
-  margin-bottom: 16px;
-  color: inherit;
-  transition: border-color 0.15s ease, transform 0.15s ease;
-
-  &:hover {
-    border-color: v.$border-medium;
-    transform: translateY(-1px);
-  }
-}
-
-.zone-card__art {
-  width: 80px;
-  height: 80px;
+.hero-card__ring {
   flex: none;
-  border-radius: v.$radius-md;
-  background: repeating-linear-gradient(45deg, #16241a, #16241a 8px, #132018 8px, #132018 16px);
-  display: grid;
-  place-items: center;
-  font-size: 30px;
-}
-
-.zone-card__body {
-  flex: 1;
-  min-width: 0;
-}
-
-.zone-card__name {
-  font-size: 20px;
-  font-weight: 700;
-}
-
-.zone-card__desc {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.5);
-  margin: 4px 0 8px;
-}
-
-.zone-card__badge {
-  font-size: 12px;
-  background: rgba(34, 197, 94, 0.13);
-  color: v.$success;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-weight: 600;
-}
-
-// ---- Stat tiles ----
-.stat-tiles {
-  @include m.grid-auto-fit(130px, 12px);
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  margin-bottom: 16px;
-
-  // Forcing exactly 5 columns regardless of width squeezes each tile hard whenever .dashboard__main
-  // itself is narrow — not just on phones, but on any desktop window where the fixed-width chat/rail
-  // columns are still eating space next to it (see the 1100px breakpoint below). A large Gold/HP
-  // number in a ~110px-wide tile has nowhere to go but overflow, since it's one unbroken numeric
-  // token with no natural line-break point.
-  @media (max-width: 1100px) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-.stat-tile {
-  @include m.card(18px);
-  text-align: center;
-  // Grid items default to a content-based min-width (min-width: auto), which lets an unbroken long
-  // number push the tile wider than its grid track instead of shrinking to fit it — this override is
-  // what actually lets the grid-template-columns sizing above take effect for long values.
-  min-width: 0;
-}
-
-// ---- XP gauge (ring around the level number) ----
-.xp-gauge {
-  width: 66px;
-  height: 66px;
+  width: 94px;
+  height: 94px;
   border-radius: 50%;
-  margin: 0 auto 6px;
   display: grid;
   place-items: center;
-  background: conic-gradient(v.$accent calc(var(--xp-pct) * 1%), rgba(255, 255, 255, 0.09) 0);
+  background: conic-gradient(v.$accent calc(var(--xp-pct) * 1%), rgba(255, 255, 255, 0.08) 0);
   transition: background 0.4s ease;
 }
 
-.xp-gauge__inner {
-  width: 52px;
-  height: 52px;
+.hero-card__ring-inner {
+  width: 78px;
+  height: 78px;
   border-radius: 50%;
   background: v.$bg-card;
   display: grid;
   place-items: center;
+  text-align: center;
   line-height: 1.1;
 }
 
-.xp-gauge__level {
-  font-size: 21px;
+.hero-card__level {
+  font-size: 26px;
   font-weight: 800;
-  color: v.$accent;
 }
 
-.xp-gauge__tag {
-  font-size: 8px;
-  letter-spacing: 0.08em;
+.hero-card__level-tag {
+  font-size: 8.5px;
+  letter-spacing: 0.16em;
   color: v.$text-muted-40;
-  font-weight: 700;
+  font-weight: 800;
+  margin-top: 1px;
 }
 
-.stat-tile__value {
+.hero-card__body {
+  flex: 1;
+  min-width: 220px;
+}
+
+.hero-card__title-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.hero-card__name {
+  font-size: 23px;
   font-weight: 800;
-  // Last-resort safety net for the rare case even 3 columns aren't enough room (very high gold/HP
-  // totals) — wraps onto a second line inside the tile instead of spilling past its edge.
+}
+
+.hero-card__class-badge {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: v.$info;
+  border: 1px solid rgba(92, 199, 245, 0.35);
+  background: rgba(92, 199, 245, 0.1);
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+
+.hero-card__zone {
+  font-size: 12.5px;
+  color: v.$text-muted-45;
+  margin-top: 5px;
+}
+
+.hero-card__xp-track {
+  height: 7px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+  margin-top: 13px;
+}
+
+.hero-card__xp-fill {
+  height: 100%;
+  border-radius: 5px;
+  background: linear-gradient(90deg, v.$accent, v.$accent-soft);
+  transition: width 0.4s ease;
+}
+
+.hero-card__xp-numbers {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: v.$text-muted-40;
+  margin-top: 6px;
+}
+
+.hero-card__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 172px;
+  flex: none;
+}
+
+.hero-card__cta {
+  @include m.btn-primary;
+  text-align: center;
+  padding: 14px 22px;
+  font-size: 14px;
+}
+
+.hero-card__cta-secondary {
+  text-align: center;
+  border: 1px solid v.$border-medium;
+  color: v.$text-muted-70;
+  border-radius: v.$radius-md;
+  padding: 11px 22px;
+  font-weight: 700;
+  font-size: 12.5px;
+  text-decoration: none;
+
+  &:hover {
+    border-color: v.$border-strong;
+    color: #fff;
+  }
+}
+
+// ---- VITALS ----
+.vitals-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.vital-tile {
+  @include m.card(13px 15px);
+  min-width: 0;
+}
+
+.vital-tile__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vital-tile__label {
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  font-weight: 800;
+  color: v.$text-muted-40;
+}
+
+.vital-tile__value {
+  font-size: 15px;
+  font-weight: 800;
   overflow-wrap: anywhere;
 
-  &--gold {
-    font-size: 30px;
-    color: v.$warning;
-  }
-
   &--hp {
-    font-size: 22px;
     color: v.$success-strong;
   }
 
   &--mana {
-    font-size: 22px;
     color: v.$info-strong;
   }
 
   &--energy {
-    font-size: 22px;
     color: v.$purple;
+  }
+
+  &--gold {
+    color: v.$warning;
   }
 
   // Same subtle pulse language as BattlePage's stat-bar-fill--regenerating — a quiet signal that this
   // number is actively climbing toward max, not just a static readout.
-  &--regenerating {
-    animation: stat-tile-value-pulse 2.6s ease-in-out infinite;
+  &.is-regenerating {
+    animation: vital-tile-value-pulse 2.6s ease-in-out infinite;
   }
 }
 
-@keyframes stat-tile-value-pulse {
+@keyframes vital-tile-value-pulse {
   0%, 100% {
     filter: brightness(1);
   }
@@ -215,475 +244,414 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .stat-tile__value--regenerating {
+  .vital-tile__value.is-regenerating {
     animation: none;
   }
 }
 
-.stat-tile__label {
-  font-size: 12px;
-  color: v.$text-muted-45;
+.vital-tile__track {
+  height: 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+  margin-top: 10px;
 }
 
-.stat-tile__regen {
-  margin-top: 4px;
+.vital-tile__fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+
+  &--hp {
+    background: v.$success-strong;
+  }
+
+  &--mana {
+    background: v.$info-strong;
+  }
+
+  &--energy {
+    background: v.$purple;
+  }
+
+  &--gold {
+    background: v.$warning;
+  }
+}
+
+.vital-tile__note {
   font-size: 10.5px;
-  color: v.$success;
+  color: v.$text-muted-35;
+  margin-top: 7px;
 }
 
-// ---- Alerts ----
-.dashboard-alerts {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-// TransitionGroup hooks for .dashboard-alerts — rows ease in/out and its still-visible siblings
-// glide into their new position instead of the list snapping straight to its new height.
-.alert-enter-active,
-.alert-leave-active,
-.alert-move {
-  transition: opacity 0.25s ease, transform 0.25s ease;
-}
-
-.alert-enter-from,
-.alert-leave-to {
-  opacity: 0;
-  transform: translateY(-6px);
-}
-
-.alert-leave-active {
-  position: absolute;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .alert-enter-active,
-  .alert-leave-active,
-  .alert-move {
-    transition: none;
-  }
-}
-
-.dashboard-alert {
-  display: block;
-  border-radius: 9px;
-  padding: 10px 14px;
-  font-size: 12.5px;
-  font-weight: 600;
-  text-decoration: none;
-
-  &--idle {
-    background: v.$accent-tint-15;
-    color: v.$accent-soft;
-    border: 1px solid v.$accent-tint-30;
-  }
-
-  &--danger {
-    background: rgba(255, 106, 77, 0.12);
-    color: v.$danger;
-    border: 1px solid rgba(255, 106, 77, 0.3);
-  }
-
-  &--broken {
-    background: #5c1414;
-    color: #ffdede;
-    border: 1px solid rgba(255, 45, 45, 0.5);
-  }
-
-  &--reward {
-    background: #241a04;
-    color: #ffc13d;
-    border: 1px solid rgba(255, 193, 61, 0.35);
-  }
-
-  &--auto-battle {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: #123d2a;
-    color: #baf5d3;
-    border: 1px solid rgba(56, 217, 137, 0.3);
-  }
-}
-
-.auto-battle-pulse {
-  position: relative;
-  width: 12px;
-  height: 12px;
-  flex: none;
-  display: inline-block;
-}
-
-.auto-battle-pulse__dot {
-  position: absolute;
-  inset: 3px;
-  border-radius: 50%;
-  background: #38d989;
-}
-
-.auto-battle-pulse__ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: #38d989;
-  animation: auto-battle-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
-
-  @media (prefers-reduced-motion: reduce) {
-    animation: none;
-  }
-}
-
-@keyframes auto-battle-ping {
-  0% {
-    transform: scale(1);
-    opacity: 0.6;
-  }
-  100% {
-    transform: scale(2.4);
-    opacity: 0;
-  }
-}
-
-// ---- Right rail ----
-.vip-time-card {
-  display: block;
-  background: linear-gradient(160deg, #241a04, v.$bg-card);
-  border: 1px solid rgba(255, 193, 61, 0.3);
-  border-radius: v.$radius-lg;
-  padding: 14px 16px;
-  text-decoration: none;
-}
-
-.vip-time-card__tier {
-  font-size: 13px;
-  font-weight: 700;
-  color: #ffc13d;
-  text-transform: capitalize;
-}
-
-.vip-time-card__value {
-  font-size: 12px;
-  color: v.$text-muted-45;
-  margin-top: 4px;
-}
-
-.battlepass-card {
-  background: linear-gradient(160deg, #1a1013, v.$bg-card);
-  border: 1px solid rgba(232, 72, 47, 0.2);
-  border-radius: v.$radius-lg;
-  padding: 16px;
-}
-
-.battlepass-card__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.battlepass-card__title {
-  font-weight: 700;
-  font-size: 14px;
-}
-
-.battlepass-card__tier {
-  font-size: 11px;
-  color: v.$accent-soft;
-}
-
-.battlepass-card__cta {
-  display: block;
-  text-align: center;
-  width: 100%;
-  box-sizing: border-box;
-  background: v.$accent-tint-15;
-  color: v.$accent-soft;
-  border: 1px solid v.$accent-tint-30;
-  border-radius: 9px;
-  padding: 9px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.rail-card {
-  @include m.card(16px);
-}
-
-.rail-card--link {
-  display: block;
-  color: inherit;
-  text-decoration: none;
-  transition: border-color 0.15s ease;
-
-  &:hover {
-    border-color: v.$accent-tint-30;
-  }
-}
-
-.trade-skill-row {
+// ---- Shared section header ----
+.section__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 0;
-  font-size: 12.5px;
+  gap: 10px;
+  margin-bottom: 9px;
 }
 
-.trade-skill-row__name {
-  color: v.$text-body;
-}
-
-.trade-skill-row__level {
-  color: v.$text-muted-40;
-  font-weight: 700;
-}
-
-.rail-eyebrow {
+.section__eyebrow {
   font-size: 11px;
   letter-spacing: 0.15em;
+  font-weight: 700;
   color: v.$text-muted-40;
-  font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: 9px;
 }
 
-.rail-empty {
-  font-size: 12.5px;
+.section__head .section__eyebrow {
+  margin-bottom: 0;
+}
+
+.section__count {
+  font-size: 11px;
   color: v.$text-muted-35;
 }
 
-.invite-rail__pitch {
-  font-size: 12.5px;
-  color: v.$text-muted-55;
-  line-height: 1.5;
-  margin: 0 0 12px;
+// ---- DO NEXT ----
+.do-next-card {
+  @include m.card(0);
+  overflow: hidden;
 }
 
-.invite-rail__row {
+.do-next-row {
   display: flex;
-  gap: 6px;
-  margin-bottom: 10px;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  border-bottom: 1px solid v.$border-subtle;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  &:last-of-type {
+    border-bottom: none;
+  }
 }
 
-.invite-rail__input {
+.do-next-row__dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.do-next-row__text {
   flex: 1;
   min-width: 0;
-  padding: 8px 10px;
-  border-radius: v.$radius-sm;
-  border: 1px solid v.$border-medium;
-  background: v.$bg-input;
-  color: v.$text-muted-70;
-  font-size: 11.5px;
+  font-size: 13px;
+  color: v.$text-body;
 }
 
-.invite-rail__copy {
-  @include m.btn-reset;
+.do-next-row__tag {
   flex: none;
-  padding: 8px 14px;
-  border-radius: v.$radius-sm;
-  background: v.$accent;
-  color: #fff;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  border-radius: 5px;
+  padding: 3px 8px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.do-next-row__chevron {
+  flex: none;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.do-next-more {
+  @include m.btn-reset;
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 12px;
   font-weight: 700;
-  font-size: 12px;
-  cursor: pointer;
+  color: v.$accent-soft;
+  text-align: center;
 }
 
-.invite-rail__link {
-  display: inline-block;
-  font-size: 12px;
-  font-weight: 600;
-  color: v.$accent-hover;
+// ---- JUMP BACK IN ----
+.shortcuts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
 }
 
-.leaderboard-row {
+.shortcut-tile {
+  @include m.card(15px);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    border-color: v.$border-medium;
+    transform: translateY(-1px);
+  }
+}
+
+.shortcut-tile__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 7px 8px;
-  border-radius: v.$radius-sm;
-  transition: background 0.2s ease;
-}
-
-.leaderboard-row__left {
-  display: flex;
-  align-items: center;
   gap: 8px;
-  flex: 1;
-  min-width: 0;
 }
 
-.leaderboard-row__rank {
-  width: 16px;
-  flex: none;
-  font-weight: 700;
-  color: v.$text-muted-40;
+.shortcut-tile__glyph {
+  font-size: 19px;
 }
 
-.leaderboard-row__name {
+.shortcut-tile__pill {
   flex: none;
-  font-size: 13px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  border-radius: 5px;
+  padding: 3px 7px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 90px;
+  border: 1px solid transparent;
 }
 
-.rail-recent-battle__vs {
-  flex: 1;
-  min-width: 0;
+.shortcut-tile__title {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.shortcut-tile__sub {
   font-size: 11.5px;
   color: v.$text-muted-45;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.45;
 }
 
-.leaderboard-row__icon {
+// ---- TAVERN RAIL ----
+.tavern-rail {
+  width: 328px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tavern-rail__tabs {
+  @include m.card(0);
+  display: flex;
+  gap: 4px;
+  padding: 10px;
+}
+
+.tavern-rail__tab {
+  @include m.btn-reset;
+  flex: 1;
+  padding: 9px 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  border-radius: 9px;
+  color: v.$text-muted-45;
+
+  &.is-active {
+    background: v.$accent-tint-15;
+    color: #fff;
+  }
+}
+
+.tavern-rail__body {
+  @include m.card(14px 16px);
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+
+  // The Chat tab's WorldChat (embedded) owns the whole body's height/scroll itself; Ranks/News just sit
+  // in the card's own padding. Toggled via a class (see DashboardPage.vue) rather than :has() for wider
+  // browser support.
+  &--chat {
+    padding: 0;
+  }
+}
+
+.tavern-ranks {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tavern-rank-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 4px;
+  border-bottom: 1px solid v.$border-subtle;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.tavern-rank-row__rank {
+  width: 20px;
+  flex: none;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.tavern-rank-row__icon {
   font-size: 14px;
 }
 
-.leaderboard-row__title-badge {
-  @include m.badge(v.$accent, rgba(255, 255, 255, 0.08));
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  font-size: 9px;
-  flex: 0 1 auto;
+.tavern-rank-row__name {
+  flex: 1;
   min-width: 0;
-  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.leaderboard-row__level {
+.tavern-rank-row__level {
   flex: none;
-  font-size: 12px;
-  color: v.$text-muted-40;
-  margin-left: 8px;
-}
-
-.quest-item {
-  margin-bottom: 14px;
-}
-
-.quest-item__name {
-  font-weight: 600;
-  font-size: 13px;
-  margin-bottom: 6px;
-}
-
-.quest-item__track {
-  height: 5px;
-  background: #1e1e22;
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 4px;
-}
-
-.quest-item__fill {
-  height: 100%;
-  background: v.$accent;
-}
-
-.quest-item__progress {
   font-size: 11px;
   color: v.$text-muted-40;
 }
 
-.announcement-row {
+.tavern-news {
   display: flex;
-  gap: 10px;
-  padding: 8px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  flex-direction: column;
+  gap: 14px;
 }
 
-.announcement-row__icon {
-  width: 30px;
-  height: 30px;
-  flex: none;
-  border-radius: 8px;
-  background: rgba(232, 72, 47, 0.14);
-  display: grid;
-  place-items: center;
-  font-size: 15px;
+.tavern-news-row {
+  padding-bottom: 13px;
+  border-bottom: 1px solid v.$border-subtle;
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
 }
 
-.announcement-row__content {
-  min-width: 0;
+.tavern-news-row__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.announcement-row__text {
+.tavern-news-row__kind {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: v.$accent-soft;
+  border: 1px solid v.$accent-tint-30;
+  background: v.$accent-tint-12;
+  border-radius: 4px;
+  padding: 3px 7px;
+}
+
+.tavern-news-row__when {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.tavern-news-row__text {
   font-size: 12.5px;
-  font-weight: 600;
+  color: v.$text-muted-70;
+  line-height: 1.5;
+  margin-top: 7px;
 }
 
-.announcement-row__author {
+.tavern-news-row__author {
   font-size: 11px;
-  color: v.$text-muted-45;
-  margin-top: 1px;
+  color: v.$text-muted-40;
+  margin-top: 4px;
 }
 
-// The three columns (chat-col 340px + main's own 320px min-width + rail 320px, plus 24px gaps twice)
-// need roughly 1030px of CONTENT width to sit side by side without wrapping — but that content sits
-// inside GameLayout's .layout-content (60px padding) next to its own 230px sidebar (see
-// GameLayout.scss), so the VIEWPORT itself needs to be ~1320px before the columns actually fit — well
-// above the generic 768px phone breakpoint used everywhere else in the app. Anywhere from 768px up to
-// that point (which covers plenty of ordinary un-maximized desktop windows and laptops, not just
-// tablets), `.dashboard`'s flex-wrap was already silently wrapping the fixed-width columns onto their
-// own lines, but neither column had switched to width: 100% yet, and WorldChat's `position: sticky`
-// (see WorldChat.scss) was still active — the combination let the wrapped rail-cards scroll up and
-// visually overlap the still-sticky chat panel. Stacking here, at the actual point columns stop
-// fitting, closes that gap instead of just moving where it happens.
-@media (max-width: 1350px) {
+// The three-column desktop layout (main + 328px rail, plus a 24px gap) needs roughly 1030px of CONTENT
+// width to sit side by side — but that content sits inside GameLayout's own padded/sidebar'd frame (see
+// GameLayout.scss), so the VIEWPORT itself needs to be meaningfully wider than the generic 768px phone
+// breakpoint before the columns actually fit.
+@media (max-width: 1200px) {
   .dashboard {
-    gap: 16px;
+    flex-direction: column;
   }
 
-  .dashboard__main {
-    min-width: 0;
-    width: 100%;
-  }
-
-  .dashboard__rail,
-  .dashboard__chat-col {
+  .tavern-rail {
     width: 100%;
   }
 }
 
 @media (max-width: 768px) {
-  .zone-card {
-    padding: 14px;
+  .hero-card {
+    padding: 15px;
   }
 
-  .zone-card__art {
-    width: 60px;
-    height: 60px;
-    font-size: 24px;
+  .hero-card__ring {
+    width: 64px;
+    height: 64px;
   }
 
-  .zone-card__name {
-    font-size: 17px;
+  .hero-card__ring-inner {
+    width: 52px;
+    height: 52px;
   }
 
-  .stat-tiles {
+  .hero-card__level {
+    font-size: 18px;
+  }
+
+  .hero-card__actions {
+    width: 100%;
+    flex-direction: row;
+
+    .hero-card__cta,
+    .hero-card__cta-secondary {
+      flex: 1;
+    }
+  }
+
+  .vitals-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
 
-  .stat-tile {
-    padding: 14px;
+  .vital-tile {
+    padding: 11px 13px;
   }
 
-  .rail-card,
-  .battlepass-card {
-    padding: 14px;
+  .shortcuts-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
   }
 
-  .vip-time-card {
-    padding: 12px 14px;
+  .shortcut-tile {
+    padding: 13px 10px;
+    text-align: center;
+    align-items: center;
   }
+
+  .shortcut-tile__head {
+    width: 100%;
+    justify-content: center;
+    flex-direction: column;
+    gap: 6px;
+  }
+
 }
 
 @media (max-width: 480px) {
-  .stat-tiles {
+  .vitals-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .shortcuts-grid {
+    grid-template-columns: 1fr;
   }
 }

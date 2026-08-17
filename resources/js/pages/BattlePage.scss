@@ -1,6 +1,42 @@
 @use '../../scss/variables' as v;
 @use '../../scss/mixins' as m;
 
+// Circular ring-pulse portrait badge, shared by enemy/companion/player cards — see .enemy-card__art,
+// .add-card__art, .player-card__art below, all reusing the same monster-ring-pulse keyframe so every
+// combatant's portrait breathes at the same rhythm.
+@mixin portrait-ring($size, $color: v.$accent) {
+  position: relative;
+  width: $size;
+  height: $size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+
+  &-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1px solid $color;
+    animation: monster-ring-pulse 2.6s ease-in-out infinite;
+  }
+}
+
+// Branded hover tooltip for any element carrying data-tip — see m.tooltip's own docblock. Promoted into
+// the shared mixin once SkillsPage needed the identical behavior; kept as .tt here unchanged so nothing
+// else on this page has to be touched.
+.tt {
+  @include m.tooltip;
+}
+
+// Every direct section of this page (header, notices, the auto-battle row, the fight view itself)
+// shares this one centered column instead of each picking its own width — that's what made the fight
+// view look narrower than the header/cards above it. Widened from the fight view's old solo 1010px
+// cap since there's headroom on desktop next to the sidebar.
+.battle-page {
+  @include m.centered-column(1200px);
+}
+
 .battle-header {
   @include m.page-header;
 }
@@ -21,14 +57,10 @@
   align-self: baseline;
 }
 
-// Plain informational notices (resumed a fight, encountered a rare grade, stage cleared, fled) —
-// simple colored text, no icon/CTA chrome. Durability warnings get the richer .battle-alert-bar
-// below instead, since those are the ones worth an inline "Repair" action.
-.battle-notice {
-  color: v.$success;
-  font-size: 13px;
-  margin-bottom: 14px;
-}
+// Plain informational notices (resumed a fight, encountered a rare grade, stage cleared, fled) and
+// errors now render as Toasts (see Toast.vue) instead of inline text here, so they no longer shift the
+// fight view below them. Durability warnings still get the richer .battle-alert-bar below instead of a
+// toast, since those are the ones worth a persistent inline "Repair" action.
 
 // Durability warning bar — icon + message + a direct "Repair" link, all on one line.
 .battle-alert-bar {
@@ -66,12 +98,6 @@
   white-space: nowrap;
 }
 
-.battle-error {
-  color: v.$danger;
-  font-size: 13px;
-  margin-bottom: 14px;
-}
-
 .battle-loading {
   color: v.$text-muted-40;
   font-size: 13px;
@@ -83,8 +109,9 @@
   gap: 14px;
 }
 
-// Side by side when both the "while you were away" summary and the Training card are present;
-// either one alone just takes the full row.
+// Only ever holds the "while you were away" claim summary now — the Training card moved into
+// .fight-view__intel (see BattlePage.vue) — but kept as its own row rather than folded into
+// .claim-summary directly in case another one-off banner lands here later.
 .battle-top-row {
   display: flex;
   gap: 10px;
@@ -135,10 +162,10 @@
   padding: 5px 12px;
 }
 
-// ---- Auto-Attack card ----
+// ---- Auto-Attack card ---- now lives in .fight-view__intel (see BattlePage.vue) rather than
+// battle-top-row, so it no longer needs flex-basis sizing for a row layout.
 .auto-battle-card {
   @include m.card(14px 18px);
-  flex: 1 1 340px;
 }
 
 .auto-battle-card__summary {
@@ -203,21 +230,9 @@
   }
 }
 
-// ---- Layout: main content + world chat sidebar ----
-.battle-layout {
-  display: flex;
-  gap: v.$space-5;
-  align-items: flex-start;
-}
-
-.battle-main {
-  flex: 1;
-  min-width: 0;
-}
-
 // ---- Fight view ----
+// Width now comes from .battle-page above, so this sits exactly as wide as the header/cards above it.
 .fight-view {
-  @include m.centered-column(1010px);
   display: flex;
   gap: 20px;
   align-items: flex-start;
@@ -226,6 +241,14 @@
 .fight-view__main {
   flex: 1;
   min-width: 0;
+}
+
+// Everything above the action dock (header, turn order, enemy/party lines, log) — split out from
+// .fight-view__main specifically so the dim-while-loading effect below doesn't reach .action-dock: an
+// ancestor's opacity still visually fades a position:fixed descendant (the whole subtree composites at
+// that alpha regardless of layout position), which on mobile made the dock's solid background go
+// translucent mid-action and let whatever was scrolled underneath show through it.
+.fight-view__panel {
   transition: opacity 0.18s ease;
 
   &.is-loading {
@@ -281,13 +304,189 @@
   }
 }
 
-.monster-panel,
-.player-panel {
-  @include m.card(22px);
+// Display-only "who's fastest this round" ranking (Battle::speed_order / MonsterAiService::speedOrder) —
+// a horizontal strip mirroring the imported design's turn-order queue. Not a literal turn-by-turn
+// sequence (one Attack/Skill click still resolves the whole round), just a readable speed ranking.
+.speed-order {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  background: v.$bg-input;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-md;
+}
+
+.speed-order__label {
+  flex: none;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+  color: v.$text-muted-35;
+}
+
+.speed-order__list {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.speed-order__chip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: v.$radius-pill;
+  border: 1px solid v.$border-subtle;
+  background: v.$bg-card;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &--player {
+    color: v.$info;
+  }
+
+  &--foe {
+    color: v.$text-muted-70;
+  }
+
+  // Whoever's turn it is right now (BattlePage.vue's currentTurnKey) — rests on the player between
+  // rounds, then hops to each pet/enemy chip in turn as playEvents() works through the round, so this
+  // reads as a live turn indicator rather than a static "always highlight the player" pulse.
+  &--active {
+    border-color: v.$accent;
+    background: v.$accent-tint-12;
+    animation: battleTurnGlow 1.8s ease-in-out infinite;
+  }
+}
+
+@keyframes battleTurnGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232, 72, 47, 0.35); }
+  50% { box-shadow: 0 0 0 5px rgba(232, 72, 47, 0); }
+}
+
+.speed-order__spd {
+  font-weight: 700;
+  color: v.$text-muted-35;
+}
+
+// ---- Animated turn-by-turn combat playback (BattlePage.vue's playEvents()) ----
+// Floating damage/heal/status text — absolutely positioned over whichever card the event landed on
+// (each card that can be a target already got `position: relative` above). Without this the same
+// <div> still rendered in the DOM but sat in normal flow, shoving the card's own content down for the
+// ~900ms it was visible and then snapping back — read as a layout "jump", not an animation.
+.combat-floater {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  z-index: 6;
+  font-weight: 800;
+  font-size: 15px;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: combat-floater-rise 0.9s ease-out forwards;
+
+  &--damage {
+    color: #ff6a4d;
+  }
+  &--crit {
+    color: #eab308;
+    font-size: 19px;
+  }
+  &--heal {
+    color: #4ade80;
+  }
+  &--status {
+    color: #a78bfa;
+    font-size: 12px;
+  }
+  &--dodge {
+    color: #5cc7f5;
+  }
+}
+
+@keyframes combat-floater-rise {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 6px) scale(0.9);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -6px) scale(1.05);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -46px) scale(1);
+  }
+}
+
+// A hit lands ("shake") vs. something good happening ("glow") — applied straight to the card itself
+// (enemy-card / player-panel / add-card), all of which already sit position: relative for the
+// floaters above to anchor to.
+.is-hit {
+  animation: combat-hit-shake 0.4s ease, combat-hit-flash 0.4s ease;
+}
+
+.is-glow {
+  animation: combat-glow-pulse 0.4s ease;
+}
+
+// Pulses on whichever card is actually DOING the acting this event (see BattlePage.vue's
+// eventActorKey()) — distinct from is-hit/is-glow, which land on the card being acted ON. Makes it
+// visible at a glance which specific enemy/companion just attacked in a multi-enemy pack fight,
+// instead of only the small turn-order chip showing it.
+.is-attacking {
+  animation: combat-attacking-ring 0.4s ease;
+}
+
+@keyframes combat-attacking-ring {
+  0% { outline: 2px solid rgba(234, 179, 8, 0.9); outline-offset: 2px; }
+  100% { outline: 2px solid rgba(234, 179, 8, 0); outline-offset: 6px; }
+}
+
+@keyframes combat-hit-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(2px); }
+}
+
+@keyframes combat-hit-flash {
+  0% { background-color: rgba(232, 72, 47, 0.35); }
+  100% { background-color: transparent; }
+}
+
+@keyframes combat-glow-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.55); }
+  100% { box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .combat-floater,
+  .is-hit,
+  .is-glow,
+  .is-attacking {
+    animation: none;
+  }
+}
+
+// One bordered card for the whole party — the player up top, any tamed companions as a row nested
+// directly underneath inside the SAME box, mirroring the imported design's single party section
+// instead of the player and pets reading as two separate, unrelated boxes stacked on the page.
+.party-card {
+  @include m.card(0);
   margin-bottom: 16px;
 }
 
 .monster-panel {
+  @include m.card(22px);
+  margin-bottom: 16px;
   text-align: center;
   @include m.fade-in;
   // Reserved so the panel is the same size whether it's showing the monster mid-fight or the
@@ -297,15 +496,6 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-
-  &--targetable {
-    cursor: pointer;
-    border: 1px solid transparent;
-  }
-
-  &--selected {
-    border-color: v.$accent;
-  }
 
   // Once the fight resolves, this same panel switches from showing the monster to showing the
   // victory/defeat screen — same slot, same box, just a different accent so it still reads as "this
@@ -321,24 +511,28 @@
   margin: 8px 0 0;
 }
 
-.adds-panel {
+// Tamed companions fighting alongside the player — nested inside .party-card, directly under the
+// player's own panel, separated by a divider rather than floating as its own separate box. Never
+// clickable (there's nothing to target here) and tinted purple to read as "yours."
+.party-card__companions {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  margin: -8px 0 16px;
-}
+  padding: 14px 22px 18px;
+  border-top: 1px solid v.$border-subtle;
 
-// Tamed companions fighting alongside the player — same card shape as the enemy "adds" panel, but
-// never clickable (there's nothing to target here) and tinted purple to read as "yours."
-.companions-panel .add-card {
-  cursor: default;
-  border-color: v.$purple-tint-12;
+  .add-card {
+    cursor: default;
+    border-color: v.$purple-tint-12;
+  }
 }
 
 .add-card {
   @include m.card(12px);
+  position: relative;
   flex: 1;
   min-width: 140px;
+  overflow-wrap: break-word;
   cursor: pointer;
   border: 1px solid transparent;
   text-align: center;
@@ -362,11 +556,30 @@
 
 .add-card__bar {
   margin-bottom: 4px;
+
+  &--mp {
+    height: 4px;
+  }
 }
 
 .add-card__hp {
   font-size: 11px;
   color: v.$text-muted-45;
+}
+
+// A companion's role-flavored special move (MonsterAiService::ROLE_COMPANION_ABILITY) — read-only,
+// companions act on their own AI each round, this just tells the player what that AI can actually do.
+.companion-ability {
+  margin-top: 5px;
+  font-size: 10.5px;
+  color: v.$text-muted-45;
+  text-align: center;
+}
+
+.companion-ability__cost {
+  margin-left: 5px;
+  color: v.$info;
+  font-weight: 700;
 }
 
 .add-card__grade {
@@ -380,11 +593,528 @@
   vertical-align: middle;
 }
 
-.target-hint {
+.battle-line__label {
+  font-family: v.$font-display;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  margin-bottom: 8px;
+
+  &--enemy {
+    color: v.$accent-soft;
+  }
+
+  &--party {
+    color: v.$success;
+  }
+}
+
+.party-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+// Mirrors .enemy-card's shape/sizing almost exactly (same padding, art size, bar heights) so the
+// player reads as just another card in the same row as their companions — "cards, us vs enemy" —
+// instead of one big distinct panel sitting above a smaller companions row.
+.player-card {
+  @include m.card(12px);
+  @include m.fade-in;
+  position: relative;
+  min-width: 0;
+  text-align: center;
+  border: 1px solid v.$success-tint-12;
+}
+
+.player-card__art {
+  @include portrait-ring(58px, v.$success);
+  font-size: 30px;
+  margin: 8px auto 4px;
+}
+
+.player-card__name {
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-card__bar {
+  margin-top: 6px;
+
+  &--mp {
+    height: 5px;
+  }
+}
+
+.player-card__stats {
+  font-size: 10.5px;
+  color: v.$text-muted-45;
+  margin-top: 3px;
+}
+
+.player-card__combat-stats {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  font-size: 10.5px;
+  color: v.$text-muted-45;
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px solid v.$border-subtle;
+}
+
+.player-card__stat-value--atk {
+  color: #ff8163;
+  font-weight: 700;
+}
+
+.player-card__stat-value--def {
+  color: v.$info;
+  font-weight: 700;
+}
+
+// ---- Active-fight enemy grid (primary monster + adds as one uniform set of cards) ----
+.enemy-grid-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
   font-size: 12px;
   color: v.$text-muted-45;
-  margin-bottom: 8px;
+}
+
+.enemy-grid-header__encounter {
+  color: v.$text-muted-35;
+  font-weight: 400;
+}
+
+.enemy-grid-header__count {
+  font-weight: 600;
+  color: v.$text-muted-70;
+}
+
+// Themed backdrop behind the enemy cards — background gradient/texture keyed off the zone's danger
+// tier (see utils/danger.js), with the zone's own glyph as a large faint watermark. Stands in for real
+// per-location artwork, which doesn't exist as an asset anywhere in this game.
+.battlefield {
+  position: relative;
+  border-radius: v.$radius-lg;
+  border: 1px solid v.$border-subtle;
+  padding: 16px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.battlefield__watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 180px;
+  line-height: 1;
+  opacity: 0.06;
+  pointer-events: none;
+  user-select: none;
+}
+
+.enemy-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+
+  &--solo {
+    grid-template-columns: minmax(0, 320px);
+    justify-content: center;
+  }
+}
+
+.enemy-card {
+  @include m.card(12px);
+  @include m.fade-in;
+  position: relative;
+  // Grid items default to min-width: auto — without this, a card whose content (pill row, long name)
+  // wants more room than its minmax() track can force the WHOLE grid (and page) wider than the
+  // viewport instead of just wrapping/truncating inside its own column.
+  min-width: 0;
   text-align: center;
+  border: 1px solid transparent;
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  &--selectable {
+    cursor: pointer;
+  }
+
+  &--selected {
+    border-color: v.$accent;
+    background: v.$accent-tint-12;
+  }
+
+  &--dead {
+    opacity: 0.4;
+  }
+}
+
+.enemy-card__defeated-pill {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: v.$text-muted-55;
+  border: 1px solid v.$text-muted-40;
+  border-radius: v.$radius-sm;
+  padding: 2px 6px;
+  margin: 0 auto;
+}
+
+.enemy-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 20px;
+}
+
+.enemy-card__target-pill {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #fff;
+  background: v.$accent;
+  border-radius: v.$radius-sm;
+  padding: 2px 6px;
+}
+
+.enemy-card__art {
+  @include portrait-ring(58px);
+  font-size: 30px;
+  margin: 8px auto 4px;
+
+  &-sprite {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 50%;
+  }
+}
+
+.add-card__art {
+  @include portrait-ring(46px, v.$purple);
+  font-size: 22px;
+  margin: 2px auto 6px;
+}
+
+.player-panel__art {
+  @include portrait-ring(42px, v.$success);
+  font-size: 20px;
+}
+
+.player-panel__who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+// Bridges the enemy line above to the party line below while a fight is active — reads as one facing-off
+// battlefield instead of two unrelated sections.
+.vs-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 14px;
+  color: v.$text-muted-35;
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14), transparent);
+  }
+
+  span {
+    font-family: v.$font-display;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.2em;
+  }
+}
+
+.enemy-card__name {
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.enemy-card__level {
+  margin-left: 5px;
+  font-size: 10.5px;
+  font-weight: 400;
+  color: v.$text-muted-40;
+}
+
+.enemy-card__bar {
+  margin: 7px 0 5px;
+}
+
+.enemy-card__stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: v.$text-muted-45;
+}
+
+.enemy-card__atk {
+  color: v.$accent-soft;
+}
+
+// Client-side-only predicted-damage preview for whichever enemy is currently targeted — mirrors the
+// combat formula but never resolves anything itself; the real roll still only happens server-side.
+.target-info-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  background: v.$bg-input;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-md;
+  font-size: 12px;
+}
+
+.target-info-bar__label {
+  flex: none;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+  color: v.$text-muted-35;
+}
+
+.target-info-bar__name {
+  flex: none;
+  font-weight: 800;
+  color: v.$accent-soft;
+}
+
+.target-info-bar__stat {
+  color: v.$text-muted-55;
+
+  strong {
+    color: v.$info;
+  }
+}
+
+.target-info-bar__kill {
+  margin-left: auto;
+  color: v.$text-muted-40;
+}
+
+// Compact single-line callout for whichever enemy is currently targeted (BattlePage.vue) — repeats
+// that card's own intent line larger and impossible to miss once the grid shrinks to fit several
+// small pack cards on a phone.
+.target-intent-bar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(11, 11, 12, 0.55);
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-md;
+}
+
+.target-intent-bar__glyph {
+  flex: none;
+  font-size: 15px;
+}
+
+.target-intent-bar__text {
+  flex: 1;
+  min-width: 0;
+  font-size: 11.5px;
+  color: v.$text-muted-70;
+  line-height: 1.4;
+}
+
+.target-intent-bar__name {
+  font-weight: 800;
+  color: #fff;
+}
+
+// ---- Right-column intel sidebar (damage split + fight tips), alongside the ad banner ----
+.fight-view__intel {
+  width: 300px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.intel-panel {
+  @include m.card(15px);
+}
+
+.intel-panel__title {
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+  color: v.$text-muted-35;
+  margin-bottom: 10px;
+}
+
+.intel-panel__desc {
+  font-size: 11.5px;
+  color: v.$text-muted-45;
+  line-height: 1.5;
+  margin: -4px 0 10px;
+
+  &--bottom {
+    margin: 10px 0 0;
+    padding-top: 10px;
+    border-top: 1px solid v.$border-subtle;
+  }
+}
+
+.pack-reward-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.pack-reward-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.pack-reward-row__label {
+  color: v.$text-muted-55;
+}
+
+.pack-reward-row__value {
+  font-weight: 700;
+  color: v.$warning;
+}
+
+.threat-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.threat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid v.$border-subtle;
+  font-size: 12px;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.threat-row__from {
+  flex: 1;
+  min-width: 0;
+  color: v.$text-muted-70;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.threat-row__arrow {
+  flex: none;
+  color: v.$text-muted-35;
+}
+
+.threat-row__to {
+  flex: none;
+  font-weight: 600;
+  color: v.$info;
+}
+
+.tip-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.tip-row {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+}
+
+.tip-row__dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-top: 5px;
+}
+
+.tip-row__text {
+  font-size: 12px;
+  line-height: 1.5;
+  color: v.$text-muted-55;
+}
+
+// Static reference legend (StatusEffectService::CATALOG mirrored client-side, see BattlePage.vue's
+// STATUS_META) — every buff/debuff the game can apply, not just ones currently active in this fight.
+// Laid out as a two-column grid (pill | description) so it reads like a table rather than a loose list.
+.status-glossary-table {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 12px;
+  max-height: 280px;
+  overflow-y: auto;
+  // Each pill's hover tooltip (see m.tooltip) is an absolutely-positioned, centered box up to 220px wide
+  // — wider than a short pill like "Evasion" — so even hidden (visibility:hidden, not display:none) it
+  // still inflates this container's scrollable width. overflow-x: hidden clips that invisible overhang
+  // instead of leaving a phantom horizontal scrollbar into empty space.
+  overflow-x: hidden;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-sm;
+}
+
+.status-glossary-row {
+  display: contents;
+
+  &:nth-child(odd) .status-glossary-row__cell {
+    background: rgba(255, 255, 255, 0.02);
+  }
+}
+
+.status-glossary-row__cell {
+  padding: 9px 10px;
+  border-bottom: 1px solid v.$border-subtle;
+  display: flex;
+  align-items: center;
+}
+
+.status-glossary-row__cell--pill {
+  justify-content: flex-start;
+}
+
+.status-glossary-row__desc {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: v.$text-muted-55;
+}
+
+.status-glossary-row:last-child .status-glossary-row__cell {
+  border-bottom: none;
 }
 
 .no-consumables-hint {
@@ -469,6 +1199,113 @@
   border-radius: v.$radius-pill;
   font-size: 11px;
   font-weight: 700;
+  vertical-align: middle;
+}
+
+// Role identity pill (MonsterAiService::ROLES) — same pill shape as the grade badge, sized down for
+// add/companion cards via --sm since those are much narrower than the primary monster panel.
+.role-pill {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border: 1px solid;
+  border-radius: v.$radius-pill;
+  font-size: 10px;
+  font-weight: 700;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.role-pill--sm {
+  margin-left: 4px;
+  padding: 1px 6px;
+  font-size: 9px;
+}
+
+// Buff/debuff pills (StatusEffectService::CATALOG) — every live stack on a combatant gets its own pill.
+.status-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.status-pill-row--sm {
+  margin-top: 5px;
+  justify-content: center;
+}
+
+// Always rendered now (even with zero active statuses) rather than v-if'd away — a buff/debuff
+// landing or expiring used to shove everything below it up/down by a row's height every single time.
+// Reserving the row's own height whether or not anything's in it keeps the rest of the card still.
+.status-pill-row--reserved {
+  min-height: 19px;
+
+  &.status-pill-row--sm {
+    min-height: 15px;
+  }
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid;
+  border-radius: v.$radius-pill;
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-pill--sm {
+  padding: 1px 6px;
+  font-size: 9.5px;
+}
+
+// Read-only preview of a monster's next action (MonsterAiService::predictIntent) — a small line under
+// the HP bar so a player can see what's coming before they act, not just after.
+.monster-intent {
+  margin-top: 8px;
+  font-size: 12px;
+  color: v.$text-muted-45;
+  text-align: center;
+}
+
+.monster-intent--sm {
+  margin-top: 5px;
+  font-size: 10.5px;
+}
+
+// Always rendered (even with no current intent) so a caster's "charging" line appearing/disappearing
+// doesn't shove the status pills below it up and down — same layout-stability fix as
+// .status-pill-row--reserved above.
+.monster-intent--reserved {
+  min-height: 15px;
+
+  &.monster-intent--sm {
+    min-height: 13px;
+  }
+}
+
+// Real per-enemy target preview (ThreatService::topThreatLabel) shown directly on the card, not just
+// in the aggregated Read the Fight panel — "who is this one actually about to hit."
+.aggro-tag {
+  margin-top: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: v.$accent-soft;
+  text-align: center;
+}
+
+// Scope badge on a skill tile (SINGLE/AOE/SUPPORT/HEAL) and on a skill's name in the action list.
+.scope-pill {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 1px 6px;
+  border: 1px solid;
+  border-radius: v.$radius-pill;
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
   vertical-align: middle;
 }
 
@@ -586,6 +1423,7 @@
 }
 
 .player-panel {
+  position: relative;
   padding: 18px;
 }
 
@@ -632,6 +1470,49 @@
   &--def {
     color: #5cc7f5;
   }
+}
+
+// Wraps the predicted-hit bar, primary button, skill grid, and consumables control (BattlePage.vue) —
+// plain block flow on desktop, same as before it existed. Pinned to the bottom of the screen on mobile
+// instead (see its 768px override below), so the controls that actually matter stay in thumb's reach
+// rather than scrolling away above the fold while the enemy grid / battle log / sidebar grow the page.
+.action-dock {
+  display: block;
+}
+
+// Predicted-damage preview strip, directly above the Attack button — every number mirrors
+// CombatService::act()'s real formula (see predictedHit/finishingSkillHint in the script).
+.predicted-hit-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background: v.$bg-input;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: v.$radius-md;
+  font-size: 11.5px;
+  color: v.$text-muted-45;
+
+  // Reserves this bar's box (see BattlePage.vue's template comment) instead of removing it once a fight
+  // resolves — visibility (not display:none) keeps the height/margin in the layout so the primary
+  // button below never jumps up right as the player might click it again.
+  &--hidden {
+    visibility: hidden;
+  }
+}
+
+.predicted-hit-bar__target {
+  color: v.$text-muted-35;
+  letter-spacing: 0.06em;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.predicted-hit-bar__stat .ox {
+  color: v.$text-body;
+  font-weight: 700;
 }
 
 // Full-width primary action — Attack mid-fight, Walk/Fight again/Continue otherwise (see template):
@@ -735,13 +1616,21 @@ $action-tile-tones: (
   margin-bottom: 16px;
 }
 
-.skill-row {
+// Grid of compact skill tiles (icon+name, effect text, cost+scope) — fixed 3x2 for the 6-slot
+// Active Deck, mirroring SkillsPage.scss's .deck-grid instead of a fluid auto-fit flow.
+.skill-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+  margin-bottom: 16px;
+}
+
+.skill-tile {
   @include m.btn-reset;
   display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 14px 16px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 11px 13px;
   background: v.$bg-card;
   border-radius: v.$radius-md;
   border: 1px solid rgba(255, 255, 255, 0.09);
@@ -762,43 +1651,52 @@ $action-tile-tones: (
     &--#{$tone} {
       border-color: nth($c, 2);
 
-      .skill-row__glyph,
-      .skill-row__name {
+      .skill-tile__glyph,
+      .skill-tile__name {
         color: nth($c, 1);
       }
     }
   }
 }
 
-.skill-row__glyph {
-  font-size: 20px;
-  flex: none;
-}
-
-.skill-row__body {
+.skill-tile__top {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+  align-items: center;
+  gap: 7px;
 }
 
-.skill-row__name {
-  font-weight: 700;
-  font-size: 14px;
-}
-
-// The exact rank-scaled effect (e.g. "1.9x ATK damage on use") — the numbers combat actually uses,
-// not just the MP cost.
-.skill-row__info {
-  font-size: 11.5px;
-  color: v.$text-muted-45;
-}
-
-.skill-row__meta {
-  margin-left: auto;
-  font-size: 12px;
-  color: v.$text-muted-40;
+.skill-tile__glyph {
+  font-size: 15px;
   flex: none;
+}
+
+.skill-tile__name {
+  font-weight: 700;
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// The exact rank-scaled effect (e.g. "Vulnerable +40% on enemy for 2 rounds") — the numbers combat
+// actually uses, not just the MP cost.
+.skill-tile__info {
+  font-size: 10.5px;
+  color: v.$text-muted-45;
+  line-height: 1.35;
+}
+
+.skill-tile__bottom {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.skill-tile__cost {
+  font-size: 10.5px;
+  color: v.$text-muted-40;
   white-space: nowrap;
 }
 
@@ -922,13 +1820,61 @@ $action-tile-tones: (
   color: v.$text-muted-40;
 }
 
+// Collapsed by default (BattlePage.vue's battleLogExpanded) — just a toggle row showing the latest
+// line, so a long fight's full round-by-round text doesn't sit permanently expanded taking up space
+// on a phone. The full list only renders once expanded.
 .battle-log {
   background: v.$bg-input;
   border: 1px solid v.$border-subtle;
   border-radius: v.$radius-md;
-  padding: 14px 16px;
+  overflow: hidden;
+}
+
+.battle-log__toggle {
+  @include m.btn-reset;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: transparent;
+  text-align: left;
+}
+
+.battle-log__toggle-label {
+  flex: none;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  font-weight: 800;
+  color: v.$text-muted-35;
+}
+
+.battle-log__peek {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: v.$text-muted-45;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.battle-log__chevron {
+  flex: none;
+  font-size: 13px;
+  color: v.$text-muted-40;
+  transition: transform 0.15s ease;
+
+  &--open {
+    transform: rotate(180deg);
+  }
+}
+
+.battle-log__body {
   max-height: 170px;
   overflow-y: auto;
+  padding: 10px 16px 14px;
+  border-top: 1px solid v.$border-subtle;
 }
 
 .battle-log__line {
@@ -969,7 +1915,10 @@ $action-tile-tones: (
   justify-content: center;
   gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 24px;
+  // Trimmed from 24px — combined with the breakdown toggle below, the old spacing made this reward
+  // state noticeably taller than the ~390px monster panel it replaces (see .monster-panel's min-height
+  // comment), which was its own source of the primary button shifting between fight states.
+  margin-bottom: 14px;
 }
 
 .reward-chip {
@@ -995,9 +1944,9 @@ $action-tile-tones: (
 
 // ---- Reward breakdown ----
 .result-reward-breakdown {
-  margin-top: 16px;
+  margin-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding-top: 14px;
+  padding-top: 10px;
 }
 
 .result-reward-breakdown__toggle {
@@ -1130,6 +2079,20 @@ $action-tile-tones: (
     gap: 8px;
   }
 
+  // The zone/encounter readout above the enemy grid, and the ENEMY/YOUR LINE section labels, sit
+  // centered like every other header/label on this screen at this width instead of hugging the left
+  // edge of a now-narrow column.
+  .enemy-grid-header {
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    gap: 4px;
+  }
+
+  .battle-line__label {
+    text-align: center;
+  }
+
   .player-panel__header {
     flex-direction: column;
     align-items: center;
@@ -1142,21 +2105,26 @@ $action-tile-tones: (
     min-height: 36px;
   }
 
-  // Battle content + world chat stack instead of sitting side by side.
-  .battle-layout {
-    flex-direction: column;
-  }
-
   // Fight panel + ad sidebar stack instead of sitting side by side.
+  // align-items: flex-start (base rule, above) means "top-align" on desktop's row layout — harmless
+  // there, but once flex-direction flips to column here, the SAME property now controls the horizontal
+  // axis instead: flex-start lets a child (.fight-view__main) size to its own widest content rather
+  // than being stretched to the column's width, which is exactly how an enemy card's content (pill row,
+  // long name, intent line) could grow the whole page wider than the viewport instead of wrapping
+  // inside its own card. Stretching here is what actually makes min-width: 0 further down mean anything.
   .fight-view {
     flex-direction: column;
+    align-items: stretch;
     gap: 14px;
   }
 
   .monster-panel,
+  .party-card {
+    margin-bottom: 12px;
+  }
+
   .player-panel {
     padding: 14px;
-    margin-bottom: 12px;
   }
 
   .monster-art {
@@ -1174,13 +2142,27 @@ $action-tile-tones: (
     max-width: 100%;
   }
 
-  .adds-panel {
+  .party-card__companions {
     gap: 8px;
     justify-content: center;
+    padding: 12px 14px 14px;
   }
 
   .add-card {
     min-width: 120px;
+  }
+
+  // Cards stack one per row instead of trying to fit 2+ narrow columns side by side — a pack card
+  // needs room for a portrait, name, HP bar, ATK, and intent line, which reads as cramped/truncated at
+  // half a phone's width. Vertical scrolling through the pack reads better than a squeezed grid.
+  .enemy-grid,
+  .enemy-grid--solo,
+  .party-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fight-view__intel {
+    width: auto;
   }
 
   .action-tiles {
@@ -1191,6 +2173,7 @@ $action-tile-tones: (
     padding: 12px 10px;
     font-size: 13px;
     min-height: 40px;
+    margin-bottom: 8px;
   }
 
   .action-tile {
@@ -1215,9 +2198,13 @@ $action-tile-tones: (
     padding: 10px 6px;
   }
 
-  .battle-log {
-    padding: 12px 14px;
-    max-height: 150px;
+  .battle-log__toggle {
+    padding: 11px 14px;
+  }
+
+  .battle-log__body {
+    padding: 10px 14px 12px;
+    max-height: 140px;
   }
 
   .battle-log__line {
@@ -1228,6 +2215,93 @@ $action-tile-tones: (
     font-size: 18px;
   }
 
+  // ---- Focus-screen mobile combat ----
+  // Reserves room at the bottom of the page for the fixed action dock (the global bottom tab bar's
+  // own clearance is already handled once for every page via .layout-content, see GameLayout.scss) so
+  // the last bit of scrollable content (log, sidebar intel panels, ad banner) never ends up hidden
+  // underneath either fixed bar.
+  .battle-page {
+    padding-bottom: 230px;
+  }
+
+  // Round/stage readout reads as one pill badge, closer to the imported mobile design's "ROUND N" tag,
+  // instead of plain inline text.
+  .fight-view__status {
+    background: v.$bg-input;
+    border: 1px solid v.$border-subtle;
+    border-radius: v.$radius-pill;
+    padding: 5px 12px;
+  }
+
+  // A 1v1 fight's lone enemy gets a bigger "spotlight" treatment instead of the same small tile a pack
+  // member gets — closer to a boss card, since nothing else competes for space in that slot.
+  .enemy-grid--solo .enemy-card {
+    padding: 18px;
+  }
+
+  .enemy-grid--solo .enemy-card__art {
+    width: 76px;
+    height: 76px;
+    font-size: 34px;
+    margin: 10px auto 8px;
+  }
+
+  .enemy-grid--solo .enemy-card__name {
+    font-size: 16px;
+  }
+
+  .enemy-grid--solo .enemy-card__bar {
+    height: 8px;
+  }
+
+  // Skills scroll as one horizontal strip instead of wrapping into rows — matches the imported mobile
+  // design's action dock, and keeps the dock's own height predictable regardless of how many skills
+  // are unlocked.
+  .skill-grid {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    margin-bottom: 10px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .skill-tile {
+    flex: none;
+    width: 108px;
+  }
+
+  // Pins the predicted-hit bar, primary button, skills, and consumables to the bottom of the
+  // viewport — "combat is a focus screen" per the imported design, so the controls that actually
+  // matter stay in thumb's reach instead of scrolling away above the fold.
+  // Sits directly above the global mobile bottom tab bar (see GameLayout.vue/.scss's
+  // .mobile-bottom-nav, a fixed 66px bar at bottom: 0 on every page) rather than at bottom: 0 itself —
+  // otherwise the two fixed bars would stack on top of each other instead of side by side vertically.
+  .action-dock {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 66px;
+    z-index: 30;
+    background: #0e0e10;
+    border-top: 1px solid v.$border-subtle;
+    padding: 10px 14px 12px;
+    box-shadow: 0 -12px 24px rgba(0, 0, 0, 0.35);
+  }
+
+  .predicted-hit-bar {
+    margin-bottom: 8px;
+    padding: 6px 10px;
+    font-size: 10.5px;
+  }
+
+  .consumables-row {
+    margin-bottom: 0;
+  }
+
+  .no-consumables-hint {
+    display: none;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1235,11 +2309,71 @@ $action-tile-tones: (
     grid-template-columns: repeat(3, 1fr);
   }
 
-  .adds-panel {
+  .party-card__companions {
     flex-direction: column;
   }
 
   .add-card {
     min-width: 0;
+  }
+
+  // A further scale-down pass for small phones — the 768px breakpoint above gets the layout stacking
+  // right, but a few pieces still sat at their desktop size and crowded a ~360px-wide screen.
+  .enemy-grid-header {
+    flex-wrap: wrap;
+    gap: 4px;
+    font-size: 11px;
+  }
+
+  .battlefield {
+    padding: 10px;
+  }
+
+  .battlefield__watermark {
+    font-size: 110px;
+  }
+
+  .enemy-grid,
+  .enemy-grid--solo,
+  .party-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .enemy-card {
+    padding: 9px;
+  }
+
+  .enemy-card__art {
+    font-size: 26px;
+    margin: 5px 0 3px;
+  }
+
+  .enemy-card__name {
+    font-size: 12px;
+  }
+
+  .skill-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 7px;
+  }
+
+  .skill-tile {
+    padding: 9px 10px;
+  }
+
+  .target-info-bar {
+    font-size: 11px;
+    padding: 8px 10px;
+  }
+
+  .speed-order {
+    padding: 7px 10px;
+    gap: 8px;
+  }
+
+  .speed-order__chip {
+    padding: 3px 7px;
+    font-size: 10px;
   }
 }

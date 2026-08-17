@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useCharacterStore } from '../stores/character';
 import api from '../api/client';
+import Toast from '../components/Toast.vue';
 import { RARITY_COLORS, RARITY_LABELS, formatStats } from '../rarity';
 
 const route = useRoute();
@@ -35,7 +36,7 @@ const message = ref(null);
 
 // Gear is listed one piece at a time (each copy has its own durability) — mirrors
 // CraftingController::GEAR_TYPES / MarketplaceController::GEAR_TYPES.
-const GEAR_TYPES = ['weapon', 'armor', 'shield', 'pickaxe', 'axe', 'sickle', 'hammer', 'quiver'];
+const GEAR_TYPES = ['weapon', 'armor', 'shield', 'pickaxe', 'axe', 'sickle', 'hammer', 'quiver', 'trinket'];
 const GEM_RARITIES = ['legendary', 'mythic'];
 
 const ITEM_TYPES = [
@@ -144,9 +145,18 @@ async function load() {
 function openListForm(row) {
   listForm.value = row;
   listQty.value = GEAR_TYPES.includes(row.item.type) ? 1 : row.qty;
-  listPrice.value = row.item.price_gold || 10;
-  listGemPrice.value = null;
-  listUseGems.value = false;
+  const item = row.item;
+  // Gems-only items (virtually all rare+ gear) have no price_gold — fall back to the same
+  // gems-to-gold conversion CraftingController::craftedValueFromStats() uses, instead of a flat 10g
+  // that massively underprices a legendary/mythic drop.
+  listPrice.value = item.price_gold || (item.price_gems ? item.price_gems * 20 : 10);
+  if (canListForGems(item) && item.price_gems) {
+    listUseGems.value = true;
+    listGemPrice.value = item.price_gems;
+  } else {
+    listUseGems.value = false;
+    listGemPrice.value = null;
+  }
 }
 
 async function submitListing() {
@@ -189,7 +199,7 @@ async function cancel(listing) {
     const { data } = await api.post(`/market/${listing.id}/cancel`);
     const feeUnit = data.cancel_fee_currency === 'gems' ? '◆' : 'g';
     const feeText = data.cancel_fee > 0 ? ` (${cancelFeePct.value}% cancel fee: -${data.cancel_fee}${feeUnit})` : '';
-    showMessage(`Cancelled — ${listing.item.name} returned to your bag.${feeText}`, 'success');
+    showMessage(`Cancelled: ${listing.item.name} returned to your bag.${feeText}`, 'success');
     if (listing.price_gems != null) {
       await characterStore.fetch();
     }
@@ -266,9 +276,7 @@ onMounted(async () => {
     </div>
 
     <!-- Toast message -->
-    <transition name="mp-fade">
-      <div v-if="message" class="mp-toast" :class="`mp-toast--${message.tone}`">{{ message.text }}</div>
-    </transition>
+    <Toast :message="message?.text || ''" :type="message?.tone || 'error'" />
 
     <!-- ===================== BROWSE ===================== -->
     <template v-if="tab === 'browse'">
@@ -364,7 +372,7 @@ onMounted(async () => {
       </div>
       <div v-else class="mp-empty">
         <span class="mp-empty__icon">🏷️</span>
-        <p>No listings match your filters — try widening your search or <button class="mp-link" @click="resetFilters">reset filters</button>.</p>
+        <p>No listings match your filters, try widening your search or <button class="mp-link" @click="resetFilters">reset filters</button>.</p>
       </div>
 
       <!-- Pagination -->
@@ -412,7 +420,7 @@ onMounted(async () => {
         </div>
         <div v-else class="mp-empty">
           <span class="mp-empty__icon">🎒</span>
-          <p>Nothing listable in your bag — unequip gear or gather/craft something first.</p>
+          <p>Nothing listable in your bag, unequip gear or gather/craft something first.</p>
         </div>
       </div>
 

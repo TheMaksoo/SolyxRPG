@@ -13,7 +13,7 @@ class GmProgressionController extends Controller
      * not gameplay logic; see Character::buildXpTable() for the actual gate. */
     private const WALL_LEVELS = [8, 20, 35, 50];
 
-    private const MAX_LEVEL_SHOWN = 160;
+    private const MAX_LEVEL_SHOWN = 250;
 
     /** Read-only view of the live XP curve for the GM console's Progression tab — per-level cost for
      * levels 1-160 straight from Character::xpForLevel(), so tuning the formula there is reflected here

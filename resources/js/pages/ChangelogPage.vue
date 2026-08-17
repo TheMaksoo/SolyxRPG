@@ -7,6 +7,7 @@ import { TAG_META, tagMeta } from '../utils/changelogMeta';
 const entries = ref([]);
 const loading = ref(true);
 const filter = ref('all'); // 'all' | 'feature' | 'fix' | 'balance' | 'misc'
+const expanded = ref(new Set());
 
 async function load() {
   loading.value = true;
@@ -31,6 +32,34 @@ const tagCounts = computed(() => {
 
 function formatDate(isoString) {
   return new Date(isoString).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function toggleDetails(id) {
+  const next = new Set(expanded.value);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  expanded.value = next;
+}
+
+// Splits a details blob into renderable blocks: "- " prefixed lines are grouped into a <ul>,
+// everything else becomes its own <p>, mirroring how `body` already uses pre-wrap.
+function detailBlocks(details) {
+  const lines = (details ?? '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const blocks = [];
+  for (const line of lines) {
+    if (line.startsWith('- ')) {
+      const last = blocks[blocks.length - 1];
+      if (last?.type === 'ul') last.items.push(line.slice(2));
+      else blocks.push({ type: 'ul', items: [line.slice(2)] });
+    } else {
+      blocks.push({ type: 'p', text: line });
+    }
+  }
+  return blocks;
 }
 
 onMounted(load);
@@ -78,6 +107,23 @@ onMounted(load);
             <span class="changelog-row__date">{{ formatDate(entry.published_at) }}</span>
           </div>
           <p class="changelog-row__body">{{ entry.body }}</p>
+          <template v-if="entry.details">
+            <button
+              type="button"
+              class="changelog-row__toggle"
+              @click="toggleDetails(entry.id)"
+            >
+              {{ expanded.has(entry.id) ? '▴ Hide details' : '▾ Show details' }}
+            </button>
+            <div v-if="expanded.has(entry.id)" class="changelog-row__details">
+              <template v-for="(block, i) in detailBlocks(entry.details)" :key="i">
+                <p v-if="block.type === 'p'" class="changelog-row__details-p">{{ block.text }}</p>
+                <ul v-else class="changelog-row__details-ul">
+                  <li v-for="(item, j) in block.items" :key="j">{{ item }}</li>
+                </ul>
+              </template>
+            </div>
+          </template>
         </div>
       </div>
       <p v-if="!filtered.length" class="changelog-empty">

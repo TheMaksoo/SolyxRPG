@@ -261,7 +261,7 @@ const paceOnTrack = computed(() => {
   return seasonProgress.value.projected_finish_day <= seasonProgress.value.reachable_by_day_target;
 });
 const paceLabel = computed(() => {
-  if (!seasonProgress.value) return '—';
+  if (!seasonProgress.value) return 'N/A';
   if (pass.value?.tier >= totalTiers.value) return 'Maxed!';
   if (!seasonProgress.value.projected_finish_day) return 'Not started';
   return `Day ${seasonProgress.value.projected_finish_day}`;
@@ -473,8 +473,8 @@ onMounted(async () => {
         </span>
       </div>
       <div class="battlepass-premium-pitch__actions">
-        <button @click="unlockWithGems" class="battlepass-unlock-btn">Unlock — {{ gemCost }}◆</button>
-        <button @click="unlockWithCash" class="battlepass-unlock-btn battlepass-unlock-btn--cash">Unlock — {{ cashLabel }}</button>
+        <button @click="unlockWithGems" class="battlepass-unlock-btn">Unlock: {{ gemCost }}◆</button>
+        <button @click="unlockWithCash" class="battlepass-unlock-btn battlepass-unlock-btn--cash">Unlock: {{ cashLabel }}</button>
       </div>
     </div>
 
@@ -622,7 +622,7 @@ onMounted(async () => {
             <span class="ox">{{ pointsIncome.grand_total_with_bonus.toLocaleString() }}</span>
           </div>
           <div class="battlepass-earn-card__note">
-            {{ pointsIncome.total_to_max.toLocaleString() }} needed to hit tier {{ totalTiers }} — daily/weekly/monthly quests
+            {{ pointsIncome.total_to_max.toLocaleString() }} needed to hit tier {{ totalTiers }}. Daily/weekly/monthly quests
             alone cover {{ pointsIncome.recurring_pct_of_max }}% of that, so missing a few is fine.
           </div>
         </div>

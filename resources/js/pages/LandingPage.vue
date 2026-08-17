@@ -3,6 +3,8 @@ import { ref, onMounted, nextTick, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import api from '../api/client';
+import Toast from '../components/Toast.vue';
+import { homePath } from '../utils/homePath';
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -21,6 +23,11 @@ const tosAccepted = ref(false);
 const error = ref('');
 const loading = ref(false);
 const referrerName = ref(null);
+let errorToastTimer = null;
+watch(error, (val) => {
+  clearTimeout(errorToastTimer);
+  if (val) errorToastTimer = setTimeout(() => { error.value = ''; }, 5000);
+});
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 const turnstileToken = ref('');
@@ -73,7 +80,7 @@ async function submit() {
       // A returning player with an already-selected character should land straight on the dashboard,
       // not be routed through character-select every time they log in — that screen is for picking or
       // creating a slot, which only matters if there's no active character yet.
-      router.push(auth.hasCharacter ? '/dashboard' : '/characters');
+      router.push(auth.hasCharacter ? homePath(auth) : '/characters');
     }
   } catch (e) {
     error.value = e.response?.data?.message || Object.values(e.response?.data?.errors ?? {})[0]?.[0] || 'Something went wrong.';
@@ -130,7 +137,7 @@ onMounted(async () => {
     <div class="landing-center">
       <div class="landing-auth-card">
         <div v-if="referrerName" class="landing-referral-banner">
-          🎁 {{ referrerName }} invited you — join and you both earn gems!
+          🎁 {{ referrerName }} invited you, join and you both earn gems!
         </div>
         <div class="landing-auth-card__header">
           <img src="/images/solyx-logo.png" alt="Solyx" class="landing-auth-card__logo" width="76" height="70" />
@@ -236,10 +243,10 @@ onMounted(async () => {
             <span>
               I agree to the
               <router-link to="/terms" target="_blank">Terms of Service &amp; Beta Disclaimer</router-link>
-              — I understand Solyx is still in development and that content, values, and data can change or be lost.
+              : I understand Solyx is still in development and that content, values, and data can change or be lost.
             </span>
           </label>
-          <p v-if="error" class="landing-error">{{ error }}</p>
+          <Toast :message="error" type="error" />
           <button
             type="submit"
             :disabled="loading"

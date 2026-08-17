@@ -1,8 +1,10 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCharacterStore } from '../stores/character';
 import Skeleton from '../components/Skeleton.vue';
+import Toast from '../components/Toast.vue';
+import { homePathForLevel } from '../utils/homePath';
 
 const router = useRouter();
 const store = useCharacterStore();
@@ -11,6 +13,11 @@ const data = ref(null);
 const loading = ref(true);
 const busyId = ref(null);
 const error = ref('');
+let errorToastTimer = null;
+watch(error, (val) => {
+  clearTimeout(errorToastTimer);
+  if (val) errorToastTimer = setTimeout(() => { error.value = ''; }, 5000);
+});
 const deleteTarget = ref(null);
 
 const CLASS_ICON = { warrior: '⚔', mage: '✷', rogue: '🗡', ranger: '🏹' };
@@ -58,7 +65,7 @@ async function play(character) {
   busyId.value = character.id;
   try {
     await store.select(character.id);
-    router.push('/dashboard');
+    router.push(homePathForLevel(character.level));
   } catch (e) {
     error.value = e.response?.data?.message || 'Could not switch character.';
     if (e.response?.status === 403 || e.response?.status === 404) {
@@ -130,7 +137,7 @@ onMounted(load);
       </p>
     </div>
 
-    <p v-if="error" class="character-select-page__error">{{ error }}</p>
+    <Toast :message="error" type="error" />
 
     <div v-if="loading" class="character-select-page__skeleton">
       <Skeleton variant="block" height="150px" :count="3" />

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Gm;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
@@ -10,6 +11,27 @@ use Illuminate\Support\Facades\Log;
 
 class GmArtisanController extends Controller
 {
+    /** Mirrors index()'s per-command danger_level metadata — kept as its own lookup so execute() can
+     * gate on it without re-serializing the full command list. Every 'critical' command here is a
+     * season-wide, irreversible action (rollovers/resets affecting every player), so a plain `gm`
+     * account can't run one — only `owner`, same tier GmPlayerController already requires for role
+     * changes. */
+    private const DANGER_LEVELS = [
+        'migrate' => 'low',
+        'db:seed' => 'low',
+        'leaderboard:distribute-rewards' => 'high',
+        'leaderboard:season-rollover' => 'critical',
+        'leaderboard:snapshot-daily' => 'low',
+        'battlepass:season-rollover' => 'critical',
+        'battlepass:reset' => 'critical',
+        'pvp:season-reset' => 'critical',
+        'pvp:matchmaking-sweep' => 'low',
+        'pvp:forfeit-afk-matches' => 'low',
+        'referrals:check-milestones' => 'low',
+        'market:expire-listings' => 'low',
+        'cleanup:stale-data' => 'low',
+    ];
+
     /**
      * List available seeders in the database/seeders directory.
      */
@@ -190,6 +212,13 @@ class GmArtisanController extends Controller
             return response()->json(['error' => 'Command not allowed'], 403);
         }
 
+        // A plain `gm` account can toggle flags, tune config, and edit content, but a 'critical'
+        // artisan command (season rollovers, battle-pass reset, PvP reset) affects every player
+        // irreversibly — only Owner may run one, matching the existing role-change gate.
+        if ((self::DANGER_LEVELS[$command] ?? 'low') === 'critical' && $request->user()->role !== 'owner') {
+            return response()->json(['error' => 'Only an Owner can run this command — it is season-critical.'], 403);
+        }
+
         // Build command with arguments
         $commandArgs = [];
         $forceSupportedCommands = [
@@ -226,6 +255,15 @@ class GmArtisanController extends Controller
             // Execute the command
             $exitCode = Artisan::call($command, $commandArgs);
             $output = Artisan::output();
+
+            // Every other GM action (config, flags, content, player edits) goes through AuditLog —
+            // artisan runs previously only hit the app log, leaving the highest-risk action in this
+            // whole console out of the same audit trail everything else uses.
+            AuditLog::record($request->user()->id, 'gm.artisan.execute', 'artisan_command', null, [
+                'command' => $command,
+                'arguments' => $commandArgs,
+                'exit_code' => $exitCode,
+            ]);
 
             return response()->json([
                 'success' => $exitCode === 0,

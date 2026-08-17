@@ -1,21 +1,21 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../api/client';
 import { useCharacterStore } from '../stores/character';
 import AdBanner from '../components/AdBanner.vue';
+import Toast from '../components/Toast.vue';
+import { DANGER } from '../utils/danger';
 
 const router = useRouter();
 const characterStore = useCharacterStore();
 const zones = ref([]);
 const error = ref('');
-
-const DANGER = {
-  safe: { color: '#4ade80', bg: 'rgba(74,222,128,.13)', art: 'repeating-linear-gradient(45deg,#152318,#152318 10px,#101c14 10px,#101c14 20px)' },
-  medium: { color: '#eab308', bg: 'rgba(234,179,8,.13)', art: 'repeating-linear-gradient(45deg,#231b10,#231b10 10px,#1c150c 10px,#1c150c 20px)' },
-  high: { color: '#ff8163', bg: 'rgba(255,129,99,.13)', art: 'repeating-linear-gradient(135deg,#20161b,#20161b 10px,#1a1216 10px,#1a1216 20px)' },
-  deadly: { color: '#a78bfa', bg: 'rgba(167,139,250,.13)', art: 'repeating-linear-gradient(135deg,#1a1425,#1a1425 10px,#14101d 10px,#14101d 20px)' },
-};
+let errorToastTimer = null;
+watch(error, (val) => {
+  clearTimeout(errorToastTimer);
+  if (val) errorToastTimer = setTimeout(() => { error.value = ''; }, 5000);
+});
 
 async function load() {
   const { data } = await api.get('/zones');
@@ -45,7 +45,7 @@ onMounted(load);
     </div>
 
     <p class="world-map-intro">Travel between zones. Locked zones require a higher level.</p>
-    <p v-if="error" class="world-map-error">{{ error }}</p>
+    <Toast :message="error" type="error" />
 
     <AdBanner variant="inline" />
 

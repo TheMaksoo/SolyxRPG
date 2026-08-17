@@ -9,10 +9,13 @@
   flex-direction: column;
   overflow: hidden;
 
+  // Plain in-flow box, not position: sticky — sticky kept letting the rail cards stacked below it
+  // (Recent Battles, Invite Friends) scroll up and visually overlap the still-pinned chat panel
+  // any time the column's own height/breakpoint math drifted even slightly from this file's. A fixed
+  // height with its own internal scroll (below) gets the same "chat doesn't take over the page"
+  // result with no coordination needed between this file and DashboardPage.scss's breakpoints.
   &--full-height {
-    position: sticky;
-    top: 0;
-    height: 50vh;
+    height: 420px;
 
     .world-chat__messages {
       max-height: none;
@@ -79,19 +82,15 @@
   font-weight: 700;
 }
 
-// Matches DashboardPage.scss's own column-stacking breakpoint (see the comment there) — sticky only
-// makes sense while chat-col/main/rail are still sitting side by side as true columns. Below that
-// width they stack into one flow, and "sticky" pins chat to the top of the page while the cards below
-// it (Recent Battles, etc.) scroll up underneath and visually overlap it. This has to switch off at
-// the exact same width Dashboard stacks at, not at the generic 768px phone breakpoint — anything
-// wider than 768 but narrower than that point hits the same overlap.
+// Matches DashboardPage.scss's own column-stacking breakpoint — below that width .dashboard__chat-col
+// itself goes to width: 100%, so this panel needs to follow suit rather than staying pinned at its
+// fixed desktop width.
 @media (max-width: 1350px) {
   .world-chat {
     width: 100%;
 
     &--full-height {
-      position: static;
-      height: 45vh;
+      height: 340px;
     }
   }
 }

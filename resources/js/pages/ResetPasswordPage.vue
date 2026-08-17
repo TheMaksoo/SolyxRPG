@@ -1,7 +1,8 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api, { ensureCsrfCookie } from '../api/client';
+import Toast from '../components/Toast.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -14,6 +15,17 @@ const message = ref('');
 const error = ref('');
 const loading = ref(false);
 const done = ref(false);
+
+let messageToastTimer = null;
+watch(message, (val) => {
+  clearTimeout(messageToastTimer);
+  if (val) messageToastTimer = setTimeout(() => { message.value = ''; }, 4000);
+});
+let errorToastTimer = null;
+watch(error, (val) => {
+  clearTimeout(errorToastTimer);
+  if (val) errorToastTimer = setTimeout(() => { error.value = ''; }, 5000);
+});
 
 onMounted(() => {
   token.value = route.query.token || '';
@@ -48,6 +60,9 @@ async function submit() {
     <img src="/images/solyx-icon.png" alt="" class="reset-page__logo" />
     <h1 class="ox reset-page__title">Choose a new password</h1>
 
+    <Toast :message="error" type="error" />
+    <Toast :message="message" type="success" />
+
     <form v-if="!done" @submit.prevent="submit" class="reset-form">
       <input
         v-model="email"
@@ -73,7 +88,6 @@ async function submit() {
         required
         class="reset-form__input"
       />
-      <p v-if="error" class="reset-form__error">{{ error }}</p>
       <button
         type="submit"
         :disabled="loading"
@@ -83,7 +97,7 @@ async function submit() {
       </button>
     </form>
 
-    <p v-else class="reset-page__success">{{ message }} Redirecting to login…</p>
+    <p v-else class="reset-page__success">Redirecting to login…</p>
   </div>
 </template>
 

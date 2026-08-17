@@ -1,0 +1,536 @@
+@use '../../scss/variables' as v;
+@use '../../scss/mixins' as m;
+
+.art-studio-page {
+  @include m.centered-column(1100px);
+}
+
+// Mirrors the GM Console's own banner (.gm-console-banner) almost exactly — same size/radius/layout,
+// purple instead of the GM's red so the two pipelines still read as visually related, not identical.
+.art-studio-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  background: linear-gradient(120deg, v.$purple-tint-12, rgba(167, 139, 250, 0.02));
+  border: 1px solid rgba(167, 139, 250, 0.28);
+  border-radius: v.$radius-lg;
+  padding: 18px 20px;
+  margin-bottom: v.$space-5;
+}
+
+.art-studio-banner__icon {
+  width: 46px;
+  height: 46px;
+  flex: none;
+  border-radius: v.$radius-md;
+  background: rgba(167, 139, 250, 0.18);
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+}
+
+.art-studio-banner__title {
+  font-weight: 800;
+  font-size: 19px;
+}
+
+.art-studio-banner__subtitle {
+  font-size: 12.5px;
+  color: v.$text-muted-55;
+  margin-top: 2px;
+}
+
+// Same shape as the GM Console's .gm-console-activity-stat tiles (Art Review's coverage cards) — this
+// artist's own approved/in-review/changes-requested tallies instead of type coverage.
+.art-studio-stats {
+  @include m.grid-auto-fit(160px, 12px);
+  margin-bottom: v.$space-5;
+}
+
+.art-studio-stat {
+  background: v.$bg-card;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-lg;
+  padding: 14px 16px;
+}
+
+.art-studio-stat__label {
+  font-size: 10.5px;
+  color: v.$text-muted-40;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.art-studio-stat__value {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+  margin-top: 6px;
+
+  &.is-approved {
+    color: v.$success;
+  }
+
+  &.is-pending {
+    color: v.$warning;
+  }
+
+  &.is-rejected {
+    color: v.$danger;
+  }
+}
+
+.art-studio-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: v.$space-5;
+  border-bottom: 1px solid v.$border-subtle;
+  padding-bottom: v.$space-4;
+}
+
+.art-studio-tab {
+  @include m.btn-reset;
+  background: v.$bg-card;
+  border: 1px solid v.$border-medium;
+  color: v.$text-muted-70;
+  border-radius: v.$radius-pill;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+
+  &.is-active {
+    background: v.$accent;
+    border-color: v.$accent;
+    color: #fff;
+  }
+}
+
+// Matches .gm-console-activity__range-btn's pill-filter-row treatment.
+.art-studio-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: v.$space-3;
+}
+
+.art-studio-filter-row__label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: v.$text-muted-35;
+  margin-right: 4px;
+}
+
+.art-studio-chip {
+  @include m.btn-reset;
+  background: v.$bg-card;
+  border: 1px solid v.$border-medium;
+  color: v.$text-muted-70;
+  border-radius: v.$radius-pill;
+  padding: 6px 13px;
+  font-size: 12px;
+  font-weight: 700;
+
+  &.is-active {
+    background: v.$accent;
+    border-color: v.$accent;
+    color: #fff;
+  }
+}
+
+.art-studio-hide-done {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: v.$text-muted-55;
+  margin-left: 8px;
+}
+
+.art-studio-empty {
+  color: v.$text-muted-45;
+  font-size: 13px;
+  padding: v.$space-5 0;
+}
+
+.art-studio-group {
+  margin-bottom: v.$space-6;
+}
+
+.art-studio-group__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: v.$space-3;
+  @include m.section-eyebrow;
+}
+
+.art-studio-group__count {
+  font-weight: 700;
+  color: v.$text-muted-40;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: v.$radius-pill;
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+// Same panel-with-rows shape as .gm-console-panel + .gm-art-review-row in the GM Console's Art Review
+// tab — a bordered card containing stacked rows, each row-divider a hairline rather than a full card
+// border, so Work Board/My Submissions/Art Review all read as the same list pattern.
+.gm-console-panel-like {
+  @include m.card(0);
+  overflow: hidden;
+}
+
+.art-studio-row {
+  display: flex;
+  gap: 14px;
+  padding: 14px 18px;
+  border-bottom: 1px solid v.$border-subtle;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &.is-done {
+    background: rgba(74, 222, 128, 0.03);
+  }
+}
+
+.art-studio-row__thumb {
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border-radius: v.$radius-md;
+  @include m.art-placeholder;
+  font-size: 22px;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+}
+
+.art-studio-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.art-studio-row__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.art-studio-row__info {
+  min-width: 0;
+}
+
+.art-studio-row__name {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.art-studio-row__meta {
+  font-size: 11px;
+  color: v.$text-muted-40;
+  margin-top: 2px;
+}
+
+.art-studio-row__chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.art-studio-row__chip {
+  @include m.badge(v.$text-muted-45, rgba(255, 255, 255, 0.06));
+  border: 1px solid transparent;
+
+  &.is-live {
+    color: v.$success;
+    background: v.$success-tint-12;
+  }
+
+  &.status-pending {
+    color: v.$warning;
+    background: v.$warning-tint-12;
+  }
+
+  &.status-approved {
+    color: v.$success;
+    background: v.$success-tint-12;
+  }
+
+  &.status-rejected {
+    color: v.$danger;
+    background: rgba(255, 106, 77, 0.12);
+  }
+}
+
+.art-studio-row__grades {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 6px;
+}
+
+.art-slot-grade {
+  @include m.btn-reset;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-sm;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: v.$text-muted-45;
+  text-align: left;
+
+  &__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: none;
+    background: rgba(255, 255, 255, 0.25);
+  }
+
+  &__state {
+    margin-left: auto;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: v.$text-muted-35;
+  }
+
+  // Open (no submission yet) uses the grade's own color (common/elite/champion/legendary) so an
+  // untouched slot still reads as "which grade is this" at a glance — pending/rejected/approved switch
+  // to a status color instead, since at that point the review state matters more than the grade.
+  &.is-open {
+    color: #fff;
+    border-color: color-mix(in srgb, var(--grade-color) 40%, transparent);
+    background: color-mix(in srgb, var(--grade-color) 10%, transparent);
+
+    .art-slot-grade__dot {
+      background: var(--grade-color);
+    }
+
+    .art-slot-grade__state {
+      color: var(--grade-color);
+    }
+  }
+
+  &.is-pending {
+    color: v.$warning;
+    border-color: rgba(234, 179, 8, 0.35);
+    background: v.$warning-tint-12;
+
+    .art-slot-grade__dot {
+      background: v.$warning;
+    }
+
+    .art-slot-grade__state {
+      color: v.$warning;
+    }
+  }
+
+  &.is-rejected {
+    color: v.$danger;
+    border-color: rgba(255, 106, 77, 0.35);
+    background: rgba(255, 106, 77, 0.1);
+
+    .art-slot-grade__dot {
+      background: v.$danger;
+    }
+
+    .art-slot-grade__state {
+      color: v.$danger;
+    }
+  }
+
+  &.is-approved {
+    color: v.$success;
+    border-color: rgba(74, 222, 128, 0.35);
+    background: v.$success-tint-12;
+
+    .art-slot-grade__dot {
+      background: v.$success;
+    }
+
+    .art-slot-grade__state {
+      color: v.$success;
+    }
+  }
+}
+
+.art-slot-card__upload {
+  @include m.btn-secondary;
+  padding: 9px 16px;
+  font-size: 12.5px;
+  align-self: flex-start;
+
+  &.is-pending {
+    color: v.$warning;
+    border-color: rgba(234, 179, 8, 0.35);
+  }
+
+  &.is-rejected {
+    color: v.$danger;
+    border-color: rgba(255, 106, 77, 0.35);
+  }
+
+  &.is-approved {
+    color: v.$success;
+    border-color: rgba(74, 222, 128, 0.35);
+  }
+}
+
+.art-submission-row__feedback {
+  margin-top: 4px;
+  padding: 12px 14px;
+  background: rgba(255, 106, 77, 0.06);
+  border: 1px solid rgba(255, 106, 77, 0.25);
+  border-radius: v.$radius-md;
+  font-size: 12.5px;
+  color: v.$text-muted-70;
+  line-height: 1.5;
+}
+
+.art-submission-row__feedback-head {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: v.$danger;
+  margin-bottom: 6px;
+}
+
+// Upload modal
+
+.art-upload-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 200;
+}
+
+.art-upload-modal {
+  width: 420px;
+  max-width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  background: v.$bg-header;
+  border-left: 1px solid v.$border-strong;
+  padding: v.$space-5 v.$space-6;
+  @include m.fade-in;
+}
+
+.art-upload-modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: v.$space-4;
+}
+
+.art-upload-modal__eyebrow {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: v.$text-muted-35;
+  font-weight: 700;
+}
+
+.art-upload-modal__title {
+  font-size: 18px;
+  font-weight: 800;
+  margin-top: 5px;
+}
+
+.art-upload-modal__subtitle {
+  font-size: 11.5px;
+  color: v.$text-muted-40;
+  margin-top: 4px;
+}
+
+.art-upload-modal__close {
+  @include m.btn-ghost;
+  width: 30px;
+  height: 30px;
+  border-radius: v.$radius-sm;
+  padding: 0;
+}
+
+.art-upload-modal__file {
+  width: 100%;
+  border: 1px dashed v.$border-strong;
+  border-radius: v.$radius-md;
+  padding: v.$space-4;
+  font-size: 12.5px;
+  color: v.$text-muted-55;
+  margin-bottom: v.$space-4;
+}
+
+.art-upload-modal__notes {
+  width: 100%;
+  min-height: 74px;
+  background: v.$bg-input;
+  border: 1px solid v.$border-medium;
+  border-radius: v.$radius-md;
+  padding: 12px 14px;
+  font-size: 12.5px;
+  color: v.$text-body;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.art-upload-modal__error {
+  color: v.$danger;
+  font-size: 12px;
+  margin-top: v.$space-3;
+}
+
+.art-upload-modal__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: v.$space-4;
+}
+
+.art-upload-modal__submit {
+  @include m.btn-primary;
+  flex: 1;
+}
+
+.art-upload-modal__cancel {
+  @include m.btn-secondary;
+}
+
+.art-upload-modal__hint {
+  font-size: 11.5px;
+  color: v.$text-muted-40;
+  margin-top: v.$space-3;
+  line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+  .art-studio-row {
+    flex-direction: column;
+  }
+
+  .art-studio-row__thumb {
+    width: 100%;
+    height: 80px;
+  }
+}

@@ -1,8 +1,9 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import api from '../api/client';
 import Toast from '../components/Toast.vue';
 import Skeleton from '../components/Skeleton.vue';
+import ClickChallengeModal from '../components/ClickChallengeModal.vue';
 import { useGameTick } from '../composables/gameTick';
 import { useRegen } from '../composables/regen';
 import { useCharacterStore } from '../stores/character';
@@ -48,6 +49,31 @@ const gatherQueue = ref([]);
 const gatherFlushing = ref(false);
 
 const GATHER_SKILLS = ['mining', 'woodchopping', 'foraging', 'smelting'];
+
+// Below this level, a manual gather click opens a quick 3-click minigame first instead of queuing
+// instantly — a deliberate low-intensity "breather" beat between fights while the character is brand
+// new (mirrors GmConfig's minigame_level_cap default). At/above this level it's back to the instant
+// click-and-queue flow above, since by then gathering is a means to an end, not the point itself.
+const MINIGAME_LEVEL_CAP = 5;
+const MINIGAME_GLYPH = { mining: '⛏', woodchopping: '🪓', smelting: '🔥', foraging: '🌿' };
+const minigameOpen = ref(false);
+const minigamePending = ref(null);
+
+function onMinigameComplete() {
+  minigameOpen.value = false;
+  if (minigamePending.value) {
+    queueWork(minigamePending.value.skill, minigamePending.value.target);
+    minigamePending.value = null;
+  }
+}
+
+function onMinigameCancel() {
+  minigameOpen.value = false;
+  minigamePending.value = null;
+}
+
+const minigameGlyph = computed(() => MINIGAME_GLYPH[minigamePending.value?.skill?.key] ?? '🌿');
+const minigameNoun = computed(() => (minigamePending.value ? formatKey(minigamePending.value.target.key) : 'it'));
 
 function showMessage(text, type = 'success') {
   clearTimeout(messageTimer);
@@ -121,7 +147,7 @@ async function buyAutoGather(minutes) {
       seconds_remaining: data.seconds_remaining,
       gems: data.gems,
     };
-    showMessage(`Auto-Gather started — ${autoGather.value.granted_minutes[minutes]} minutes added.`, 'success');
+    showMessage(`Auto-Gather started: ${autoGather.value.granted_minutes[minutes]} minutes added.`, 'success');
     autoGatherStore.setFromResponse(autoGather.value);
   } catch (e) {
     showMessage(e.response?.data?.message || 'Could not start Auto-Gather.', 'error');
@@ -212,6 +238,15 @@ function timeAgo(isoString) {
 // Flushed in a batch every GATHER_FLUSH_TICKS ticks, or immediately once 5 actions are queued.
 function work(skill, target) {
   if (!canWork(skill, target)) return;
+  if ((characterStore.character?.level ?? 0) < MINIGAME_LEVEL_CAP) {
+    minigamePending.value = { skill, target };
+    minigameOpen.value = true;
+    return;
+  }
+  queueWork(skill, target);
+}
+
+function queueWork(skill, target) {
   gatherQueue.value.push({ key: actionKey(skill, target), skillKey: skill.key, targetKey: target.key });
   // Optimistic cooldown so the button disables right away — corrected by load() once the batch resolves.
   // Uses THIS target's own action_seconds (tiers now take different amounts of time), not a flat per-skill
@@ -240,7 +275,7 @@ async function flushGatherQueue() {
       if (result.error) {
         showMessage(result.error, 'error');
       } else {
-        const levelSuffix = result.leveled_up ? ' — leveled up!' : '';
+        const levelSuffix = result.leveled_up ? ' (leveled up!)' : '';
         showMessage(`+${result.gained.qty} ${result.gained.item.name}${levelSuffix}`, 'success');
       }
     }
@@ -276,6 +311,15 @@ onUnmounted(() => {
 <template>
   <div>
     <Toast :message="message" :type="messageType" />
+    <ClickChallengeModal
+      :open="minigameOpen"
+      title="Gather"
+      :glyph="minigameGlyph"
+      :noun="minigameNoun"
+      :clicks-required="3"
+      @complete="onMinigameComplete"
+      @cancel="onMinigameCancel"
+    />
 
     <div class="trade-header">
       <div class="trade-header__icon">⛏</div>
@@ -310,13 +354,13 @@ onUnmounted(() => {
     <div class="auto-gather-card">
       <div v-if="autoGather.active" class="auto-gather-card__status">
         <span class="auto-gather-card__label">
-          🤖 Auto-{{ autoGather.skill }} active — gathering {{ autoGather.target }}
+          🤖 Auto-{{ autoGather.skill }} active: gathering {{ autoGather.target }}
         </span>
         <span class="auto-gather-card__timer">{{ formatDuration(autoGather.seconds_remaining) }} remaining</span>
       </div>
       <div class="auto-gather-card__buy">
         <span class="auto-gather-card__label">
-          {{ autoGather.active ? '🤖 Change target or buy more time' : '🤖 Auto-Gather — gathers for you while you\'re away' }}
+          {{ autoGather.active ? '🤖 Change target or buy more time' : '🤖 Auto-Gather: gathers for you while you\'re away' }}
         </span>
         <div class="auto-gather-card__picker">
           <select v-model="autoGatherSkill" class="auto-gather-card__select" :disabled="autoGatherBuying || autoGatherSwitching">
@@ -343,7 +387,7 @@ onUnmounted(() => {
             :disabled="autoGatherBuying || !autoGatherTarget || (autoGather.gems ?? 0) < (autoGather.costs[minutes] ?? 0)"
             @click="buyAutoGather(minutes)"
           >
-            {{ autoGather.granted_minutes[minutes] ?? minutes * 2 }}m · 💎{{ autoGather.costs[minutes] ?? '—' }}
+            {{ autoGather.granted_minutes[minutes] ?? minutes * 2 }}m · 💎{{ autoGather.costs[minutes] ?? 'N/A' }}
           </button>
         </div>
       </div>
@@ -405,7 +449,7 @@ onUnmounted(() => {
         </div>
 
         <p v-else class="trade-skill-card__note">
-          Levels automatically as you craft — visit the Crafting page.
+          Levels automatically as you craft. Visit the Crafting page.
         </p>
       </div>
     </div>

@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
+import { homePath } from '../utils/homePath';
 
 const route = useRoute();
 const router = useRouter();
@@ -10,9 +11,10 @@ const auth = useAuthStore();
 const requiredLevel = computed(() => Number(route.query.level) || 1);
 const featureName = computed(() => route.query.feature || 'this page');
 const currentLevel = computed(() => auth.user?.character?.level || 0);
+const homeLabel = computed(() => (currentLevel.value >= 2 ? 'the Inn' : 'Battle'));
 
 const goBack = () => {
-  router.push('/dashboard');
+  router.push(homePath(auth));
 };
 </script>
 
@@ -37,8 +39,8 @@ const goBack = () => {
     <p class="level-required__hint">
       Keep battling, completing quests, and exploring to gain experience and level up!
     </p>
-    <button @click="goBack" class="level-required__btn">
-      Return to Dashboard
+    <button type="button" @click="goBack" class="level-required__btn">
+      Return to {{ homeLabel }}
     </button>
   </div>
 </template>

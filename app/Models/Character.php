@@ -31,11 +31,11 @@ class Character extends Model
     public const MAX_LEVEL = 999999;
 
     protected $fillable = [
-        'user_id', 'name', 'base_class', 'spec_class', 'profession', 'ascension',
+        'user_id', 'name', 'base_class', 'spec_class', 'profession', 'ascension', 'apex_path', 'transcendence',
         'avatar', 'level', 'xp', 'gold', 'quests_completed', 'hp', 'hp_max', 'mana', 'mana_max',
-        'energy', 'energy_max', 'base_atk', 'base_def', 'skill_points', 'attribute_points', 'current_zone_id', 'last_action',
+        'energy', 'energy_max', 'base_atk', 'base_def', 'skill_points', 'attribute_points', 'active_deck_json', 'current_zone_id', 'last_action',
         'active_title_id', 'active_color_id', 'active_banner_id', 'active_icon_id', 'active_frame_id',
-        'showcased_achievement_ids', 'bio', 'playstyle_tags', 'tutorial_seen',
+        'showcased_achievement_ids', 'bio', 'playstyle_tags', 'tutorial_seen', 'tutorial_step',
         'playtime_seconds', 'last_active_at', 'privacy_settings',
         'pvp_attempts_used', 'pvp_attempts_reset_at', 'last_daily_reward_at',
         'dungeon_attempts_used', 'dungeon_attempts_reset_at',
@@ -65,6 +65,7 @@ class Character extends Model
             'base_def' => 'integer',
             'skill_points' => 'integer',
             'attribute_points' => 'integer',
+            'active_deck_json' => 'array',
             'battles_won' => 'integer',
             'battles_lost' => 'integer',
             'bosses_slain' => 'integer',
@@ -84,6 +85,7 @@ class Character extends Model
             'hp_regen_buff_pct' => 'integer',
             'mana_regen_buff_pct' => 'integer',
             'tutorial_seen' => 'boolean',
+            'tutorial_step' => 'integer',
             'pvp_attempts_reset_at' => 'datetime',
             'last_daily_reward_at' => 'datetime',
             'dungeon_attempts_reset_at' => 'datetime',
@@ -323,16 +325,20 @@ class Character extends Model
             }
 
             $stats = $slot->item->stat_json ?? [];
-            $gearAtk += $stats['atk'] ?? 0;
-            $gearDef += $stats['def'] ?? 0;
-            $gearLuck += $stats['luck'] ?? 0;
-            $gearDodge += $stats['dodge_pct'] ?? 0;
-            $gearLifesteal += $stats['lifesteal_pct'] ?? 0;
+            // Reforge/enchant level (see ReforgeService, level-200+ feature) scales this item's ENTIRE
+            // stat_json — including a specialty item's negative tradeoff stat, symmetrically — rather
+            // than just its positive stats, since it represents the whole item getting more powerful.
+            $enchantMult = 1 + ($slot->enchant_level ?? 0) * GameConfig::number('reforge_bonus_pct_per_level', 5) / 100;
+            $gearAtk += ($stats['atk'] ?? 0) * $enchantMult;
+            $gearDef += ($stats['def'] ?? 0) * $enchantMult;
+            $gearLuck += ($stats['luck'] ?? 0) * $enchantMult;
+            $gearDodge += ($stats['dodge_pct'] ?? 0) * $enchantMult;
+            $gearLifesteal += ($stats['lifesteal_pct'] ?? 0) * $enchantMult;
             // Gear crit (flat % bonus, e.g. +5 Crit on a dagger) and gear mp (flat mana pool bonus,
             // e.g. +35 Mana on a staff) were previously accumulated but never wired into the final
             // stat formulas — they showed in item tooltips (rarity.js formatStats) but had no effect.
-            $gearCrit += $stats['crit'] ?? 0;
-            $gearMp += $stats['mp'] ?? 0;
+            $gearCrit += ($stats['crit'] ?? 0) * $enchantMult;
+            $gearMp += ($stats['mp'] ?? 0) * $enchantMult;
             if ($slot->item->type === 'shield') {
                 // Only warriors have shield-type gear (buckler/kite shield/aegis/bulwark — see
                 // ItemSeeder) — their 2nd defensive slot alongside regular chest armor.
@@ -360,7 +366,7 @@ class Character extends Model
         $skillPassives = $this->passiveSkillBonuses();
         $party = $this->partyBonuses();
         $classPassives = $this->classPassiveBonuses($hasArmorSlotEquipped);
-        $specPassives = $this->subclassPassiveBonuses();
+        $specPassives = $this->branchPassiveBonuses();
         // Elixir of Power / Phoenix Elixir consumables (see InventoryController::use() and
         // CombatService's in-battle item branch, which set these two columns) — a temporary ATK% buff
         // that lasts a fixed number of *fights* rather than real time, decremented once per battle
@@ -374,18 +380,24 @@ class Character extends Model
         $effDef = (int) round($defSubtotal * (1 + ($petDefPct + $skillPassives['def_pct'] + $party['def_pct'] + $classPassives['def_pct'] + $classPassives['shield_def_pct'] + $specPassives['def_pct']) / 100));
 
         $hpSubtotal = $this->hp_max + $attr->hp_cap * 30;
-        $effHpMax = (int) round($hpSubtotal * (1 + ($classPassives['hp_pct'] + $specPassives['hp_pct']) / 100));
+        $effHpMax = (int) round($hpSubtotal * (1 + ($classPassives['hp_pct'] + $specPassives['hp_pct'] + $skillPassives['hp_pct']) / 100));
 
         $mpSubtotal = $this->mana_max + $attr->mana_cap * 20 + $gearMp;
-        $effMpMax = (int) round($mpSubtotal * (1 + ($party['mp_pct'] + $classPassives['mp_pct'] + $specPassives['mp_pct']) / 100));
+        $effMpMax = (int) round($mpSubtotal * (1 + ($party['mp_pct'] + $classPassives['mp_pct'] + $specPassives['mp_pct'] + $skillPassives['mp_pct']) / 100));
 
         $effEnergyMax = $this->energy_max + ($attr->energy_cap ?? 0) * 15;
-        $critChance = 18 + $attr->crit * 2 + $gearCrit + $petCritPct + $party['crit_chance'] + $specPassives['crit_chance_flat'];
-        $critDamageMult = round(1.8 + ($attr->crit_damage ?? 0) * 0.02, 2);
+        // Both crit stats stack from a lot of independently-tunable sources (attribute points, gear,
+        // pets, party, class/spec passives, skills) with no natural ceiling — hard-capped the same way
+        // dodge already is (AttributeService::DODGE_CAP_PCT), so no build reaches a guaranteed-crit or
+        // absurd crit-multiplier floor/ceiling. Both caps are GM-tunable like every other balance lever.
+        $critChanceRaw = 18 + $attr->crit * 2 + $gearCrit + $petCritPct + $party['crit_chance'] + $specPassives['crit_chance_flat'] + $skillPassives['crit_chance_flat'];
+        $critChance = min(GameConfig::number('crit_chance_cap_pct', 75), $critChanceRaw);
+        $critDamageBase = 1.8 + ($attr->crit_damage ?? 0) * 0.02;
+        $critDamageMult = min(GameConfig::number('crit_damage_mult_cap', 4.0), round($critDamageBase * (1 + $skillPassives['crit_damage_pct'] / 100), 2));
         $guildLuckBonusPct = ($this->guildMembership?->guild?->upgradeBonusPct('luck') ?? 0) / 100;
-        $luckSubtotal = ($attr->luck ?? 0) + $gearLuck + ($this->user?->vipLuckBonus() ?? 0) + $party['luck'];
+        $luckSubtotal = ($attr->luck ?? 0) + $gearLuck + ($this->user?->vipLuckBonus() ?? 0) + $party['luck'] + $skillPassives['luck_flat'];
         $luck = (int) round($luckSubtotal * (1 + $guildLuckBonusPct));
-        $dodgeChance = (new AttributeService())->dodgeChance(($attr->dodge ?? 0), $gearDodge + $classPassives['dodge_flat'] + $specPassives['dodge_flat']);
+        $dodgeChance = (new AttributeService())->dodgeChance(($attr->dodge ?? 0), $gearDodge + $classPassives['dodge_flat'] + $specPassives['dodge_flat'] + $skillPassives['dodge_flat']);
 
         // Power is the sum of every progression axis: gear + attributes (both already baked into eff_atk/
         // eff_def/luck above), plus combat skill investment (previously uncounted) weighted so a fully
@@ -406,7 +418,7 @@ class Character extends Model
                 ['label' => 'Skill Passives', 'value' => $skillPassives['atk_pct']],
                 ['label' => 'Party Bonus', 'value' => $party['atk_pct']],
                 ['label' => 'Class Passive', 'value' => $classPassives['atk_pct']],
-                ['label' => 'Subclass Passive', 'value' => $specPassives['atk_pct']],
+                ['label' => 'Class Branch Passive', 'value' => $specPassives['atk_pct']],
                 ['label' => 'Elixir Buff', 'value' => $elixirAtkPct],
             ]),
             'eff_def' => $this->statSourceBreakdown($effDef, [
@@ -419,14 +431,14 @@ class Character extends Model
                 ['label' => 'Party Bonus', 'value' => $party['def_pct']],
                 ['label' => 'Class Passive', 'value' => $classPassives['def_pct']],
                 ['label' => 'Shield Block', 'value' => $classPassives['shield_def_pct']],
-                ['label' => 'Subclass Passive', 'value' => $specPassives['def_pct']],
+                ['label' => 'Class Branch Passive', 'value' => $specPassives['def_pct']],
             ]),
             'eff_hp_max' => $this->statSourceBreakdown($effHpMax, [
                 ['label' => 'Base', 'value' => $this->hp_max, 'always' => true],
                 ['label' => 'Attributes (HP Cap x30)', 'value' => $attr->hp_cap * 30],
             ], $hpSubtotal, [
                 ['label' => 'Class Passive', 'value' => $classPassives['hp_pct']],
-                ['label' => 'Subclass Passive', 'value' => $specPassives['hp_pct']],
+                ['label' => 'Class Branch Passive', 'value' => $specPassives['hp_pct']],
             ]),
             'eff_mp_max' => $this->statSourceBreakdown($effMpMax, [
                 ['label' => 'Base', 'value' => $this->mana_max, 'always' => true],
@@ -435,7 +447,7 @@ class Character extends Model
             ], $mpSubtotal, [
                 ['label' => 'Party Bonus', 'value' => $party['mp_pct']],
                 ['label' => 'Class Passive', 'value' => $classPassives['mp_pct']],
-                ['label' => 'Subclass Passive', 'value' => $specPassives['mp_pct']],
+                ['label' => 'Class Branch Passive', 'value' => $specPassives['mp_pct']],
             ]),
             'eff_energy_max' => $this->statSourceBreakdown($effEnergyMax, [
                 ['label' => 'Base', 'value' => $this->energy_max, 'always' => true],
@@ -447,17 +459,20 @@ class Character extends Model
                 ['label' => 'Gear', 'value' => $gearCrit],
                 ['label' => 'Pet Bonus', 'value' => $petCritPct],
                 ['label' => 'Party Bonus', 'value' => $party['crit_chance']],
-                ['label' => 'Subclass Passive', 'value' => $specPassives['crit_chance_flat']],
+                ['label' => 'Class Branch Passive', 'value' => $specPassives['crit_chance_flat']],
             ]),
             'crit_damage_mult' => $this->statSourceBreakdown($critDamageMult, [
                 ['label' => 'Base', 'value' => 1.8, 'always' => true],
                 ['label' => 'Attributes (Crit Damage x0.02)', 'value' => ($attr->crit_damage ?? 0) * 0.02],
+            ], $critDamageBase, [
+                ['label' => 'Skill Tree Passive', 'value' => $skillPassives['crit_damage_pct']],
             ]),
             'luck' => $this->statSourceBreakdown($luck, [
                 ['label' => 'Attributes', 'value' => $attr->luck ?? 0, 'always' => true],
                 ['label' => 'Gear', 'value' => $gearLuck],
                 ['label' => 'VIP Bonus', 'value' => $this->user?->vipLuckBonus() ?? 0],
                 ['label' => 'Party Bonus', 'value' => $party['luck']],
+                ['label' => 'Skill Tree Passive', 'value' => $skillPassives['luck_flat']],
             ], $luckSubtotal, [
                 ['label' => 'Guild Upgrade', 'value' => $guildLuckBonusPct * 100],
             ]),
@@ -465,7 +480,7 @@ class Character extends Model
                 ['label' => 'Attributes', 'value' => $attr->dodge ?? 0, 'always' => true],
                 ['label' => 'Gear', 'value' => $gearDodge],
                 ['label' => 'Class Passive', 'value' => $classPassives['dodge_flat']],
-                ['label' => 'Subclass Passive', 'value' => $specPassives['dodge_flat']],
+                ['label' => 'Class Branch Passive', 'value' => $specPassives['dodge_flat']],
             ]),
             'power' => $this->statSourceBreakdown($power, [
                 ['label' => 'From Attack (x4)', 'value' => $effAtk * 4, 'always' => true],
@@ -586,7 +601,7 @@ class Character extends Model
      *     "weapon AND shield" identity is made a felt mechanical choice via shield_def_pct below, which
      *     only turns on while a shield (this class's 2nd, 'shield'-type slot alongside chest armor — see
      *     ItemSeeder) is equipped.
-     * NOTE: none of this reads $this->spec_class — see subclassPassiveBonuses() for that layer. */
+     * NOTE: none of this reads $this->spec_class — see branchPassiveBonuses() for that layer. */
     private function classPassiveBonuses(bool $hasArmorSlotEquipped): array
     {
         $zero = ['atk_pct' => 0, 'def_pct' => 0, 'shield_def_pct' => 0, 'hp_pct' => 0, 'mp_pct' => 0, 'dodge_flat' => 0];
@@ -600,52 +615,112 @@ class Character extends Model
         };
     }
 
-    /** Human-readable mirror of subclassPassiveBonuses() below, so the Skills page can actually show what
-     * each t20 subclass choice does mechanically instead of leaving players to pick blind off flavor text
-     * alone — see ClassProgressionController::index(). Keep this in sync with subclassPassiveBonuses() by
-     * hand; t40/profession and t60/ascension have no entries here since they carry no real bonus yet. */
-    public const SUBCLASS_BONUS_TEXT = [
-        'berserker' => '+6% ATK, -4% DEF',
-        'guardian' => '+8% DEF',
-        'shadowmage' => '+6% ATK',
-        'elementalist' => '+4% Crit Chance',
-        'assassin' => '+4% ATK, +4% Crit Chance',
-        'trickster' => '+6% Dodge Chance',
-        'hunter' => '+4% ATK',
-        'beastmaster' => '+6% HP, +3% DEF',
+    /** Every branch bonus across the full 5-tier class ladder (t20 Specialization → t50 Profession →
+     * t100 Ascension → t150 Apex → t200 Transcendence — see ClassSeeder for the 40 ClassProgression rows
+     * these keys match 1:1). Magnitude escalates per tier (t20 ~6-8 → t50 ~8-10 → t100 ~10-12 →
+     * t150 ~12-14 → t200 ~14-17, roughly, some spent on a secondary/tradeoff stat) so no later tier makes
+     * an earlier one pointless, and each class's two branches keep diverging the same offense-vs-defense/
+     * utility way their t20 pair already did. Used by both branchPassiveBonuses() below (the mechanical
+     * effect) and ClassProgressionController::index() (the human-readable bonus_text) — the two can never
+     * drift since they read the same table. */
+    public const BRANCH_BONUSES = [
+        // Warrior: offense (berserker → warlord → warmonger → bloodfury → godslayer) vs.
+        // defense (guardian → vanguard → titan → aegis_warden → immortal_bulwark).
+        'berserker' => ['atk_pct' => 6, 'def_pct' => -4],
+        'guardian' => ['def_pct' => 8],
+        'warlord' => ['atk_pct' => 9, 'def_pct' => -3],
+        'vanguard' => ['def_pct' => 10, 'hp_pct' => 3],
+        'titan' => ['def_pct' => 12, 'hp_pct' => 6],
+        'warmonger' => ['atk_pct' => 13, 'def_pct' => -5],
+        'bloodfury' => ['atk_pct' => 15, 'crit_chance_flat' => 3, 'def_pct' => -5],
+        'aegis_warden' => ['def_pct' => 16, 'hp_pct' => 8],
+        'godslayer' => ['atk_pct' => 19, 'crit_chance_flat' => 5, 'def_pct' => -6],
+        'immortal_bulwark' => ['def_pct' => 22, 'hp_pct' => 12],
+
+        // Mage: offense (shadowmage → necromancer → archmage → dreadlich → worldender) vs.
+        // crit/utility (elementalist → stormweaver → voidcaller → stormsovereign → astral_oracle).
+        'shadowmage' => ['atk_pct' => 6],
+        'elementalist' => ['crit_chance_flat' => 4],
+        'necromancer' => ['atk_pct' => 9, 'mp_pct' => 4],
+        'stormweaver' => ['crit_chance_flat' => 7, 'mp_pct' => 3],
+        'archmage' => ['atk_pct' => 13, 'mp_pct' => 6],
+        'voidcaller' => ['crit_chance_flat' => 10, 'dodge_flat' => 4],
+        'dreadlich' => ['atk_pct' => 16, 'mp_pct' => 8, 'def_pct' => -4],
+        'stormsovereign' => ['crit_chance_flat' => 13, 'mp_pct' => 6],
+        'worldender' => ['atk_pct' => 20, 'mp_pct' => 10, 'def_pct' => -6],
+        'astral_oracle' => ['crit_chance_flat' => 16, 'dodge_flat' => 6, 'mp_pct' => 6],
+
+        // Rogue: offense (assassin → shadowblade → nightblade → bloodreaper → deathbringer) vs.
+        // evasion (trickster → duskrunner → wraith → phantom_dancer → shadowveil_sovereign).
+        'assassin' => ['atk_pct' => 4, 'crit_chance_flat' => 4],
+        'trickster' => ['dodge_flat' => 6],
+        'shadowblade' => ['atk_pct' => 8, 'crit_chance_flat' => 5],
+        'duskrunner' => ['dodge_flat' => 10, 'hp_pct' => 2],
+        'nightblade' => ['atk_pct' => 13, 'crit_chance_flat' => 8],
+        'wraith' => ['dodge_flat' => 14, 'hp_pct' => 4],
+        'bloodreaper' => ['atk_pct' => 16, 'crit_chance_flat' => 11, 'def_pct' => -4],
+        'phantom_dancer' => ['dodge_flat' => 18, 'hp_pct' => 6],
+        'deathbringer' => ['atk_pct' => 20, 'crit_chance_flat' => 14, 'def_pct' => -5],
+        'shadowveil_sovereign' => ['dodge_flat' => 22, 'hp_pct' => 10, 'crit_chance_flat' => 4],
+
+        // Ranger: offense (hunter → sharpshooter → stormcaller → windrunner → skysovereign) vs.
+        // companion/tank (beastmaster → pathfinder → beastlord → wildwarden → primal_avatar).
+        'hunter' => ['atk_pct' => 4],
+        'beastmaster' => ['hp_pct' => 6, 'def_pct' => 3],
+        'sharpshooter' => ['atk_pct' => 9, 'crit_chance_flat' => 3],
+        'pathfinder' => ['hp_pct' => 8, 'dodge_flat' => 4],
+        'stormcaller' => ['atk_pct' => 13, 'crit_chance_flat' => 5],
+        'beastlord' => ['hp_pct' => 12, 'def_pct' => 6, 'dodge_flat' => 3],
+        'windrunner' => ['atk_pct' => 16, 'dodge_flat' => 6, 'crit_chance_flat' => 6],
+        'wildwarden' => ['hp_pct' => 16, 'def_pct' => 9],
+        'skysovereign' => ['atk_pct' => 20, 'crit_chance_flat' => 9, 'dodge_flat' => 5],
+        'primal_avatar' => ['hp_pct' => 20, 'def_pct' => 12, 'dodge_flat' => 6],
     ];
 
-    /** Lv.20 subclass identity (Character::spec_class, chosen via chooseProfession('t20', ...) against
-     * ClassProgression — see ClassSeeder for the two options per base class). Purely flavor/name/glyph
-     * until now; this is where each pair's two subclasses actually diverge mechanically, stacking on top
-     * of classPassiveBonuses() above. Null/unrecognized spec_class (not yet chosen, or pre-Lv.20) gets
-     * all zeros. NOTE: t40 profession and t60 ascension tiers remain flavor-only for now — only the t20
-     * subclass split was in scope here. */
-    private function subclassPassiveBonuses(): array
+    /** Human-readable mirror of BRANCH_BONUSES, generated once and cached, so the Class Path page can
+     * show what every branch at every tier actually does instead of leaving players to pick blind. */
+    public static function branchBonusText(string $key): ?string
     {
-        $zero = ['atk_pct' => 0, 'def_pct' => 0, 'hp_pct' => 0, 'mp_pct' => 0, 'dodge_flat' => 0, 'crit_chance_flat' => 0];
+        if (! isset(self::BRANCH_BONUSES[$key])) {
+            return null;
+        }
 
-        return match ($this->spec_class) {
-            'berserker' => [...$zero, 'atk_pct' => 6, 'def_pct' => -4],
-            'guardian' => [...$zero, 'def_pct' => 8],
-            'shadowmage' => [...$zero, 'atk_pct' => 6],
-            'elementalist' => [...$zero, 'crit_chance_flat' => 4],
-            'assassin' => [...$zero, 'atk_pct' => 4, 'crit_chance_flat' => 4],
-            'trickster' => [...$zero, 'dodge_flat' => 6],
-            'hunter' => [...$zero, 'atk_pct' => 4],
-            'beastmaster' => [...$zero, 'hp_pct' => 6, 'def_pct' => 3],
-            default => $zero,
-        };
+        $labels = ['atk_pct' => 'ATK', 'def_pct' => 'DEF', 'hp_pct' => 'HP', 'mp_pct' => 'MP', 'dodge_flat' => 'Dodge Chance', 'crit_chance_flat' => 'Crit Chance'];
+        $parts = [];
+        foreach (self::BRANCH_BONUSES[$key] as $stat => $value) {
+            $parts[] = sprintf('%+d%% %s', $value, $labels[$stat] ?? $stat);
+        }
+
+        return implode(', ', $parts);
     }
 
-    /** Sums the always-on (mp_cost === 0) unlocked skills into ATK%/DEF% bonuses and an Undying flag, each scaled by skill rank. */
+    /** Sums BRANCH_BONUSES across all 5 of the character's chosen tier-pick columns (spec_class/
+     * profession/ascension/apex_path/transcendence) — replaces the old t20-only subclassPassiveBonuses().
+     * A null/unrecognized pick at any tier just contributes zero for that tier, so a character who hasn't
+     * reached/chosen a later tier yet still gets full credit for the tiers they have. */
+    private function branchPassiveBonuses(): array
+    {
+        $totals = ['atk_pct' => 0, 'def_pct' => 0, 'hp_pct' => 0, 'mp_pct' => 0, 'dodge_flat' => 0, 'crit_chance_flat' => 0];
+
+        foreach ([$this->spec_class, $this->profession, $this->ascension, $this->apex_path, $this->transcendence] as $key) {
+            foreach (self::BRANCH_BONUSES[$key] ?? [] as $stat => $value) {
+                $totals[$stat] += $value;
+            }
+        }
+
+        return $totals;
+    }
+
+    /** Sums the always-on (mp_cost === 0) unlocked skills into stat bonuses and an Undying flag, each
+     * scaled by skill rank. Reads the same flavor keys as BRANCH_BONUSES (hp_pct/mp_pct/crit_chance_flat/
+     * dodge_flat), not just atk_pct/def_pct — see SkillSeeder's trunkNodes(), which themes each signature
+     * branch's trunk passives off that same branch's own BRANCH_BONUSES entry. */
     private function passiveSkillBonuses(): array
     {
         $skillService = new SkillService();
         $characterSkills = $this->relationLoaded('skills') ? $this->skills : $this->skills()->with('skill')->get();
 
-        $atkPct = 0;
-        $defPct = 0;
+        $totals = ['atk_pct' => 0, 'def_pct' => 0, 'hp_pct' => 0, 'mp_pct' => 0, 'dodge_flat' => 0, 'crit_chance_flat' => 0, 'crit_damage_pct' => 0, 'luck_flat' => 0, 'debuff_resist_pct' => 0, 'threat_reduction_pct' => 0];
         $hasUndying = false;
 
         foreach ($characterSkills as $characterSkill) {
@@ -654,12 +729,30 @@ class Character extends Model
                 continue;
             }
 
-            $atkPct += $skillService->passiveAtkPct($skill, $characterSkill->level);
-            $defPct += $skillService->passiveDefPct($skill, $characterSkill->level);
+            foreach ($totals as $key => $value) {
+                $totals[$key] += $skillService->passiveStat($skill, $key, $characterSkill->level);
+            }
             $hasUndying = $hasUndying || $skillService->hasRevive($skill);
         }
 
-        return ['atk_pct' => $atkPct, 'def_pct' => $defPct, 'has_undying' => $hasUndying];
+        return $totals + ['has_undying' => $hasUndying];
+    }
+
+    /** % reduction applied to the magnitude of any debuff landing on THIS character — see
+     * StatusEffectService::apply(). Currently only granted by Warrior's Foundation hub passive
+     * (Warfare Focus), so it's 0 for every other class. */
+    public function debuffResistPct(): float
+    {
+        return $this->passiveSkillBonuses()['debuff_resist_pct'] ?? 0;
+    }
+
+    /** % reduction applied to threat THIS character generates toward every enemy — see
+     * ThreatService::addDamageThreat/addHealThreatToAllEnemies. Currently only granted by Ranger's
+     * Foundation hub passive (Marksmanship Focus): a ranger who's built for sustained DPS shouldn't also
+     * be the one every pack fight's enemies gang up on. */
+    public function threatReductionPct(): float
+    {
+        return $this->passiveSkillBonuses()['threat_reduction_pct'] ?? 0;
     }
 
     /** HP restored per regen tick: base 1, +1 per 15 levels, +1 per 3 points invested in HP Regen, plus VIP/potion bonuses. */
@@ -672,14 +765,36 @@ class Character extends Model
         return max(1, (int) round($base * (1 + $pct / 100)));
     }
 
-    /** Mana restored per regen tick: base 2, +1 per 15 levels, +1 per 3 points invested in Mana Regen, plus VIP/potion bonuses. */
+    /** Mana restored per regen tick: base 2, +1 per 15 levels, +1 per 3 points invested in Mana Regen, plus gear/VIP/potion bonuses. */
     public function manaRegenPerTick(): int
     {
         $attr = $this->attributes_ ?? new CharacterAttribute();
-        $base = 2 + intdiv($this->level, 15) + intdiv($attr->mana_regen, 3) + ($this->user?->vipRegenFlatBonus() ?? 0);
+        $base = 2 + intdiv($this->level, 15) + intdiv($attr->mana_regen, 3) + $this->gearManaRegenFlat() + ($this->user?->vipRegenFlatBonus() ?? 0);
         $pct = ($this->user?->vipRegenPctBonus() ?? 0) + $this->activeBuffPct('mana_regen_buff_pct', 'mana_regen_buff_expires_at');
 
         return max(1, (int) round($base * (1 + $pct / 100)));
+    }
+
+    /** Sum of the permanent `mana_regen_flat` stat across equipped, unbroken gear (e.g. the mage Trinket
+     * line) — kept separate from effectiveStats()'s gear loop since manaRegenPerTick() is called far more
+     * often (every regen tick) and effectiveStats() does a lot of unrelated work per call. */
+    private function gearManaRegenFlat(): int
+    {
+        $equipped = $this->relationLoaded('inventory')
+            ? $this->inventory->where('equipped', true)
+            : $this->inventory()->where('equipped', true)->with('item')->get();
+
+        $total = 0;
+        foreach ($equipped as $slot) {
+            if ($slot->durability_max !== null && $slot->durability <= 0) {
+                continue; // broken gear contributes nothing until repaired
+            }
+
+            $enchantMult = 1 + ($slot->enchant_level ?? 0) * GameConfig::number('reforge_bonus_pct_per_level', 5) / 100;
+            $total += ($slot->item->stat_json['mana_regen_flat'] ?? 0) * $enchantMult;
+        }
+
+        return (int) round($total);
     }
 
     /** Ticks the Elixir of Power / Phoenix Elixir ATK buff down by one fight — called once per battle
@@ -829,15 +944,24 @@ class Character extends Model
 
     private static function buildXpTable(): array
     {
+        // Levels 1-2 are hand-tuned instead of running through stepFor()'s formula: they cover the
+        // scripted tutorial fights (see MonsterSeeder's is_tutorial monsters, each a flat 10 xp), and the
+        // pacing there needs to land on an exact fight count — 5 fights to reach level 2, 10 more to
+        // reach level 3 — rather than whatever the general curve happens to produce. Level 3 onward
+        // chains onto stepFor() exactly as before; shifting these two early values only moves every later
+        // threshold down by a constant few thousand XP, negligible against the endgame's multiplicative
+        // growth.
         $table = [
-            1 => 800
+            1 => (int) GameConfig::number('xp_level_1_to_2', 50),
         ];
 
         for ($level = 2; $level <= 150; $level++) {
 
             $previous = $table[$level - 1];
 
-            $growth = self::stepFor($level);
+            $growth = $level === 2
+                ? (int) GameConfig::number('xp_level_2_to_3', 100)
+                : self::stepFor($level);
 
             $table[$level] = (int) round(
                 $previous + $growth

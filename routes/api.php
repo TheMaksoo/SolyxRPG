@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\DungeonController;
 use App\Http\Controllers\Api\FounderPackController;
 use App\Http\Controllers\Api\FriendController;
 use App\Http\Controllers\Api\Gm\GmAuditLogController;
+use App\Http\Controllers\Api\Gm\GmArtController;
 use App\Http\Controllers\Api\Gm\GmArtisanController;
 use App\Http\Controllers\Api\Gm\GmBroadcastController;
 use App\Http\Controllers\Api\Gm\GmConfigController;
@@ -32,6 +33,7 @@ use App\Http\Controllers\Api\Gm\GmTicketController;
 use App\Http\Controllers\Api\GuildController;
 use App\Http\Controllers\Api\GuildWarController;
 use App\Http\Controllers\Api\InboxController;
+use App\Http\Controllers\Api\CrateController;
 use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\ChangelogController;
 use App\Http\Controllers\Api\KnownBugController;
@@ -111,9 +113,15 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::get('/character/activity', [CharacterController::class, 'activity']);
     Route::post('/character', [CharacterController::class, 'store']);
     Route::post('/character/attributes', [CharacterController::class, 'spendAttribute']);
+    // Registered BEFORE '/character/skills/{skill}' below — that wildcard route-model-binds any literal
+    // segment (including "deck"/"respec") to a Skill lookup, so these specific routes must win the match
+    // first or Laravel would try (and fail) to resolve a Skill named "deck".
+    Route::post('/character/skills/deck', [CharacterController::class, 'setActiveDeck']);
+    Route::post('/character/skills/respec', [CharacterController::class, 'respecSkills']);
     Route::post('/character/skills/{skill}', [CharacterController::class, 'unlockSkill']);
     Route::post('/character/profession', [CharacterController::class, 'chooseProfession']);
     Route::post('/character/tutorial/dismiss', [CharacterController::class, 'dismissTutorial']);
+    Route::post('/character/tutorial/advance', [CharacterController::class, 'advanceTutorial']);
     Route::post('/character/tutorial/restart', [CharacterController::class, 'restartTutorial']);
 
     Route::get('/characters', [CharacterController::class, 'index']);
@@ -155,6 +163,11 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::post('/inventory/scrap', [InventoryController::class, 'scrap']);
     Route::post('/inventory/use', [InventoryController::class, 'use']);
     Route::post('/inventory/repair', [InventoryController::class, 'repair']);
+    Route::post('/inventory/{inventory}/reforge', [InventoryController::class, 'reforge']);
+
+    Route::get('/crates', [CrateController::class, 'index']);
+    Route::post('/crates/{inventory}/open', [CrateController::class, 'open']);
+    Route::post('/crates/{opening}/collect', [CrateController::class, 'collect']);
 
     Route::get('/quests', [QuestController::class, 'index']);
     Route::post('/quests/{quest}/claim', [QuestController::class, 'claim']);
@@ -283,6 +296,7 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
 
     // GM console
     Route::middleware('gm')->prefix('gm')->group(function () {
+        Route::get('/{resource}/seeder/download', [GmContentController::class, 'downloadSeeder'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|pets|events|cosmetics');
         Route::get('/{resource}', [GmContentController::class, 'index'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics|known_bugs|changelogs');
         Route::post('/{resource}', [GmContentController::class, 'store'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics|known_bugs|changelogs');
         Route::put('/{resource}/{id}', [GmContentController::class, 'update'])->where('resource', 'items|monsters|zones|dungeons|quests|skills|recipes|pets|events|cosmetics|known_bugs|changelogs');
@@ -305,6 +319,7 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
         Route::get('/revenue', [GmRevenueController::class, 'index']);
         Route::get('/purchases', [GmRevenueController::class, 'purchases']);
         Route::get('/analytics', [GmAnalyticsController::class, 'index']);
+        Route::get('/item-balance', [GmAnalyticsController::class, 'itemBalance']);
         Route::get('/errors', [GmErrorLogController::class, 'index']);
         Route::post('/errors/{errorLog}/archive', [GmErrorLogController::class, 'archive']);
 
@@ -322,5 +337,19 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
         Route::get('/artisan-commands', [GmArtisanController::class, 'index']);
         Route::get('/artisan-commands/seeders', [GmArtisanController::class, 'seeders']);
         Route::post('/artisan-commands/execute', [GmArtisanController::class, 'execute']);
+
+        Route::get('/art/coverage', [GmArtController::class, 'coverage']);
+        Route::get('/art/queue', [GmArtController::class, 'queue']);
+        Route::post('/art/{id}/approve', [GmArtController::class, 'approve'])->where('id', '[0-9]+');
+        Route::post('/art/{id}/reject', [GmArtController::class, 'reject'])->where('id', '[0-9]+');
+    });
+
+    // Art Studio — a lighter-weight sibling of the GM console, reachable by the 'artist' role (GMs too,
+    // see User::isArtist()) without granting the rest of the GM console's much wider surface.
+    Route::middleware('artist')->prefix('gm/art')->group(function () {
+        Route::get('/board', [GmArtController::class, 'board']);
+        Route::get('/mine', [GmArtController::class, 'mine']);
+        Route::post('/submit', [GmArtController::class, 'submit']);
+        Route::get('/preview/{id}', [GmArtController::class, 'preview'])->where('id', '[0-9]+');
     });
 });

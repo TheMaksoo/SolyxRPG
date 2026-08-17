@@ -12,10 +12,10 @@
         <h2 class="terms-section__title">1. What we collect</h2>
         <p>
           To run your account we store your name, email address, password (hashed, never in plain text), and
-          whatever gameplay data your character generates — level, inventory, currencies, chat messages, battle
+          whatever gameplay data your character generates: level, inventory, currencies, chat messages, battle
           history, and similar in-game state. If you sign in with Discord or Google, we store the linked account
           identifier and the email it provides. If you make a purchase, Stripe processes your payment details
-          directly — we never see or store your card number.
+          directly; we never see or store your card number.
         </p>
       </section>
 
@@ -43,7 +43,7 @@
         <p>
           We keep your account and character data for as long as your account exists. Short-lived gameplay logs
           (finished battles, dungeon runs, crafting jobs, and similar) are periodically cleaned up after they're
-          no longer useful, as described in our data retention practices — this doesn't affect your account,
+          no longer useful, as described in our data retention practices. This doesn't affect your account,
           character, or currencies.
         </p>
       </section>
@@ -54,7 +54,7 @@
           You can permanently delete your account and character at any time from
           <router-link to="/settings">Settings</router-link>. This immediately and irreversibly removes your
           account, character, inventory, and associated gameplay data. If you have an active Premium subscription,
-          cancel it separately in Settings first — deleting your account does not automatically stop billing.
+          cancel it separately in Settings first: deleting your account does not automatically stop billing.
         </p>
       </section>
 

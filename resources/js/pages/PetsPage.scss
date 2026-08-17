@@ -26,12 +26,6 @@
   padding: 5px 14px;
 }
 
-.pets-message {
-  font-size: 13px;
-  color: v.$danger;
-  margin-bottom: 14px;
-}
-
 .pets-grid {
   @include m.grid-auto-fill(220px, 14px);
 }
@@ -158,6 +152,28 @@ html.reduce-motion .pet-card__btn--rank-up {
   cursor: pointer;
 }
 
+.pet-card__feed-row {
+  display: flex;
+  gap: 6px;
+}
+
+.pet-card__feed-btn {
+  flex: 1;
+  padding: 8px 0;
+  border-radius: v.$radius-sm;
+  border: 1px solid v.$border-medium;
+  background: transparent;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.4;
+  }
+}
+
 .pet-card__hp-track {
   @include m.stat-bar-track;
 }
@@ -187,7 +203,9 @@ html.reduce-motion .pet-card__btn--rank-up {
 
 .pet-card__btn--activate + .pet-card__btn--activate,
 .pet-card__btn--activate + .pet-card__status--active,
-.pet-card__status--active + .pet-card__btn--activate {
+.pet-card__status--active + .pet-card__btn--activate,
+.pet-card__btn--rank-up + .pet-card__btn--activate,
+.pet-card__btn--rank-up + .pet-card__status--active {
   margin-top: 8px;
 }
 
@@ -209,6 +227,24 @@ html.reduce-motion .pet-card__btn--rank-up {
   color: v.$text-muted-45;
   margin: -6px 0 16px;
   max-width: 640px;
+}
+
+.tame-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  max-width: 420px;
+  margin: -6px 0 16px;
+}
+
+.tame-toggle-row__label {
+  font-size: 13px;
+  color: v.$text-body;
+}
+
+.tame-toggle-row .toggle-switch {
+  @include m.toggle-switch;
 }
 
 .tame-empty-hint {

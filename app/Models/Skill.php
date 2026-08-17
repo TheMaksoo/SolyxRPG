@@ -7,9 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 class Skill extends Model
 {
     protected $fillable = [
-        'branch', 'key', 'name', 'glyph', 'description', 'tier', 'level_req',
+        'branch', 'key', 'name', 'glyph', 'sprite', 'description', 'tier', 'level_req',
         'mp_cost', 'cooldown_seconds', 'cooldown_rounds', 'max_level', 'rank_levels', 'effect_json', 'class_scope',
-        'requires_profession',
+        'requires_profession', 'requires_branch_key', 'node_slot', 'prereq_skill_key',
     ];
 
     protected $casts = [

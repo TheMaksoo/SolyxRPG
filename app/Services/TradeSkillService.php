@@ -6,7 +6,14 @@ use App\Models\CharacterTradeSkill;
 
 class TradeSkillService
 {
-    public const MAX_LEVEL = 60;
+    // Was 60 — which made CraftingService::TIERS' own 'mythic' unlock_level of 65 literally
+    // unreachable (no character could ever craft mythic gear at all). Raised well past that so
+    // Crafting rank keeps climbing — and keeps improving CraftingController's uncapped Luck/rank
+    // roll-bonus shift — long after mythic unlocks, matching the "keep crafting to level 200" ask
+    // instead of every trade skill going dead at 60. Also lets the gather-speed formula
+    // (actionSeconds()'s LEVEL_SPEED_CAP_PCT, which needs level 100 to fully apply) actually reach
+    // its own intended cap, which the old 60-level ceiling never allowed either.
+    public const MAX_LEVEL = 150;
 
     private const MIN_ACTION_SECONDS = 2;
     private const LEVEL_SPEED_RAMP = 10;

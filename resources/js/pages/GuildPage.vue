@@ -1,10 +1,11 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import api from '../api/client';
 import { useCharacterStore } from '../stores/character';
 import { useAuthStore } from '../stores/auth';
 import MentionInput from '../components/MentionInput.vue';
 import AdBanner from '../components/AdBanner.vue';
+import Toast from '../components/Toast.vue';
 import { renderChatBody, mentionsMe } from '../chatMentions';
 
 const characterStore = useCharacterStore();
@@ -27,6 +28,17 @@ const warLeaderboardRank = ref(null);
 const warBattle = ref(null);
 const warMessage = ref('');
 const warLoading = ref(false);
+
+let messageToastTimer = null;
+watch(message, (val) => {
+  clearTimeout(messageToastTimer);
+  if (val) messageToastTimer = setTimeout(() => { message.value = ''; }, 5000);
+});
+let warMessageToastTimer = null;
+watch(warMessage, (val) => {
+  clearTimeout(warMessageToastTimer);
+  if (val) warMessageToastTimer = setTimeout(() => { warMessage.value = ''; }, 5000);
+});
 
 const UPGRADE_LABELS = {
   gold_find: { title: 'Gold Find', unit: 'gold' },
@@ -191,7 +203,7 @@ onMounted(load);
       <h1 class="ox guild-title">Guild</h1>
     </div>
 
-    <p v-if="message" class="guild-message">{{ message }}</p>
+    <Toast :message="message" type="error" />
 
     <AdBanner variant="inline" />
 
@@ -238,7 +250,7 @@ onMounted(load);
           Guild wars run Saturday &amp; Sunday only. Come back on the weekend to enter battle.
         </p>
 
-        <p v-if="warMessage" class="guild-wars__message">{{ warMessage }}</p>
+        <Toast :message="warMessage" type="error" />
 
         <div v-if="warBattle" class="guild-wars-battle">
           <div class="guild-wars-battle__side">
@@ -302,7 +314,7 @@ onMounted(load);
               @click="purchaseUpgrade(u.track)"
               class="guild-upgrade-card__btn"
             >
-              Upgrade to Tier {{ u.tier + 1 }} — {{ u.next_cost.toLocaleString() }}g
+              Upgrade to Tier {{ u.tier + 1 }} ({{ u.next_cost.toLocaleString() }}g)
             </button>
             <div v-else class="guild-upgrade-card__maxed">Max tier reached</div>
           </div>

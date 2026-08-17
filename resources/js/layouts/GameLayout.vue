@@ -1,9 +1,10 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, provide, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { preloadRoute } from '../router';
 import { NAV, NAV_FOOTER } from '../navigation';
 import { useGameTick } from '../composables/gameTick';
+import { useStatusPoll } from '../composables/statusPoll';
 import { useCharacterStore } from '../stores/character';
 import { useAuthStore } from '../stores/auth';
 import { usePvpQueueStore } from '../stores/pvpQueue';
@@ -12,7 +13,6 @@ import { useCraftingQueueStore } from '../stores/craftingQueue';
 import { useGatherCooldownsStore } from '../stores/gatherCooldowns';
 import { useAutoBattleStore } from '../stores/autoBattle';
 import api from '../api/client';
-import TutorialOverlay from '../components/TutorialOverlay.vue';
 import Toast from '../components/Toast.vue';
 import BugReportWidget from '../components/BugReportWidget.vue';
 
@@ -26,16 +26,35 @@ const craftingQueue = useCraftingQueueStore();
 const gatherCooldowns = useGatherCooldownsStore();
 const autoBattle = useAutoBattleStore();
 const { tickCount } = useGameTick();
+const { badgesUpdatedAt: polledBadgesUpdatedAt } = useStatusPoll();
 const activeLabel = computed(
   () => [...NAV, ...NAV_FOOTER].find((n) => n.path === route.path)?.label ?? ''
 );
 const visibleNavFooter = computed(() =>
-  NAV_FOOTER.filter((n) => n.path !== '/admin' || ['gm', 'owner'].includes(auth.user?.role))
+  NAV_FOOTER.filter((n) => {
+    if (n.path === '/admin') return ['gm', 'owner'].includes(auth.user?.role);
+    if (n.path === '/art-studio') return ['artist', 'gm', 'owner'].includes(auth.user?.role);
+    return true;
+  })
 );
 
 // A feature flag with LIVE off (and, for non-testers, TESTERS off too) means the feature is fully
 // unreachable — hide its sidebar entry entirely rather than showing a locked tab that just 403s.
-const visibleNav = computed(() => NAV.filter((n) => !n.flagKey || auth.featureAccess[n.flagKey] !== false));
+//
+// Of the still-locked (level-gated) entries, only the SOONEST upcoming one is shown (with its padlock
+// + unlock level, as before) — every other locked item is hidden entirely rather than dumping the
+// whole rest of the game's feature list on a new player as a wall of padlocks. Order is preserved from
+// NAV itself so the one visible locked entry still sits in its natural sidebar position.
+const visibleNav = computed(() => {
+  const level = characterStore.character?.level ?? 0;
+  const flagFiltered = NAV.filter((n) => !n.flagKey || auth.featureAccess[n.flagKey] !== false);
+  const locked = flagFiltered.filter((n) => n.unlockLevel && level < n.unlockLevel);
+  const nextLockedPath = locked.length
+    ? locked.reduce((soonest, n) => (n.unlockLevel < soonest.unlockLevel ? n : soonest)).path
+    : null;
+
+  return flagFiltered.filter((n) => !n.unlockLevel || level >= n.unlockLevel || n.path === nextLockedPath);
+});
 
 const unreadCount = ref(0);
 const activePlayersHour = ref(null);
@@ -90,27 +109,80 @@ async function loadUnread() {
   unreadCount.value = data.items.filter((i) => i.invite || (i.type === 'mail' && !i.read)).length;
 }
 
-// One "!" badge count per sidebar path — quests/battle-pass/daily rewards ready to claim, pending party
-// invites, pending friend requests. Refetched on every route change (cheap, single request) so claiming
-// something updates the sidebar right away, plus a slow poll as a fallback for things that tick over on
-// their own (e.g. a fresh daily reward at midnight).
+// One "!" badge count per sidebar path. Split across two sources:
+// - Server (/nav-badges): only for badges that genuinely need data the client doesn't otherwise have
+//   (quests, battle pass tiers, party invites, friend requests) — see navBadges/loadNavBadges below.
+// - Client-computed (clientNavBadges below): every badge derivable from data the app already loads for
+//   other reasons, needing zero extra requests — daily reward, crafting, dungeon/PvP attempts, unread
+//   mail/invites, the referral nudge.
 const navBadges = ref({});
 const BADGE_PATH = {
   quests: '/quests',
   battle_pass: '/battle-pass',
-  daily: '/daily',
   party_invites: '/party',
   friend_requests: '/friends',
-  mail: '/inbox',
-  crafting: '/crafting',
-  dungeons: '/dungeons',
-  pvp: '/pvp',
-  referrals: '/referrals',
 };
-let badgePollTimer = null;
 const badgesUpdatedAt = ref(0);
 
-async function loadNavBadges() {
+// Mirrors User::VIP_TIER_PVP_ATTEMPTS / VIP_TIER_DUNGEON_ATTEMPTS's fallback constants (not the
+// GM-tunable GameConfig override those methods also check) — close enough for a "!" nudge badge; the
+// real attempt count is still authoritatively enforced server-side when the player actually acts.
+const VIP_TIER_PVP_ATTEMPTS = { bronze: 5, gold: 10, diamond: 15 };
+const VIP_TIER_DUNGEON_ATTEMPTS = { bronze: 1, gold: 3, diamond: 5 };
+
+function hasActiveVip(user) {
+  if (!user) return false;
+  if (user.vip_lifetime) return true;
+  return user.vip_tier !== 'none' && !!user.vip_expires_at && new Date(user.vip_expires_at) > new Date();
+}
+
+function attemptsRemaining(used, resetAtIso, max) {
+  const resetAt = resetAtIso ? new Date(resetAtIso) : null;
+  const effectiveUsed = !resetAt || resetAt.getTime() < Date.now() ? 0 : (used ?? 0);
+  return Math.max(0, max - effectiveUsed);
+}
+
+function vipBonusAttempts(user, table) {
+  if (!hasActiveVip(user)) return 0;
+  return table[user.vip_tier] ?? 0;
+}
+
+function isDailyClaimable(dailyClaim) {
+  if (!dailyClaim?.last_claim_date) return true;
+  const last = new Date(dailyClaim.last_claim_date);
+  const now = new Date();
+  return (
+    last.getUTCFullYear() !== now.getUTCFullYear()
+    || last.getUTCMonth() !== now.getUTCMonth()
+    || last.getUTCDate() !== now.getUTCDate()
+  );
+}
+
+const clientNavBadges = computed(() => {
+  const character = characterStore.character;
+  const user = character?.user;
+  return {
+    '/daily': isDailyClaimable(character?.daily_claim) ? 1 : 0,
+    '/crafting': craftingQueue.readyCount > 0 ? 1 : 0,
+    '/dungeons': attemptsRemaining(character?.dungeon_attempts_used, character?.dungeon_attempts_reset_at, 3 + vipBonusAttempts(user, VIP_TIER_DUNGEON_ATTEMPTS)) > 0 ? 1 : 0,
+    '/pvp': attemptsRemaining(character?.pvp_attempts_used, character?.pvp_attempts_reset_at, 10 + vipBonusAttempts(user, VIP_TIER_PVP_ATTEMPTS)) > 0 ? 1 : 0,
+    '/inbox': unreadCount.value,
+    // Not an "unclaimed reward" count like the others — a one-time nudge so a player who has never even
+    // copied their invite link notices the feature exists at all. Clears itself once they copy their
+    // code/link from anywhere (see ReferralController::trackCopy).
+    '/referrals': user?.referral_link_copies === 0 ? 1 : 0,
+  };
+});
+
+// Route-change navigation fires this constantly (every sidebar click), so it's throttled to at most
+// once per NAV_BADGE_MIN_INTERVAL_MS — badges don't change from just looking at a different page, and
+// the status-poll-driven refresh below (a real server-reported change) always bypasses the throttle.
+const NAV_BADGE_MIN_INTERVAL_MS = 8000;
+let lastNavBadgeFetchAt = 0;
+
+async function loadNavBadges({ force = false } = {}) {
+  if (!force && Date.now() - lastNavBadgeFetchAt < NAV_BADGE_MIN_INTERVAL_MS) return;
+  lastNavBadgeFetchAt = Date.now();
   const { data } = await api.get('/nav-badges');
   const next = {};
   for (const [key, path] of Object.entries(BADGE_PATH)) {
@@ -119,21 +191,19 @@ async function loadNavBadges() {
   navBadges.value = next;
 }
 
-async function checkForBadgeUpdates() {
-  try {
-    const { data } = await api.get('/status/check');
-    // Only fetch full badges if they changed
-    if (data.badges_updated_at > badgesUpdatedAt.value) {
-      badgesUpdatedAt.value = data.badges_updated_at;
-      await loadNavBadges();
-    }
-  } catch {
-    // silent
+// Only fetches the full badge list when the shared /status/check poll (see composables/statusPoll.js)
+// actually reports a change — that poll now runs exactly once app-wide instead of this component and
+// WorldChat.vue each running their own separate interval against the same endpoint. Always forced
+// through the throttle above since this only fires when the server says something genuinely changed.
+watch(polledBadgesUpdatedAt, (updatedAt) => {
+  if (updatedAt > badgesUpdatedAt.value) {
+    badgesUpdatedAt.value = updatedAt;
+    loadNavBadges({ force: true });
   }
-}
+});
 
 function badgeFor(path) {
-  return navBadges.value[path] ?? 0;
+  return clientNavBadges.value[path] ?? navBadges.value[path] ?? 0;
 }
 
 function isLocked(n) {
@@ -180,7 +250,20 @@ watch(
   }
 );
 
-watch(() => route.path, loadNavBadges);
+// No longer refetched on every route change (that fired on literally every sidebar click — one of the
+// heaviest single sources of traffic in the app for an endpoint that's several queries deep). The
+// status-poll-driven watch above will catch a real change instantly once something actually calls
+// BadgeUpdateService::touch() (quest claim, party invite sent, etc. — that service exists but isn't
+// wired up to any of those actions yet, so badges_updated_at never currently moves). Until it is, this
+// slow fallback is the only thing keeping quests/battle-pass/party/friend badges fresh at all — up to a
+// minute of staleness is an acceptable trade for cutting this endpoint's call volume from "every click"
+// to "once a minute."
+const NAV_BADGE_FALLBACK_TICKS = 60;
+watch(tickCount, (count) => {
+  if (count % NAV_BADGE_FALLBACK_TICKS === 0 && !document.hidden) {
+    loadNavBadges();
+  }
+});
 
 function formatMmSs(totalSeconds) {
   const total = Math.max(0, Math.floor(totalSeconds || 0));
@@ -241,6 +324,32 @@ watch(() => route.path, () => {
   mobileNavOpen.value = false;
 });
 
+// Exposed so a page-level "More" button (e.g. DashboardPage's mobile bottom nav) can open the same
+// off-canvas drawer the topbar hamburger does, instead of duplicating a second nav-drawer mechanism.
+provide('toggleMobileNav', toggleMobileNav);
+
+// ---- Mobile bottom tab bar — lives here (not per-page) so it's ALWAYS present below the phone
+// breakpoint on every screen, not just the pages that remembered to copy it in. "More" reopens the
+// same off-canvas drawer the topbar hamburger does rather than a second nav mechanism. ----
+const BOTTOM_NAV = [
+  { icon: '🏠', label: 'Inn', to: '/dashboard' },
+  { icon: '⚔', label: 'Battle', to: '/battle' },
+  { icon: '🎒', label: 'Bag', to: '/inventory' },
+  { icon: '🗺', label: 'Map', to: '/world-map' },
+];
+
+// Unlike the rest of BOTTOM_NAV, Bag and Map are level-gated (see NAV) — this tab bar is global to
+// every page (rendered once here, not per-page), so without this filter a still-locked character gets
+// a permanent tab that just bounces them to LevelRequiredPage on tap, unlike every other nav surface
+// in the app (visibleNav above, BattlePage's navUnlocked()) which already hide locked destinations.
+const visibleBottomNav = computed(() => {
+  const level = characterStore.character?.level ?? 0;
+  return BOTTOM_NAV.filter((b) => {
+    const navEntry = NAV.find((n) => n.path === b.to);
+    return !navEntry?.unlockLevel || level >= navEntry.unlockLevel;
+  });
+});
+
 onMounted(() => {
   if (!characterStore.character) characterStore.fetch();
   loadUnread();
@@ -251,12 +360,6 @@ onMounted(() => {
   pvpQueue.init();
   craftingQueue.init();
   gatherCooldowns.init();
-  // Check every 30s instead of fetching full badges - only fetches if something changed
-  badgePollTimer = setInterval(checkForBadgeUpdates, 30000);
-});
-
-onUnmounted(() => {
-  clearInterval(badgePollTimer);
 });
 </script>
 
@@ -412,9 +515,26 @@ onUnmounted(() => {
       <main class="layout-content">
         <router-view />
       </main>
-    </div>
 
-    <TutorialOverlay v-if="characterStore.character && !characterStore.character.tutorial_seen" />
+      <!-- MOBILE BOTTOM NAV — hidden on desktop (see GameLayout.scss). Global so it's on every page,
+      not something each page has to remember to render for itself. -->
+      <nav class="mobile-bottom-nav" aria-label="Primary">
+        <router-link
+          v-for="b in visibleBottomNav"
+          :key="b.to"
+          :to="b.to"
+          class="mobile-bottom-nav__item"
+          :class="{ 'is-active': route.path === b.to }"
+        >
+          <span class="mobile-bottom-nav__icon">{{ b.icon }}</span>
+          <span class="mobile-bottom-nav__label">{{ b.label }}</span>
+        </router-link>
+        <button type="button" class="mobile-bottom-nav__item" @click="toggleMobileNav">
+          <span class="mobile-bottom-nav__icon">☰</span>
+          <span class="mobile-bottom-nav__label">More</span>
+        </button>
+      </nav>
+    </div>
   </div>
 </template>
 

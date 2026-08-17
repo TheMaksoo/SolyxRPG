@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Character;
 use App\Models\FeatureFlag;
+use App\Models\GameConfig;
 use App\Models\Guild;
 use App\Services\AchievementService;
 use Illuminate\Http\Request;
@@ -71,6 +72,12 @@ class GuildController extends Controller
         abort_unless($character, 404);
         abort_if($character->guildMembership, 422, 'Already in a guild.');
 
+        // Guilds, unlike every other system (zones/dungeons/skills/gear/class-path/PvP), had no level
+        // floor at all — a level-1 character could found one immediately. GM-tunable, same pattern as
+        // PvpController's queueJoin() gate.
+        $minLevel = (int) GameConfig::number('guild_join_min_level', 10);
+        abort_if($character->level < $minLevel, 422, "Reach character level {$minLevel} to found a guild.");
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:40'],
             'tag' => ['required', 'string', 'max:5'],
@@ -88,6 +95,9 @@ class GuildController extends Controller
         $character = $request->user()->character;
         abort_unless($character, 404);
         abort_if($character->guildMembership, 422, 'Already in a guild.');
+
+        $minLevel = (int) GameConfig::number('guild_join_min_level', 10);
+        abort_if($character->level < $minLevel, 422, "Reach character level {$minLevel} to join a guild.");
 
         if ($guild->members()->count() >= $guild->member_cap) {
             return response()->json(['message' => 'Guild is full.'], 422);

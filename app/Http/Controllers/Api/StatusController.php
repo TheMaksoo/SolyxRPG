@@ -20,8 +20,12 @@ class StatusController extends Controller
         // Last world chat message ID - client compares to see if new messages exist
         $lastMessageId = WorldMessage::latest('id')->value('id') ?? 0;
 
-        // Badges updated timestamp - any action that changes badges updates this
-        $badgesUpdatedAt = $user->badges_updated_at?->timestamp ?? now()->timestamp;
+        // Badges updated timestamp - any action that changes badges updates this. Falls back to a
+        // stable value (not now()) when null — nothing currently writes this column (BadgeUpdateService
+        // exists but isn't wired to any quest/party/friend/battle-pass action yet), so a fallback of
+        // now() made this look like it changed on literally every single poll, forcing GameLayout's
+        // "only refetch nav-badges on a real change" watcher to refetch every 10 seconds regardless.
+        $badgesUpdatedAt = $user->badges_updated_at?->timestamp ?? $user->created_at?->timestamp ?? 0;
 
         return response()->json([
             'last_message_id' => $lastMessageId,

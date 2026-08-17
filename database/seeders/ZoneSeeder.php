@@ -21,9 +21,14 @@ class ZoneSeeder extends Seeder
             ['key' => 'frostpeak_caverns', 'name' => 'Frostpeak Caverns', 'glyph' => '🏔', 'danger' => 'high', 'min_level' => 24, 'locked' => false, 'sort_order' => 2],
             ['key' => 'emberpeak_volcano', 'name' => 'Emberpeak Volcano', 'glyph' => '🌋', 'danger' => 'high', 'min_level' => 32, 'locked' => false, 'sort_order' => 3],
             ['key' => 'sunken_abyss', 'name' => 'Sunken Abyss', 'glyph' => '🌊', 'danger' => 'deadly', 'min_level' => 50, 'locked' => false, 'sort_order' => 4],
-            ['key' => 'the_void', 'name' => 'The Void', 'glyph' => '🌌', 'danger' => 'deadly', 'min_level' => 100, 'locked' => false, 'sort_order' => 5],
-            ['key' => 'crimson_wastes', 'name' => 'Crimson Wastes', 'glyph' => '🏜', 'danger' => 'deadly', 'min_level' => 150, 'locked' => false, 'sort_order' => 6],
-            ['key' => 'astral_expanse', 'name' => 'Astral Expanse', 'glyph' => '🌠', 'danger' => 'deadly', 'min_level' => 200, 'locked' => false, 'sort_order' => 7],
+            // Three bridge zones (75/120/175), closing what used to be 40-49 level dead stretches between
+            // the 50/100/150/200 tiers with no new zone, dungeon, or general gear/recipe of any kind.
+            ['key' => 'drowned_spire', 'name' => 'The Drowned Spire', 'glyph' => '🗼', 'danger' => 'deadly', 'min_level' => 75, 'locked' => false, 'sort_order' => 5],
+            ['key' => 'the_void', 'name' => 'The Void', 'glyph' => '🌌', 'danger' => 'deadly', 'min_level' => 100, 'locked' => false, 'sort_order' => 6],
+            ['key' => 'sundered_rift', 'name' => 'The Sundered Rift', 'glyph' => '🌀', 'danger' => 'deadly', 'min_level' => 120, 'locked' => false, 'sort_order' => 7],
+            ['key' => 'crimson_wastes', 'name' => 'Crimson Wastes', 'glyph' => '🏜', 'danger' => 'deadly', 'min_level' => 150, 'locked' => false, 'sort_order' => 8],
+            ['key' => 'emberfall_ridge', 'name' => 'Emberfall Ridge', 'glyph' => '🔥', 'danger' => 'deadly', 'min_level' => 175, 'locked' => false, 'sort_order' => 9],
+            ['key' => 'astral_expanse', 'name' => 'Astral Expanse', 'glyph' => '🌠', 'danger' => 'deadly', 'min_level' => 200, 'locked' => false, 'sort_order' => 10],
         ];
 
         foreach ($zones as $zone) {

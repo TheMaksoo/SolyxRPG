@@ -54,6 +54,15 @@ class WikiSyncService
         'xp_pct' => 'XP',
     ];
 
+    /** Human labels for MonsterAiService::ROLES — drives the AI ability/targeting behavior shown here for flavor. */
+    private const MONSTER_ROLE_LABELS = [
+        'brute' => 'Brute',
+        'skirmisher' => 'Skirmisher',
+        'caster' => 'Caster',
+        'mender' => 'Mender',
+        'elite_brute' => 'Elite Brute',
+    ];
+
     public function syncMonsters(): void
     {
         Monster::with('zone')->get()->each(fn (Monster $m) => $this->syncMonster($m));
@@ -97,6 +106,11 @@ class WikiSyncService
             $stats[] = $this->chip('Stats scale with rolled Grade (Common → Legendary)', '#cbd5e1', true);
         }
 
+        // AI role drives which ability weighting/targeting behavior the monster actually uses in battle
+        // (see MonsterAiService::ROLES) — worth surfacing so players know what kind of fight to expect.
+        $roleLabel = self::MONSTER_ROLE_LABELS[$monster->role] ?? ucfirst(str_replace('_', ' ', $monster->role));
+        $stats[] = $this->chip("Role: {$roleLabel}", '#a78bfa', true);
+
         WikiEntry::updateOrCreate(
             ['source_type' => 'monster', 'source_id' => $monster->id],
             [
@@ -106,7 +120,7 @@ class WikiSyncService
                 'name' => $monster->name,
                 'sub' => ($monster->zone?->name ?? 'Unknown zone').' · '.($monster->is_boss ? 'BOSS' : "Lv.{$monster->min_level}"),
                 'rarity' => $this->monsterRarity($monster),
-                'description' => $monster->name.' — a monster encountered in '.($monster->zone?->name ?? 'the wilds').'.',
+                'description' => $monster->name." — a {$roleLabel} encountered in ".($monster->zone?->name ?? 'the wilds').'.',
                 'stats' => $stats,
                 'enabled' => $monster->enabled,
             ]
@@ -184,6 +198,11 @@ class WikiSyncService
         if ($zone->tester_only) {
             $stats[] = $this->chip('Tester only', '#e8482f');
         }
+        // Multi-enemy "pack" encounters only ever roll outside safe zones (see CombatService::rollPackMonsters()),
+        // so this is a genuine mechanical warning, not flavor text — worth surfacing before a player walks in.
+        if ($zone->danger !== 'safe') {
+            $stats[] = $this->chip('Can spawn multi-enemy pack encounters', '#ff8163', true);
+        }
 
         WikiEntry::updateOrCreate(
             ['source_type' => 'zone', 'source_id' => $zone->id],
@@ -249,6 +268,11 @@ class WikiSyncService
             : $this->chip('Passive', '#cbd5e1', true)];
         $stats[] = $this->chip('Max rank '.$skill->max_level, '#eab308', true);
 
+        // SkillService::describe() is the single source of truth for "what does this skill actually do"
+        // (damage/heal/passive numbers plus any applies_status buff/debuff, see StatusEffectService::CATALOG)
+        // — reused here instead of re-deriving the same text so the wiki can never drift from real combat math.
+        $effect = (new SkillService())->describe($skill, 1);
+
         WikiEntry::updateOrCreate(
             ['source_type' => 'skill', 'source_id' => $skill->id],
             [
@@ -257,11 +281,43 @@ class WikiSyncService
                 'name' => $skill->name,
                 'sub' => ucfirst($skill->class_scope).' · '.$skill->branch.' · Lv.'.$skill->level_req,
                 'rarity' => $this->tierRarity($skill->tier),
-                'description' => $skill->description,
+                'description' => $skill->description.' ('.$effect.')',
                 'stats' => $stats,
                 'enabled' => true,
             ]
         );
+    }
+
+    /** The buff/debuff catalog (StatusEffectService::CATALOG) is a PHP const, not a DB table, so there's
+     * no GM-editable row and no per-entry sync method to hang off a GmContentController edit hook — this
+     * just rebuilds the whole small catalog every time, called from the same full-resync entry points as
+     * every other syncXxx() method (see WikiEntrySeeder). */
+    public function syncStatusEffects(): void
+    {
+        $sourceId = 0;
+        foreach (StatusEffectService::CATALOG as $meta) {
+            $sourceId++;
+            $unitLabel = match ($meta['unit']) {
+                'pct' => 'Percent',
+                'flat' => 'Flat amount',
+                'flag' => 'On/off',
+                default => ucfirst($meta['unit']),
+            };
+
+            WikiEntry::updateOrCreate(
+                ['source_type' => 'status_effect', 'source_id' => $sourceId],
+                [
+                    'category' => 'status_effects',
+                    'glyph' => $meta['glyph'],
+                    'name' => $meta['label'],
+                    'sub' => $unitLabel.'-based effect',
+                    'rarity' => 'Common',
+                    'description' => $meta['desc'],
+                    'stats' => [$this->chip(ucfirst($meta['tone']), '#cbd5e1', true)],
+                    'enabled' => true,
+                ]
+            );
+        }
     }
 
     public function syncEvents(): void

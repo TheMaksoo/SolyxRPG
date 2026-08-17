@@ -3,13 +3,36 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import api from '../api/client';
 import Toast from '../components/Toast.vue';
+import ClickChallengeModal from '../components/ClickChallengeModal.vue';
 import { formatStats } from '../rarity';
 import { useCraftingQueueStore } from '../stores/craftingQueue';
+import { useCharacterStore } from '../stores/character';
 
 const route = useRoute();
 // The topbar's crafting pill (see stores/craftingQueue.js + GameLayout.vue) polls independently, but
 // queuing/collecting here shouldn't make it wait for its own poll cycle — nudge it to refresh right away.
 const craftingQueueStore = useCraftingQueueStore();
+const characterStore = useCharacterStore();
+
+// Below this level, queuing a craft opens a quick 3-click minigame first instead of firing instantly —
+// same low-intensity "breather" pacing as Gathering's minigame gate (see TradeSkillsPage.vue), and the
+// same mirrored GmConfig default (minigame_level_cap).
+const MINIGAME_LEVEL_CAP = 5;
+const minigameOpen = ref(false);
+const minigamePendingRecipe = ref(null);
+
+function onMinigameComplete() {
+  minigameOpen.value = false;
+  if (minigamePendingRecipe.value) {
+    submitCraft(minigamePendingRecipe.value);
+    minigamePendingRecipe.value = null;
+  }
+}
+
+function onMinigameCancel() {
+  minigameOpen.value = false;
+  minigamePendingRecipe.value = null;
+}
 
 const recipes = ref([]);
 const queue = ref([]);
@@ -34,7 +57,12 @@ const SECTIONS = [
   { key: 'repair_pack', label: 'Repair Packs', glyph: '🧰' },
   { key: 'weapon', label: 'Weapons', glyph: '⚔' },
   { key: 'armor', label: 'Armor', glyph: '🛡' },
+  // 'quiver' is one shared item TYPE (see InventoryController::equip()'s ranger/rogue special-case),
+  // but ranger's Quiver and rogue's Knife Holder are different enough recipes that filing both under
+  // one "Quivers" heading buried the rogue half — split by class here into two section keys instead.
   { key: 'quiver', label: 'Quivers', glyph: '🎯' },
+  { key: 'knife_holder', label: 'Knife Holders', glyph: '🗡' },
+  { key: 'trinket', label: 'Trinkets', glyph: '📿' },
   { key: 'pickaxe', label: 'Pickaxes', glyph: '⛏' },
   { key: 'axe', label: 'Axes', glyph: '🪓' },
   { key: 'sickle', label: 'Sickles', glyph: '🔪' },
@@ -42,8 +70,9 @@ const SECTIONS = [
   { key: 'material', label: 'Materials', glyph: '🪨' },
 ];
 
-function sectionKeyFor(type) {
-  return type;
+function sectionKeyFor(item) {
+  if (item.type === 'quiver') return item.class_key === 'rogue' ? 'knife_holder' : 'quiver';
+  return item.type;
 }
 
 // Weapons/armor are the two sections where "which class is this even for" actually matters when
@@ -54,7 +83,7 @@ const GROUPED_SECTIONS = ['weapon', 'armor', 'consumable'];
 
 const sections = computed(() =>
   SECTIONS.map((section) => {
-    const sectionRecipes = recipes.value.filter((r) => sectionKeyFor(r.result_item.type) === section.key);
+    const sectionRecipes = recipes.value.filter((r) => sectionKeyFor(r.result_item) === section.key);
 
     // Group consumables by heal type (HP/MP/Regen)
     if (section.key === 'consumable') {
@@ -145,7 +174,16 @@ async function load() {
 
 const queueFull = () => queue.value.length >= maxSlots.value;
 
-async function craft(recipe) {
+function craft(recipe) {
+  if ((characterStore.character?.level ?? 0) < MINIGAME_LEVEL_CAP) {
+    minigamePendingRecipe.value = recipe;
+    minigameOpen.value = true;
+    return;
+  }
+  submitCraft(recipe);
+}
+
+async function submitCraft(recipe) {
   try {
     await api.post(`/crafting/${recipe.id}/craft`);
     showMessage(`Queued ${recipe.result_item.name}.`, 'success');
@@ -158,6 +196,7 @@ async function craft(recipe) {
 
 function craftButtonLabel(recipe) {
   if (!recipe.level_unlocked) return `Requires Lv.${recipe.min_level}`;
+  if (!recipe.branch_unlocked) return 'Wrong Class Path branch';
   if (!recipe.can_afford_gold) return 'Not Enough Gold';
   if (!recipe.can_craft) return 'Missing Materials';
   if (queueFull()) return 'Queue full';
@@ -203,6 +242,15 @@ onUnmounted(() => {
 <template>
   <div>
     <Toast :message="message" :type="messageType" />
+    <ClickChallengeModal
+      :open="minigameOpen"
+      title="Craft"
+      glyph="🔨"
+      :noun="minigamePendingRecipe?.result_item?.name ?? 'it'"
+      :clicks-required="3"
+      @complete="onMinigameComplete"
+      @cancel="onMinigameCancel"
+    />
 
     <div class="crafting-header">
       <div class="crafting-header__icon">🔨</div>
@@ -292,6 +340,7 @@ onUnmounted(() => {
               <div class="recipe-card__time">
                 ⏱ {{ recipe.craft_seconds }}s to craft
                 <span v-if="!recipe.level_unlocked" class="recipe-card__locked">🔒 Requires level {{ recipe.min_level }}</span>
+                <span v-else-if="!recipe.branch_unlocked" class="recipe-card__locked">🔒 Requires the matching Class Path branch</span>
               </div>
               <button
                 @click="craft(recipe)"

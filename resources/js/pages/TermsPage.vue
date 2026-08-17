@@ -13,7 +13,7 @@
         <p>
           Solyx is a beta product. Classes, items, quests, balance numbers, prices, and entire systems can be
           added, changed, rebalanced, or removed at any time without prior notice as we keep building the game.
-          Features you rely on today may look different — or be gone — tomorrow.
+          Features you rely on today may look different, or be gone, tomorrow.
         </p>
       </section>
 
@@ -51,7 +51,7 @@
         <p>
           Solyx uses a session cookie to keep you signed in and small pieces of local storage to remember things
           like your UI preferences and whether you've dismissed this notice. We don't use third-party tracking
-          or advertising cookies beyond what's disclosed here — if that changes (for example, if we add ad
+          or advertising cookies beyond what's disclosed here. If that changes (for example, if we add ad
           placements), this page will be updated.
         </p>
       </section>

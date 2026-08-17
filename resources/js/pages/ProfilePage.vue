@@ -8,6 +8,7 @@ import api from '../api/client';
 import { RARITY_COLORS, RARITY_LABELS } from '../rarity';
 import { gradeMeta } from '../utils/grade';
 import ActivityChart from '../components/admin/ActivityChart.vue';
+import Toast from '../components/Toast.vue';
 
 const RARITY_ORDER = ['common', 'rare', 'epic', 'legendary', 'mythic'];
 
@@ -20,6 +21,11 @@ const view = ref('profile'); // 'profile' | 'customize'
 const customizeAvailable = computed(() => auth.featureAccess.cosmetics !== false);
 const message = ref('');
 const panels = ref(null);
+let messageToastTimer = null;
+watch(message, (val) => {
+  clearTimeout(messageToastTimer);
+  if (val) messageToastTimer = setTimeout(() => { message.value = ''; }, 5000);
+});
 
 // ---- Bio / playstyle tags (purely self-description, no gameplay effect) ----
 const PLAYSTYLE_TAGS = [
@@ -567,7 +573,7 @@ onMounted(() => {
 
 <template>
   <div v-if="store.character">
-    <p v-if="message" class="profile-message">{{ message }}</p>
+    <Toast :message="message" type="error" />
 
     <template v-if="view === 'profile'">
       <div class="profile-hero" :style="heroBackground ? { background: heroBackground } : null">
@@ -1196,7 +1202,7 @@ onMounted(() => {
               aria-label="Display name"
               @keyup.escape="resetNameDraft"
             />
-            <p class="customize-hint">Renaming costs <span class="customize-hint--gems">💎 {{ RENAME_COST_GEMS }} gems</span> every time — no free tier.</p>
+            <p class="customize-hint">Renaming costs <span class="customize-hint--gems">💎 {{ RENAME_COST_GEMS }} gems</span> every time, with no free tier.</p>
             <div class="profile-meta-editor__actions">
               <button
                 class="profile-meta-editor__save"

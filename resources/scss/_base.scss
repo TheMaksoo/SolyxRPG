@@ -4,12 +4,21 @@
   box-sizing: border-box;
 }
 
+html {
+  // Belt-and-suspenders against any one component's mobile layout blowing out sideways (a grid/flex
+  // item's content forcing its track wider than the viewport) — this doesn't fix the source (each such
+  // bug should still be fixed where it lives), but it guarantees the page itself never grows a
+  // horizontal scrollbar on a phone no matter what slips through.
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   background: v.$bg-page;
   color: v.$text-body;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 a {

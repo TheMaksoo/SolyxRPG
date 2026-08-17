@@ -34,8 +34,10 @@ class CombatService
         private GradeService $grades = new GradeService(),
         private SkillService $skills = new SkillService(),
         private DurabilityService $durability = new DurabilityService(),
-        private MonsterAiService $monsterAi = new MonsterAiService(),
+        private MonsterAiService $monsterAi = new MonsterAiService(new StatusEffectService()),
         private QuestService $quests = new QuestService(),
+        private StatusEffectService $statuses = new StatusEffectService(),
+        private ThreatService $threats = new ThreatService(),
     ) {}
 
     /** $extraMonsters spawns additional "adds" fighting alongside $monster — a multi-enemy boss encounter
@@ -45,7 +47,10 @@ class CombatService
     {
         $stats = $character->effectiveStats();
         $startingHp = (int) min($stats['eff_hp_max'], max(1, $character->hp));
-        $monsterHp = (int) round($monster->hp * $this->grades->hpMult($grade));
+        // A monster's role build (see MonsterAiService::ROLE_BUILD) scales its actual spawned HP up or
+        // down from its seeded base — a `tank` rolls in noticeably beefier, a `caster`/`buffer` noticeably
+        // squishier, on top of the usual grade roll.
+        $monsterHp = (int) round($monster->hp * $this->grades->hpMult($grade) * $this->monsterAi->buildFor($monster->role)['hp_mult']);
 
         // Carry over skill cooldowns from the character's most recent battle so cooldowns persist
         // across fights instead of resetting every time. Each cooldown ticks down by 1 (walking into
@@ -76,7 +81,7 @@ class CombatService
         ]);
 
         foreach (array_values($extraMonsters) as $i => $extra) {
-            $hp = (int) round($extra->hp * $this->grades->hpMult($grade));
+            $hp = (int) round($extra->hp * $this->grades->hpMult($grade) * $this->monsterAi->buildFor($extra->role)['hp_mult']);
             BattleMonster::create([
                 'battle_id' => $battle->id,
                 'monster_id' => $extra->id,
@@ -110,6 +115,52 @@ class CombatService
         }
 
         return $battle;
+    }
+
+    /** Rolls whether a zone `walk()` encounter should be a multi-enemy "pack" instead of a lone monster —
+     * only possible from the 2nd zone onward (Zone::danger other than 'safe'), with both the roll chance
+     * and the resulting group size scaling up with that zone's danger tier (see GmConfigController's
+     * pack_encounter_chance_pct_{danger} / pack_group_size_{min,max}_{danger} keys).
+     *
+     * On top of the danger-tier base, farming a zone behind the character's own frontier (see
+     * Zone::frontierPenaltyPct() — the same "penalty zone" already docked off gold/xp for outleveled
+     * farming) ALSO raises both the pack chance and the group-size ceiling: the bigger that reward
+     * penalty, the bigger the groups get, so trivializing an easy zone by overleveling it doesn't stay
+     * purely-easy-and-purely-worse-rewards forever — it gets genuinely more crowded too.
+     *
+     * Returns the extra monsters to spawn alongside $primary — empty for a normal 1v1 walk, exactly like
+     * before either of these existed. */
+    public function rollPackMonsters(Character $character, Zone $zone, Monster $primary): array
+    {
+        if (! in_array($zone->danger, ['medium', 'high', 'deadly'], true)) {
+            return [];
+        }
+
+        $penaltyPct = Zone::frontierPenaltyPct($character, $zone);
+
+        $chance = GameConfig::number("pack_encounter_chance_pct_{$zone->danger}", 20)
+            + $penaltyPct * GameConfig::number('pack_penalty_chance_scalar', 0.5);
+        if (! $this->rollPercent(min(100, $chance))) {
+            return [];
+        }
+
+        $min = (int) GameConfig::number("pack_group_size_min_{$zone->danger}", 2);
+        $max = max($min, (int) GameConfig::number("pack_group_size_max_{$zone->danger}", 2));
+        $max += (int) floor($penaltyPct / GameConfig::number('pack_penalty_pct_per_extra_size', 25));
+        $extraCount = mt_rand($min, $max) - 1;
+        if ($extraCount <= 0) {
+            return [];
+        }
+
+        return Monster::where('enabled', true)
+            ->where('is_boss', false)
+            ->where('zone_id', $zone->id)
+            ->where('min_level', '<=', $character->level)
+            ->where('id', '!=', $primary->id)
+            ->inRandomOrder()
+            ->limit($extraCount)
+            ->get()
+            ->all();
     }
 
     /** Trickles HP (into the battle's own HP counter) and mana (on the character) for time spent between turns. */
@@ -155,7 +206,11 @@ class CombatService
 
         $stats = $character->effectiveStats();
         $log = $battle->log_json ?? [];
-        $monster = $battle->monster;
+        // Structured, per-action breakdown of this round for the frontend's animated turn-by-turn
+        // playback (BattlePage.vue) — one entry per damage/heal/status/stun moment, in the exact order
+        // they happened, alongside (not replacing) the existing flat-text $log. Purely additive
+        // instrumentation: nothing here feeds back into any damage/reward calculation.
+        $events = [];
         $weaponRow = $this->equippedGear($character, 'weapon');
         $armorRow = $this->equippedGear($character, 'armor');
 
@@ -184,12 +239,27 @@ class CombatService
         $playerDmg = 0;
         $healed = 0;
         $isAoe = false;
+        $crit = false;
+        // Multi-hit skills (e.g. Chain Cast's `hits` => 2) land as that many separate, independently-
+        // animated hits instead of one lumped number — see the split below, right before applyPlayerDamage.
+        $hits = 1;
+        // Total damage this action actually dealt — stays 0 for a pure-support/heal skill. Used as the
+        // basis for any `magnitude_pct_of_damage` status (e.g. Burn for "25% of the damage dealt").
+        $totalDealt = 0;
+        $cleave = false;
+        $cleaveTargetId = $targetMonsterId;
+
+        // Status-effect modifiers on the player (see StatusEffectService) — dmg_dealt_mult reflects any
+        // active `weaken` stacks, crit_delta any active `crit_down` (e.g. from an enemy debuff). Both are
+        // 1/0 no-ops when nothing's applied, so this changes nothing for a fight with no active statuses.
+        $playerMods = $this->statuses->modifiers($battle, 'player', null);
 
         if ($type === 'attack') {
-            $playerDmg = (int) round($stats['eff_atk'] * $this->rand(0.8, 1.2));
-            if ($this->rollPercent($stats['crit_chance'])) {
+            $playerDmg = (int) round($stats['eff_atk'] * $playerMods['dmg_dealt_mult'] * $this->rand(0.8, 1.2));
+            if ($this->rollPercent(max(0, $stats['crit_chance'] - $playerMods['crit_delta']))) {
                 $playerDmg = (int) round($playerDmg * $stats['crit_damage_mult']);
                 $log[] = 'Critical hit!';
+                $crit = true;
             }
         } elseif ($type === 'skill') {
             $characterSkill = $character->skills()->where('skill_id', $skill->id)->first();
@@ -215,10 +285,15 @@ class CombatService
                 $healed = (int) round($stats['eff_hp_max'] * $healPct / 100);
                 $battle->character_hp = min($stats['eff_hp_max'], $battle->character_hp + $healed);
                 $log[] = "Used {$skill->name} (rank {$characterSkill->level}), restored {$healed} HP.";
+                $events[] = ['actor' => 'player', 'actor_id' => null, 'target' => 'player', 'target_id' => null, 'type' => 'heal', 'amount' => $healed];
+                $this->threats->addHealThreatToAllEnemies($battle, 'player', null, $healed);
             } else {
                 $mult = $this->skills->damageMultiplier($skill, $characterSkill->level);
-                $playerDmg = (int) round($stats['eff_atk'] * $mult * $this->rand(0.85, 1.15));
+                $playerDmg = (int) round($stats['eff_atk'] * $mult * $playerMods['dmg_dealt_mult'] * $this->rand(0.85, 1.15));
                 $isAoe = (bool) ($skill->effect_json['aoe'] ?? false);
+                // Multi-hit skills (e.g. Chain Cast's `hits` => 2) land as that many separate hits below
+                // rather than one lumped number — matches what the skill's own name/description promises.
+                $hits = max(1, $skill->effect_json['hits'] ?? 1);
                 $log[] = "Used {$skill->name} (rank {$characterSkill->level}).";
             }
         } elseif ($type === 'item') {
@@ -251,6 +326,10 @@ class CombatService
             }
             $healText = array_filter([$healed > 0 ? "{$healed} HP" : null, $healedMp > 0 ? "{$healedMp} MP" : null]);
             $log[] = "Used {$item->name}, restored ".implode(' and ', $healText).'.'.($atkPctBuff > 0 ? " +{$atkPctBuff}% ATK for your next {$character->atk_buff_fights_left} fights." : '');
+            if ($healed > 0) {
+                $events[] = ['actor' => 'player', 'actor_id' => null, 'target' => 'player', 'target_id' => null, 'type' => 'heal', 'amount' => $healed];
+                $this->threats->addHealThreatToAllEnemies($battle, 'player', null, $healed);
+            }
         } else {
             abort(422, 'Unknown action.');
         }
@@ -260,25 +339,64 @@ class CombatService
             // damage dealt across every living target it actually hit, not just the primary monster.
             $targetsHit = 1 + ($isAoe ? $battle->battleMonsters->where('hp', '>', 0)->count() : 0);
 
-            $log = $this->applyPlayerDamage($battle, $playerDmg, $isAoe, $type, $weaponRow, $targetMonsterId, $log);
+            // A multi-hit skill's already-rolled total is split evenly across $hits separate
+            // applyPlayerDamage calls (remainder to the first hit) rather than applied as one lump —
+            // each lands as its own animated hit/event, matching the skill's name (e.g. Chain Cast
+            // "hits twice"). Overall damage output is unchanged from a single call with the full amount.
+            //
+            // A `cleave` skill (e.g. Chain Cast — "chain" implies jumping between targets, not double-
+            // hitting the same one) retargets mid-sequence: if a hit finishes off the current target,
+            // remaining hits carry over to another living enemy instead of piling onto a corpse. In a
+            // lone-enemy fight this is a no-op (there's nowhere else to cleave to) — it only actually
+            // spreads once a pack fight has more than one target alive.
+            $cleave = ! $isAoe && (bool) ($skill?->effect_json['cleave'] ?? false);
+            $baseShare = intdiv($playerDmg, $hits);
+            $remainder = $playerDmg % $hits;
+            $totalDealt = 0;
+            for ($h = 0; $h < $hits; $h++) {
+                $hitDmg = $baseShare + ($h < $remainder ? 1 : 0);
+                if ($hitDmg <= 0) {
+                    continue;
+                }
+                if ($cleave && ! $this->targetIsAlive($battle, $cleaveTargetId)) {
+                    $next = $this->nextLivingMonsterTarget($battle);
+                    if ($next === false) {
+                        break;
+                    }
+                    $cleaveTargetId = $next;
+                }
+                [$log, $events] = $this->applyPlayerDamage($battle, $hitDmg, $isAoe, $type, $weaponRow, $cleave ? $cleaveTargetId : $targetMonsterId, $log, $events, $crit);
+                $totalDealt += $hitDmg;
+            }
             $this->decayGear($weaponRow);
 
             $lifestealPct = $stats['lifesteal_pct'] ?? 0;
             if ($lifestealPct > 0) {
-                $lifestealHealed = (int) round($playerDmg * $targetsHit * $lifestealPct / 100);
+                $lifestealHealed = (int) round($totalDealt * $targetsHit * $lifestealPct / 100);
                 if ($lifestealHealed > 0) {
                     $battle->character_hp = min($stats['eff_hp_max'], $battle->character_hp + $lifestealHealed);
                     $log[] = "Lifesteal restores {$lifestealHealed} HP.";
+                    $events[] = ['actor' => 'player', 'actor_id' => null, 'target' => 'player', 'target_id' => null, 'type' => 'heal', 'amount' => $lifestealHealed];
                 }
             }
         }
 
-        if ($battle->battleCompanions->isNotEmpty()) {
-            $log = $this->applyCompanionAttacks($battle, $targetMonsterId, $log);
+        // Skill-driven buffs/debuffs (see StatusEffectService + Skill::effect_json['applies_status']) —
+        // resolved independently of whether the skill also dealt damage, since a pure-support skill (e.g.
+        // Bonded Guard) has dmg_mult 0 and never reaches the block above at all. A `cleave` skill's debuff
+        // follows the same retargeted enemy its last hit actually landed on, not the original target —
+        // otherwise Thousand Cuts' Weaken could land on the corpse it just carved through instead of the
+        // enemy its hits actually ended on.
+        if ($skill && ! empty($skill->effect_json['applies_status'])) {
+            $statusTargetId = $cleave ? $cleaveTargetId : $targetMonsterId;
+            [$log, $events] = $this->applySkillStatuses($battle, $skill, $this->resolveTargetedMonsters($battle, $isAoe, $statusTargetId), $log, $events, $totalDealt, $characterSkill->level ?? 1);
         }
 
         if ($this->allEnemiesDefeated($battle)) {
-            return $this->resolveWin($battle, $character, $log);
+            $result = $this->resolveWin($battle, $character, $log);
+            $result['events'] = $events;
+
+            return $result;
         }
 
         // Using an item (potion/elixir) or a heal skill is a free action — it doesn't end your turn, so
@@ -295,34 +413,34 @@ class CombatService
                 'result' => null,
                 'character' => $freshCharacter,
                 'stats' => $freshCharacter->effectiveStats(),
+                'events' => $events,
             ];
         }
 
-        $hasAdds = $battle->battleMonsters->isNotEmpty();
-        if ($this->rollPercent($stats['dodge_chance'] ?? 0)) {
-            $log[] = $hasAdds ? 'You dodge the incoming attacks!' : "You dodge {$monster->name}'s attack!";
-            $battle->log_json = $log;
-            $battle->save();
+        // Everyone else's turn for the rest of this round (companions and enemies interleaved by real
+        // speed, not a fixed group order — see resolveRestOfRound), then into fresh rounds as needed,
+        // until it's the player's turn again. Dodge is now rolled per individual attack inside that walk
+        // (see resolveMonsterAction) rather than once for the whole round.
+        [$log, $events] = $this->resolveRestOfRound($battle, $stats, $armorRow, $targetMonsterId, $log, $events);
 
-            $freshCharacter = $character->fresh(['attributes_', 'inventory.item', 'skills.skill']);
+        if ($this->allEnemiesDefeated($battle)) {
+            $result = $this->resolveWin($battle, $character, $log);
+            $result['events'] = $events;
 
-            return [
-                'battle' => $battle->fresh(['monster', 'battleMonsters.monster', 'battleCompanions.tamedCompanion']),
-                'result' => null,
-                'character' => $freshCharacter,
-                'stats' => $freshCharacter->effectiveStats(),
-            ];
+            return $result;
         }
-
-        $log = $this->resolveEnemyTurn($battle, $stats, $armorRow, $log);
 
         if ($battle->character_hp <= 0) {
             if (! empty($stats['has_undying']) && ! $battle->revived_with_skill) {
                 $battle->character_hp = 1;
                 $battle->revived_with_skill = true;
                 $log[] = 'Undying triggers! You survive with 1 HP.';
+                $events[] = ['actor' => 'player', 'actor_id' => null, 'target' => 'player', 'target_id' => null, 'type' => 'undying'];
             } else {
-                return $this->resolveLoss($battle, $character, $log, $stats);
+                $result = $this->resolveLoss($battle, $character, $log, $stats);
+                $result['events'] = $events;
+
+                return $result;
             }
         }
 
@@ -336,6 +454,7 @@ class CombatService
             'result' => null,
             'character' => $freshCharacter,
             'stats' => $freshCharacter->effectiveStats(),
+            'events' => $events,
         ];
     }
 
@@ -343,35 +462,49 @@ class CombatService
      * AOE hits the primary plus every living add for the same amount; single-target hits $targetMonsterId's
      * add if it's alive, else falls back to the primary — a stale/invalid target never errors, it just
      * redirects to the boss. Returns the updated log array. */
-    private function applyPlayerDamage(Battle $battle, int $dmg, bool $isAoe, string $type, ?Inventory $weaponRow, ?int $targetMonsterId, array $log): array
+    /** @return array{0: array, 1: array} [updated log, updated events] */
+    private function applyPlayerDamage(Battle $battle, int $dmg, bool $isAoe, string $type, ?Inventory $weaponRow, ?int $targetMonsterId, array $log, array $events, bool $crit = false): array
     {
         $monster = $battle->monster;
 
         if ($isAoe) {
-            $hitNames = [$monster->name];
-            $battle->monster_hp = max(0, $battle->monster_hp - $dmg);
+            $hitNotes = [];
+            $mainDmg = $this->finalizeDamageToTarget($battle, 'monster', 0, $dmg);
+            $battle->monster_hp = max(0, $battle->monster_hp - $mainDmg);
+            $hitNotes[] = "{$monster->name} for {$mainDmg}";
+            $events[] = ['actor' => 'player', 'actor_id' => null, 'target' => 'monster', 'target_id' => 0, 'type' => 'damage', 'amount' => $mainDmg, 'crit' => $crit];
+            $this->threats->addDamageThreat($battle, 'monster', 0, 'player', null, $mainDmg);
             foreach ($battle->battleMonsters as $extra) {
                 if ($extra->hp <= 0) {
                     continue;
                 }
-                $extra->hp = max(0, $extra->hp - $dmg);
+                $extraDmg = $this->finalizeDamageToTarget($battle, 'monster', $extra->id, $dmg);
+                $extra->hp = max(0, $extra->hp - $extraDmg);
                 $extra->save();
-                $hitNames[] = $extra->monster->name;
+                $hitNotes[] = "{$extra->monster->name} for {$extraDmg}";
+                $events[] = ['actor' => 'player', 'actor_id' => null, 'target' => 'monster', 'target_id' => $extra->id, 'type' => 'damage', 'amount' => $extraDmg, 'crit' => $crit];
+                $this->threats->addDamageThreat($battle, 'monster', $extra->id, 'player', null, $extraDmg);
             }
-            $log[] = 'You hit '.implode(', ', $hitNames)." for {$dmg} each.";
+            $log[] = 'You hit '.implode(', ', $hitNotes).'.';
 
-            return $log;
+            return [$log, $events];
         }
 
         $target = $targetMonsterId ? $battle->battleMonsters->firstWhere('id', $targetMonsterId) : null;
         if ($target && $target->hp > 0) {
+            $dmg = $this->finalizeDamageToTarget($battle, 'monster', $target->id, $dmg);
             $target->hp = max(0, $target->hp - $dmg);
             $target->save();
             $hitName = $target->monster->name;
+            $hitTargetId = $target->id;
         } else {
+            $dmg = $this->finalizeDamageToTarget($battle, 'monster', 0, $dmg);
             $battle->monster_hp = max(0, $battle->monster_hp - $dmg);
             $hitName = $monster->name;
+            $hitTargetId = 0;
         }
+        $events[] = ['actor' => 'player', 'actor_id' => null, 'target' => 'monster', 'target_id' => $hitTargetId, 'type' => 'damage', 'amount' => $dmg, 'crit' => $crit];
+        $this->threats->addDamageThreat($battle, 'monster', $hitTargetId, 'player', null, $dmg);
 
         if ($type === 'attack') {
             $verb = self::ATTACK_VERBS[$weaponRow?->item->weapon_category] ?? 'hit';
@@ -380,140 +513,821 @@ class CombatService
             $log[] = "You hit {$hitName} for {$dmg}.";
         }
 
-        return $log;
+        return [$log, $events];
     }
 
-    /** Every living tamed companion attacks the same target the player just did (or the primary monster
-     * if that target's already dead/no target was given) — mirrors applyPlayerDamage's single-target
-     * resolution, but companions never have AOE abilities. Returns the updated log array. */
-    private function applyCompanionAttacks(Battle $battle, ?int $targetMonsterId, array $log): array
+    /** Applies a defending target's `vulnerable` (dmg_taken_mult) status and any active `shield` stacks
+     * to a raw hit before it touches HP — shared by every damage-application site (player, companion,
+     * and monster attacks alike) so a target's defensive statuses always behave the same way regardless
+     * of who's hitting it. */
+    private function finalizeDamageToTarget(Battle $battle, string $targetType, ?int $targetId, int $rawDmg): int
     {
+        $mods = $this->statuses->modifiers($battle, $targetType, $targetId);
+        $buildMult = $targetType === 'monster' ? $this->monsterAi->buildFor($this->monsterForTarget($battle, $targetId)?->role)['dmg_taken_mult'] : 1.0;
+        $adjusted = (int) round($rawDmg * $mods['dmg_taken_mult'] * $buildMult);
+
+        return (int) round($this->statuses->consumeShield($battle, $targetType, $targetId, $adjusted));
+    }
+
+    /** The live Monster behind a 'monster'-type target id (0 = the primary monster slot, else an "add"),
+     * used to look up that monster's role build (see MonsterAiService::ROLE_BUILD) wherever a hit lands
+     * on it. */
+    private function monsterForTarget(Battle $battle, ?int $targetId): ?Monster
+    {
+        if (! $targetId) {
+            return $battle->monster;
+        }
+
+        return $battle->battleMonsters->firstWhere('id', $targetId)?->monster;
+    }
+
+    /** Whether the given 'monster'-type target (null/0 = primary) still has HP — used by a `cleave`
+     * skill's multi-hit loop to notice mid-sequence that its current target just died. */
+    private function targetIsAlive(Battle $battle, ?int $targetId): bool
+    {
+        if (! $targetId) {
+            return $battle->monster_hp > 0;
+        }
+
+        return ($battle->battleMonsters->firstWhere('id', $targetId)?->hp ?? 0) > 0;
+    }
+
+    /** The next living enemy a `cleave` skill should carry its remaining hits into once its current
+     * target is dead — primary first, then any living add. Returns false if nothing is left alive to
+     * cleave into (remaining hits are simply dropped rather than misapplied to a corpse). */
+    private function nextLivingMonsterTarget(Battle $battle): int|false|null
+    {
+        if ($battle->monster_hp > 0) {
+            return null;
+        }
+
+        $extra = $battle->battleMonsters->firstWhere('hp', '>', 0);
+
+        return $extra ? $extra->id : false;
+    }
+
+    /** Applies this round's `burn`/`mend_over_time` ticks to every living battle participant, then
+     * decrements every status stack's remaining duration (deleting anything that expires). Called once
+     * per resolved round, right after the enemy turn — a free action (item/heal skill) that skips the
+     * enemy turn doesn't burn a round off active statuses either. */
+    /** @return array{0: array, 1: array} [updated log, updated events] */
+    private function tickStatusEffects(Battle $battle, array $stats, array $log, array $events): array
+    {
+        if ($battle->character_hp > 0) {
+            // Mend resolves BEFORE burn/poison (opposite of the old order) so regen has a chance to
+            // offset the same round's DOT instead of arriving too late to matter — a character who'd
+            // net-survive the round shouldn't ever visibly bottom out at 0 HP only to be "revived" by a
+            // mend tick that used to resolve after the killing blow. If burn/poison still finishes them
+            // off after a real mend, that's a genuine loss, not this ordering issue.
+            $mend = $this->statuses->mendAmount($battle, 'player', null);
+            if ($mend > 0) {
+                $battle->character_hp = min($stats['eff_hp_max'], $battle->character_hp + $mend);
+                $log[] = "You regenerate {$mend} HP.";
+                $events[] = ['actor' => 'status', 'actor_id' => null, 'target' => 'player', 'target_id' => null, 'type' => 'heal', 'amount' => $mend];
+            }
+            $burn = $this->statuses->burnDamage($battle, 'player', null);
+            if ($burn > 0 && $battle->character_hp > 0) {
+                $battle->character_hp = max(0, $battle->character_hp - $burn);
+                $log[] = "You take {$burn} burn damage.";
+                $events[] = ['actor' => 'status', 'actor_id' => null, 'target' => 'player', 'target_id' => null, 'type' => 'damage', 'amount' => $burn, 'crit' => false];
+            }
+            $poison = $this->statuses->poisonDamage($battle, 'player', null, $stats['eff_hp_max']);
+            if ($poison > 0 && $battle->character_hp > 0) {
+                $battle->character_hp = max(0, $battle->character_hp - $poison);
+                $log[] = "You take {$poison} poison damage.";
+                $events[] = ['actor' => 'status', 'actor_id' => null, 'target' => 'player', 'target_id' => null, 'type' => 'damage', 'amount' => $poison, 'crit' => false];
+            }
+        }
+        $this->statuses->tick($battle, 'player', null);
+
+        if ($battle->monster_hp > 0) {
+            $burn = $this->statuses->burnDamage($battle, 'monster', 0);
+            if ($burn > 0) {
+                $battle->monster_hp = max(0, $battle->monster_hp - $burn);
+                $log[] = "{$battle->monster->name} takes {$burn} burn damage.";
+                $events[] = ['actor' => 'status', 'actor_id' => null, 'target' => 'monster', 'target_id' => 0, 'type' => 'damage', 'amount' => $burn, 'crit' => false];
+            }
+            $poison = $this->statuses->poisonDamage($battle, 'monster', 0, $battle->monster_hp_max ?? $battle->monster->hp);
+            if ($poison > 0 && $battle->monster_hp > 0) {
+                $battle->monster_hp = max(0, $battle->monster_hp - $poison);
+                $log[] = "{$battle->monster->name} takes {$poison} poison damage.";
+                $events[] = ['actor' => 'status', 'actor_id' => null, 'target' => 'monster', 'target_id' => 0, 'type' => 'damage', 'amount' => $poison, 'crit' => false];
+            }
+        }
+        $this->statuses->tick($battle, 'monster', 0);
+
+        foreach ($battle->battleMonsters as $extra) {
+            if ($extra->hp > 0) {
+                $burn = $this->statuses->burnDamage($battle, 'monster', $extra->id);
+                if ($burn > 0) {
+                    $extra->hp = max(0, $extra->hp - $burn);
+                    $extra->save();
+                    $log[] = "{$extra->monster->name} takes {$burn} burn damage.";
+                    $events[] = ['actor' => 'status', 'actor_id' => null, 'target' => 'monster', 'target_id' => $extra->id, 'type' => 'damage', 'amount' => $burn, 'crit' => false];
+                }
+                $poison = $this->statuses->poisonDamage($battle, 'monster', $extra->id, $extra->hp_max);
+                if ($poison > 0 && $extra->hp > 0) {
+                    $extra->hp = max(0, $extra->hp - $poison);
+                    $extra->save();
+                    $log[] = "{$extra->monster->name} takes {$poison} poison damage.";
+                    $events[] = ['actor' => 'status', 'actor_id' => null, 'target' => 'monster', 'target_id' => $extra->id, 'type' => 'damage', 'amount' => $poison, 'crit' => false];
+                }
+            }
+            $this->statuses->tick($battle, 'monster', $extra->id);
+        }
+
         foreach ($battle->battleCompanions as $bc) {
-            if ($bc->hp <= 0) {
+            // Mend resolves BEFORE burn/poison (matching the player block above) so a companion's regen
+            // gets a chance to offset the same round's DOT instead of arriving after the killing blow.
+            if ($bc->hp > 0) {
+                $mend = $this->statuses->mendAmount($battle, 'companion', $bc->id);
+                if ($mend > 0) {
+                    $bc->hp = min($bc->hp_max, $bc->hp + $mend);
+                    $bc->save();
+                    $log[] = "{$bc->tamedCompanion->name} regenerates {$mend} HP.";
+                    $events[] = ['actor' => 'status', 'actor_id' => null, 'target' => 'companion', 'target_id' => $bc->id, 'type' => 'heal', 'amount' => $mend];
+                }
+                $burn = $this->statuses->burnDamage($battle, 'companion', $bc->id);
+                if ($burn > 0 && $bc->hp > 0) {
+                    $bc->hp = max(0, $bc->hp - $burn);
+                    $bc->save();
+                    $log[] = "{$bc->tamedCompanion->name} takes {$burn} burn damage.";
+                    $events[] = ['actor' => 'status', 'actor_id' => null, 'target' => 'companion', 'target_id' => $bc->id, 'type' => 'damage', 'amount' => $burn, 'crit' => false];
+                }
+                $poison = $this->statuses->poisonDamage($battle, 'companion', $bc->id, $bc->hp_max);
+                if ($poison > 0 && $bc->hp > 0) {
+                    $bc->hp = max(0, $bc->hp - $poison);
+                    $bc->save();
+                    $log[] = "{$bc->tamedCompanion->name} takes {$poison} poison damage.";
+                    $events[] = ['actor' => 'status', 'actor_id' => null, 'target' => 'companion', 'target_id' => $bc->id, 'type' => 'damage', 'amount' => $poison, 'crit' => false];
+                }
+            }
+            $this->statuses->tick($battle, 'companion', $bc->id);
+        }
+
+        return [$log, $events];
+    }
+
+    /** Which monster(s) a player action is actually aimed at, independent of whether it deals damage —
+     * AOE hits the primary plus every living add, single-target hits $targetMonsterId's add if it's
+     * alive else falls back to the primary. Used both by applyPlayerDamage and by applySkillStatuses
+     * (a pure-support skill with no damage still needs to know its intended enemy target). */
+    private function resolveTargetedMonsters(Battle $battle, bool $isAoe, ?int $targetMonsterId): array
+    {
+        if ($isAoe) {
+            $targets = [['type' => 'monster', 'id' => 0]];
+            foreach ($battle->battleMonsters as $extra) {
+                if ($extra->hp > 0) {
+                    $targets[] = ['type' => 'monster', 'id' => $extra->id];
+                }
+            }
+
+            return $targets;
+        }
+
+        $target = $targetMonsterId ? $battle->battleMonsters->firstWhere('id', $targetMonsterId) : null;
+
+        return [['type' => 'monster', 'id' => $target && $target->hp > 0 ? $target->id : 0]];
+    }
+
+    /** Resolves every `applies_status` entry on a just-used skill onto its real target(s) — 'enemy' reuses
+     * whatever applyPlayerDamage/resolveTargetedMonsters just hit, 'self' is the player, 'companion' is
+     * the lowest-HP% living companion (mirrors the fetched design's lowestParty helper), 'party' is the
+     * player plus every living companion. */
+    /** @return array{0: array, 1: array} [updated log, updated events] */
+    private function applySkillStatuses(Battle $battle, Skill $skill, array $enemyTargets, array $log, array $events, int $dealtDamage = 0, int $rank = 1): array
+    {
+        foreach ($skill->effect_json['applies_status'] as $statusDef) {
+            $targets = match ($statusDef['target'] ?? 'enemy') {
+                'self' => [['type' => 'player', 'id' => null]],
+                'companion' => $this->lowestHpCompanionTarget($battle),
+                'party' => array_merge([['type' => 'player', 'id' => null]], $this->allCompanionTargets($battle)),
+                default => $enemyTargets,
+            };
+
+            // A status can name a flat `magnitude` (as always) OR `magnitude_pct_of_damage` — resolved
+            // dynamically from what THIS action actually just dealt (e.g. Burn for "25% of the damage
+            // dealt" scales with the caster's real hit instead of a fixed authored number).
+            $magnitude = isset($statusDef['magnitude_pct_of_damage'])
+                ? $dealtDamage * $statusDef['magnitude_pct_of_damage'] / 100
+                : (float) $statusDef['magnitude'];
+
+            // Opt-in rank scaling — most branches' applies_status entries are intentionally flat
+            // regardless of rank (e.g. a self-inflicted Vulnerable drawback shouldn't get WORSE the more
+            // you rank up the skill that causes it), so a skill has to explicitly ask for its debuff to
+            // grow with rank via `scales_with_rank` — see SkillSeeder's Foundation-tree capstones (Void
+            // Nova, Thousand Cuts, Rain of Arrows, Sunder), where "more debuffs" IS the whole point of
+            // ranking that skill up. Duration scales the same way (rounded, floored at the authored
+            // minimum) — a maxed-out debuff skill lasts longer as well as hitting harder, which matters
+            // most in pack fights where the extra uptime lets sequential casts overlap into a bigger stack.
+            $rounds = (int) $statusDef['rounds'];
+            if (! empty($statusDef['scales_with_rank'])) {
+                $rankMult = $this->skills->rankMultiplier($rank);
+                $magnitude *= $rankMult;
+                $rounds = max($rounds, (int) round($rounds * $rankMult));
+            }
+
+            foreach ($targets as $t) {
+                $this->statuses->apply($battle, $t['type'], $t['id'], $statusDef['effect'], $magnitude, $rounds, $skill->name);
+                $log[] = $this->statusLogLine($skill->name, $statusDef, null, $magnitude, $rounds);
+                $events[] = ['actor' => 'player', 'actor_id' => null, 'target' => $t['type'], 'target_id' => $t['id'], 'type' => 'status', 'status_key' => $statusDef['effect']];
+            }
+        }
+
+        return [$log, $events];
+    }
+
+    /** $targetLabel disambiguates who the status actually landed on — omitted (the default) for the
+     * common "on you" cases (a skill/ability hitting the player) exactly as before; passed for anything
+     * that isn't the player (e.g. a taunting companion drawing an enemy's debuff instead). */
+    /** $resolvedMagnitude overrides $statusDef['magnitude'] for the displayed number, and $resolvedRounds
+     * overrides $statusDef['rounds'] for the displayed duration — needed whenever the real applied amount
+     * was computed dynamically (see `magnitude_pct_of_damage` above) or scaled by rank (`scales_with_rank`)
+     * rather than read straight off the skill/ability definition. */
+    private function statusLogLine(string $sourceName, array $statusDef, ?string $targetLabel = null, ?float $resolvedMagnitude = null, ?int $resolvedRounds = null): string
+    {
+        $meta = StatusEffectService::CATALOG[$statusDef['effect']] ?? ['label' => $statusDef['effect'], 'unit' => 'flat'];
+        $magnitude = $resolvedMagnitude ?? (float) $statusDef['magnitude'];
+        $amount = ($this->trimAmount($magnitude)).($meta['unit'] === 'pct' ? '%' : '');
+        $rounds = $resolvedRounds ?? (int) $statusDef['rounds'];
+        $suffix = $targetLabel ? " on {$targetLabel}" : '';
+
+        return "{$sourceName} applies {$meta['label']} ({$amount}){$suffix} for {$rounds} round".($rounds > 1 ? 's' : '').'.';
+    }
+
+    private function trimAmount(float $value): string
+    {
+        return rtrim(rtrim(number_format($value, 1, '.', ''), '0'), '.');
+    }
+
+    /** @return array{0: array{type: string, id: ?int}}|array{} */
+    private function lowestHpCompanionTarget(Battle $battle): array
+    {
+        $lowest = $battle->battleCompanions->where('hp', '>', 0)->sortBy(fn ($bc) => $bc->hp / max(1, $bc->hp_max))->first();
+
+        return $lowest ? [['type' => 'companion', 'id' => $lowest->id]] : [];
+    }
+
+    private function allCompanionTargets(Battle $battle): array
+    {
+        return $battle->battleCompanions->where('hp', '>', 0)->map(fn ($bc) => ['type' => 'companion', 'id' => $bc->id])->values()->all();
+    }
+
+    /** One companion's own turn in the real speed-ordered queue (see resolveRestOfRound) — mends the
+     * weakest ally if it's mender-sourced and someone's meaningfully hurt, otherwise attacks the same
+     * target the player last picked (or the primary monster if that add's dead/no target was given).
+     * Companions never have AOE abilities. Skips (no-op) if every enemy is already dead — the player's
+     * own hit(s) this turn may have just cleared the fight before the queue even reached this companion.
+     *
+     * @return array{0: array, 1: array} [updated log, updated events]
+     */
+    private function resolveCompanionTurn(Battle $battle, array $stats, BattleCompanion $bc, ?int $targetMonsterId, array $log, array $events): array
+    {
+        if ($this->allEnemiesDefeated($battle)) {
+            return [$log, $events];
+        }
+
+        $companion = $bc->tamedCompanion;
+        $role = $companion->role ?? 'brute';
+        $ability = $this->monsterAi->companionAbility($role);
+        // A companion picks its own target off its own grudges instead of blindly mirroring the
+        // player's — see ThreatService::topEnemyThreat()/addRetaliationThreat().
+        $targetMonsterId = $this->chooseCompanionTarget($battle, $bc, $targetMonsterId);
+
+        // A small MP pool that regenerates on every one of THIS companion's own turns — gates its
+        // role-flavored special move (see MonsterAiService::ROLE_COMPANION_ABILITY) instead of it firing
+        // every round unconditionally.
+        $bc->mp = min($bc->mp_max, $bc->mp + ($ability['mp_regen_per_round'] ?? 15));
+
+        // A mender-sourced companion mends the weakest ally instead of attacking whenever someone's
+        // meaningfully hurt AND it has the MP to — same role identity MonsterAiService gives enemy
+        // menders, mirrored on the player's own side of the fight. Gated by companionWantsSpecial() so
+        // two identical companions don't heal/attack in perfect lockstep every round they can afford it.
+        if ($role === 'mender') {
+            if ($bc->mp >= $ability['mp_cost'] && $this->companionWantsSpecial()) {
+                [$healed, $log, $events] = $this->menderHeal($battle, $stats, $bc, $log, $events);
+                if ($healed) {
+                    $bc->mp -= $ability['mp_cost'];
+                    $bc->save();
+
+                    return [$log, $events];
+                }
+            }
+            $bc->save();
+
+            return $this->companionPlainAttack($battle, $bc, $companion, $targetMonsterId, $log, $events);
+        }
+
+        // A buffer-sourced companion empowers the player instead of attacking once it has the MP to —
+        // also gated by companionWantsSpecial(), same reasoning as the mender branch above.
+        if ($role === 'buffer' && $bc->mp >= $ability['mp_cost'] && $this->companionWantsSpecial()) {
+            $bc->mp -= $ability['mp_cost'];
+            $bc->save();
+            $buff = $ability['buff'];
+            $this->statuses->apply($battle, 'player', null, $buff['effect'], $buff['magnitude'], $buff['rounds'], "{$companion->name}'s {$ability['name']}");
+            $log[] = "{$companion->name} uses {$ability['name']}, empowering you!";
+            $events[] = ['actor' => 'companion', 'actor_id' => $bc->id, 'target' => 'player', 'target_id' => null, 'type' => 'buff'];
+
+            return [$log, $events];
+        }
+
+        $bc->save();
+        $useSpecial = isset($ability['dmg_mult']) && $bc->mp >= $ability['mp_cost'] && $this->companionWantsSpecial();
+
+        return $this->companionPlainAttack($battle, $bc, $companion, $targetMonsterId, $log, $events, $useSpecial ? $ability : null);
+    }
+
+    /** Plain attack, optionally upgraded into the companion's MP-gated special move ($ability, from
+     * MonsterAiService::ROLE_COMPANION_ABILITY) — split out from resolveCompanionTurn so the mender's
+     * "no MP for Mend this round" fallback reuses the exact same attack path instead of a duplicate. */
+    private function companionPlainAttack(Battle $battle, BattleCompanion $bc, TamedCompanion $companion, ?int $targetMonsterId, array $log, array $events, ?array $ability = null): array
+    {
+        $atkMods = $this->statuses->modifiers($battle, 'companion', $bc->id);
+        $dmgMult = $ability['dmg_mult'] ?? 1.0;
+        $dmg = max(1, (int) round($companion->effectiveAtk() * $dmgMult * $atkMods['dmg_dealt_mult'] * $this->rand(0.8, 1.2)));
+
+        $target = $targetMonsterId ? $battle->battleMonsters->firstWhere('id', $targetMonsterId) : null;
+        if ($target && $target->hp > 0) {
+            $dmg = $this->finalizeDamageToTarget($battle, 'monster', $target->id, $dmg);
+            $target->hp = max(0, $target->hp - $dmg);
+            $target->save();
+            $hitName = $target->monster->name;
+            $hitTargetId = $target->id;
+        } else {
+            $dmg = $this->finalizeDamageToTarget($battle, 'monster', 0, $dmg);
+            // "Spare tameable enemies" (User::preferences.spare_tameable_enemies) — a companion's own
+            // hit never lands the killing blow on a monster the player could still go on to tame, so
+            // an unlucky auto-battle round can't rob them of the Attempt to Tame window. Only ever
+            // relevant for the primary monster (taming is 1v1-only, see attemptTame()) and only holds
+            // it at 1 HP, never heals it back up — the player's own attacks can still finish it.
+            $floor = $this->sparesTameableEnemies($battle) ? 1 : 0;
+            $battle->monster_hp = max($floor, $battle->monster_hp - $dmg);
+            $hitName = $battle->monster->name;
+            $hitTargetId = 0;
+        }
+
+        if ($ability) {
+            $bc->mp -= $ability['mp_cost'];
+            $bc->save();
+            $log[] = "{$companion->name} uses {$ability['name']} on {$hitName} for {$dmg}!";
+            $status = $ability['applies_status'] ?? null;
+            if ($status) {
+                $target = ($status['target'] ?? 'enemy') === 'self' ? ['companion', $bc->id] : ['monster', $hitTargetId];
+                $this->statuses->apply($battle, $target[0], $target[1], $status['effect'], $status['magnitude'], $status['rounds'], "{$companion->name}'s {$ability['name']}");
+            }
+        } else {
+            $log[] = "{$companion->name} hits {$hitName} for {$dmg}.";
+        }
+        $events[] = ['actor' => 'companion', 'actor_id' => $bc->id, 'target' => 'monster', 'target_id' => $hitTargetId, 'type' => 'damage', 'amount' => $dmg, 'crit' => false];
+        $this->threats->addDamageThreat($battle, 'monster', $hitTargetId, 'companion', $bc->id, $dmg);
+
+        // A companion tamed from a species with a themed bonus (see MonsterAiService::SPECIES_STATUS
+        // — e.g. Fire Imp) has the same chance to apply it here as that species does as a live enemy.
+        [$log, $events] = $this->applySpeciesStatus($battle, $companion->monster?->key, $companion->name, ['type' => 'monster', 'id' => $hitTargetId], $dmg, $log, $events, 'companion', $bc->id);
+
+        return [$log, $events];
+    }
+
+    /** Stun/Freeze pre-check wrapper around resolveCompanionTurn — a companion drawing an enemy's debuff
+     * (via taunt, or simply being that enemy's top threat) can be incapacitated same as the player/a
+     * monster can. */
+    private function dispatchCompanionTurn(Battle $battle, array $stats, BattleCompanion $bc, ?int $targetMonsterId, array $log, array $events): array
+    {
+        if ($this->statuses->isStunned($battle, 'companion', $bc->id)) {
+            $this->statuses->consumeOneStun($battle, 'companion', $bc->id);
+            $name = $bc->tamedCompanion->name;
+            $log[] = "{$name} is stunned and loses its turn!";
+            $events[] = ['actor' => 'companion', 'actor_id' => $bc->id, 'target' => 'companion', 'target_id' => $bc->id, 'type' => 'stun'];
+
+            return [$log, $events];
+        }
+
+        return $this->resolveCompanionTurn($battle, $stats, $bc, $targetMonsterId, $log, $events);
+    }
+
+    /** Stun/Freeze pre-check + cooldown bookkeeping wrapper around resolveMonsterAction — resolves ONE
+     * monster's turn (primary, $targetId 0, or a specific add) in the real speed-ordered queue (see
+     * resolveRestOfRound). Persists the primary monster's cooldown map back onto $battle; adds don't
+     * persist their own (see resolveMonsterAction's docblock — an accepted simplification). */
+    private function dispatchMonsterTurn(Battle $battle, array $stats, int $targetId, ?Inventory $armorRow, array $log, array $events): array
+    {
+        if ($targetId === 0) {
+            $monster = $battle->monster;
+            $displayName = $monster->name;
+            $cooldowns = $battle->monster_cooldowns_json ?? [];
+            $hpTarget = null;
+        } else {
+            $extra = $battle->battleMonsters->firstWhere('id', $targetId);
+            if (! $extra || $extra->hp <= 0) {
+                return [$log, $events];
+            }
+            $monster = $extra->monster;
+            $displayName = $monster->name;
+            $cooldowns = [];
+            $hpTarget = $extra;
+        }
+
+        if ($this->statuses->isStunned($battle, 'monster', $targetId)) {
+            $this->statuses->consumeOneStun($battle, 'monster', $targetId);
+            $log[] = "{$displayName} is stunned and loses its turn!";
+            $events[] = ['actor' => 'monster', 'actor_id' => $targetId, 'target' => 'monster', 'target_id' => $targetId, 'type' => 'stun'];
+
+            return [$log, $events];
+        }
+
+        [$log, $cooldowns, $events] = $this->resolveMonsterAction($battle, $stats, $monster, $targetId, $displayName, $cooldowns, $armorRow, $log, $events, $hpTarget);
+        if ($targetId === 0) {
+            $battle->monster_cooldowns_json = $cooldowns;
+        }
+
+        return [$log, $events];
+    }
+
+    /** Walks the REST of the real speed-sorted turn queue (see MonsterAiService::speedOrder()) — every
+     * living unit acts once per round, fastest first, ties toward the party side then spawn order — from
+     * right after the player's own queue slot (already resolved by the caller before this runs) through
+     * to the end of the round, then advances into fresh rounds (rebuilding the queue and ticking
+     * statuses each time) until either the battle resolves or the queue would hand the turn back to the
+     * player, at which point control returns to them. Mirrors the imported "Solyx Battle Multi" design's
+     * own `runUntilPlayer()` loop exactly. A 30-round stalemate guard auto-resolves a fight that's
+     * dragged on too long in the enemy's favor, so a Mender/Regen loop can't stall forever.
+     *
+     * @return array{0: array, 1: array} [updated log, updated events]
+     */
+    private function resolveRestOfRound(Battle $battle, array $stats, ?Inventory $armorRow, ?int $targetMonsterId, array $log, array $events): array
+    {
+        $queue = $this->monsterAi->speedOrder($battle);
+        $ptr = $this->queuePlayerIndex($queue) + 1;
+
+        $guard = 0;
+        while ($guard++ < 200) {
+            if ($ptr >= count($queue)) {
+                $battle->round = ($battle->round ?? 1) + 1;
+                [$log, $events] = $this->tickStatusEffects($battle, $stats, $log, $events);
+                if ($this->allEnemiesDefeated($battle) || $battle->character_hp <= 0) {
+                    return [$log, $events];
+                }
+                if ($battle->round > 30) {
+                    // Stalemate guard — a healer/regen loop that would otherwise never end resolves in
+                    // the enemy's favor instead of dragging on forever.
+                    $log[] = 'The fight drags on too long; you are overwhelmed.';
+                    $battle->character_hp = 0;
+
+                    return [$log, $events];
+                }
+                $queue = $this->monsterAi->speedOrder($battle);
+                $ptr = 0;
                 continue;
             }
 
-            $companion = $bc->tamedCompanion;
-            $dmg = max(1, (int) round($companion->effectiveAtk() * $this->rand(0.8, 1.2)));
-
-            $target = $targetMonsterId ? $battle->battleMonsters->firstWhere('id', $targetMonsterId) : null;
-            if ($target && $target->hp > 0) {
-                $target->hp = max(0, $target->hp - $dmg);
-                $target->save();
-                $hitName = $target->monster->name;
-            } else {
-                $battle->monster_hp = max(0, $battle->monster_hp - $dmg);
-                $hitName = $battle->monster->name;
+            $entry = $queue[$ptr];
+            if ($entry['side'] === 'player' && $entry['id'] === null) {
+                return [$log, $events];
             }
 
-            $log[] = "{$companion->name} hits {$hitName} for {$dmg}.";
+            if ($entry['side'] === 'player') {
+                $bc = $battle->battleCompanions->firstWhere('id', $entry['id']);
+                if ($bc && $bc->hp > 0) {
+                    [$log, $events] = $this->dispatchCompanionTurn($battle, $stats, $bc, $targetMonsterId, $log, $events);
+                }
+            } else {
+                [$log, $events] = $this->dispatchMonsterTurn($battle, $stats, $entry['id'] ?? 0, $armorRow, $log, $events);
+            }
+
+            if ($this->allEnemiesDefeated($battle) || $battle->character_hp <= 0) {
+                return [$log, $events];
+            }
+            $ptr++;
         }
 
-        return $log;
+        return [$log, $events];
     }
 
-    /** Runs the primary monster's full ability/cooldown AI turn (if it's still alive), then has every living
-     * "add" basic-attack once each. Returns the updated log array. */
-    private function resolveEnemyTurn(Battle $battle, array $stats, ?Inventory $armorRow, array $log): array
+    private function queuePlayerIndex(array $queue): int
     {
-        $monster = $battle->monster;
+        foreach ($queue as $i => $entry) {
+            if ($entry['side'] === 'player' && $entry['id'] === null) {
+                return $i;
+            }
+        }
 
-        if ($battle->monster_hp > 0) {
-            [$ability, $cooldowns] = $this->monsterAi->choose($monster, $battle->monster_cooldowns_json ?? []);
-            $battle->monster_cooldowns_json = $cooldowns;
+        return -1;
+    }
 
-            if ($ability['type'] === 'regen') {
+    /** Rolls MonsterAiService::speciesStatus()'s themed bonus chance for $monsterKey and, if it hits,
+     * applies it to $defender on top of whatever else this attack already did — shared by wild monster
+     * attacks and tamed companion attacks so the same species behaves identically either side of the
+     * fight. No-op (returns $log/$events unchanged) if there's no species entry or the roll misses. */
+    private function applySpeciesStatus(Battle $battle, ?string $monsterKey, string $displayName, array $defender, int $dealtDamage, array $log, array $events, string $actorType, ?int $actorId): array
+    {
+        $species = $this->monsterAi->speciesStatus($monsterKey);
+        if (! $species || ! $this->rollPercent($species['chance'])) {
+            return [$log, $events];
+        }
+
+        $magnitude = isset($species['magnitude_pct_of_damage'])
+            ? $dealtDamage * $species['magnitude_pct_of_damage'] / 100
+            : (float) ($species['magnitude'] ?? 1);
+        $targetLabel = $defender['type'] === 'companion' ? ($defender['row']?->tamedCompanion->name) : null;
+
+        $this->statuses->apply($battle, $defender['type'], $defender['id'], $species['effect'], $magnitude, (int) $species['rounds'], $displayName);
+        $log[] = $this->statusLogLine($displayName, $species, $targetLabel, $magnitude);
+        $events[] = ['actor' => $actorType, 'actor_id' => $actorId, 'target' => $defender['type'], 'target_id' => $defender['id'], 'type' => 'status', 'status_key' => $species['effect']];
+
+        return [$log, $events];
+    }
+
+    /** Heals whichever ally (the player, or another living companion) is most hurt, as long as someone's
+     * below 90% — a mender companion never wastes its turn topping off an ally that's basically fine.
+     * Returns [didHeal, updatedLog, updatedEvents]. */
+    private function menderHeal(Battle $battle, array $stats, BattleCompanion $healerRow, array $log, array $events): array
+    {
+        $healer = $healerRow->tamedCompanion;
+        $candidates = [['pct' => $battle->character_hp / max(1, $stats['eff_hp_max']), 'name' => 'you', 'player' => true, 'row' => null]];
+        foreach ($battle->battleCompanions as $other) {
+            if ($other->hp <= 0) {
+                continue;
+            }
+            $candidates[] = ['pct' => $other->hp / max(1, $other->hp_max), 'name' => $other->tamedCompanion->name, 'player' => false, 'row' => $other];
+        }
+
+        usort($candidates, fn ($a, $b) => $a['pct'] <=> $b['pct']);
+        $weakest = $candidates[0];
+        if ($weakest['pct'] >= 0.9) {
+            return [false, $log, $events];
+        }
+
+        $healAmt = max(1, (int) round($healer->effectiveHpMax() * 0.15));
+        if ($weakest['player']) {
+            $battle->character_hp = min($stats['eff_hp_max'], $battle->character_hp + $healAmt);
+            $targetType = 'player';
+            $targetId = null;
+        } else {
+            $row = $weakest['row'];
+            $row->hp = min($row->hp_max, $row->hp + $healAmt);
+            $row->save();
+            $targetType = 'companion';
+            $targetId = $row->id;
+        }
+
+        $log[] = "{$healer->name} mends {$weakest['name']} for {$healAmt}.";
+        $events[] = ['actor' => 'companion', 'actor_id' => $healerRow->id, 'target' => $targetType, 'target_id' => $targetId, 'type' => 'heal', 'amount' => $healAmt];
+        // Healing generates threat on EVERY living enemy at once (see ThreatService) — a heal mid-pack
+        // can flip several targets onto the healer in one go, mirroring the imported design's threat model.
+        $this->threats->addHealThreatToAllEnemies($battle, 'companion', $healerRow->id, $healAmt);
+
+        return [true, $log, $events];
+    }
+
+    /** One monster's (primary or add) full role-based turn: pick an ability via MonsterAiService, resolve
+     * it (regen heals itself, 'buff' rallies its side instead of attacking, otherwise it picks a single
+     * target — the player or one living tamed companion, see chooseEnemyTarget() — and hits it, applying
+     * any `applies_status` entries to that same target), and log it. $hpTarget is the BattleMonster row
+     * to heal against for an add's regen (the primary monster instead uses $battle->monster_hp/_hp_max
+     * directly).
+     *
+     * @return array{0: array, 1: array, 2: array} [updated log, updated cooldowns, updated events]
+     */
+    private function resolveMonsterAction(Battle $battle, array $stats, Monster $monster, int $targetId, string $displayName, array $cooldowns, ?Inventory $armorRow, array $log, array $events, ?BattleMonster $hpTarget = null): array
+    {
+        [$ability, $cooldowns] = $this->monsterAi->choose($monster, $cooldowns);
+
+        if ($ability['type'] === 'regen') {
+            if ($hpTarget) {
+                $healed = min($hpTarget->hp_max - $hpTarget->hp, (int) round($hpTarget->hp_max * ($ability['heal_pct'] ?? 0) / 100));
+                $hpTarget->hp += $healed;
+                $hpTarget->save();
+            } else {
                 $maxHp = $battle->monster_hp_max ?? $monster->hp;
                 $healed = min($maxHp - $battle->monster_hp, (int) round($maxHp * ($ability['heal_pct'] ?? 0) / 100));
                 $battle->monster_hp += $healed;
-                $log[] = "{$monster->name} uses {$ability['name']} and regenerates {$healed} HP!";
+            }
+            $log[] = "{$displayName} uses {$ability['name']} and regenerates {$healed} HP!";
+            $events[] = ['actor' => 'monster', 'actor_id' => $targetId, 'target' => 'monster', 'target_id' => $targetId, 'type' => 'heal', 'amount' => $healed];
+
+            return [$log, $cooldowns, $events];
+        }
+
+        if ($ability['type'] === 'buff') {
+            [$log, $events] = $this->applyMonsterSelfBuff($battle, $ability, $displayName, $log, $events);
+
+            return [$log, $cooldowns, $events];
+        }
+
+        $hits = max(1, $ability['hits'] ?? 1);
+        $gradeAtkMult = $this->grades->atkMult($battle->grade);
+        $roleAtkMult = $this->monsterAi->buildFor($monster->role)['atk_mult'];
+        $atkMods = $this->statuses->modifiers($battle, 'monster', $targetId);
+
+        // Which single target this attack actually lands on — the player, or one living tamed companion
+        // — chosen via taunt override, a skirmisher's "hit the weakest" priority, or (see
+        // ThreatService) whoever THIS specific enemy has logged the most threat against. Replaces the
+        // old flat %-per-pet damage-share split: exactly one defender now eats the whole hit, same as
+        // the player picking one enemy to attack.
+        $defender = $this->chooseEnemyTarget($battle, $stats, $monster->role, $targetId);
+
+        // Dodge is rolled per attack (not once for the whole round) so a multi-enemy pack fight resolves
+        // each hit independently, same as the player's own attacks always have — only the player has a
+        // dodge stat, so a companion drawing the attack instead can't dodge it.
+        if ($defender['type'] === 'player') {
+            $evasionDelta = $this->statuses->modifiers($battle, 'player', null)['evasion_delta'];
+            if ($this->rollPercent(max(0, ($stats['dodge_chance'] ?? 0) + $evasionDelta))) {
+                $verb = ($ability['key'] ?? null) === 'basic_attack' ? 'attack' : $ability['name'];
+                $log[] = "You dodge {$displayName}'s {$verb}!";
+                $events[] = ['actor' => 'monster', 'actor_id' => $targetId, 'target' => 'player', 'target_id' => null, 'type' => 'dodge'];
+
+                return [$log, $cooldowns, $events];
+            }
+        }
+
+        $defMods = $this->statuses->modifiers($battle, $defender['type'], $defender['id']);
+        $defenderDef = $defender['type'] === 'companion' ? $defender['row']->tamedCompanion->effectiveDef() : $stats['eff_def'];
+
+        $enemyDmg = 0;
+        for ($i = 0; $i < $hits; $i++) {
+            $enemyDmg += max(2, (int) round($monster->atk * $gradeAtkMult * $roleAtkMult * ($ability['dmg_mult'] ?? 1.0) * $atkMods['dmg_dealt_mult'] * $this->rand(0.7, 1.3) - $defenderDef * $defMods['def_mult'] * 0.25));
+        }
+        // dmg_taken_mult (Vulnerable/Break) is applied once, inside finalizeDamageToTarget() below —
+        // it must not also be applied here, or a debuff like Vulnerable (1.20x) would compound to 1.44x.
+        $finalDmg = $this->finalizeDamageToTarget($battle, $defender['type'], $defender['id'], $enemyDmg);
+
+        if ($defender['type'] === 'companion') {
+            $bc = $defender['row'];
+            $companion = $bc->tamedCompanion;
+            $bc->hp = max(0, $bc->hp - $finalDmg);
+            $bc->save();
+            // This companion's own grudge against whichever monster just hit it — see
+            // ThreatService::topEnemyThreat(), which chooseCompanionTarget() reads back below.
+            $this->threats->addRetaliationThreat($battle, $bc->id, 'monster', $targetId, $finalDmg);
+            $note = '';
+            if ($bc->hp <= 0) {
+                $this->downCompanion($bc);
+                $note = ' (goes down)';
             } else {
-                $hits = max(1, $ability['hits'] ?? 1);
-                $gradeAtkMult = $this->grades->atkMult($battle->grade);
-                // Damage is computed against the player's own defense exactly as if there were no
-                // companions at all — the redirect split (applyRedirectedDamage) happens AFTER, on the
-                // post-armor total, not before.
-                $enemyDmg = 0;
-                for ($i = 0; $i < $hits; $i++) {
-                    $enemyDmg += max(2, (int) round($monster->atk * $gradeAtkMult * ($ability['dmg_mult'] ?? 1.0) * $this->rand(0.7, 1.3) - $stats['eff_def'] * 0.25));
-                }
-                [$playerDmg, $petNote] = $this->applyRedirectedDamage($battle, $enemyDmg);
-                if (($ability['key'] ?? null) === 'basic_attack') {
-                    $log[] = "{$monster->name} hits you for {$playerDmg}.{$petNote}";
-                } else {
-                    $hitNote = $hits > 1 ? " ({$hits} hits)" : '';
-                    $log[] = "{$monster->name} uses {$ability['name']} for {$playerDmg}{$hitNote} on you.{$petNote}";
-                }
-                $this->decayGear($armorRow);
+                $companion->current_hp = $bc->hp;
+                $companion->save();
             }
+            $targetLabel = $companion->name;
+        } else {
+            $battle->character_hp = max(0, $battle->character_hp - $finalDmg);
+            $note = '';
+            $targetLabel = 'you';
         }
 
-        // Adds only ever basic-attack — no ability/cooldown AI of their own, keeping the primary monster
-        // as the one mechanically-interesting fighter in a multi-enemy encounter.
-        foreach ($battle->battleMonsters as $extra) {
-            if ($extra->hp <= 0) {
-                continue;
-            }
-            $gradeAtkMult = $this->grades->atkMult($battle->grade);
-            $addDmg = max(2, (int) round($extra->monster->atk * $gradeAtkMult * $this->rand(0.7, 1.3) - $stats['eff_def'] * 0.25));
-            [$addPlayerDmg, $addPetNote] = $this->applyRedirectedDamage($battle, $addDmg);
-            $log[] = "{$extra->monster->name} hits you for {$addPlayerDmg}.{$addPetNote}";
+        $events[] = ['actor' => 'monster', 'actor_id' => $targetId, 'target' => $defender['type'], 'target_id' => $defender['id'], 'type' => 'damage', 'amount' => $finalDmg, 'crit' => false];
+        if (($ability['key'] ?? null) === 'basic_attack') {
+            $log[] = "{$displayName} hits {$targetLabel} for {$finalDmg}.{$note}";
+        } else {
+            $hitNote = $hits > 1 ? " ({$hits} hits)" : '';
+            $log[] = "{$displayName} uses {$ability['name']} for {$finalDmg}{$hitNote} on {$targetLabel}.{$note}";
+        }
+        // Only the player's own armor wears down when the player is the one actually hit — a companion
+        // absorbing the attack instead shouldn't decay gear it never touched.
+        if ($defender['type'] === 'player') {
+            $this->decayGear($armorRow);
         }
 
-        return $log;
+        // Debuffs land on the same target the damage just did — a companion drawing the attack (via
+        // taunt, or simply the aggro roll) absorbs its status too, not just its damage, so pets are a
+        // real target for buffs/debuffs and not only the player.
+        foreach ($ability['applies_status'] ?? [] as $statusDef) {
+            // Same dynamic-magnitude resolution as player skills (see applySkillStatuses) — a monster/
+            // companion ability naming `magnitude_pct_of_damage` (e.g. Fire Imp's Fireball for Burn)
+            // scales off the hit it just actually landed, not a fixed authored number.
+            $magnitude = isset($statusDef['magnitude_pct_of_damage'])
+                ? $finalDmg * $statusDef['magnitude_pct_of_damage'] / 100
+                : (float) $statusDef['magnitude'];
+            $this->statuses->apply($battle, $defender['type'], $defender['id'], $statusDef['effect'], $magnitude, (int) $statusDef['rounds'], $ability['name'] ?? $displayName);
+            $log[] = $this->statusLogLine($displayName, $statusDef, $defender['type'] === 'companion' ? $targetLabel : null, $magnitude);
+            $events[] = ['actor' => 'monster', 'actor_id' => $targetId, 'target' => $defender['type'], 'target_id' => $defender['id'], 'type' => 'status', 'status_key' => $statusDef['effect']];
+        }
+
+        // A themed bonus chance on top of whatever the ability/role already did — see
+        // MonsterAiService::SPECIES_STATUS. Independent roll, so e.g. a Fire Imp can both shred armor
+        // via its elite_brute role AND occasionally Burn from being, specifically, a Fire Imp.
+        [$log, $events] = $this->applySpeciesStatus($battle, $monster->key, $displayName, $defender, $finalDmg, $log, $events, 'monster', $targetId);
+
+        return [$log, $cooldowns, $events];
     }
 
-    /** Splits one already-armor-mitigated hit between the player and every active, living companion —
-     * each pet redirects a flat GM-tunable % of the hit onto itself (companion_damage_redirect_pct_per_
-     * pet, default 10%), stacking per pet up to a safety cap (companion_damage_redirect_pct_cap, default
-     * 90%) so the player always still takes something. The redirected total is split evenly (remainder
-     * to the first few pets) and taken exactly as-is — deliberately NOT further reduced by the pet's own
-     * Defense, since layering that mitigation on top of an already-small shard made most hits vanish to
-     * 0 before a pet ever felt them, which undercut the whole "-10% per pet" deal. Defense still matters
-     * for direct hits from other mechanics, just not this split. A pet whose share downs it goes through
-     * downCompanion() (revive-eligible) rather than an immediate kill. Returns [playerDamageTaken,
-     * logSuffix] — logSuffix is '' when there's nothing to report. */
-    private function applyRedirectedDamage(Battle $battle, int $dmg): array
+    /** Which single target (the player, or one living tamed companion) an enemy's attack actually lands
+     * on this turn — replaces the old flat "redirect a %-per-pet share to every pet" split. A `taunt`
+     * status (see e.g. Bonded Guard) always wins outright; a `skirmisher`-role attacker always goes for
+     * whoever's lowest on HP%; everyone else goes to whoever THIS specific enemy ($enemyTargetId) has
+     * logged the most accumulated threat against (see ThreatService) — defaulting to the player on a
+     * fresh encounter, or if its top pick is a companion that's since gone down.
+     *
+     * @return array{type: string, id: ?int, row: ?BattleCompanion}
+     */
+    private function chooseEnemyTarget(Battle $battle, array $stats, ?string $attackerRole, int $enemyTargetId): array
     {
-        $eligible = $battle->battleCompanions->where('hp', '>', 0)->values();
-        if ($eligible->isEmpty()) {
-            $battle->character_hp = max(0, $battle->character_hp - $dmg);
-
-            return [$dmg, ''];
+        $companions = $battle->battleCompanions->where('hp', '>', 0)->values();
+        if ($companions->isEmpty()) {
+            return ['type' => 'player', 'id' => null, 'row' => null];
         }
 
-        $pctPerPet = GameConfig::number('companion_damage_redirect_pct_per_pet', 10);
-        $cap = GameConfig::number('companion_damage_redirect_pct_cap', 90);
-        $redirectPct = min($cap, $eligible->count() * $pctPerPet);
-        $redirectedTotal = (int) round($dmg * $redirectPct / 100);
-        $playerDmg = $dmg - $redirectedTotal;
-        $battle->character_hp = max(0, $battle->character_hp - $playerDmg);
+        $taunting = $companions->first(fn (BattleCompanion $bc) => $this->statuses->isTaunting($battle, 'companion', $bc->id));
+        if ($taunting) {
+            return ['type' => 'companion', 'id' => $taunting->id, 'row' => $taunting];
+        }
 
-        $baseShare = intdiv($redirectedTotal, $eligible->count());
-        $remainder = $redirectedTotal % $eligible->count();
-        $notes = [];
-
-        foreach ($eligible as $i => $defender) {
-            $petDmg = $baseShare + ($i < $remainder ? 1 : 0);
-            if ($petDmg <= 0) {
-                continue;
+        if ($attackerRole === 'skirmisher') {
+            $candidates = [['type' => 'player', 'id' => null, 'row' => null, 'pct' => $battle->character_hp / max(1, $stats['eff_hp_max'])]];
+            foreach ($companions as $bc) {
+                $candidates[] = ['type' => 'companion', 'id' => $bc->id, 'row' => $bc, 'pct' => $bc->hp / max(1, $bc->hp_max)];
             }
+            usort($candidates, fn ($a, $b) => $a['pct'] <=> $b['pct']);
 
-            $companion = $defender->tamedCompanion;
-            $defender->hp = max(0, $defender->hp - $petDmg);
-            $defender->save();
+            return $candidates[0];
+        }
 
-            if ($defender->hp <= 0) {
-                $this->downCompanion($defender);
-                $notes[] = "{$companion->name} goes down absorbing {$petDmg}";
-            } else {
-                $companion->current_hp = $defender->hp;
-                $companion->save();
-                $notes[] = "{$companion->name} absorbs {$petDmg}";
+        $top = $this->threats->topThreatUnit($battle, 'monster', $enemyTargetId);
+        if ($top['type'] === 'companion') {
+            $bc = $companions->firstWhere('id', $top['id']);
+            if ($bc) {
+                return ['type' => 'companion', 'id' => $bc->id, 'row' => $bc];
             }
         }
 
-        return [$playerDmg, $notes ? ' ('.implode(', ', $notes).')' : ''];
+        return ['type' => 'player', 'id' => null, 'row' => null];
+    }
+
+    /** Which enemy (the primary monster = id 0, or one living "add") a companion's attack actually
+     * lands on this turn — its own aggro pick, built off ThreatService::topEnemyThreat() (the reverse
+     * of chooseEnemyTarget()'s threat-table branch): whichever living enemy has actually been hurting
+     * THIS companion wins, same "attack whoever's been hitting you" logic every role gets, not just
+     * skirmishers. With no grudge recorded yet (a fresh encounter, or nothing's hit this companion this
+     * fight), it rolls its own random living enemy instead of defaulting to whatever the player is
+     * currently targeting — so two companions, even two of the exact same tamed species, act on their
+     * own instead of mirroring the player (and each other) turn one. */
+    private function chooseCompanionTarget(Battle $battle, BattleCompanion $bc, ?int $targetMonsterId): ?int
+    {
+        $grudge = $this->threats->topEnemyThreat($battle, $bc->id);
+        if ($grudge !== null) {
+            return $grudge;
+        }
+
+        $candidates = [];
+        if ($battle->monster_hp > 0) {
+            $candidates[] = 0;
+        }
+        foreach ($battle->battleMonsters->where('hp', '>', 0) as $add) {
+            $candidates[] = $add->id;
+        }
+
+        return $candidates ? $candidates[mt_rand(0, count($candidates) - 1)] : $targetMonsterId;
+    }
+
+    /** Whether the player has "spare tameable enemies" on (User::preferences.spare_tameable_enemies)
+     * AND the primary monster is actually still a live tame prospect right now — every attemptTame()
+     * guard except the HP% one (see there), since the whole point is to never let a companion's hit be
+     * what takes it below that threshold in the first place. Only meaningful in a 1v1 (taming is
+     * 1v1-only); always false with any add still alive. */
+    private function sparesTameableEnemies(Battle $battle): bool
+    {
+        $character = $battle->character;
+        if (! $character || ! ($character->user?->preferences['spare_tameable_enemies'] ?? false)) {
+            return false;
+        }
+        if ($battle->battleMonsters->isNotEmpty()) {
+            return false;
+        }
+
+        $monster = $battle->monster;
+        if (! $monster || $monster->is_boss || $battle->tame_eligible === false) {
+            return false;
+        }
+        if ($character->level < $monster->tameUnlockLevel()) {
+            return false;
+        }
+
+        $rosterCount = TamedCompanion::where('character_id', $character->id)->whereNull('archived_at')->count();
+
+        return $rosterCount < $character->user->tameRosterCap();
+    }
+
+    /** A `buffer`-role monster's turn doesn't attack at all — it empowers itself and every other living
+     * monster on its side (primary + adds) with the ability's buff for buff_rounds, mirroring 'mender'
+     * healing instead of attacking. Gives packs a real support threat that costs something to ignore. */
+    private function applyMonsterSelfBuff(Battle $battle, array $ability, string $displayName, array $log, array $events): array
+    {
+        $targets = [];
+        if ($battle->monster_hp > 0) {
+            $targets[] = ['type' => 'monster', 'id' => 0];
+        }
+        foreach ($battle->battleMonsters as $extra) {
+            if ($extra->hp > 0) {
+                $targets[] = ['type' => 'monster', 'id' => $extra->id];
+            }
+        }
+
+        foreach ($targets as $t) {
+            $this->statuses->apply($battle, $t['type'], $t['id'], $ability['buff_effect'], (float) $ability['buff_magnitude'], (int) $ability['buff_rounds'], $ability['name']);
+            $events[] = ['actor' => 'monster', 'actor_id' => $t['id'], 'target' => $t['type'], 'target_id' => $t['id'], 'type' => 'status', 'status_key' => $ability['buff_effect']];
+        }
+        $log[] = "{$displayName} uses {$ability['name']}, rallying its allies!";
+
+        return [$log, $events];
     }
 
     /** A companion reaching 0 hp in battle no longer dies outright — it goes "downed" (see
@@ -557,6 +1371,7 @@ class CombatService
     public function flee(Battle $battle, Character $character): array
     {
         abort_if($battle->status !== 'active', 422, 'Battle already finished.');
+        abort_if($this->statuses->isRooted($battle, 'player', null), 422, "You're rooted and can't flee this battle!");
 
         $stats = $character->effectiveStats();
         $fleeDmg = (int) round($stats['eff_hp_max'] * 0.1);
@@ -606,9 +1421,21 @@ class CombatService
         $zonePenaltyPct = Zone::frontierPenaltyPct($character, $monster->zone);
         $zoneMult = 1 - $zonePenaltyPct / 100;
 
-        $goldGain = (int) round($allMonsters->sum('gold') * $goldMult * $gradeRewardMult * $zoneMult * (1 + $luckBonus + $vipGoldXpBonus + $guildXpBonus + $guildGoldFindBonus));
-        $xpGain = (int) round($allMonsters->sum('xp') * $xpMult * $gradeRewardMult * $zoneMult * (1 + ($luckBonus * $xpFactor) + $petXpBonus + $vipGoldXpBonus + $guildXpBonus + $guildXpUpgradeBonus));
-        $gemGain = (int) round($allMonsters->sum('gems') * $gemMult * $gradeRewardMult * $zoneMult * (1 + ($luckBonus * $gemFactor)));
+        // Pack-clear bonus — clearing every enemy in a multi-monster "pack" encounter (see
+        // CombatService::rollPackMonsters()) pays extra on top of the plain per-monster sum, scaling up
+        // to the full pack_clear_bonus_mult as the pack gets bigger (a 4-monster pack, i.e. 3 extras,
+        // reaches the full bonus; smaller packs get a proportional slice). Always 1.0 for a normal 1v1
+        // fight or a dungeon boss's fixed adds count toward it too, same as any other pack.
+        $extraCount = $battle->battleMonsters->count();
+        $packBonusMult = 1.0;
+        if ($extraCount > 0) {
+            $fullPackMult = GameConfig::number('pack_clear_bonus_mult', 1.6);
+            $packBonusMult = 1 + ($fullPackMult - 1) * min(1, $extraCount / 3);
+        }
+
+        $goldGain = (int) round($allMonsters->sum('gold') * $goldMult * $gradeRewardMult * $zoneMult * $packBonusMult * (1 + $luckBonus + $vipGoldXpBonus + $guildXpBonus + $guildGoldFindBonus));
+        $xpGain = (int) round($allMonsters->sum('xp') * $xpMult * $gradeRewardMult * $zoneMult * $packBonusMult * (1 + ($luckBonus * $xpFactor) + $petXpBonus + $vipGoldXpBonus + $guildXpBonus + $guildXpUpgradeBonus));
+        $gemGain = (int) round($allMonsters->sum('gems') * $gemMult * $gradeRewardMult * $zoneMult * $packBonusMult * (1 + ($luckBonus * $gemFactor)));
 
         // Reward breakdown for result popup
         $baseGold = (int) round($allMonsters->sum('gold'));
@@ -623,6 +1450,7 @@ class CombatService
                 'vip_pct' => (int) round($vipGoldXpBonus * 100),
                 'guild_pct' => (int) round(($guildXpBonus + $guildGoldFindBonus) * 100),
                 'zone_penalty_pct' => (int) round($zonePenaltyPct),
+                'pack_pct' => (int) round(($packBonusMult - 1) * 100),
                 'total' => $goldGain,
             ],
             'xp' => [
@@ -633,6 +1461,7 @@ class CombatService
                 'guild_pct' => (int) round(($guildXpBonus + $guildXpUpgradeBonus) * 100),
                 'pet_pct' => (int) round($petXpBonus * 100),
                 'zone_penalty_pct' => (int) round($zonePenaltyPct),
+                'pack_pct' => (int) round(($packBonusMult - 1) * 100),
                 'total' => $xpGain,
             ],
         ];
@@ -663,7 +1492,7 @@ class CombatService
             $character->increment('bosses_slain');
         }
 
-        $leveledUp = $this->grantXp($character, $xpGain);
+        [$leveledUp, $milestoneGrants] = $this->grantXp($character, $xpGain);
         $petResults = $this->grantPetXp($character, (int) round($xpGain * 0.2));
         // Battle Pass xp deliberately does NOT come from combat anymore — it's quest-based only (see
         // QuestController::claim), so grinding/auto-battling a high-xp zone can no longer max the whole
@@ -673,7 +1502,11 @@ class CombatService
         foreach ($petResults as $petResult) {
             $log[] = "{$petResult['name']} gained companion XP.".($petResult['leveled_up'] ? " Now level {$petResult['level']}!" : '');
         }
+        foreach ($milestoneGrants as $grant) {
+            $log[] = "🎁 Level-up gift: {$grant}!";
+        }
         $petFoodDropped = $this->maybeDropPetFood($character, $monster, $log);
+        $crateDropped = $this->maybeDropLootCrate($character, $monster, $log);
         $battle->update(['status' => 'won', 'log_json' => $log]);
 
         $this->quests->progress($character, 'battles_won', $monster);
@@ -691,6 +1524,7 @@ class CombatService
                 'leveled_up' => $leveledUp,
                 'pets' => $petResults,
                 'pet_food_dropped' => $petFoodDropped,
+                'crate_dropped' => $crateDropped,
                 'character' => $freshCharacter,
                 'stats' => $freshCharacter->effectiveStats(),
                 'achievements' => $newAchievements,
@@ -786,9 +1620,6 @@ class CombatService
         $character->increment('battles_lost');
         $battle->character_hp = $reviveHp;
 
-        if ($penalty['levels_lost'] > 0) {
-            $log[] = "Dropped to level {$character->level}! Lost ".($penalty['levels_lost'] * 3)." attribute pts and {$penalty['levels_lost']} skill pts.";
-        }
         $battle->update(['status' => 'lost', 'log_json' => $log]);
 
         $freshCharacter = $character->fresh(['attributes_', 'inventory.item', 'skills.skill']);
@@ -799,7 +1630,6 @@ class CombatService
                 'outcome' => 'lost',
                 'gold_lost' => $penalty['gold_lost'],
                 'xp_lost' => $penalty['xp_lost'],
-                'levels_lost' => $penalty['levels_lost'],
                 'character' => $freshCharacter,
                 'stats' => $freshCharacter->effectiveStats(),
             ],
@@ -807,8 +1637,9 @@ class CombatService
     }
 
     /**
-     * Death penalty: lose a slice of gold and xp. Running xp to 0 and below strips a level
-     * (and that level's attribute/skill points, floored at 0 — already-spent points aren't clawed back).
+     * Death penalty: lose a slice of gold and xp. XP loss is floored at the current level's own XP
+     * threshold — a bad loss can wipe out this level's progress but can never drop a character below
+     * the level they're already at (no "delevel").
      */
     private function applyDeathPenalty(Character $character): array
     {
@@ -817,7 +1648,6 @@ class CombatService
 
         $goldLost = (int) min($character->gold, round($character->gold * $goldLossPct / 100));
 
-        $currentLevelXp = Character::xpForLevel($character->level);
         $previousLevelXp = Character::xpForLevel(max(1, $character->level - 1));
 
         // How much XP the player has earned within this level
@@ -828,31 +1658,23 @@ class CombatService
         $flatLoss = (int) round(100 * (($character->level / 100) + 1));
         $xpLost = $percentageLoss + $flatLoss;
 
-        $level = $character->level;
-        $xp = $character->xp - $xpLost;
-        $levelsLost = 0;
-
-        // Delevel if XP drops below what's needed for current level
-        while ($level > 1 && $xp < Character::xpForLevel($level - 1)) {
-            $level--;
-            $levelsLost++;
-        }
-        $xp = max(0, $xp);
+        // Floored at this level's own XP threshold, never below it — a loss can only erase progress
+        // made within the current level, never push the character back into the previous one.
+        $xp = max($previousLevelXp, $character->xp - $xpLost);
 
         $character->gold = max(0, $character->gold - $goldLost);
         $character->xp = $xp;
-        $character->level = $level;
-        if ($levelsLost > 0) {
-            $character->attribute_points = max(0, $character->attribute_points - $levelsLost * 3);
-            $character->skill_points = max(0, $character->skill_points - $levelsLost);
-        }
         $character->save();
 
-        return ['gold_lost' => $goldLost, 'xp_lost' => $xpLost, 'levels_lost' => $levelsLost];
+        return ['gold_lost' => $goldLost, 'xp_lost' => $xpLost];
     }
 
-    /** Applies xp, handling multi-level-ups (capped at Character::MAX_LEVEL); returns number of levels gained. */
-    private function grantXp(Character $character, int $xpGain): int
+    /** Applies xp, handling multi-level-ups (capped at Character::MAX_LEVEL).
+     *
+     * @return array{0: int, 1: string[]} [levels gained, one-time milestone rewards granted this call —
+     *                                      see grantLevelMilestones()]
+     */
+    public function grantXp(Character $character, int $xpGain): array
     {
         $xp = $character->xp + $xpGain;
         $oldLevel = $character->level;
@@ -878,7 +1700,69 @@ class CombatService
             'skill_points' => $skillPoints,
         ]);
 
-        return $levelsGained;
+        $grants = $levelsGained > 0 ? $this->grantLevelMilestones($character, $oldLevel, $level) : [];
+
+        return [$levelsGained, $grants];
+    }
+
+    /** Class-flavored level-8 starter weapon (see ItemSeeder), reused here as the level-3 one-time gift —
+     * Inventory unlocks at level 3 too (see navigation.js), and without this it's an empty Equipment panel
+     * until level 8's real weapon tier becomes buyable/craftable. min_level on the item itself is purely
+     * informational (InventoryController::equip() doesn't gate on it), so handing it out 5 levels early is
+     * safe to equip immediately. */
+    private const STARTER_WEAPON_BY_CLASS = [
+        'warrior' => 'iron_sword', 'mage' => 'oak_staff', 'rogue' => 'iron_dagger', 'ranger' => 'wooden_bow',
+    ];
+
+    /** One-time rewards the moment a character first crosses a given level — checked as oldLevel < X <=
+     * newLevel (not levelsGained === N) so a big XP dump that jumps several levels at once still grants
+     * every milestone it passed through, not just the final level landed on. Returns a human-readable
+     * description per grant for the caller to log if it has somewhere to put that (resolveWin's battle
+     * log does; the silent party-share XP grant in grantPartyShare() just discards it). */
+    private function grantLevelMilestones(Character $character, int $oldLevel, int $newLevel): array
+    {
+        $grants = [];
+
+        if ($oldLevel < 3 && $newLevel >= 3) {
+            $weaponKey = self::STARTER_WEAPON_BY_CLASS[$character->base_class] ?? null;
+            $item = $weaponKey ? Item::where('key', $weaponKey)->first() : null;
+            if ($item) {
+                $max = $this->durability->maxDurability($item->rarity);
+                Inventory::create([
+                    'character_id' => $character->id, 'item_id' => $item->id, 'qty' => 1, 'equipped' => false,
+                    'durability' => $max, 'durability_max' => $max,
+                ]);
+                $grants[] = "{$item->name}";
+            }
+        }
+
+        if ($oldLevel < 4 && $newLevel >= 4) {
+            $granted = $this->grantStackableReward($character, 'common_repair_pack', 5);
+            if ($granted) $grants[] = "5x {$granted}";
+        }
+
+        if ($oldLevel < 5 && $newLevel >= 5) {
+            $granted = $this->grantStackableReward($character, 'health_potion', 5);
+            if ($granted) $grants[] = "5x {$granted}";
+        }
+
+        return $grants;
+    }
+
+    /** Mirrors maybeDropPetFood()/maybeDropLootCrate()'s firstOrNew-then-increment pattern for a stackable
+     * (non-gear) item grant. Returns the item's name (for the caller's log line) or null if the key isn't seeded. */
+    private function grantStackableReward(Character $character, string $itemKey, int $qty): ?string
+    {
+        $item = Item::where('key', $itemKey)->first();
+        if (! $item) {
+            return null;
+        }
+
+        $inventory = Inventory::firstOrNew(['character_id' => $character->id, 'item_id' => $item->id, 'equipped' => false]);
+        $inventory->qty = ($inventory->qty ?? 0) + $qty;
+        $inventory->save();
+
+        return $item->name;
     }
 
     private function rand(float $min, float $max): float
@@ -889,6 +1773,14 @@ class CombatService
     private function rollPercent(float $percentChance): bool
     {
         return (mt_rand() / mt_getrandmax() * 100) < $percentChance;
+    }
+
+    /** Whether a companion, once it can afford its role ability this round, actually uses it — a fresh
+     * independent roll every turn, so two companions with identical MP regen (even two of the exact
+     * same tamed species) don't heal/buff/nuke in perfect lockstep every round they're both able to. */
+    private function companionWantsSpecial(): bool
+    {
+        return $this->rollPercent(GameConfig::number('companion_special_use_pct', 65));
     }
 
     /** The character's currently-equipped weapon or armor Inventory row (with item loaded), or null if nothing's equipped there. */
@@ -936,6 +1828,68 @@ class CombatService
         return $item->name;
     }
 
+    /** Chance to grant one lootbox on a battle win — the box itself is just an inert inventory item until
+     * the player opens it via CrateController/CrateService, which rolls and times its rewards. Its
+     * RARITY corresponds to the tier of enemy that dropped it: trash mobs roll a small chance at Common,
+     * elites roll a better chance at Rare, and bosses (near-)guarantee Epic with a shrinking chance to
+     * cascade all the way up to Mythic — each further upgrade is deliberately rarer than the last, so a
+     * Mythic lootbox off a lowly trash mob is technically possible, just vanishingly so. All percentages
+     * are GM-tunable. Mirrors maybeDropPetFood()'s log/return shape. */
+    private function maybeDropLootCrate(Character $character, Monster $monster, array &$log): ?string
+    {
+        $rarity = $this->rollLootboxRarity($monster);
+        if (! $rarity) {
+            return null;
+        }
+
+        $item = Item::where('key', "{$rarity}_lootbox")->first();
+        if (! $item) {
+            return null;
+        }
+
+        $inventory = Inventory::firstOrNew(['character_id' => $character->id, 'item_id' => $item->id, 'equipped' => false]);
+        $inventory->qty = ($inventory->qty ?? 0) + 1;
+        $inventory->save();
+
+        $log[] = "{$item->name} dropped!";
+
+        return $item->name;
+    }
+
+    private const LOOTBOX_RARITY_LADDER = ['common', 'rare', 'epic', 'legendary', 'mythic'];
+
+    private function rollLootboxRarity(Monster $monster): ?string
+    {
+        if ($monster->is_boss) {
+            if (! $this->rollPercent(GameConfig::number('loot_crate_drop_chance_boss_pct', 100))) {
+                return null;
+            }
+            $floor = 'epic';
+        } elseif ($monster->is_elite) {
+            if (! $this->rollPercent(GameConfig::number('loot_crate_drop_chance_elite_pct', 20))) {
+                return null;
+            }
+            $floor = 'rare';
+        } else {
+            if (! $this->rollPercent(GameConfig::number('loot_crate_drop_chance_trash_pct', 8))) {
+                return null;
+            }
+            $floor = 'common';
+        }
+
+        // Cascading upgrade roll — each step up the ladder is only attempted after the previous one
+        // lands, and gets rarer itself every step (25% of the last chance), so reaching Mythic from a
+        // Common floor requires clearing 4 independently-shrinking rolls in a row.
+        $i = array_search($floor, self::LOOTBOX_RARITY_LADDER, true);
+        $upgradeChance = GameConfig::number('loot_crate_boss_huge_chance_pct', 25);
+        while ($i < count(self::LOOTBOX_RARITY_LADDER) - 1 && $this->rollPercent($upgradeChance)) {
+            $i++;
+            $upgradeChance *= 0.25;
+        }
+
+        return self::LOOTBOX_RARITY_LADDER[$i];
+    }
+
     /** % penalty applied to a tame roll for a monster in a dangerous zone — same $prefix pattern feeds
      * both the eligibility roll ('tame_eligibility') and the success roll ('tame_success'), each GM-tunable
      * independently via GmConfigController. */
@@ -967,16 +1921,14 @@ class CombatService
         abort_if($monster->is_boss, 422, 'Bosses cannot be tamed.');
 
         $hpPct = $battle->monster_hp_max ? $battle->monster_hp / $battle->monster_hp_max : 1;
-        abort_if($hpPct > 0.10, 422, 'This enemy is still too strong to tame — wear it down first.');
+        abort_if($hpPct > 0.10, 422, 'This enemy is still too strong to tame, wear it down first.');
 
-        // Taming a zone's monsters only unlocks once the player has meaningfully outgrown that zone,
-        // not the moment they can first walk into it.
-        $unlockLevel = ($monster->zone?->min_level ?? 1) + 10;
+        $unlockLevel = $monster->tameUnlockLevel();
         abort_if($character->level < $unlockLevel, 422, "You need to be level {$unlockLevel} to tame monsters from this zone.");
 
         $user = $character->user;
         $rosterCount = TamedCompanion::where('character_id', $character->id)->whereNull('archived_at')->count();
-        abort_if($rosterCount >= $user->tameRosterCap(), 422, 'Your companion roster is full — release one from the Companions page first.');
+        abort_if($rosterCount >= $user->tameRosterCap(), 422, 'Your companion roster is full; release one from the Companions page first.');
 
         $log = $battle->log_json ?? [];
 
@@ -1022,6 +1974,7 @@ class CombatService
                 'name' => $monster->name,
                 'glyph' => $monster->glyph,
                 'is_elite' => $monster->is_elite,
+                'role' => $monster->role,
                 'grade' => $battle->grade,
                 'base_hp' => (int) round($monster->hp * $this->grades->hpMult($battle->grade)),
                 'base_atk' => (int) round($monster->atk * $this->grades->atkMult($battle->grade)),
@@ -1053,7 +2006,12 @@ class CombatService
 
         $log[] = 'Taming attempt failed!';
         $armorRow = $this->equippedGear($character, 'armor');
-        $log = $this->resolveEnemyTurn($battle, $stats, $armorRow, $log);
+        // A failed tame attempt still gets a counter-hit from the primary monster, exactly like a
+        // whiffed attack — taming is 1v1-only (no adds) and never routes through the real turn queue
+        // (no dedicated animated-turn UI here), so this is just the one monster's turn, not a full round
+        // walk. Events aren't surfaced from this endpoint, so the structured breakdown is discarded.
+        [$log] = $this->dispatchMonsterTurn($battle, $stats, 0, $armorRow, $log, []);
+        [$log] = $this->tickStatusEffects($battle, $stats, $log, []);
 
         if ($battle->character_hp <= 0) {
             if (! empty($stats['has_undying']) && ! $battle->revived_with_skill) {

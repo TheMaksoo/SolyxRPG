@@ -32,6 +32,8 @@ class GmFeatureFlagController extends Controller
         ['key' => 'quests', 'name' => 'Quests', 'enabled' => true, 'tester_only' => false],
         ['key' => 'world_map', 'name' => 'World Map', 'enabled' => true, 'tester_only' => false],
         ['key' => 'inventory', 'name' => 'Inventory', 'enabled' => true, 'tester_only' => false],
+        ['key' => 'forge', 'name' => 'Forge (Reforge)', 'enabled' => true, 'tester_only' => false],
+        ['key' => 'crates', 'name' => 'Crates (Lootboxes)', 'enabled' => true, 'tester_only' => false],
     ];
 
     public function index()

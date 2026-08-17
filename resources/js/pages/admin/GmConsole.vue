@@ -41,7 +41,7 @@ const metrics = ref(null);
 function formatCents(cents) {
   return ((cents || 0) / 100).toFixed(2);
 }
-const TAB_KEYS = ['overview', 'activity', 'content', 'players', 'economy', 'progression', 'revenue', 'flags', 'tickets', 'broadcast', 'commands', 'audit'];
+const TAB_KEYS = ['overview', 'activity', 'content', 'balancing', 'art', 'players', 'economy', 'progression', 'revenue', 'flags', 'tickets', 'broadcast', 'commands', 'audit'];
 // Supports deep-linking straight to a tab (e.g. /admin?tab=tickets from the Settings page's
 // "manage tickets" link) while still defaulting to the overview tab otherwise.
 const tab = ref(TAB_KEYS.includes(route.query.tab) ? route.query.tab : 'overview');
@@ -49,6 +49,8 @@ const TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'activity', label: 'Activity' },
   { key: 'content', label: 'Content' },
+  { key: 'balancing', label: 'Balancing' },
+  { key: 'art', label: 'Art Review' },
   { key: 'players', label: 'Players' },
   { key: 'economy', label: 'Economy' },
   { key: 'progression', label: 'Progression' },
@@ -64,6 +66,109 @@ const TABS = [
 // class & level distribution). See GmAnalyticsController for the query side.
 const analytics = ref(null);
 const analyticsRangeDays = ref(30);
+
+// Balancing tab — item rarity/price/stat aggregate views, previously nothing beyond the raw per-item
+// CRUD editor on the Content tab. See GmAnalyticsController::itemBalance().
+const itemBalance = ref(null);
+const itemBalanceSort = ref('stat_total');
+
+async function loadItemBalance() {
+  const { data } = await api.get('/gm/item-balance');
+  itemBalance.value = data;
+}
+
+const itemBalanceRarityChartData = computed(() => {
+  const dist = itemBalance.value?.rarity_distribution ?? {};
+  return { labels: Object.keys(dist), data: Object.values(dist) };
+});
+
+const itemBalanceStatUsageChartData = computed(() => {
+  const dist = itemBalance.value?.stat_usage ?? {};
+  return { labels: Object.keys(dist), data: Object.values(dist) };
+});
+
+const itemBalanceCurrencySplitChartData = computed(() => {
+  const split = itemBalance.value?.price_currency_split ?? {};
+  return { labels: Object.keys(split), data: Object.values(split) };
+});
+
+const itemBalanceGoldDistChartData = computed(() => {
+  const dist = itemBalance.value?.price_distribution?.gold ?? {};
+  return { labels: Object.keys(dist), data: Object.values(dist) };
+});
+
+const itemBalanceGemsDistChartData = computed(() => {
+  const dist = itemBalance.value?.price_distribution?.gems ?? {};
+  return { labels: Object.keys(dist), data: Object.values(dist) };
+});
+
+// Sortable so a GM can eyeball outliers — e.g. sort by price with a low stat_total to spot an
+// overpriced item, or sort by stat_total with a low price to spot an underpriced one.
+const sortedItemBalanceRows = computed(() => {
+  const rows = itemBalance.value?.items ?? [];
+  const key = itemBalanceSort.value;
+  return [...rows].sort((a, b) => (b[key] ?? 0) - (a[key] ?? 0));
+});
+
+// Art Review tab — coverage stats + the actual review queue for GmArtController's submissions. The
+// "needed" board itself (what artists see) lives on ArtStudioPage; this tab is purely the GM-side
+// approve/reject half of that same pipeline.
+const artCoverage = ref([]);
+const artQueue = ref([]);
+const artQueueFilter = ref('pending');
+const artReviewNotes = ref({});
+const artActionError = ref({});
+const selectedArtId = ref(null);
+
+const ART_TYPE_LABELS = { monsters: 'Monsters', items: 'Items', skills: 'Skills', zones: 'Zones', dungeons: 'Dungeons' };
+const STATUS_LABEL = { pending: 'In review', rejected: 'Changes asked', approved: 'Approved' };
+
+const selectedArt = computed(() => artQueue.value.find((i) => i.id === selectedArtId.value) ?? artQueue.value[0] ?? null);
+
+async function loadArtCoverage() {
+  const { data } = await api.get('/gm/art/coverage');
+  artCoverage.value = data.coverage;
+}
+
+async function loadArtQueue() {
+  const { data } = await api.get('/gm/art/queue', { params: { status: artQueueFilter.value } });
+  artQueue.value = data.queue;
+  // Keep the current selection if it's still in the (possibly re-filtered) list, otherwise fall back to
+  // the first row rather than leaving the detail panel pointed at a row that's no longer visible.
+  if (!artQueue.value.some((i) => i.id === selectedArtId.value)) {
+    selectedArtId.value = artQueue.value[0]?.id ?? null;
+  }
+}
+
+function setArtQueueFilter(status) {
+  artQueueFilter.value = status;
+  loadArtQueue();
+}
+
+async function approveArt(item) {
+  artActionError.value[item.id] = '';
+  try {
+    await api.post(`/gm/art/${item.id}/approve`, { notes: artReviewNotes.value[item.id] || '' });
+    await Promise.all([loadArtQueue(), loadArtCoverage()]);
+  } catch (e) {
+    artActionError.value[item.id] = e.response?.data?.message || 'Could not approve.';
+  }
+}
+
+async function rejectArt(item) {
+  const notes = (artReviewNotes.value[item.id] || '').trim();
+  if (!notes) {
+    artActionError.value[item.id] = 'A reason is required so the artist knows what to fix.';
+    return;
+  }
+  artActionError.value[item.id] = '';
+  try {
+    await api.post(`/gm/art/${item.id}/reject`, { notes });
+    await Promise.all([loadArtQueue(), loadArtCoverage()]);
+  } catch (e) {
+    artActionError.value[item.id] = e.response?.data?.message || 'Could not reject.';
+  }
+}
 
 async function loadActivity() {
   const { data } = await api.get('/gm/analytics', { params: { days: analyticsRangeDays.value } });
@@ -124,6 +229,16 @@ const levelChartData = computed(() => {
   return { labels: rows.map((r) => r.bucket), data: rows.map((r) => r.count) };
 });
 
+const pvpTierChartData = computed(() => {
+  const dist = analytics.value?.pvp_tier_distribution ?? {};
+  return { labels: Object.keys(dist), data: Object.values(dist) };
+});
+
+const vipTierChartData = computed(() => {
+  const dist = analytics.value?.vip_tier_distribution ?? {};
+  return { labels: Object.keys(dist), data: Object.values(dist) };
+});
+
 const contentInterestChartData = computed(() => {
   const rows = analytics.value?.content_interest ?? [];
   return { labels: rows.map((r) => r.label), data: rows.map((r) => r.count) };
@@ -172,6 +287,39 @@ const levelGrowthChartData = computed(() => {
   return { labels: growth.labels.map((l) => `Lv.${l}`), data: growth.data };
 });
 
+// Two time-to-reach-level estimates, plotted separately from the XP curve above since hours and
+// cumulative XP live on wildly different scales (see GmAnalyticsController::levelGrowth()): an
+// "assumed" figure from the same cumulative-kill grind-pace model killsToLevelUp() already uses, and
+// the REAL average playtime_seconds of characters currently sitting at each level. Real playtime
+// tracking only started 2026-08-04 (see playtime_tracked_since), so a level reached earlier than that
+// by an existing character reads artificially low here — sample_size is surfaced in the tooltip so a
+// thin bar (e.g. 1 character sampled at Lv.200) reads as unreliable rather than authoritative.
+const timeToLevelChartData = computed(() => {
+  const growth = analytics.value?.level_growth;
+  if (!growth) return { labels: [], datasets: [] };
+  const labels = growth.labels.map((l) => `Lv.${l}`);
+  return {
+    labels,
+    datasets: [
+      {
+        label: 'Assumed (grind pace)',
+        color: '#eab308',
+        data: growth.assumed_hours,
+        tooltipLabels: growth.assumed_hours.map((h) => `${h}h assumed grind time`),
+      },
+      {
+        label: 'Real avg. playtime',
+        color: '#5cc7f5',
+        data: growth.real_avg_hours.map((h) => h ?? 0),
+        tooltipLabels: growth.real_avg_hours.map((h, i) =>
+          h === null ? 'No characters currently at this level' : `${h}h avg (n=${growth.sample_sizes[i]})`
+        ),
+      },
+    ],
+  };
+});
+const playtimeTrackedSince = computed(() => analytics.value?.level_growth?.playtime_tracked_since);
+
 // Total kills from level 1 to reach each level, averaged across every monster reachable along the way —
 // a rough grind-pace gut check every 10 levels, shown as chips under the Level growth chart (see
 // GmAnalyticsController::killsToLevelUp()).
@@ -208,8 +356,11 @@ const UNLOCK_TYPE_COLORS = {
   skill: '#a78bfa',
   recipe: '#eab308',
   taming: '#f472b6',
+  class_tier: '#22c55e',
+  mastery: '#c084fc',
+  reforging: '#38bdf8',
 };
-const UNLOCK_TYPE_LABELS = { zone: 'Zone', dungeon: 'Dungeon', feature: 'Feature', monster: 'Monster', skill: 'Skill', recipe: 'Recipe', taming: 'Taming' };
+const UNLOCK_TYPE_LABELS = { zone: 'Zone', dungeon: 'Dungeon', feature: 'Feature', monster: 'Monster', skill: 'Skill', recipe: 'Recipe', taming: 'Taming', class_tier: 'Class Path', mastery: 'Mastery', reforging: 'Reforging' };
 
 function truncateNames(names, max = 8) {
   return names.length > max ? [...names.slice(0, max), `+${names.length - max} more`] : names;
@@ -269,6 +420,14 @@ async function loadOverview() {
 async function loadFlags() {
   const { data } = await api.get('/gm/feature-flags');
   flags.value = data.flags;
+}
+
+// A flag's LIVE/TESTERS toggles are one gate; NAV's unlockLevel (navigation.js) is a completely
+// separate one — a GM flipping a flag couldn't see whether the same feature is ALSO level-gated, and by
+// how much, without cross-referencing navigation.js by hand. Surfaced here so both gates are visible in
+// one place, always (not hidden behind a tooltip).
+function unlockLevelForFlag(flagKey) {
+  return NAV.find((n) => n.flagKey === flagKey)?.unlockLevel ?? null;
 }
 
 async function toggleFlag(flag, field) {
@@ -519,6 +678,8 @@ const SLIDER_RANGES = [
   { test: /^drop_rate$/, range: { min: 0, max: 100, step: 1 } },
   { test: /^luck_combat_bonus_per_point$/, range: { min: 0, max: 0.1, step: 0.001 } },
   { test: /^luck_combat_bonus_cap$/, range: { min: 0, max: 1, step: 0.01 } },
+  { test: /^crit_chance_cap_pct$/, range: { min: 0, max: 100, step: 1 } },
+  { test: /^crit_damage_mult_cap$/, range: { min: 1.5, max: 10, step: 0.1 } },
   { test: /_pct$/, range: { min: -50, max: 150, step: 1 } },
   { test: /_factor$/, range: { min: 0, max: 2, step: 0.05 } },
   { test: /_weight$/, range: { min: 0, max: 20, step: 0.5 } },
@@ -527,6 +688,10 @@ const SLIDER_RANGES = [
   { test: /^vip_(regen_flat|energy_flat|craft_queue_bonus)_/, range: { min: 0, max: 20, step: 1 } },
   { test: /^(auto_battle_gem_cost|auto_gather_gem_cost)_/, range: { min: 0, max: 200, step: 1 } },
   { test: /^vip_monthly_gems_/, range: { min: 0, max: 500, step: 5 } },
+  { test: /_min_level$/, range: { min: 1, max: 50, step: 1 } },
+  { test: /_level_cap$/, range: { min: 1, max: 50, step: 1 } },
+  { test: /^xp_level_1_to_2$/, range: { min: 10, max: 2000, step: 10 } },
+  { test: /^xp_level_2_to_3$/, range: { min: 10, max: 4000, step: 10 } },
 ];
 function sliderRange(key) {
   return SLIDER_RANGES.find((r) => r.test.test(key))?.range ?? null;
@@ -893,6 +1058,8 @@ function switchTab(key) {
   if (key === 'commands') { loadArtisanCommands(); loadSeeders(); }
   if (key === 'audit') loadAuditLog();
   if (key === 'progression') { loadProgression(); loadBattlePassCurve(); }
+  if (key === 'balancing') loadItemBalance();
+  if (key === 'art') { loadArtCoverage(); loadArtQueue(); }
 }
 
 onMounted(() => {
@@ -1012,7 +1179,7 @@ onMounted(() => {
         <div class="gm-console-activity-chart-card gm-console-activity-chart-card--wide">
           <div class="gm-console-activity-chart-card__title">
             Level growth
-            <InfoTooltip text="Cumulative XP required to reach each level (xpForLevel is linear: 500 + 800 per level), sampled every 5 levels through 150. There's no real level cap — content unlocks stop around level 150, but a character can keep leveling past it as pure attribute/skill grind." />
+            <InfoTooltip text="Cumulative XP required to reach each level (see Character::xpForLevel — fast early, slowing through a multi-phase curve, then a 4.5%/level compounding tail past 150), sampled every 10 levels through 250. Class Path tiers, Skill Mastery, and Reforging now give real content the whole way out, not just attribute/skill grind." />
           </div>
           <ActivityChart type="line" color="#eab308" v-bind="levelGrowthChartData" :height="200" />
           <div v-if="killsToLevelUp.length" class="gm-console-kills-row">
@@ -1027,6 +1194,16 @@ onMounted(() => {
               <span class="gm-console-kills-chip__monster">{{ row.monster_name }}</span>
             </div>
           </div>
+        </div>
+        <div class="gm-console-activity-chart-card gm-console-activity-chart-card--wide">
+          <div class="gm-console-activity-chart-card__title">
+            Time to reach level
+            <InfoTooltip text="Two independent estimates per level: an assumed grind-pace figure (cumulative kills × 20s/fight, the same real-world-seconds assumption AutoBattleService uses), and the REAL average playtime_seconds of characters currently sitting at that level. Real tracking only started 2026-08-04 — a character who reached a high level before then shows artificially low real playtime, so treat thin/low sample_size bars (shown on hover) as unreliable, not authoritative." />
+          </div>
+          <ActivityChart type="line" v-bind="timeToLevelChartData" :height="200" />
+          <p v-if="playtimeTrackedSince" class="gm-console-chart-caveat">
+            ⚠ Real playtime has only been tracked since {{ playtimeTrackedSince }} — characters who reached higher levels earlier will show under-counted playtime.
+          </p>
         </div>
       </div>
       <div class="gm-console-activity-charts">
@@ -1053,10 +1230,13 @@ onMounted(() => {
       <p class="gm-console-intro">LIVE makes a feature reachable by everyone. TESTERS-only features stay reachable only to designated testers while Global Tester Mode (Overview) is on.</p>
       <div class="gm-console-panel">
         <div class="gm-console-flags-row gm-console-flags-row--header">
-          <div>FEATURE</div><div class="gm-console-flags-row__cell--center">LIVE</div><div class="gm-console-flags-row__cell--center">TESTERS</div>
+          <div>FEATURE</div><div class="gm-console-flags-row__cell--center">UNLOCKS AT</div><div class="gm-console-flags-row__cell--center">LIVE</div><div class="gm-console-flags-row__cell--center">TESTERS</div>
         </div>
         <div v-for="flag in flags" :key="flag.id" class="gm-console-flags-row">
           <div class="gm-console-flag-name">{{ flag.name }}</div>
+          <div class="gm-console-flags-row__cell--center gm-console-flag-level">
+            {{ unlockLevelForFlag(flag.key) ? `Lv.${unlockLevelForFlag(flag.key)}` : '—' }}
+          </div>
           <div class="gm-console-flags-row__cell--center">
             <label class="toggle-switch">
               <input type="checkbox" :aria-label="`${flag.name} live`" :checked="flag.enabled" @change="toggleFlag(flag, 'enabled')" />
@@ -1470,6 +1650,14 @@ onMounted(() => {
             <div class="gm-console-activity-chart-card__title">Level distribution</div>
             <ActivityChart type="bar" color="#a78bfa" v-bind="levelChartData" />
           </div>
+          <div class="gm-console-activity-chart-card">
+            <div class="gm-console-activity-chart-card__title">PvP tier distribution</div>
+            <ActivityChart type="doughnut" v-bind="pvpTierChartData" />
+          </div>
+          <div class="gm-console-activity-chart-card">
+            <div class="gm-console-activity-chart-card__title">VIP tier distribution</div>
+            <ActivityChart type="doughnut" v-bind="vipTierChartData" />
+          </div>
         </div>
 
         <div class="gm-console-activity-charts">
@@ -1695,6 +1883,206 @@ onMounted(() => {
           {{ changelogSeederRunning ? 'Running…' : '▶ Run Changelog Seeder' }}
         </button>
         <span v-if="changelogSeederMessage" class="gm-console-changelog-seeder-msg">{{ changelogSeederMessage }}</span>
+      </div>
+    </div>
+
+    <!-- BALANCING -->
+    <div v-else-if="tab === 'balancing'">
+      <div v-if="itemBalance">
+        <p class="gm-console-intro">{{ itemBalance.total_items }} items seeded — rarity, pricing, and stat-usage aggregates for spotting mispriced or under/over-loaded items.</p>
+        <div class="gm-console-activity-charts">
+          <div class="gm-console-activity-chart-card">
+            <div class="gm-console-activity-chart-card__title">Rarity distribution</div>
+            <ActivityChart type="doughnut" v-bind="itemBalanceRarityChartData" />
+          </div>
+          <div class="gm-console-activity-chart-card">
+            <div class="gm-console-activity-chart-card__title">
+              Gold vs. gems pricing
+              <InfoTooltip text="'Neither' is drop-only/crate content with no direct price; 'both' can be bought with either currency." />
+            </div>
+            <ActivityChart type="doughnut" v-bind="itemBalanceCurrencySplitChartData" />
+          </div>
+          <div class="gm-console-activity-chart-card">
+            <div class="gm-console-activity-chart-card__title">
+              Gold price distribution
+              <InfoTooltip text="How many items fall in each gold-price range — a spike far to the right is worth a second look." />
+            </div>
+            <ActivityChart type="bar" color="#f5b942" v-bind="itemBalanceGoldDistChartData" />
+          </div>
+          <div class="gm-console-activity-chart-card">
+            <div class="gm-console-activity-chart-card__title">
+              Gems price distribution
+              <InfoTooltip text="Bucket edges are gem counts; at the Gem Store's ~€0.005/gem rate, 2000 gems is ~€10 — every item is meant to stay at or under that top bucket." />
+            </div>
+            <ActivityChart type="bar" color="#c77dff" v-bind="itemBalanceGemsDistChartData" />
+          </div>
+          <div class="gm-console-activity-chart-card gm-console-activity-chart-card--wide">
+            <div class="gm-console-activity-chart-card__title">
+              Stat-type usage across all items
+              <InfoTooltip text="How many items grant each stat (atk, def, crit, etc.) — a flat bar here means that stat is rarely (or never) offered, a gap worth filling for variety." />
+            </div>
+            <ActivityChart type="bar" color="#5cc7f5" v-bind="itemBalanceStatUsageChartData" />
+          </div>
+          <div class="gm-console-activity-chart-card gm-console-activity-chart-card--wide">
+            <div class="gm-console-activity-chart-card__title">
+              Item price/stat table
+              <InfoTooltip text="stat_total is an unweighted sum of every numeric stat on that item — a coarse signal for eyeballing outliers (high price / low stat_total or vice versa), not a precise power score." />
+            </div>
+            <div class="gm-console-search-row">
+              <span class="ox">Sort by:</span>
+              <button @click="itemBalanceSort = 'stat_total'" class="gm-console-resource-tab-btn" :class="{ 'is-active': itemBalanceSort === 'stat_total' }">Stat total</button>
+              <button @click="itemBalanceSort = 'price_gold'" class="gm-console-resource-tab-btn" :class="{ 'is-active': itemBalanceSort === 'price_gold' }">Gold price</button>
+              <button @click="itemBalanceSort = 'price_gems'" class="gm-console-resource-tab-btn" :class="{ 'is-active': itemBalanceSort === 'price_gems' }">Gem price</button>
+              <button @click="itemBalanceSort = 'min_level'" class="gm-console-resource-tab-btn" :class="{ 'is-active': itemBalanceSort === 'min_level' }">Min level</button>
+            </div>
+            <div class="gm-console-active-players gm-console-item-balance">
+              <div class="gm-console-item-balance__row gm-console-active-players__row--header">
+                <div>Item</div><div>Type</div><div>Rarity</div><div>Lvl</div><div>Gold</div><div>Gems</div><div>Stat total</div>
+              </div>
+              <div v-for="row in sortedItemBalanceRows.slice(0, 100)" :key="row.key" class="gm-console-item-balance__row">
+                <div class="gm-console-active-players__name">{{ row.name }}</div>
+                <div class="gm-console-active-players__class">{{ row.type }}</div>
+                <div class="gm-console-active-players__class">{{ row.rarity }}</div>
+                <div class="ox gm-console-active-players__lvl">{{ row.min_level ?? '—' }}</div>
+                <div class="ox gm-console-active-players__lvl">{{ row.price_gold ?? '—' }}</div>
+                <div class="ox gm-console-active-players__lvl">{{ row.price_gems ?? '—' }}</div>
+                <div class="ox gm-console-active-players__lvl">{{ row.stat_total }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-else class="gm-console-activity-skeleton">
+        <Skeleton height="220px" :count="3" />
+      </div>
+    </div>
+
+    <!-- ART REVIEW -->
+    <div v-else-if="tab === 'art'">
+      <p class="gm-console-intro">Artists submit from the Art Studio page (role: artist, or any GM) — nothing here reaches players until approved.</p>
+
+      <div class="gm-console-section-label">ART COVERAGE</div>
+      <div class="gm-console-activity-stats">
+        <div v-for="c in artCoverage" :key="c.type" class="gm-console-activity-stat">
+          <div class="gm-console-activity-stat__label">{{ ART_TYPE_LABELS[c.type] }}</div>
+          <div class="ox gm-console-activity-stat__value">{{ c.total ? Math.round((c.have / c.total) * 100) : 0 }}%</div>
+          <div class="gm-console-flag-level">{{ c.have }} of {{ c.total }}</div>
+          <div class="gm-art-coverage-bar"><div class="gm-art-coverage-bar__fill" :style="{ width: (c.total ? (c.have / c.total) * 100 : 0) + '%' }"></div></div>
+        </div>
+      </div>
+
+      <div class="gm-art-review-queue-head">
+        <div class="gm-console-section-label">REVIEW QUEUE</div>
+        <div class="gm-console-activity__range">
+          <button
+            v-for="f in [['pending', 'Pending'], ['rejected', 'Changes asked'], ['approved', 'Approved'], ['all', 'Everything']]"
+            :key="f[0]"
+            class="gm-console-activity__range-btn"
+            :class="{ 'is-active': artQueueFilter === f[0] }"
+            @click="setArtQueueFilter(f[0])"
+          >{{ f[1] }}</button>
+        </div>
+      </div>
+
+      <div v-if="!artQueue.length" class="gm-console-empty gm-console-empty--panel">Nothing in this filter.</div>
+      <div v-else class="gm-art-review-layout">
+        <div class="gm-art-review-list">
+          <button
+            v-for="item in artQueue"
+            :key="item.id"
+            type="button"
+            class="gm-art-review-list-item"
+            :class="{ 'is-selected': item.id === selectedArtId }"
+            @click="selectedArtId = item.id"
+          >
+            <div class="gm-art-review-list-item__thumb">
+              <img :src="`/api/gm/art/preview/${item.id}`" :alt="item.entity_label" />
+            </div>
+            <div class="gm-art-review-list-item__body">
+              <div class="gm-art-review-list-item__name">{{ item.entity_label }}</div>
+              <div class="gm-console-flag-level">{{ item.grade ? `${item.grade[0].toUpperCase()}${item.grade.slice(1)} grade` : ART_TYPE_LABELS[item.entity_type] }}<span v-if="item.zone_label"> · {{ item.zone_label }}</span></div>
+              <div class="gm-art-review-list-item__chips">
+                <span class="gm-console-flag-level gm-art-review-chip">{{ item.is_boss ? 'BOSS' : ART_TYPE_LABELS[item.entity_type]?.slice(0, -1).toUpperCase() }}</span>
+              </div>
+            </div>
+            <span class="gm-console-role-badge" :class="{ 'is-gm': item.status === 'pending', 'is-owner': item.status === 'approved' }">{{ STATUS_LABEL[item.status] }}</span>
+          </button>
+        </div>
+
+        <div v-if="selectedArt" class="gm-art-review-detail">
+          <div class="gm-art-review-detail__head">
+            <div>
+              <div class="ox gm-art-review-detail__title">{{ selectedArt.entity_label }}</div>
+              <div class="gm-console-flag-level">{{ selectedArt.target_path }}</div>
+            </div>
+            <div class="gm-art-review-detail__chips">
+              <span class="gm-console-flag-level gm-art-review-chip">{{ ART_TYPE_LABELS[selectedArt.entity_type]?.slice(0, -1).toUpperCase() }}</span>
+              <span v-if="selectedArt.grade" class="gm-console-flag-level gm-art-review-chip">{{ selectedArt.grade.toUpperCase() }}</span>
+              <span v-if="selectedArt.zone_label" class="gm-console-flag-level gm-art-review-chip">{{ selectedArt.zone_label.toUpperCase() }}</span>
+            </div>
+          </div>
+
+          <div class="gm-art-review-compare">
+            <div>
+              <div class="gm-console-section-label">Currently live</div>
+              <div class="gm-art-review-compare__frame">
+                <img v-if="selectedArt.current_live" :src="selectedArt.current_live" :alt="`${selectedArt.entity_label} — currently live`" />
+                <div v-else class="gm-art-review-compare__empty">no art yet<br />glyph fallback</div>
+              </div>
+            </div>
+            <div>
+              <div class="gm-console-section-label gm-art-review-label--purple">Submitted</div>
+              <div class="gm-art-review-compare__frame gm-art-review-compare__frame--submitted">
+                <img :src="`/api/gm/art/preview/${selectedArt.id}`" :alt="selectedArt.entity_label" />
+              </div>
+            </div>
+          </div>
+
+          <div class="gm-art-review-info-tiles">
+            <div class="gm-art-review-info-tile">
+              <div class="gm-console-flag-level">ARTIST</div>
+              <div class="gm-art-review-info-tile__value">{{ selectedArt.submitted_by }}</div>
+            </div>
+            <div class="gm-art-review-info-tile">
+              <div class="gm-console-flag-level">SUBMITTED</div>
+              <div class="gm-art-review-info-tile__value">{{ selectedArt.submitted_at }}</div>
+            </div>
+          </div>
+
+          <div class="gm-art-review-checks">
+            <div class="gm-console-section-label">Automatic spec check</div>
+            <div v-for="c in selectedArt.checks" :key="c.label" class="gm-art-review-check-row">
+              <span class="gm-art-review-check-row__icon" :class="{ 'is-ok': c.ok }">{{ c.ok ? '✓' : '!' }}</span>
+              <span>{{ c.label }}</span>
+              <span class="gm-art-review-check-row__value">{{ c.value }}</span>
+            </div>
+          </div>
+
+          <div v-if="selectedArt.notes" class="gm-art-review-artist-note">
+            <div class="gm-console-flag-level gm-art-review-label--purple">NOTE FROM ARTIST</div>
+            {{ selectedArt.notes }}
+          </div>
+
+          <div v-if="selectedArt.status === 'pending'" class="gm-art-review-action-panel">
+            <div class="gm-console-flag-level">REVIEW NOTE — SENT TO THE ARTIST</div>
+            <textarea
+              v-model="artReviewNotes[selectedArt.id]"
+              class="gm-console-search-input"
+              rows="2"
+              aria-label="Note for the artist"
+              placeholder="Approving without a note sends the artist a plain &quot;approved&quot;. Rejecting requires one."
+            ></textarea>
+            <p v-if="artActionError[selectedArt.id]" class="gm-console-flag-level" style="color: #ff6a4d">{{ artActionError[selectedArt.id] }}</p>
+            <div class="gm-art-review-action-row">
+              <button class="gm-art-review-btn is-approve" @click="approveArt(selectedArt)">✓ Approve &amp; publish</button>
+              <button class="gm-art-review-btn is-reject" @click="rejectArt(selectedArt)">✕ Request changes</button>
+              <div class="gm-art-review-action-row__hint">
+                {{ selectedArt.current_live ? 'Approving overwrites the live file.' : 'Approving copies the file to the public disk — players see it on their next load.' }}
+              </div>
+            </div>
+          </div>
+          <p v-else-if="selectedArt.review_notes" class="gm-console-intro">GM note: {{ selectedArt.review_notes }}</p>
+        </div>
       </div>
     </div>
 
@@ -2146,7 +2534,7 @@ onMounted(() => {
 
     <!-- BROADCAST -->
     <div v-else-if="tab === 'broadcast'" class="gm-console-broadcast">
-      <p class="gm-console-broadcast-intro">Send a server-wide announcement — appears in every player's Dashboard rail and Inbox.</p>
+      <p class="gm-console-broadcast-intro">Send a server-wide announcement — appears in every player's Inn rail and Inbox.</p>
       <textarea
         v-model="broadcastBody"
         rows="4"

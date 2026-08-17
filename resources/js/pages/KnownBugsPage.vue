@@ -45,7 +45,7 @@ onMounted(load);
       <div class="bugs-header__icon">🐞</div>
       <h1 class="ox bugs-title">Known Bugs</h1>
       <p class="bugs-header__subtitle">
-        Check here before reporting — if it's already listed, no need to file a duplicate ticket.
+        Check here before reporting: if it's already listed, no need to file a duplicate ticket.
       </p>
     </div>
 
@@ -75,7 +75,7 @@ onMounted(load);
           <span v-if="bug.fixed_at">Fixed {{ timeAgo(bug.fixed_at) }}</span>
         </div>
       </div>
-      <p v-if="!filtered.length" class="bugs-empty">Nothing here — {{ filter === 'fixed' ? 'no fixed bugs logged yet.' : 'no known issues right now.' }}</p>
+      <p v-if="!filtered.length" class="bugs-empty">Nothing here: {{ filter === 'fixed' ? 'no fixed bugs logged yet.' : 'no known issues right now.' }}</p>
     </div>
   </div>
 </template>

@@ -23,6 +23,7 @@ const STAT_LABELS = {
   dodge_pct: 'Dodge',
   lifesteal_pct: 'Lifesteal',
   mp: 'Mana',
+  mana_regen_flat: 'Mana Regen/tick',
   gather_speed_pct: 'Gather Speed',
   craft_speed_pct: 'Craft Speed',
   gather_yield_bonus: 'Gather Yield',

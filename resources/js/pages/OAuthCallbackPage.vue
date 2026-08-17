@@ -3,6 +3,7 @@ import { onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { ensureCsrfCookie } from '../api/client';
+import { homePath } from '../utils/homePath';
 
 const router = useRouter();
 const route = useRoute();
@@ -25,7 +26,7 @@ onMounted(async () => {
     return;
   }
 
-  const dest = route.query.to || (auth.hasCharacter ? '/dashboard' : '/character/create');
+  const dest = route.query.to || (auth.hasCharacter ? homePath(auth) : '/character/create');
   router.replace(dest);
 });
 </script>

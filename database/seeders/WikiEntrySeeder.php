@@ -21,5 +21,6 @@ class WikiEntrySeeder extends Seeder
         $wiki->syncSkills();
         $wiki->syncEvents();
         $wiki->syncClasses();
+        $wiki->syncStatusEffects();
     }
 }

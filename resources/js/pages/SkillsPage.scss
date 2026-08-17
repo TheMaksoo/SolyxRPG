@@ -1,10 +1,11 @@
 @use '../../scss/variables' as v;
 @use '../../scss/mixins' as m;
 
-.skills-message {
-  font-size: 13px;
-  color: v.$danger;
-  margin-bottom: 14px;
+// Hover tooltip for the SELECTED NODE info (see .node-chip-sq's data-tip in the template) — same bubble
+// BattlePage already uses for its role/status pills, so a node's name/effect/requirement shows on hover
+// instead of only after clicking into the sidebar panel.
+.tt {
+  @include m.tooltip;
 }
 
 .skills-section-eyebrow {
@@ -12,230 +13,644 @@
   margin-bottom: 12px;
 }
 
-// ---- Class path ----
-.class-path-grid {
-  @include m.grid-auto-fit(210px, 12px);
-  margin-bottom: 28px;
-}
-
-.class-tier-card {
-  background: v.$bg-card;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 16px;
-}
-
-.class-tier-card__header {
+.skills-layout {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
 }
 
-.class-tier-card__heading {
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  color: v.$text-muted-40;
-  font-weight: 600;
+.skills-main {
+  flex: 1;
+  min-width: 560px;
 }
 
-.class-tier-card__cap {
-  font-size: 10px;
-  color: v.$accent-soft;
-  font-weight: 700;
-}
-
-.class-tier-card__chosen {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.class-tier-card__chosen-glyph {
-  width: 40px;
-  height: 40px;
-  border-radius: 9px;
-  background: rgba(232, 72, 47, 0.14);
-  display: grid;
-  place-items: center;
-  font-size: 20px;
-}
-
-.class-tier-card__chosen-name {
-  font-weight: 700;
-  font-size: 15px;
-}
-
-.class-tier-card__chosen-desc {
-  font-size: 11px;
-  color: v.$text-muted-45;
-}
-
-.class-tier-card__bonus {
-  display: inline-block;
-  margin-top: 4px;
-  font-size: 10.5px;
-  font-weight: 700;
-  color: v.$accent-soft;
-}
-
-.class-tier-card__options {
+.skills-sidebar {
+  width: 320px;
+  flex: none;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 14px;
 }
 
-.class-tier-card__option-btn {
-  @include m.btn-reset;
-  text-align: left;
+// ---- Tier columns (Class Path, restructured as a real per-tier spine) ----
+.tier-columns {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.tier-card {
+  background: v.$bg-card;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: v.$radius-lg;
+  padding: 14px 16px;
+}
+
+.tier-card__header {
   display: flex;
   align-items: center;
-  gap: 9px;
-  background: v.$bg-input;
-  border: 1px solid v.$accent-tint-30;
-  border-radius: 9px;
-  padding: 9px 11px;
-  color: v.$text-body;
-}
-
-.class-tier-card__option-glyph {
-  font-size: 18px;
-}
-
-.class-tier-card__option-name {
-  font-weight: 700;
-  font-size: 13px;
-}
-
-.class-tier-card__option-desc {
-  font-size: 10px;
-  color: v.$text-muted-45;
-}
-
-.class-tier-card__locked {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: v.$text-muted-35;
-  font-size: 13px;
-  padding: 8px 0;
-}
-
-// ---- Attributes ----
-.attributes-section {
-  @include m.centered-column(920px);
-}
-
-.attributes-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
   gap: 10px;
+  flex-wrap: wrap;
   margin-bottom: 12px;
 }
 
-.attributes-header__eyebrow {
-  @include m.section-eyebrow;
-}
-
-.attribute-points-badge {
-  background: v.$accent-tint-12;
-  border: 1px solid v.$accent-tint-30;
-  color: v.$accent-soft;
-  padding: 7px 14px;
-  border-radius: 9px;
-  font-weight: 700;
-  font-size: 13px;
-}
-
-.attributes-grid {
-  @include m.grid-auto-fit(170px, 12px);
-  margin-bottom: 28px;
-}
-
-.attribute-card {
-  background: v.$bg-card;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.attribute-card__label {
-  font-weight: 700;
-  font-size: 13px;
-}
-
-.attribute-card__points {
-  font-weight: 600;
-  font-size: 11px;
-  color: v.$accent-soft;
-}
-
-.attribute-card__desc {
-  font-size: 11px;
-  color: v.$text-muted-40;
-  margin-top: 2px;
-}
-
-.attribute-card__cost {
+.tier-card__level-pill {
   font-size: 10px;
-  color: v.$warning;
-  font-weight: 600;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: v.$accent-soft;
+  background: v.$accent-tint-12;
+  border-radius: v.$radius-sm;
+  padding: 2px 8px;
+}
+
+.tier-card__heading {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+  color: v.$text-muted-40;
+}
+
+.tier-card__state {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: v.$text-muted-35;
+
+  &--chosen {
+    color: v.$accent-soft;
+  }
+
+  &--choose {
+    color: v.$warning;
+  }
+}
+
+.tier-card__locked {
+  color: v.$text-muted-35;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+// ---- Page header ----
+.progression-header {
+  margin-bottom: 18px;
+}
+
+.progression-header__title {
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.progression-header__subtitle {
+  font-size: 12.5px;
+  color: v.$text-muted-45;
   margin-top: 4px;
 }
 
-.attribute-card__btn {
-  @include m.btn-reset;
-  width: 32px;
-  height: 32px;
-  border-radius: v.$radius-sm;
-  background: v.$accent;
-  color: #fff;
-  font-weight: 700;
-  font-size: 16px;
-}
-
-// ---- Skill tree ----
-.skill-tree-header {
+.preview-banner {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
   gap: 12px;
-}
-
-.skill-tree-header__eyebrow {
-  @include m.section-eyebrow;
-}
-
-.skill-points-badge {
-  background: v.$accent-tint-12;
-  border: 1px solid v.$accent-tint-30;
-  color: v.$accent-soft;
-  padding: 9px 16px;
+  margin-top: 10px;
+  padding: 8px 14px;
+  background: v.$warning-tint-12;
+  border: 1px solid rgba(234, 179, 8, 0.35);
   border-radius: v.$radius-md;
+  font-size: 11.5px;
   font-weight: 700;
+  letter-spacing: 0.04em;
+  color: v.$warning;
+  text-transform: uppercase;
 }
 
+.preview-banner__exit {
+  @include m.btn-reset;
+  margin-left: auto;
+  padding: 3px 10px;
+  border: 1px solid rgba(234, 179, 8, 0.4);
+  border-radius: v.$radius-pill;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: normal;
+  color: v.$warning;
+}
+
+.spine-connector {
+  width: 18px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  flex: none;
+
+  &--v {
+    width: 2px;
+    height: 22px;
+    margin: 0 auto;
+  }
+}
+
+.gate-section {
+  margin-top: 4px;
+}
+
+.gate-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 6px 0 12px;
+}
+
+.gate-header__level-pill {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: v.$accent-soft;
+  background: v.$accent-tint-12;
+  border-radius: v.$radius-sm;
+  padding: 2px 8px;
+}
+
+.gate-header__heading {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+  color: v.$text-muted-40;
+}
+
+.gate-header__state {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: v.$text-muted-35;
+
+  &--chosen {
+    color: v.$accent-soft;
+  }
+
+  &--choose {
+    color: v.$warning;
+  }
+}
+
+.tree-card {
+  background: v.$bg-card;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: v.$radius-lg;
+  padding: 20px 16px;
+  overflow-x: auto;
+  // --accent is set inline per tier (see SkillsPage.vue's classAccent) — one color per class, matching
+  // the imported design's per-route palette, instead of every branch's tree using one flat global accent.
+  --accent: #{v.$accent};
+}
+
+// ---- Vertical trunk flow: gate medallion -> trunk (stacked, not side-by-side) -> branch point ----
+// The trunk used to render as a horizontal row; the design's own trunk flows straight DOWN into the
+// branch point below it, so the whole tree reads top-to-bottom instead of "two floating boxes."
+.tree-flow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: min-content;
+}
+
+.gate-medallion {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+
+.trunk-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.v-connector {
+  width: 2px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.09);
+  margin: 0 auto;
+
+  &.is-lit {
+    background: var(--accent);
+  }
+}
+
+.h-connector {
+  flex: none;
+  width: 16px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.09);
+
+  &.is-lit {
+    background: var(--accent);
+  }
+}
+
+// ---- Branch point: LEFT lane <-> hub <-> RIGHT lane, capstones on the outer edges ----
+// flex-wrap must stay OFF here — .tree-card already scrolls horizontally (overflow-x: auto) for narrow
+// viewports. Wrapping used to let the RIGHT lane drop onto its own line, and since each wrapped flex line
+// centers independently, that line then centered itself under the hub instead of sitting beside it —
+// the exact "broken, disconnected tree" look reported against the design reference.
+.branch-point-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0;
+  flex-wrap: nowrap;
+  width: max-content;
+  margin: 0 auto;
+  padding-top: 14px;
+}
+
+.arm-lane {
+  display: flex;
+  align-items: flex-start;
+  flex: none;
+  transition: opacity 0.2s ease;
+
+  &.is-given-up {
+    opacity: 0.3;
+  }
+}
+
+.arm-lane__item {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+.node-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 86px;
+}
+
+.hub-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  width: 104px;
+  margin: 0 4px;
+}
+
+.hub-col__label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: v.$text-muted-35;
+}
+
+.hub-col__warn {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: center;
+  color: v.$warning;
+}
+
+// ---- Icon-only chip medallions (glyph only — the name lives in a separate .node-label below it) ----
+// matches the design's compact chip+external-label shape, replacing the old wide chip that had the name
+// and rank text crammed inside it.
+.node-chip-sq {
+  @include m.btn-reset;
+  position: relative;
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #141416;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  &.is-unlocked {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 20%, #141416);
+  }
+
+  &.is-open {
+    border-color: color-mix(in srgb, var(--accent) 65%, transparent);
+    animation: skill-node-ready 2.2s ease-in-out infinite;
+  }
+
+  &.is-selected {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+
+  &--gate,
+  &--hub {
+    width: 60px;
+    height: 60px;
+    border-radius: 17px;
+  }
+
+  &--sm {
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+  }
+}
+
+@keyframes skill-node-ready {
+  0%, 100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 5px transparent;
+  }
+}
+
+.node-chip-sq__glyph {
+  font-size: 20px;
+  line-height: 1;
+}
+
+// Passive (blue circle) / Active (red square) / Main skill (gold square) — mirrors the design's 3
+// node-type dots exactly, overlapping the chip's top-left corner.
+.node-chip-sq__type-dot {
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid v.$bg-card;
+
+  &.is-passive {
+    border-radius: 50%;
+    background: #5cc7f5;
+  }
+
+  &.is-active {
+    border-radius: 2px;
+    background: v.$accent;
+  }
+
+  &.is-main {
+    border-radius: 2px;
+    background: v.$warning;
+  }
+}
+
+.node-chip-sq__rank-pill {
+  position: absolute;
+  right: -8px;
+  bottom: -6px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  font-size: 8.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  background: #1a1a1e;
+  color: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+
+  &.is-maxed {
+    background: v.$success;
+    color: #0b0b0c;
+    border-color: v.$success;
+  }
+
+  &.is-granted {
+    background: v.$warning;
+    color: #0b0b0c;
+    border-color: v.$warning;
+  }
+}
+
+.node-label {
+  font-size: 9.5px;
+  text-align: center;
+  line-height: 1.3;
+  width: 92px;
+  color: rgba(255, 255, 255, 0.3);
+
+  &.is-live {
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  &.is-open {
+    color: #ff8163;
+  }
+}
+
+.arm-footer {
+  display: flex;
+  gap: 20px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.arm-footer__side {
+  flex: 1;
+  min-width: 220px;
+  background: v.$bg-input;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: v.$radius-md;
+  padding: 10px 13px;
+  transition: opacity 0.2s ease;
+
+  &.is-given-up {
+    opacity: 0.5;
+  }
+}
+
+.arm-footer__name {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: v.$text-body;
+  margin-right: 8px;
+}
+
+.arm-footer__pill {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: v.$text-muted-35;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: v.$radius-pill;
+  padding: 2px 8px;
+
+  &--taken {
+    color: v.$warning;
+    background: rgba(234, 179, 8, 0.12);
+  }
+}
+
+.arm-footer__text {
+  font-size: 10.5px;
+  color: v.$text-muted-45;
+  line-height: 1.5;
+  margin-top: 5px;
+}
+
+// A class's leftover utility skill (Undying, Healing Light) — real, clickable node chip + description,
+// sitting outside the branch choice entirely.
+.foundation-utility {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 5px;
+
+  .arm-footer__text {
+    margin-top: 0;
+  }
+}
+
+.tier-card__options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.branch-option {
+  @include m.btn-reset;
+  text-align: left;
+  background: v.$bg-input;
+  border: 1px solid v.$accent-tint-30;
+  border-radius: v.$radius-md;
+  padding: 11px 13px;
+  color: v.$text-body;
+
+  &:hover {
+    border-color: v.$accent;
+  }
+}
+
+.branch-option__head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.branch-option__glyph {
+  font-size: 18px;
+  flex: none;
+}
+
+.branch-option__name {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.branch-option__desc {
+  font-size: 10.5px;
+  color: v.$text-muted-45;
+  margin-top: 2px;
+}
+
+.branch-option__bonus {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: v.$accent-soft;
+  margin-top: 6px;
+}
+
+.branch-option__preview {
+  font-size: 10px;
+  color: v.$text-muted-35;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+// ---- Per-tier spine: trunk_1 -> trunk_2 -> capstone ----
+.tier-card__spine {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+}
+
+.node-chip {
+  @include m.btn-reset;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 108px;
+  background: v.$bg-input;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: v.$radius-md;
+  padding: 9px 6px;
+  text-align: center;
+  color: v.$text-body;
+
+  &.is-unlocked {
+    background: v.$accent-tint-12;
+    border-color: v.$accent;
+  }
+
+  &.is-capstone {
+    width: 124px;
+    border-width: 1.5px;
+  }
+
+  &.is-selected {
+    box-shadow: 0 0 0 2px v.$accent-soft;
+  }
+}
+
+.node-chip__slot {
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: v.$text-muted-35;
+}
+
+.node-chip__glyph {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.node-chip__name {
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.node-chip__rank {
+  font-size: 9px;
+  font-weight: 700;
+  color: v.$accent-soft;
+
+  &--open {
+    color: v.$warning;
+  }
+}
+
+// ---- Core class skill columns ----
 .skill-branches-grid {
-  @include m.centered-column(820px);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
 }
 
 .skill-branch__heading {
   text-align: center;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
   color: v.$accent;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .skill-branch__nodes {
-  @include m.grid-auto-fit(220px, 12px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .skill-node-btn {
@@ -243,13 +658,12 @@
   background: v.$bg-card;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 11px;
-  padding: 12px;
+  padding: 10px 12px;
   text-align: left;
   color: #fff;
-
-  &:disabled {
-    cursor: default;
-  }
+  display: flex;
+  align-items: center;
+  gap: 10px;
 
   &.is-unlocked {
     background: rgba(232, 72, 47, 0.13);
@@ -260,16 +674,20 @@
     border-style: dashed;
     opacity: 0.6;
   }
+
+  &.is-selected {
+    box-shadow: 0 0 0 2px v.$accent-soft;
+  }
 }
 
 .skill-node-btn__glyph {
-  font-size: 24px;
-  margin-bottom: 6px;
+  font-size: 20px;
+  flex: none;
 }
 
 .skill-node-btn__name {
   font-weight: 700;
-  font-size: 13px;
+  font-size: 12.5px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -284,103 +702,425 @@
   padding: 1px 7px;
 }
 
-.skill-node-btn__desc {
-  font-size: 11px;
-  color: v.$text-muted-45;
-  margin-top: 3px;
+// ---- Sidebar panels ----
+.side-panel {
+  background: v.$bg-card;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: v.$radius-lg;
+  padding: 15px 17px;
 }
 
-.skill-node-btn__cost {
-  font-size: 10px;
-  color: v.$text-muted-35;
-  margin-top: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.skill-node-btn__exact {
-  font-size: 11px;
-  color: v.$accent-soft;
+.side-panel__eyebrow {
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
   font-weight: 700;
-  margin-top: 6px;
+  color: v.$text-muted-35;
 }
 
-.skill-node-btn__next {
-  font-size: 10px;
+.side-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.detail-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.detail-head__glyph {
+  width: 42px;
+  height: 42px;
+  border-radius: v.$radius-md;
+  background: v.$accent-tint-12;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  flex: none;
+}
+
+.detail-head__name {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.detail-head__meta {
+  font-size: 11px;
   color: v.$text-muted-40;
   margin-top: 2px;
 }
 
-.skill-node-btn__status {
-  font-size: 11px;
-  margin-top: 6px;
-  color: v.$text-muted-35;
+.detail-desc {
+  font-size: 12px;
+  color: v.$text-muted-45;
+  line-height: 1.5;
+  margin-top: 10px;
+}
 
-  &.is-unlocked {
-    color: v.$success;
+.detail-stats {
+  margin-top: 10px;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-sm;
+  overflow: hidden;
+}
+
+.detail-stats__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  font-size: 11.5px;
+
+  &:not(:last-child) {
+    border-bottom: 1px solid v.$border-subtle;
   }
 
-  &.is-available {
+  &:nth-child(even) {
+    background: rgba(255, 255, 255, 0.02);
+  }
+}
+
+.detail-stats__label {
+  color: v.$text-muted-40;
+  flex: none;
+}
+
+.detail-stats__value {
+  font-weight: 700;
+  color: v.$accent-soft;
+  text-align: right;
+}
+
+.detail-next {
+  font-size: 10.5px;
+  color: v.$text-muted-40;
+  margin-top: 3px;
+}
+
+.detail-action {
+  @include m.btn-reset;
+  width: 100%;
+  margin-top: 12px;
+  background: v.$accent;
+  color: #fff;
+  border-radius: v.$radius-sm;
+  padding: 9px 0;
+  font-weight: 700;
+  font-size: 12.5px;
+  text-align: center;
+}
+
+.detail-status {
+  font-size: 11.5px;
+  color: v.$text-muted-35;
+  margin-top: 10px;
+}
+
+.detail-empty {
+  font-size: 12px;
+  color: v.$text-muted-35;
+  margin-top: 10px;
+}
+
+// ---- Active Deck ----
+.deck-count {
+  font-size: 12px;
+  font-weight: 800;
+  color: v.$success;
+
+  &.is-full {
     color: v.$warning;
   }
 }
 
-@media (max-width: 768px) {
-  .class-path-grid {
-    @include m.grid-auto-fit(150px, 10px);
-    margin-bottom: 20px;
+.deck-note {
+  font-size: 10.5px;
+  color: v.$text-muted-40;
+  margin: 4px 0 10px;
+}
+
+.deck-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+
+.deck-slot {
+  @include m.btn-reset;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border-radius: v.$radius-sm;
+  padding: 9px 4px;
+  font-size: 9px;
+  text-align: center;
+
+  &.is-filled {
+    background: v.$accent-tint-12;
+    border: 1px solid v.$accent-tint-30;
+    color: v.$text-body;
   }
 
-  .class-tier-card {
-    padding: 13px;
+  &.is-empty {
+    background: v.$bg-input;
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    color: v.$text-muted-35;
+    cursor: default;
+  }
+}
+
+.deck-slot__glyph {
+  font-size: 15px;
+}
+
+.deck-slot__name {
+  line-height: 1.2;
+}
+
+.deck-pool-label {
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: v.$text-muted-35;
+  margin: 12px 0 8px;
+}
+
+.deck-pool {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.deck-pool-row {
+  @include m.btn-reset;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: v.$bg-input;
+  border-radius: v.$radius-sm;
+  padding: 6px 9px;
+  font-size: 12px;
+  color: v.$text-body;
+
+  &:hover {
+    background: v.$accent-tint-12;
+  }
+}
+
+.deck-pool-row__name {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-pool-row__add {
+  color: v.$success;
+  font-weight: 800;
+}
+
+// ---- Attributes (sidebar) ----
+.attribute-points-badge {
+  color: v.$accent-soft;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.attr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 10px;
+}
+
+.attr-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.attr-row__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.attr-row__label {
+  font-size: 12px;
+  color: v.$text-muted-55;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attr-row__desc {
+  font-size: 9.5px;
+  color: v.$text-muted-35;
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attr-row__value {
+  flex: none;
+  width: 30px;
+  text-align: right;
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+.attr-row__cost {
+  flex: none;
+  font-size: 10px;
+  font-weight: 700;
+  color: v.$text-muted-45;
+  white-space: nowrap;
+}
+
+.attr-row__btn {
+  @include m.btn-reset;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: v.$radius-sm;
+  background: v.$accent;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+
+  &:disabled {
+    background: rgba(255, 255, 255, 0.08);
+    color: v.$text-muted-35;
+    cursor: default;
+  }
+}
+
+// ---- Build total (reuses Character::effectiveStats()'s own labeled breakdown) ----
+.build-total-group {
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: v.$text-muted-35;
+  margin: 12px 0 6px;
+
+  &:first-of-type {
+    margin-top: 10px;
+  }
+}
+
+.build-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 11.5px;
+}
+
+.build-total-row__label {
+  color: v.$text-muted-45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.build-total-row__value {
+  flex: none;
+  font-weight: 700;
+  color: v.$success;
+}
+
+// ---- Skill points / respec ----
+.skill-points-total {
+  font-size: 20px;
+  font-weight: 800;
+  color: v.$accent-soft;
+  margin: 6px 0 12px;
+}
+
+.respec-btn {
+  @include m.btn-reset;
+  width: 100%;
+  background: transparent;
+  border: 1px solid v.$accent-tint-30;
+  color: v.$accent;
+  border-radius: v.$radius-sm;
+  padding: 9px 0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.respec-note {
+  font-size: 10px;
+  color: v.$text-muted-35;
+  line-height: 1.5;
+  margin-top: 9px;
+}
+
+// ---- GM-only class-tree preview switcher (SkillsPage.vue's isGm/togglePreview) ----
+.side-panel--gm {
+  border-color: rgba(234, 179, 8, 0.25);
+}
+
+.gm-preview-desc {
+  font-size: 10.5px;
+  color: v.$text-muted-45;
+  line-height: 1.5;
+  margin: 6px 0 12px;
+}
+
+.gm-class-switch {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.gm-class-switch__btn {
+  @include m.btn-reset;
+  padding: 9px 0;
+  border-radius: v.$radius-sm;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  background: transparent;
+  color: v.$warning;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: capitalize;
+
+  &.is-active {
+    background: v.$warning-tint-12;
+    border-color: v.$warning;
+  }
+}
+
+@media (max-width: 900px) {
+  .skills-main {
+    min-width: 0;
+    width: 100%;
   }
 
-  .class-tier-card__option-btn {
-    padding: 10px 12px;
-    min-height: 36px;
-  }
-
-  .attributes-grid {
-    @include m.grid-auto-fit(140px, 10px);
-    margin-bottom: 20px;
-  }
-
-  .attribute-card {
-    padding: 12px;
-  }
-
-  .attribute-card__btn {
-    width: 36px;
-    height: 36px;
-    flex: none;
-  }
-
-  .skill-points-badge,
-  .attribute-points-badge {
-    padding: 8px 13px;
-  }
-
-  .skill-branch__nodes {
-    @include m.grid-auto-fit(160px, 10px);
-  }
-
-  .skill-node-btn {
-    padding: 12px;
+  .skills-sidebar {
+    width: 100%;
   }
 }
 
 @media (max-width: 480px) {
-  .attributes-grid {
+  .node-chip {
+    width: 90px;
+  }
+
+  .node-chip.is-capstone {
+    width: 104px;
+  }
+
+  .deck-grid {
     grid-template-columns: repeat(2, 1fr);
-  }
-
-  .skill-branch__nodes {
-    grid-template-columns: 1fr;
-  }
-
-  .class-tier-card__chosen-glyph {
-    width: 34px;
-    height: 34px;
-    font-size: 17px;
   }
 }

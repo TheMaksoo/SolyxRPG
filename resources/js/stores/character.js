@@ -19,8 +19,20 @@ export const useCharacterStore = defineStore('character', {
         async fetch() {
             this.loading = true;
             try {
+                // BattlePage fires this after nearly every battle action, so it's common for one of these
+                // requests to be in flight when the tutorial overlay's dismiss/advance call lands — if that
+                // fetch was dispatched just before the server persisted the new tutorial_step, its response
+                // still carries the OLD value and would silently roll the tour back a step (or reopen it
+                // entirely) the moment it overwrites `this.character`. tutorial_step/tutorial_seen only ever
+                // move forward, so it's always safe to keep whichever value is more advanced.
+                const priorTutorialStep = this.character?.tutorial_step ?? 0;
+                const priorTutorialSeen = this.character?.tutorial_seen ?? false;
                 const { data } = await api.get('/character');
                 this.character = data.character;
+                if (this.character) {
+                    this.character.tutorial_step = Math.max(priorTutorialStep, this.character.tutorial_step ?? 0);
+                    this.character.tutorial_seen = priorTutorialSeen || this.character.tutorial_seen;
+                }
                 useAuthStore().setCharacter(data.character);
                 this.stats = data.stats;
                 this.regenPerTick = data.regen_per_tick ?? 0;
@@ -81,6 +93,16 @@ export const useCharacterStore = defineStore('character', {
 
         async chooseProfession(tier, key) {
             const { data } = await api.post('/character/profession', { tier, key });
+            this.character = data.character;
+        },
+
+        async setActiveDeck(skillIds) {
+            const { data } = await api.post('/character/skills/deck', { skill_ids: skillIds });
+            this.character = data.character;
+        },
+
+        async respecSkills() {
+            const { data } = await api.post('/character/skills/respec');
             this.character = data.character;
         },
 

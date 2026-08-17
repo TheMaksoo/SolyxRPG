@@ -1,7 +1,8 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import api from '../api/client';
 import AdBanner from '../components/AdBanner.vue';
+import Toast from '../components/Toast.vue';
 import { useCharacterStore } from '../stores/character';
 
 const characterStore = useCharacterStore();
@@ -10,6 +11,11 @@ const questsCompleted = ref(0);
 const tab = ref('daily');
 const message = ref('');
 const claimSummary = ref(null);
+let messageToastTimer = null;
+watch(message, (val) => {
+  clearTimeout(messageToastTimer);
+  if (val) messageToastTimer = setTimeout(() => { message.value = ''; }, 5000);
+});
 
 const tabs = [
   { key: 'daily', label: 'Daily' },
@@ -108,7 +114,7 @@ onMounted(load);
       </button>
     </div>
 
-    <p v-if="message" class="quests-message">{{ message }}</p>
+    <Toast :message="message" type="error" />
 
     <div v-if="claimSummary" class="claim-summary">
       <div class="claim-summary__header">

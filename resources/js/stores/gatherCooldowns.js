@@ -28,8 +28,8 @@ export const useGatherCooldownsStore = defineStore('gatherCooldowns', {
         async init() {
             if (this.initialized) return;
             this.initialized = true;
+            tickTimer = setInterval(() => { this.now = Date.now(); }, 1000);
             await this.refresh();
-            this._startPolling();
         },
 
         async refresh() {
@@ -39,6 +39,7 @@ export const useGatherCooldownsStore = defineStore('gatherCooldowns', {
             } catch {
                 // No character yet / feature flag off — nothing to show.
             }
+            this._syncPolling();
         },
 
         // Called by TradeSkillsPage right after a load()/gather-batch resolves, using data it already has
@@ -61,32 +62,36 @@ export const useGatherCooldownsStore = defineStore('gatherCooldowns', {
         _applyList(list) {
             if (!list.length) {
                 this.longest = null;
-                return;
+            } else {
+                const top = list.reduce((a, b) => (b.seconds_remaining > a.seconds_remaining ? b : a));
+                this.longest = {
+                    skill: top.skill,
+                    label: top.label,
+                    glyph: top.glyph,
+                    targetLabel: top.target_label,
+                    expiresAtMs: Date.now() + top.seconds_remaining * 1000,
+                };
             }
-            const top = list.reduce((a, b) => (b.seconds_remaining > a.seconds_remaining ? b : a));
-            this.longest = {
-                skill: top.skill,
-                label: top.label,
-                glyph: top.glyph,
-                targetLabel: top.target_label,
-                expiresAtMs: Date.now() + top.seconds_remaining * 1000,
-            };
             this.now = Date.now();
+            this._syncPolling();
         },
 
-        _startPolling() {
-            this._stopPolling();
-            tickTimer = setInterval(() => { this.now = Date.now(); }, 1000);
-            // A completed cooldown needs a real refresh (another target might already be on cooldown, or
-            // the character switched pages and worked a different skill) — the tick alone can't know that.
-            pollTimer = setInterval(() => this.refresh(), 5000);
-        },
-
-        _stopPolling() {
-            clearInterval(tickTimer);
-            clearInterval(pollTimer);
-            tickTimer = null;
-            pollTimer = null;
+        // Network polling only runs while something's actually on cooldown, and even then it's a single
+        // shot scheduled for exactly when the tracked cooldown ends rather than a repeating interval —
+        // this used to hit /trade-skills/cooldowns every 5s for the entire length of the cooldown (this
+        // was the single busiest endpoint in the whole app), when only the one request right as it
+        // expires actually carries new information (another target might already be on cooldown, or the
+        // player switched pages and worked a different skill — the local 1s tick alone can't know that).
+        // Re-arms itself the moment setFromSkills()/refresh() sees a real cooldown again.
+        _syncPolling() {
+            if (pollTimer) {
+                clearTimeout(pollTimer);
+                pollTimer = null;
+            }
+            if (this.longest) {
+                const delay = Math.max(250, this.longest.expiresAtMs - Date.now() + 250);
+                pollTimer = setTimeout(() => this.refresh(), delay);
+            }
         },
     },
 });

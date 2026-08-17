@@ -25,7 +25,7 @@ class DungeonController extends Controller
             ? DungeonRun::where('character_id', $character->id)->where('status', 'active')->get()->keyBy('dungeon_id')
             : collect();
 
-        $dungeons = Dungeon::where('enabled', true)->with('bossMonster')->get()->map(fn (Dungeon $d) => [
+        $dungeons = Dungeon::where('enabled', true)->orderBy('min_level')->with('bossMonster')->get()->map(fn (Dungeon $d) => [
             'dungeon' => $d,
             'unlocked' => $character && $character->level >= $d->min_level,
             'active_run' => $activeRuns->get($d->id),

@@ -11,6 +11,7 @@ use App\Models\MarketListing;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Player-to-player marketplace: list an item from your inventory for gold (or gems for
@@ -48,7 +49,7 @@ class MarketplaceController extends Controller
     private const CANCEL_FEE_PCT = 10;
 
     /** Gear is never qty-stacked (each copy has its own durability) — mirrors CraftingController::GEAR_TYPES. */
-    private const GEAR_TYPES = ['weapon', 'armor', 'shield', 'pickaxe', 'axe', 'sickle', 'hammer', 'quiver'];
+    private const GEAR_TYPES = ['weapon', 'armor', 'shield', 'pickaxe', 'axe', 'sickle', 'hammer', 'quiver', 'trinket'];
 
     /** Only legendary and mythic items may be listed for gems. */
     private const GEM_LISTABLE_RARITIES = ['legendary', 'mythic'];
@@ -165,7 +166,7 @@ class MarketplaceController extends Controller
         $activeCount = MarketListing::where('seller_character_id', $character->id)->where('status', 'active')->count();
         $listingCap  = $this->listingCap($request->user());
         if ($activeCount >= $listingCap) {
-            return response()->json(['message' => "You've hit your active listing limit ({$listingCap}). Cancel or wait for one to sell/expire — VIP raises this cap."], 422);
+            return response()->json(['message' => "You've hit your active listing limit ({$listingCap}). Cancel or wait for one to sell/expire (VIP raises this cap)."], 422);
         }
 
         $inventory = Inventory::where('id', $data['inventory_id'])
@@ -332,6 +333,19 @@ class MarketplaceController extends Controller
      * snapshotted durability rather than coming back at full/zero. */
     private function depositItem(Character $character, MarketListing $listing): void
     {
+        // The catalog item this listing escrowed can end up deleted out from under it (a GM removing a
+        // retired item, e.g.) — there's nothing to hand back in that case, so skip the deposit rather
+        // than crash the whole marketplace page (expireDueListings runs on every browse) for every
+        // player over one orphaned row. Still lets the caller mark the listing resolved.
+        if (! $listing->item) {
+            Log::warning('Marketplace listing references a deleted item — skipping deposit.', [
+                'listing_id' => $listing->id,
+                'item_id' => $listing->item_id,
+            ]);
+
+            return;
+        }
+
         $isGear = in_array($listing->item->type, self::GEAR_TYPES, true);
 
         if ($isGear) {

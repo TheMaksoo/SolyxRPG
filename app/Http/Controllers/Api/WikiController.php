@@ -18,6 +18,7 @@ class WikiController extends Controller
         'classes' => ['Classes', '🎖'],
         'skills' => ['Skills', '✦'],
         'pets' => ['Companions', '🐾'],
+        'status_effects' => ['Buffs & Debuffs', '💫'],
     ];
 
     /** Wiki content is reference data — it only changes when WikiSyncService re-syncs entries from

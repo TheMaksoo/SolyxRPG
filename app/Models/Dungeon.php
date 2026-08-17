@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Dungeon extends Model
 {
     protected $fillable = [
-        'key', 'name', 'glyph', 'difficulty', 'boss_monster_id', 'min_level',
+        'key', 'name', 'glyph', 'sprite', 'difficulty', 'boss_monster_id', 'min_level',
         'party_size', 'drops_json', 'enabled', 'tester_only',
     ];
 

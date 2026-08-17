@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Zone extends Model
 {
-    protected $fillable = ['key', 'name', 'glyph', 'danger', 'min_level', 'locked', 'enabled', 'tester_only', 'sort_order'];
+    protected $fillable = ['key', 'name', 'glyph', 'sprite', 'danger', 'min_level', 'locked', 'enabled', 'tester_only', 'sort_order'];
 
     protected $casts = [
         'locked' => 'boolean',

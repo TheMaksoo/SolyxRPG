@@ -1,10 +1,16 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import api from '../api/client';
 import AdBanner from '../components/AdBanner.vue';
+import Toast from '../components/Toast.vue';
 
 const info = ref(null);
 const message = ref('');
+let messageToastTimer = null;
+watch(message, (val) => {
+  clearTimeout(messageToastTimer);
+  if (val) messageToastTimer = setTimeout(() => { message.value = ''; }, 5000);
+});
 
 async function load() {
   const { data } = await api.get('/daily');
@@ -16,7 +22,7 @@ async function claim() {
   try {
     const { data } = await api.post('/daily/claim');
     const gemsPart = data.gems ? ` +${data.gems}◆` : '';
-    message.value = `+${data.gold}g${gemsPart} — streak ${data.streak}`;
+    message.value = `+${data.gold}g${gemsPart} (streak ${data.streak})`;
     info.value = data;
   } catch (e) {
     message.value = e.response?.data?.message || 'Already claimed.';
@@ -39,6 +45,8 @@ onMounted(load);
       <h1 class="ox daily-title">Daily</h1>
     </div>
 
+    <Toast :message="message" type="error" />
+
     <div class="daily-ad-wrap">
       <AdBanner variant="inline" />
     </div>
@@ -49,7 +57,6 @@ onMounted(load);
         <div class="daily-summary__streak-label">day streak</div>
       </div>
       <div class="daily-summary__day">Day {{ info.cycle_day }} of {{ info.cycle_length }} this month</div>
-      <p v-if="message" class="daily-message">{{ message }}</p>
       <button @click="claim" :disabled="!info.can_claim" class="daily-claim-btn">
         {{ info.can_claim ? "Claim today's reward" : 'Already claimed' }}
       </button>

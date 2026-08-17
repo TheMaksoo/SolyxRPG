@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Battle;
 use App\Models\DungeonRun;
 use App\Models\FeatureFlag;
+use App\Models\GameConfig;
 use App\Models\Monster;
 use App\Services\CombatService;
 use App\Services\DungeonService;
@@ -57,25 +58,43 @@ class BattleController extends Controller
 
         $character->applyPassiveRegen();
 
-        $zoneId = $character->current_zone_id;
-        $monster = Monster::query()
-            ->where('enabled', true)
-            ->where('is_boss', false)
-            ->when($zoneId, fn ($q) => $q->where('zone_id', $zoneId))
-            // No forward tolerance: a monster's min_level is tuned as "safe from this level on" (see
-            // CharacterController::store's starter-stat comment), so letting the pool reach ahead of the
-            // player's actual level — this used to allow +10 — could hand a level 1 character a monster
-            // built for level 10 players before they've earned any attribute points or gear to cope with it.
-            ->where('min_level', '<=', $character->level)
-            ->inRandomOrder()
-            ->first();
+        // Below the tutorial level cap, every walk() pulls from a small dedicated tutorial roster
+        // (see MonsterSeeder's is_tutorial rows) instead of the normal zone pool — a level-1 character
+        // has no zone worth fighting in yet regardless of current_zone_id, and this guarantees real
+        // monster variety (brute/skirmisher/caster) from the very first fight rather than the single
+        // zone-1 monster the old zone-less fallback collapsed onto.
+        $tutorialLevelCap = (int) GameConfig::number('tutorial_level_cap', 3);
+        if ($character->level < $tutorialLevelCap) {
+            $monster = Monster::query()->where('enabled', true)->where('is_tutorial', true)->inRandomOrder()->first();
+        } else {
+            $zoneId = $character->current_zone_id;
+            $monster = Monster::query()
+                ->where('enabled', true)
+                ->where('is_boss', false)
+                ->where('is_tutorial', false)
+                ->when($zoneId, fn ($q) => $q->where('zone_id', $zoneId))
+                // No forward tolerance: a monster's min_level is tuned as "safe from this level on" (see
+                // CharacterController::store's starter-stat comment), so letting the pool reach ahead of
+                // the player's actual level — this used to allow +10 — could hand a level 1 character a
+                // monster built for level 10 players before they've earned any attribute points or gear
+                // to cope with it.
+                ->where('min_level', '<=', $character->level)
+                ->inRandomOrder()
+                ->first();
+        }
 
         if (! $monster) {
-            return response()->json(['message' => 'No enemies to walk into yet — try a zone that matches your level.'], 422);
+            return response()->json(['message' => 'No enemies to walk into yet, try a zone that matches your level.'], 422);
         }
 
         $grade = $this->grades->roll($character->level);
-        $battle = $this->combat->start($character, $monster, $grade);
+        // Multi-enemy "pack" encounters — only possible from the 2nd zone onward, see
+        // CombatService::rollPackMonsters(). Empty for a normal 1v1 walk (including every tutorial
+        // fight, which has no zone at all) exactly like today.
+        $extraMonsters = $monster->zone
+            ? $this->combat->rollPackMonsters($character, $monster->zone, $monster)
+            : [];
+        $battle = $this->combat->start($character, $monster, $grade, $extraMonsters);
         $character->update(['last_action' => "Fighting {$monster->name}"]);
 
         return response()->json(['battle' => $battle->load(['monster', 'battleMonsters.monster', 'battleCompanions.tamedCompanion']), 'grade' => $this->grades->meta($grade)]);
