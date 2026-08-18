@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import api from '../api/client';
 import { useCharacterStore } from '../stores/character';
 import { usePvpQueueStore } from '../stores/pvpQueue';
+import { useEcho } from '../echo';
 import VipBadge from '../components/VipBadge.vue';
 
 const characterStore = useCharacterStore();
@@ -30,7 +31,6 @@ const view = computed(() => (matchId.value ? 'live' : 'lobby'));
 // ---- Live match state ----
 const matchId = ref(null);
 const match = ref(null);
-let livePollTimer = null;
 
 // Auto-clears after a few seconds (same pattern every other page's toast uses) — without this, a
 // one-time failure (e.g. a stale match_id 403ing after the app already recovered back to a working
@@ -67,8 +67,7 @@ function syncCharacter(character) {
 }
 
 function stopAllPolling() {
-  clearInterval(livePollTimer);
-  livePollTimer = null;
+  if (matchId.value) useEcho().leave(`pvp-match.${matchId.value}`);
 }
 
 // ---- Queue flow ----
@@ -110,9 +109,8 @@ watch(() => pvpQueue.matchFoundId, (id) => {
 // ---- Live match flow ----
 
 function enterLive() {
-  stopAllPolling();
   loadMatch();
-  livePollTimer = setInterval(loadMatch, 2500);
+  useEcho().private(`pvp-match.${matchId.value}`).listen('.pvp.state-changed', loadMatch);
 }
 
 async function loadMatch() {
@@ -136,8 +134,7 @@ async function act(type, skillId = null, itemId = null) {
     const { data } = await api.post(`/pvp/live/${matchId.value}/action`, { type, skill_id: skillId, item_id: itemId });
     match.value = data;
     if (data.status !== 'active') {
-      clearInterval(livePollTimer);
-      livePollTimer = null;
+      stopAllPolling();
     }
   } catch (e) {
     showError(e?.response?.data?.message || 'Action failed.');
@@ -153,8 +150,7 @@ async function forfeit() {
   try {
     const { data } = await api.post(`/pvp/live/${matchId.value}/forfeit`);
     match.value = data;
-    clearInterval(livePollTimer);
-    livePollTimer = null;
+    stopAllPolling();
   } catch (e) {
     errorMessage.value = e?.response?.data?.message || 'Could not forfeit.';
   } finally {

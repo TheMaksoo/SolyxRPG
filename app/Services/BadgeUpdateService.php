@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\NavBadgesUpdated;
 use App\Models\User;
 
 class BadgeUpdateService
@@ -13,6 +14,7 @@ class BadgeUpdateService
     public function touch(User $user): void
     {
         $user->update(['badges_updated_at' => now()]);
+        broadcast(new NavBadgesUpdated($user->id));
     }
 
     /**
@@ -21,5 +23,8 @@ class BadgeUpdateService
     public function touchMany(array $userIds): void
     {
         User::whereIn('id', $userIds)->update(['badges_updated_at' => now()]);
+        foreach ($userIds as $userId) {
+            broadcast(new NavBadgesUpdated($userId));
+        }
     }
 }

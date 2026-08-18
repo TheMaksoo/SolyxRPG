@@ -14,6 +14,15 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    // Not passed via withRouting()'s own `channels:` param — that registers the auth route at the
+    // framework default `/broadcasting/auth` under the `web` group with no way to set a prefix/
+    // middleware. This app's frontend only ever talks to `/api/*` under Sanctum's stateful-SPA
+    // middleware, so the broadcast auth route needs the same treatment as every other protected
+    // API route (see routes/api.php's `auth:sanctum`+`not-banned` group).
+    ->withBroadcasting(
+        __DIR__.'/../routes/channels.php',
+        ['prefix' => 'api', 'middleware' => ['api', 'auth:sanctum', 'not-banned']],
+    )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->statefulApi();
         $middleware->appendToGroup('api', [

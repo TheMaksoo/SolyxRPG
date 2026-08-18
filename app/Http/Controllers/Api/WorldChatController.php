@@ -42,8 +42,11 @@ class WorldChatController extends Controller
 
         $fullMessage = $this->withVipTier($message->load(['character.user', 'character.activeColor']));
 
-        // Broadcast to all connected clients
-        broadcast(new NewChatMessage($fullMessage));
+        // toOthers(): the sender already sees their own message via the load() call below — without
+        // this, Echo's auto-injected X-Socket-Id (see resources/js/echo.js) would still be honored, but
+        // omitting it here would double the sender's own message (one from load()'s fetch, one from the
+        // push) if the two responses race.
+        broadcast(new NewChatMessage($fullMessage))->toOthers();
 
         return response()->json(['message_sent' => $fullMessage]);
     }

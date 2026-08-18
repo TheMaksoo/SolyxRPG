@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import api, { ensureCsrfCookie } from '../api/client';
+import { disconnectEcho } from '../echo';
 
 export const useAuthStore = defineStore('auth', {
     state: () => ({
@@ -45,6 +46,7 @@ export const useAuthStore = defineStore('auth', {
         async logout() {
             await api.post('/auth/logout');
             this.user = null;
+            disconnectEcho();
         },
 
         setCharacter(character) {

@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Events\PvpMatchFound;
+use App\Events\PvpQueueTimedOut;
 use App\Models\Character;
 use App\Models\PvpLiveMatch;
 use App\Models\PvpQueueEntry;
@@ -65,12 +67,27 @@ class PvpMatchmakingService
         $character->save();
     }
 
-    /** Backstop for players who close the tab/app while queued and never poll queue/status again (which
-     * is what normally catches the same 5-minute timeout) — swept alongside sweep() so a stale queue row
-     * can't sit forever inflating the pool. Returns how many entries were purged. */
+    /** Backstop for players who close the tab/app while queued (or, now that queue/status is no longer
+     * polled on a timer, simply anyone whose queue entry goes stale) — swept alongside sweep() so a
+     * stale queue row can't sit forever inflating the pool. Pushes a timeout event to each affected
+     * player so their "Searching…" pill doesn't hang forever waiting for a poll that no longer happens.
+     * Returns how many entries were purged. */
     public function purgeStaleEntries(): int
     {
-        return PvpQueueEntry::where('queued_at', '<=', now()->subMinutes(5))->delete();
+        $stale = PvpQueueEntry::where('queued_at', '<=', now()->subMinutes(5))->get();
+        if ($stale->isEmpty()) {
+            return 0;
+        }
+
+        $characterIds = $stale->pluck('character_id');
+        PvpQueueEntry::whereIn('id', $stale->pluck('id'))->delete();
+
+        $userIds = Character::whereIn('id', $characterIds)->pluck('user_id');
+        foreach ($userIds as $userId) {
+            broadcast(new PvpQueueTimedOut($userId));
+        }
+
+        return $stale->count();
     }
 
     /** Rating band (±) a queued character will accept an opponent from, widening the longer they've waited
@@ -137,7 +154,7 @@ class PvpMatchmakingService
         $this->consumePvpAttempt($a);
         $this->consumePvpAttempt($b);
 
-        return PvpLiveMatch::create([
+        $match = PvpLiveMatch::create([
             'character_a_id' => $a->id,
             'character_b_id' => $b->id,
             'turn_character_id' => $a->id,
@@ -150,6 +167,13 @@ class PvpMatchmakingService
             'last_action_at' => now(),
             'created_at' => now(),
         ]);
+
+        // Single choke point every matching path (queueJoin's immediate pairing, queueStatus's
+        // poll-driven pairing, and the scheduled sweep) funnels through — nothing is missed.
+        broadcast(new PvpMatchFound($a->user->id, $match->id));
+        broadcast(new PvpMatchFound($b->user->id, $match->id));
+
+        return $match;
     }
 
     /** Backstop sweep (see PvpMatchmakingSweep console command, scheduled every minute): pairs up whoever's

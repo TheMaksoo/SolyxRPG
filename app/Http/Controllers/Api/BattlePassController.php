@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\FeatureFlag;
 use App\Models\GemLedger;
+use App\Services\BadgeUpdateService;
 use App\Services\BattlePassService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -16,7 +17,10 @@ class BattlePassController extends Controller
     public const PREMIUM_GEM_COST = 1000;
     public const PREMIUM_CASH_LABEL = '€4.99';
 
-    public function __construct(private BattlePassService $battlePass) {}
+    public function __construct(
+        private BattlePassService $battlePass,
+        private BadgeUpdateService $badges = new BadgeUpdateService(),
+    ) {}
 
     public function index(Request $request)
     {
@@ -83,6 +87,8 @@ class BattlePassController extends Controller
             return response()->json(['message' => 'Nothing to claim there.'], 422);
         }
 
+        $this->badges->touch($request->user());
+
         return response()->json([
             'reward' => $result,
             'battle_pass' => $this->battlePass->passFor($character->fresh(['user'])),
@@ -96,6 +102,7 @@ class BattlePassController extends Controller
         abort_unless($character, 404);
 
         $totals = $this->battlePass->claimAll($character);
+        $this->badges->touch($request->user());
 
         return response()->json([
             'totals' => $totals,

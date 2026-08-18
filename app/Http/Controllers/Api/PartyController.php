@@ -9,12 +9,15 @@ use App\Models\Friendship;
 use App\Models\Party;
 use App\Models\PartyInvite;
 use App\Models\PartyMember;
+use App\Services\BadgeUpdateService;
 use Illuminate\Http\Request;
 
 class PartyController extends Controller
 {
     /** Kept small on purpose — this is a lightweight friend group, not a Guild. */
     public const MAX_SIZE = 4;
+
+    public function __construct(private BadgeUpdateService $badges = new BadgeUpdateService()) {}
 
     public function index(Request $request)
     {
@@ -73,6 +76,8 @@ class PartyController extends Controller
             ['party_id' => $party->id, 'character_id' => $target->id],
             ['inviter_character_id' => $character->id],
         );
+
+        $this->badges->touch($target->user);
 
         return response()->json(['invite' => $invite], 201);
     }

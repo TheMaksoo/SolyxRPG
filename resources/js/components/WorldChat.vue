@@ -1,11 +1,11 @@
 <script setup>
-import { ref, computed, nextTick, onMounted, watch } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import api from '../api/client';
 import VipBadge from './VipBadge.vue';
 import MentionInput from './MentionInput.vue';
 import { useCharacterStore } from '../stores/character';
 import { useAuthStore } from '../stores/auth';
-import { useStatusPoll } from '../composables/statusPoll';
+import { useEcho } from '../echo';
 import { renderChatBody, mentionsMe } from '../chatMentions';
 
 // embedded drops this component's own card chrome (border/background/fixed width/header) for when a
@@ -15,7 +15,6 @@ defineProps({ fullHeight: { type: Boolean, default: false }, embedded: { type: B
 
 const characterStore = useCharacterStore();
 const auth = useAuthStore();
-const { lastMessageId: polledMessageId } = useStatusPoll();
 const messages = ref([]);
 const body = ref('');
 const messagesEl = ref(null);
@@ -58,15 +57,23 @@ async function send() {
   await load();
 }
 
-// Escalates to the full /chat/world fetch only when the shared /status/check poll (see
-// composables/statusPoll.js) actually reports a newer message id — no dedicated interval of this
-// component's own, so having World Chat mounted no longer adds a second, overlapping poll loop against
-// the same endpoint GameLayout's nav-badge check already polls.
-watch(polledMessageId, (id) => {
-  if (id > lastMessageId.value) load();
+function onNewMessage(e) {
+  messages.value = [...messages.value, e.message].slice(-100);
+  lastMessageId.value = e.message.id;
+  scrollToBottom();
+}
+
+onMounted(() => {
+  load();
+  useEcho().channel('world-chat').listen('.message.new', onNewMessage);
 });
 
-onMounted(load);
+// This component remounts on every DashboardPage tab switch and on route navigation — without this,
+// each mount would add another listener bound to that mount's own (by then orphaned) `messages` ref,
+// piling up wasted callbacks every time a player revisits the tab/page.
+onUnmounted(() => {
+  useEcho().channel('world-chat').stopListening('.message.new', onNewMessage);
+});
 </script>
 
 <template>

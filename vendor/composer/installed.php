@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => 'laravel/laravel',
-        'pretty_version' => 'dev-copilot/fix-oauth-login-errors',
-        'version' => 'dev-copilot/fix-oauth-login-errors',
-        'reference' => '2ab2aacc4414d5091585d49de243771fc127bc78',
+        'pretty_version' => 'dev-main',
+        'version' => 'dev-main',
+        'reference' => '615b5c97d2a8ec9d1f3558bb3126e82d02fa28ec',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -422,9 +422,9 @@
             'dev_requirement' => false,
         ),
         'laravel/laravel' => array(
-            'pretty_version' => 'dev-copilot/fix-oauth-login-errors',
-            'version' => 'dev-copilot/fix-oauth-login-errors',
-            'reference' => '2ab2aacc4414d5091585d49de243771fc127bc78',
+            'pretty_version' => 'dev-main',
+            'version' => 'dev-main',
+            'reference' => '615b5c97d2a8ec9d1f3558bb3126e82d02fa28ec',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -872,8 +872,8 @@
             'dev_requirement' => false,
             'provided' => array(
                 0 => '1.0 || 2.0 || 3.0',
-                1 => '1.0|2.0|3.0',
-                2 => '3.0.0',
+                1 => '3.0.0',
+                2 => '1.0|2.0|3.0',
             ),
         ),
         'psr/simple-cache' => array(
@@ -897,6 +897,15 @@
             'reference' => 'ca0fdcf8a7617afa3adfdf1b5fef573dffb69ca1',
             'type' => 'library',
             'install_path' => __DIR__ . '/../psy/psysh',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'pusher/pusher-php-server' => array(
+            'pretty_version' => '7.3.0',
+            'version' => '7.3.0.0',
+            'reference' => '058d8464246118110a341fc2e6e70c7c8b6a7f2c',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../pusher/pusher-php-server',
             'aliases' => array(),
             'dev_requirement' => false,
         ),

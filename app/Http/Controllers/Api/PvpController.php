@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\PvpMatchStateChanged;
 use App\Http\Controllers\Controller;
 use App\Models\Character;
 use App\Models\FeatureFlag;
@@ -224,6 +225,7 @@ class PvpController extends Controller
             $match->log_json = $log;
             $match->last_action_at = now();
             $match->save();
+            broadcast(new PvpMatchStateChanged($match->id));
 
             return response()->json($this->matchPayload($match, $character->id));
         }
@@ -250,6 +252,7 @@ class PvpController extends Controller
             $state['reward'] = $reward;
             $match->state_json = $state;
             $match->save();
+            broadcast(new PvpMatchStateChanged($match->id));
 
             return response()->json($this->matchPayload($match->fresh(), $character->id));
         }
@@ -259,6 +262,7 @@ class PvpController extends Controller
         $match->turn_character_id = $match->opponentIdFor($character->id);
         $match->last_action_at = now();
         $match->save();
+        broadcast(new PvpMatchStateChanged($match->id));
 
         return response()->json($this->matchPayload($match, $character->id));
     }
@@ -280,6 +284,7 @@ class PvpController extends Controller
         $match->log_json = $log;
         $match->last_action_at = now();
         $match->save();
+        broadcast(new PvpMatchStateChanged($match->id));
 
         // A corrupted/orphaned match row (no valid opponent on the other side — shouldn't happen for a
         // match createLiveMatch() actually built, but Forfeit is the escape hatch and must never itself

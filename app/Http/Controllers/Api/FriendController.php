@@ -8,12 +8,14 @@ use App\Models\CharacterFavorite;
 use App\Models\FeatureFlag;
 use App\Models\Friendship;
 use App\Services\AchievementService;
+use App\Services\BadgeUpdateService;
 use Illuminate\Http\Request;
 
 class FriendController extends Controller
 {
     public function __construct(
         private AchievementService $achievements = new AchievementService(),
+        private BadgeUpdateService $badges = new BadgeUpdateService(),
     ) {
     }
 
@@ -70,6 +72,8 @@ class FriendController extends Controller
             'addressee_id' => $target->id,
             'status' => 'pending',
         ]);
+
+        $this->badges->touch($target->user);
 
         return response()->json(['friendship' => $friendship], 201);
     }

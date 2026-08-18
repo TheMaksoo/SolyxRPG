@@ -12,6 +12,7 @@ use App\Models\Inventory;
 use App\Models\Item;
 use App\Models\Quest;
 use App\Services\AchievementService;
+use App\Services\BadgeUpdateService;
 use App\Services\BattlePassService;
 use App\Services\QuestService;
 use Illuminate\Http\Request;
@@ -22,6 +23,7 @@ class QuestController extends Controller
         private BattlePassService $battlePass = new BattlePassService(),
         private QuestService $quests = new QuestService(),
         private AchievementService $achievements = new AchievementService(),
+        private BadgeUpdateService $badges = new BadgeUpdateService(),
     ) {}
 
     public function index(Request $request)
@@ -77,6 +79,7 @@ class QuestController extends Controller
         $this->battlePass->addXp($character, $this->battlePass->pointsForQuest($quest));
         $this->achievements->check($character->fresh(['user']));
         $this->grantQuestTitle($character, $quest);
+        $this->badges->touch($request->user());
 
         $fresh = $character->fresh(['user']);
 

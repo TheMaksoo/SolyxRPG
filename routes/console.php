@@ -50,3 +50,9 @@ Schedule::command('leaderboard:snapshot-daily')->dailyAt('00:10');
 // archives the top 10 into the Hall of Fame, and starts the next season. A no-op most days (see
 // LeaderboardSeasonRollover) — scheduled daily so a season never runs more than a day past its end.
 Schedule::command('leaderboard:season-rollover')->dailyAt('00:00')->timezone('Europe/Amsterdam');
+
+// BetterStack heartbeat monitor for the Pusher/websocket layer — only actually pings BetterStack when
+// Pusher is reachable (see PingWebsocketHeartbeat), so a missed heartbeat means real degradation, not
+// just a quiet server. Set the BetterStack monitor's expected period to match this (5 min + a couple
+// minutes' grace) so a single slow cron tick doesn't false-alarm.
+Schedule::command('websocket:heartbeat')->everyFiveMinutes();

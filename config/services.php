@@ -58,4 +58,8 @@ return [
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
     ],
 
+    'betterstack' => [
+        'heartbeat_url' => env('BETTERSTACK_HEARTBEAT_URL'),
+    ],
+
 ];

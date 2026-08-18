@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { preloadRoute } from '../router';
 import { NAV, NAV_FOOTER } from '../navigation';
 import { useGameTick } from '../composables/gameTick';
-import { useStatusPoll } from '../composables/statusPoll';
+import { useEcho } from '../echo';
 import { useCharacterStore } from '../stores/character';
 import { useAuthStore } from '../stores/auth';
 import { usePvpQueueStore } from '../stores/pvpQueue';
@@ -26,7 +26,6 @@ const craftingQueue = useCraftingQueueStore();
 const gatherCooldowns = useGatherCooldownsStore();
 const autoBattle = useAutoBattleStore();
 const { tickCount } = useGameTick();
-const { badgesUpdatedAt: polledBadgesUpdatedAt } = useStatusPoll();
 const activeLabel = computed(
   () => [...NAV, ...NAV_FOOTER].find((n) => n.path === route.path)?.label ?? ''
 );
@@ -122,7 +121,6 @@ const BADGE_PATH = {
   party_invites: '/party',
   friend_requests: '/friends',
 };
-const badgesUpdatedAt = ref(0);
 
 // Mirrors User::VIP_TIER_PVP_ATTEMPTS / VIP_TIER_DUNGEON_ATTEMPTS's fallback constants (not the
 // GM-tunable GameConfig override those methods also check) — close enough for a "!" nudge badge; the
@@ -191,17 +189,6 @@ async function loadNavBadges({ force = false } = {}) {
   navBadges.value = next;
 }
 
-// Only fetches the full badge list when the shared /status/check poll (see composables/statusPoll.js)
-// actually reports a change — that poll now runs exactly once app-wide instead of this component and
-// WorldChat.vue each running their own separate interval against the same endpoint. Always forced
-// through the throttle above since this only fires when the server says something genuinely changed.
-watch(polledBadgesUpdatedAt, (updatedAt) => {
-  if (updatedAt > badgesUpdatedAt.value) {
-    badgesUpdatedAt.value = updatedAt;
-    loadNavBadges({ force: true });
-  }
-});
-
 function badgeFor(path) {
   return clientNavBadges.value[path] ?? navBadges.value[path] ?? 0;
 }
@@ -249,21 +236,6 @@ watch(
     }, 4000);
   }
 );
-
-// No longer refetched on every route change (that fired on literally every sidebar click — one of the
-// heaviest single sources of traffic in the app for an endpoint that's several queries deep). The
-// status-poll-driven watch above will catch a real change instantly once something actually calls
-// BadgeUpdateService::touch() (quest claim, party invite sent, etc. — that service exists but isn't
-// wired up to any of those actions yet, so badges_updated_at never currently moves). Until it is, this
-// slow fallback is the only thing keeping quests/battle-pass/party/friend badges fresh at all — up to a
-// minute of staleness is an acceptable trade for cutting this endpoint's call volume from "every click"
-// to "once a minute."
-const NAV_BADGE_FALLBACK_TICKS = 60;
-watch(tickCount, (count) => {
-  if (count % NAV_BADGE_FALLBACK_TICKS === 0 && !document.hidden) {
-    loadNavBadges();
-  }
-});
 
 function formatMmSs(totalSeconds) {
   const total = Math.max(0, Math.floor(totalSeconds || 0));
@@ -360,6 +332,12 @@ onMounted(() => {
   pvpQueue.init();
   craftingQueue.init();
   gatherCooldowns.init();
+
+  if (auth.user) {
+    useEcho()
+      .private(`user.${auth.user.id}.badges`)
+      .listen('.badges.updated', () => loadNavBadges({ force: true }));
+  }
 });
 </script>
 

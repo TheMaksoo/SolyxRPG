@@ -99,6 +99,9 @@ Route::get('/me', [AuthController::class, 'me'])->middleware(['auth:sanctum', 'n
 // Stripe webhook — no auth, verified by signature instead
 Route::post('/store/webhook', [StoreController::class, 'webhook']);
 
+// Public BetterStack health check — no auth, rate-limited instead.
+Route::get('/status/websocket', [StatusController::class, 'websocket'])->middleware('throttle:30,1');
+
 Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::post('/me/tester-mode', [AuthController::class, 'toggleTesterMode']);
@@ -106,7 +109,6 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
     Route::delete('/me', [AuthController::class, 'deleteAccount']);
     Route::get('/announcements', [AnnouncementController::class, 'index']);
     Route::get('/nav-badges', [NavBadgeController::class, 'index']);
-    Route::get('/status/check', [StatusController::class, 'check']);
 
     Route::get('/character', [CharacterController::class, 'show']);
     Route::post('/character/save-tick', [CharacterController::class, 'saveTick'])->middleware('throttle:regen-sync');
