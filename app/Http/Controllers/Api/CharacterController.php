@@ -21,6 +21,7 @@ use App\Models\Zone;
 use App\Services\AttributeService;
 use App\Services\LeaderboardService;
 use App\Services\QuestService;
+use App\Services\RespecService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -30,6 +31,7 @@ class CharacterController extends Controller
     public function __construct(
         private AttributeService $attributeService,
         private LeaderboardService $leaderboard,
+        private RespecService $respecService,
         private QuestService $quests = new QuestService(),
     ) {}
 
@@ -829,9 +831,10 @@ class CharacterController extends Controller
 
     /** Refunds every skill point ever spent unlocking/upgrading skills and resets the 5-tier branch-pick
      * ladder (spec_class/profession/ascension/apex_path/transcendence) so a respec truly "reopens the
-     * side you gave up" — costs gems (GM-tunable) rather than skill points, so it's a real economic sink
-     * instead of free churn. Attribute points are untouched (see AttributeService — a separate pool with
-     * its own spend flow, not part of the skill tree). */
+     * side you gave up" — also refunds every attribute point ever spent and zeroes the attribute row,
+     * since a "start over" respec that left min-maxed attributes in place wouldn't actually let you
+     * rebuild your build. Costs gems (GM-tunable) rather than points, so it's a real economic sink
+     * instead of free churn. */
     public function respecSkills(Request $request)
     {
         $character = $request->user()->character;
@@ -841,21 +844,7 @@ class CharacterController extends Controller
         $user = $character->user;
         abort_if($user->gems < $cost, 422, "Respec costs {$cost} gems.");
 
-        // Rank N of a skill costs N points, so the total ever spent reaching level L is 1+2+...+L —
-        // except a free_grant skill (an arm's capstone, auto-granted at rank 1 for 0 points when you
-        // commit to that arm — see unlockSkill()), whose rank-1 point was never actually spent.
-        $refund = $character->skills->sum(function ($cs) {
-            $spent = (int) ($cs->level * ($cs->level + 1) / 2);
-
-            return $cs->free_grant ? $spent - 1 : $spent;
-        });
-
-        $character->skills()->delete();
-        $character->update([
-            'skill_points' => $character->skill_points + $refund,
-            'spec_class' => null, 'profession' => null, 'ascension' => null, 'apex_path' => null, 'transcendence' => null,
-            'active_deck_json' => null,
-        ]);
+        $this->respecService->respec($character);
         $user->decrement('gems', $cost);
         GemLedger::log($user, -$cost, 'skill_respec', $character);
 

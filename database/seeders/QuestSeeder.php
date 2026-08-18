@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Item;
 use App\Models\Quest;
 use Illuminate\Database\Seeder;
 
@@ -9,6 +10,8 @@ class QuestSeeder extends Seeder
 {
     public function run(): void
     {
+        $itemId = Item::pluck('id', 'key');
+
         $quests = [
             // Every quest's 'bp_xp' feeds the Battle Pass (see BattlePassService::pointsForQuest) — the
             // season (a real calendar month, see BattlePassService::seasonLengthDays) curve (11,950 total) is
@@ -26,11 +29,13 @@ class QuestSeeder extends Seeder
             ['key' => 'daily_dungeon_clear', 'name' => 'Dungeon Delver', 'description' => 'Clear any dungeon today.', 'type' => 'daily', 'goal_json' => ['kind' => 'dungeons_cleared', 'target' => 1], 'reward_json' => ['gold' => 250, 'xp' => 200, 'bp_xp' => 81]],
             ['key' => 'daily_pvp_win', 'name' => 'Arena Contender', 'description' => 'Win a PvP match today.', 'type' => 'daily', 'goal_json' => ['kind' => 'pvp_wins', 'target' => 1], 'reward_json' => ['gold' => 180, 'xp' => 150, 'bp_xp' => 65]],
             ['key' => 'daily_gather_10', 'name' => "Gatherer's Errand", 'description' => 'Gather 10 materials today.', 'type' => 'daily', 'goal_json' => ['kind' => 'materials_gathered', 'target' => 10], 'reward_json' => ['gold' => 120, 'xp' => 100, 'bp_xp' => 40]],
+            ['key' => 'daily_bounty_crate', 'name' => "Bounty Hunter", 'description' => 'Defeat 3 monsters today.', 'type' => 'daily', 'goal_json' => ['kind' => 'battles_won', 'target' => 3], 'reward_json' => ['gold' => 100, 'bp_xp' => 30, 'item_id' => $itemId['common_lootbox'] ?? null]],
 
             // ---- Weekly ---- ~650/week if all three are cleared.
             ['key' => 'weekly_dungeon_clear', 'name' => 'Clear a Dungeon', 'description' => 'Clear any dungeon this week.', 'type' => 'weekly', 'goal_json' => ['kind' => 'dungeons_cleared', 'target' => 1], 'reward_json' => ['gems' => 25, 'bp_xp' => 150]],
             ['key' => 'weekly_boss_hunter', 'name' => 'Weekly Bounty', 'description' => 'Defeat 25 monsters this week.', 'type' => 'weekly', 'goal_json' => ['kind' => 'battles_won', 'target' => 25], 'reward_json' => ['gold' => 1000, 'gems' => 15, 'bp_xp' => 300]],
             ['key' => 'weekly_craft_10', 'name' => "Forge's Journeyman", 'description' => 'Collect 10 finished crafts this week.', 'type' => 'weekly', 'goal_json' => ['kind' => 'items_crafted', 'target' => 10], 'reward_json' => ['gold' => 500, 'gems' => 10, 'bp_xp' => 200]],
+            ['key' => 'weekly_treasure_crate', 'name' => 'Weekly Treasure', 'description' => 'Clear 2 dungeons this week.', 'type' => 'weekly', 'goal_json' => ['kind' => 'dungeons_cleared', 'target' => 2], 'reward_json' => ['gold' => 400, 'bp_xp' => 150, 'item_id' => $itemId['rare_lootbox'] ?? null]],
 
             // ---- Monthly ---- ~2,650/month if all three are cleared.
             ['key' => 'monthly_slay_150', 'name' => "Month's Reckoning", 'description' => 'Defeat 150 monsters this month.', 'type' => 'monthly', 'goal_json' => ['kind' => 'battles_won', 'target' => 150], 'reward_json' => ['gold' => 4000, 'gems' => 60, 'bp_xp' => 900]],
@@ -63,6 +68,7 @@ class QuestSeeder extends Seeder
             ['key' => 'main_gather_100', 'name' => 'Resourceful', 'description' => 'Gather 100 materials, lifetime.', 'type' => 'main', 'goal_json' => ['kind' => 'materials_gathered', 'target' => 100], 'reward_json' => ['gold' => 700, 'xp' => 400, 'bp_xp' => 150]],
             ['key' => 'main_gather_250', 'name' => 'Master Gatherer', 'description' => 'Gather 250 materials, lifetime.', 'type' => 'main', 'goal_json' => ['kind' => 'materials_gathered', 'target' => 250], 'reward_json' => ['gold' => 1500, 'xp' => 800, 'bp_xp' => 280]],
             ['key' => 'main_battles_100', 'name' => 'Hundred Victories', 'description' => 'Win 100 battles, lifetime.', 'type' => 'main', 'goal_json' => ['kind' => 'battles_won', 'target' => 100], 'reward_json' => ['gold' => 1200, 'xp' => 600, 'bp_xp' => 200]],
+            ['key' => 'main_repair_kit', 'name' => "Well-Maintained", 'description' => 'Collect 15 finished crafts, lifetime.', 'type' => 'main', 'goal_json' => ['kind' => 'items_crafted', 'target' => 15], 'reward_json' => ['gold' => 800, 'xp' => 450, 'bp_xp' => 170, 'item_id' => $itemId['common_repair_pack'] ?? null, 'item_qty' => 3]],
 
             // ---- Main, class-specific: tier-2 skill unlock (Lv.20 path) ----
             ['key' => 'main_warrior_cleave', 'name' => 'Master of Warfare', 'description' => 'Reach character level 20 to automatically unlock Cleave, the Warrior tier-2 skill.', 'type' => 'main', 'class_key' => 'warrior', 'goal_json' => ['kind' => 'skill_unlocked', 'skill_key' => 'cleave'], 'reward_json' => ['gold' => 600, 'xp' => 400, 'bp_xp' => 150]],
@@ -83,7 +89,11 @@ class QuestSeeder extends Seeder
             ['key' => 'main_ranger_trailblazer', 'name' => 'Trailblazer', 'description' => 'Visit 5 different zones as a Ranger.', 'type' => 'main', 'class_key' => 'ranger', 'goal_json' => ['kind' => 'zones_visited', 'target' => 5], 'reward_json' => ['gold' => 500, 'xp' => 300, 'bp_xp' => 180]],
 
             // ---- Raid ---- one-off world-boss kills, bp_xp scaled to the boss's own gem reward (proxy for difficulty).
-            ['key' => 'raid_ashfang_dragon', 'name' => 'The Ashfang Hunt', 'description' => 'Defeat the Ashfang Dragon world boss.', 'type' => 'raid', 'goal_json' => ['kind' => 'boss_kill', 'monster_key' => 'ashfang_dragon'], 'reward_json' => ['gems' => 100, 'bp_xp' => 350]],
+            // Both trophy-boss raid quests guarantee 1 of that boss's crafting trophy on top of the RNG
+            // combat drop (see MonsterSeeder's loot_table_json / CombatService::maybeDropMonsterLoot) —
+            // so a player who hasn't gotten lucky yet has a sure path to the Legendary/Mythic recipe material.
+            ['key' => 'raid_frost_wyrm', 'name' => 'The Frostpeak Hunt', 'description' => 'Defeat the Frost Wyrm world boss.', 'type' => 'raid', 'goal_json' => ['kind' => 'boss_kill', 'monster_key' => 'frost_wyrm'], 'reward_json' => ['gems' => 60, 'bp_xp' => 300, 'item_id' => $itemId['frost_wyrm_scale'] ?? null]],
+            ['key' => 'raid_ashfang_dragon', 'name' => 'The Ashfang Hunt', 'description' => 'Defeat the Ashfang Dragon world boss.', 'type' => 'raid', 'goal_json' => ['kind' => 'boss_kill', 'monster_key' => 'ashfang_dragon'], 'reward_json' => ['gems' => 100, 'bp_xp' => 350, 'item_id' => $itemId['ashfang_dragon_scale'] ?? null]],
             ['key' => 'raid_void_sovereign', 'name' => 'The Final Sovereign', 'description' => 'Defeat the Void Sovereign world boss.', 'type' => 'raid', 'goal_json' => ['kind' => 'boss_kill', 'monster_key' => 'void_sovereign'], 'reward_json' => ['gems' => 250, 'bp_xp' => 700]],
             ['key' => 'raid_abyss_kraken', 'name' => 'Depths of the Abyss', 'description' => 'Defeat the Abyss Kraken.', 'type' => 'raid', 'goal_json' => ['kind' => 'boss_kill', 'monster_key' => 'abyss_kraken'], 'reward_json' => ['gems' => 80, 'bp_xp' => 280]],
             ['key' => 'raid_ice_golem', 'name' => 'Frostpeak Sentinel', 'description' => 'Defeat the Ice Golem.', 'type' => 'raid', 'goal_json' => ['kind' => 'boss_kill', 'monster_key' => 'ice_golem'], 'reward_json' => ['gems' => 40, 'bp_xp' => 180]],

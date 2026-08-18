@@ -746,6 +746,34 @@ async function sendBroadcast() {
   broadcastMessage.value = 'Broadcast sent.';
 }
 
+// Mass gem grant — pays every non-banned account out at once (e.g. compensation, launch gift).
+const massGrantGems = ref('');
+const massGrantReason = ref('');
+const massGrantMessage = ref('');
+const massGranting = ref(false);
+
+async function sendMassGrant() {
+  massGrantMessage.value = '';
+  const gems = Number(massGrantGems.value);
+  if (!gems || gems < 1) return;
+  if (!confirm(`Grant ${gems.toLocaleString()} gems to every player? This can't be undone.`)) return;
+
+  massGranting.value = true;
+  try {
+    const { data } = await api.post('/gm/players/mass-grant', {
+      gems,
+      reason: massGrantReason.value.trim() || undefined,
+    });
+    massGrantMessage.value = `Granted ${data.gems.toLocaleString()} gems to ${data.granted_to.toLocaleString()} players.`;
+    massGrantGems.value = '';
+    massGrantReason.value = '';
+  } catch (e) {
+    massGrantMessage.value = e.response?.data?.message || 'Mass grant failed.';
+  } finally {
+    massGranting.value = false;
+  }
+}
+
 // Audit Log
 const auditLogs = ref([]);
 const auditSearch = ref('');
@@ -2543,6 +2571,18 @@ onMounted(() => {
       ></textarea>
       <p v-if="broadcastMessage" class="gm-console-broadcast-success">{{ broadcastMessage }}</p>
       <button @click="sendBroadcast" class="gm-console-broadcast-btn">Send broadcast</button>
+
+      <div class="gm-console-mass-grant">
+        <p class="gm-console-broadcast-intro">Mass gem grant — pays out every non-banned account at once. Use for compensation or launch gifts.</p>
+        <div class="gm-console-grant-row">
+          <input v-model="massGrantGems" type="number" min="1" placeholder="Gems per player" class="gm-console-grant-input" />
+          <input v-model="massGrantReason" type="text" maxlength="120" placeholder="Reason (optional, shown in ledger)" class="gm-console-grant-input" />
+          <button @click="sendMassGrant" :disabled="massGranting" class="gm-console-grant-btn">
+            {{ massGranting ? 'Granting…' : 'Grant to all players' }}
+          </button>
+        </div>
+        <p v-if="massGrantMessage" class="gm-console-broadcast-success">{{ massGrantMessage }}</p>
+      </div>
     </div>
 
     <!-- EDIT USER MODAL -->
@@ -2557,6 +2597,7 @@ onMounted(() => {
             <select v-model="editUserForm.role">
               <option value="player">player</option>
               <option value="tester">tester</option>
+              <option value="artist">artist</option>
               <option value="gm">gm</option>
               <option value="owner">owner</option>
             </select>

@@ -75,6 +75,7 @@ class PvpController extends Controller
 
         $activeMatch = $this->matchmaking->activeMatchFor($character->id);
         $queueEntry = $this->matchmaking->queueEntryFor($character->id);
+        $attempts = $this->matchmaking->pvpAttemptsSnapshot($character);
 
         return response()->json([
             'record' => $record,
@@ -90,6 +91,8 @@ class PvpController extends Controller
             'history' => $history,
             'active_match_id' => $activeMatch?->id,
             'queued' => $queueEntry !== null,
+            'pvp_attempts_used' => $attempts['used'],
+            'pvp_attempts_max' => $attempts['max'],
         ]);
     }
 
@@ -113,6 +116,10 @@ class PvpController extends Controller
 
         abort_if($this->matchmaking->activeMatchFor($character->id), 422, 'You are already in an active PvP match.');
         abort_if($this->matchmaking->queueEntryFor($character->id), 422, 'You are already searching for a match.');
+        // Checked here (before queueing) rather than only at match creation, so a player who's already out
+        // of attempts never wastes their own time — or another queued player's chance at a quick match —
+        // sitting in the pool waiting for a fight that could never actually be charged to them.
+        abort_if($this->matchmaking->remainingPvpAttempts($character) <= 0, 422, 'No PvP attempts remaining today. Resets at midnight.');
 
         $record = $character->pvpRecord()->firstOrCreate([], ['rating' => 1000]);
         PvpQueueEntry::create([

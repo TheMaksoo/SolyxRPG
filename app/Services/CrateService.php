@@ -25,6 +25,13 @@ class CrateService
         'mythic' => ['gold' => [40000, 120000], 'gems' => [180, 500], 'material_chance' => 80, 'material_qty' => [5, 10], 'pet_food_chance' => 100, 'reforge_material_chance' => 90],
     ];
 
+    /** Read-only access to REWARD_TABLE for callers outside combat resolution — currently just
+     * WikiSyncService, so the wiki's crate acquisition info can never drift from the real reward table. */
+    public static function rewardTableFor(string $rarity): ?array
+    {
+        return self::REWARD_TABLE[$rarity] ?? null;
+    }
+
     /** Location-bound material contents (see database/seeders/ItemSeeder.php's material rarity ladder,
      * which skips a "rare" tier — mining/woodchopping/foraging materials only come in common/epic/
      * legendary/mythic). A low-danger zone's box mostly rolls `pool`'s early (basic) entries; a

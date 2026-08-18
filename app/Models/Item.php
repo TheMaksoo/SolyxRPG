@@ -21,7 +21,7 @@ class Item extends Model
     ];
 
     protected $fillable = [
-        'key', 'name', 'type', 'weapon_category', 'class_key', 'rarity', 'min_level', 'glyph', 'sprite', 'description',
+        'key', 'name', 'type', 'weapon_category', 'class_key', 'set_key', 'rarity', 'min_level', 'glyph', 'sprite', 'description',
         'roll_pct', 'price_gold', 'price_gems', 'enabled', 'tester_only',
         'atk', 'def', 'crit', 'dodge_pct', 'mp', 'mana_regen_flat', 'luck', 'lifesteal_pct',
         'heal_hp_flat', 'heal_hp_pct', 'heal_mp_flat', 'heal_mp_pct',

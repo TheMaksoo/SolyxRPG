@@ -12,11 +12,14 @@ class WikiEntry extends Model
         'source_type',
         'source_id',
         'glyph',
+        'image_path',
+        'artist_name',
         'name',
         'sub',
         'rarity',
         'description',
         'stats',
+        'details',
         'sort_order',
         'enabled',
         'tester_only',
@@ -24,6 +27,7 @@ class WikiEntry extends Model
 
     protected $casts = [
         'stats' => 'array',
+        'details' => 'array',
         'enabled' => 'boolean',
         'tester_only' => 'boolean',
     ];

@@ -30,7 +30,7 @@ class CosmeticController extends Controller
             'active' => in_array($c->id, [$character->active_title_id, $character->active_color_id, $character->active_banner_id, $character->active_icon_id, $character->active_frame_id], true),
             'quest' => $c->unlock_quest_key ? Quest::where('key', $c->unlock_quest_key)->value('name') : null,
             'event' => $c->unlock_event,
-            'event_label' => $this->eventLabel($c->unlock_event),
+            'event_label' => self::eventLabel($c->unlock_event),
         ])
             // Dynamic cosmetics (season leaderboard placements, PvP season rewards) are generated
             // per-character, not a fixed catalog — someone who hasn't earned one shouldn't see it listed
@@ -46,7 +46,7 @@ class CosmeticController extends Controller
     /** Turns an unlock_event slug into real display text — without this, an event-locked cosmetic (PvP
      * season titles/frames, world-firsts, etc.) has no way to explain "how you'd earn this" in the
      * Customize UI, the same gap quest-locked cosmetics don't have (those show the quest's own name). */
-    private function eventLabel(?string $event): ?string
+    public static function eventLabel(?string $event): ?string
     {
         if (! $event) {
             return null;

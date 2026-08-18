@@ -29,9 +29,12 @@ class DatabaseSeeder extends Seeder
         $this->call([
             ClassSeeder::class,
             ZoneSeeder::class,
+            // Items before Monsters: monster loot tables (see MonsterSeeder's loot_table_json) now
+            // reference material/trophy Item rows by key, so the catalog they resolve against must exist first.
+            ItemSeeder::class,
+            ItemSetSeeder::class,
             MonsterSeeder::class,
             DungeonSeeder::class,
-            ItemSeeder::class,
             RecipeSeeder::class,
             SkillSeeder::class,
             PetSeeder::class,

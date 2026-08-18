@@ -65,6 +65,7 @@ const BAG_SECTIONS = [
   { key: 'trinket', label: 'Trinkets', glyph: '📿', types: ['trinket'] },
   { key: 'tools', label: 'Tools', glyph: '⛏', types: ['pickaxe', 'axe', 'sickle', 'hammer'] },
   { key: 'consumable', label: 'Consumables', glyph: '🧪', types: ['consumable', 'pet_food'] },
+  { key: 'pet_revive_potion', label: 'Revive Charms', glyph: '🧿', types: ['pet_revive_potion'] },
   { key: 'repair_pack', label: 'Repair Packs', glyph: '🧰', types: ['repair_pack'] },
   { key: 'cosmetic', label: 'Cosmetics', glyph: '👑', types: ['cosmetic'] },
   { key: 'crate', label: 'Loot Crates', glyph: '📦', types: ['loot_crate'] },

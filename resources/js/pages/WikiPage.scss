@@ -85,6 +85,12 @@
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.wiki-sidebar__total {
+  font-size: 11.5px;
+  color: v.$text-muted-40;
+  margin-bottom: 9px;
+}
+
 .wiki-group-row {
   display: flex;
   flex-wrap: wrap;
@@ -176,12 +182,87 @@
   outline: none;
 }
 
+// ---- Tally row ----
+.wiki-tally-row {
+  display: flex;
+  gap: 9px;
+  margin-bottom: 16px;
+}
+
+.wiki-tally-card {
+  background: v.$bg-card;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-md;
+  padding: 9px 16px;
+  text-align: center;
+  min-width: 84px;
+
+  &.is-accent .wiki-tally-card__value {
+    color: v.$purple;
+  }
+}
+
+.wiki-tally-card__value {
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.wiki-tally-card__label {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  font-weight: 800;
+  color: v.$text-muted-35;
+  margin-top: 4px;
+}
+
+// ---- Sections ----
+.wiki-section {
+  margin-bottom: 26px;
+}
+
+.wiki-section__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 11px;
+}
+
+.wiki-section__label {
+  font-size: 11.5px;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+  color: v.$text-muted-45;
+  text-transform: uppercase;
+}
+
+.wiki-section__count {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: v.$text-muted-40;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: v.$radius-pill;
+  padding: 2px 9px;
+}
+
+.wiki-section__rule {
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .wiki-entries-grid {
   @include m.grid-auto-fill(280px, 14px);
 }
 
 .wiki-entry-card {
   @include m.card(18px);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+
+  &:hover {
+    border-color: v.$border-strong;
+  }
 }
 
 .wiki-entry__header {
@@ -242,6 +323,290 @@
   text-align: center;
   padding: 60px 20px;
   color: v.$text-muted-40;
+}
+
+// ---- Detail modal ----
+.wiki-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.wiki-modal {
+  @include m.card(24px);
+  width: 820px;
+  max-width: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.wiki-modal__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.wiki-modal__icon {
+  width: 76px;
+  height: 76px;
+  flex: none;
+  border-radius: v.$radius-lg;
+  display: grid;
+  place-items: center;
+  font-size: 34px;
+  border: 1px solid v.$border-medium;
+}
+
+.wiki-modal__title-block {
+  flex: 1;
+  min-width: 0;
+}
+
+.wiki-modal__crumb {
+  font-size: 10.5px;
+  color: v.$text-muted-35;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.wiki-modal__name {
+  font-size: 22px;
+  font-weight: 800;
+  margin-top: 4px;
+}
+
+.wiki-modal__sub {
+  font-size: 12.5px;
+  color: v.$text-muted-45;
+  margin-top: 3px;
+}
+
+.wiki-modal__chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 9px;
+}
+
+.wiki-modal__close {
+  @include m.btn-reset;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: v.$radius-sm;
+  border: 1px solid v.$border-medium;
+  color: v.$text-muted-55;
+  font-size: 13px;
+}
+
+// Only rendered when navStack has history (see WikiPage.vue's openLink()/goBack()) — returns to
+// whatever entry linked into this one instead of closing the whole modal.
+.wiki-modal__back {
+  @include m.btn-reset;
+  flex: none;
+  align-self: flex-start;
+  padding: 7px 12px;
+  border-radius: v.$radius-sm;
+  border: 1px solid v.$border-medium;
+  color: v.$text-muted-70;
+  font-size: 12px;
+  font-weight: 700;
+  margin-right: 8px;
+
+  &:hover {
+    border-color: v.$accent;
+    color: v.$accent-soft;
+  }
+}
+
+.wiki-modal__desc {
+  font-size: 13px;
+  color: v.$text-muted-70;
+  line-height: 1.6;
+  margin: 16px 0 0;
+  max-width: 64ch;
+}
+
+.wiki-modal__section-label {
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  font-weight: 800;
+  color: v.$text-muted-35;
+  text-transform: uppercase;
+  margin-bottom: 9px;
+}
+
+.wiki-modal__tiers {
+  margin-top: 18px;
+}
+
+.wiki-tier-row-btn {
+  @include m.btn-reset;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 9px 11px;
+  border-radius: v.$radius-sm;
+  border: 1px solid v.$border-subtle;
+  background: rgba(255, 255, 255, 0.02);
+  margin-bottom: 7px;
+
+  &.is-active {
+    border-color: var(--tier-color, #{v.$accent});
+    background: color-mix(in srgb, var(--tier-color, #{v.$accent}) 12%, transparent);
+  }
+}
+
+.wiki-tier-row-btn__dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 2px;
+}
+
+.wiki-tier-row-btn__label {
+  flex: 1;
+  min-width: 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: v.$text-muted-70;
+}
+
+.wiki-tier-row-btn.is-active .wiki-tier-row-btn__label {
+  color: v.$text-primary;
+}
+
+.wiki-tier-row-btn__detail {
+  font-size: 11px;
+  color: v.$text-muted-45;
+  text-align: right;
+}
+
+.wiki-modal__tier-summary {
+  margin: 14px 0 0;
+  font-size: 12.5px;
+  color: v.$text-muted-70;
+}
+
+.wiki-modal__stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.wiki-modal__stat-cell {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-md;
+  padding: 11px 13px;
+}
+
+.wiki-modal__stat-label {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  font-weight: 800;
+  color: v.$text-muted-35;
+  text-transform: uppercase;
+}
+
+.wiki-modal__stat-value {
+  font-size: 14px;
+  font-weight: 800;
+  margin-top: 4px;
+}
+
+.wiki-modal__acquisition {
+  margin-top: 20px;
+}
+
+.wiki-modal__acquisition-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 11px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-sm;
+  margin-bottom: 6px;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+
+  // Rendered as a real <button> when the row carries a resolvable link (see WikiPage.vue's openLink())
+  // — a plain <div> otherwise, so text-only rows (status effects, most acquisition lines) stay inert.
+  &.is-linked {
+    cursor: pointer;
+
+    &:hover {
+      border-color: v.$accent;
+      background: rgba(255, 255, 255, 0.05);
+    }
+  }
+}
+
+.wiki-modal__acquisition-glyph {
+  font-size: 15px;
+  flex: none;
+}
+
+.wiki-modal__acquisition-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wiki-modal__acquisition-detail {
+  font-family: v.$font-display;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+  color: v.$success;
+}
+
+.wiki-modal__artwork {
+  margin-top: 20px;
+  border: 1px solid rgba(167, 139, 250, 0.22);
+  background: rgba(167, 139, 250, 0.06);
+  border-radius: v.$radius-md;
+  padding: 14px 16px;
+}
+
+.wiki-modal__artwork-label {
+  font-size: 9.5px;
+  letter-spacing: 0.13em;
+  font-weight: 800;
+  color: v.$purple;
+}
+
+.wiki-modal__artwork-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-top: 9px;
+}
+
+.wiki-modal__artwork-icon {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: v.$radius-sm;
+  border: 1px solid v.$border-medium;
+}
+
+.wiki-modal__artwork-name {
+  font-size: 12.5px;
+  font-weight: 700;
 }
 
 @media (max-width: 768px) {
@@ -331,5 +696,31 @@
 
   .wiki-entry-card {
     padding: 14px;
+  }
+
+  .wiki-tally-row {
+    gap: 7px;
+  }
+
+  .wiki-tally-card {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 6px;
+  }
+
+  .wiki-modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .wiki-modal {
+    width: 100%;
+    max-height: 88%;
+    border-radius: v.$radius-xl v.$radius-xl 0 0;
+    padding: 18px 16px 24px;
+  }
+
+  .wiki-modal__stats-grid {
+    grid-template-columns: 1fr 1fr;
   }
 }

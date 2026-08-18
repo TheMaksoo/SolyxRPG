@@ -54,6 +54,7 @@ function showMessage(text, type = 'success') {
 
 const SECTIONS = [
   { key: 'consumable', label: 'Consumables', glyph: '🧪' },
+  { key: 'pet_revive_potion', label: 'Revive Charms', glyph: '🧿' },
   { key: 'repair_pack', label: 'Repair Packs', glyph: '🧰' },
   { key: 'weapon', label: 'Weapons', glyph: '⚔' },
   { key: 'armor', label: 'Armor', glyph: '🛡' },

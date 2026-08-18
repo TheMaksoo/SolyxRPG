@@ -63,6 +63,44 @@ class GmPlayerController extends Controller
         return response()->json(['character' => $character->fresh()]);
     }
 
+    /** Grants gems to every non-banned account at once — e.g. a compensation payout or launch gift.
+     * Bulk-increments users.gems and bulk-inserts one gem_ledger row per recipient per chunk so the
+     * Inbox transaction history stays complete without an N-query loop over the whole player base. */
+    public function massGrant(Request $request)
+    {
+        $data = $request->validate([
+            'gems' => ['required', 'integer', 'min:1'],
+            'reason' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $reason = $data['reason'] ?: 'gm_mass_grant';
+        $granted = 0;
+
+        User::whereNull('banned_at')->chunkById(500, function ($users) use ($data, $reason, &$granted) {
+            $now = now();
+
+            DB::table('users')->whereIn('id', $users->pluck('id'))->increment('gems', $data['gems']);
+
+            DB::table('gem_ledger')->insert($users->map(fn ($user) => [
+                'user_id' => $user->id,
+                'character_id' => null,
+                'delta' => $data['gems'],
+                'reason' => $reason,
+                'created_at' => $now,
+            ])->all());
+
+            $granted += $users->count();
+        });
+
+        AuditLog::record($request->user()->id, 'gm.player.mass_grant', 'users', null, [
+            'gems' => $data['gems'],
+            'reason' => $reason,
+            'recipients' => $granted,
+        ]);
+
+        return response()->json(['granted_to' => $granted, 'gems' => $data['gems']]);
+    }
+
     public function mail(Request $request, User $user)
     {
         $data = $request->validate([
@@ -113,7 +151,7 @@ class GmPlayerController extends Controller
     public function update(Request $request, User $user)
     {
         $data = $request->validate([
-            'role' => ['nullable', Rule::in(['player', 'tester', 'gm', 'owner'])],
+            'role' => ['nullable', Rule::in(['player', 'tester', 'artist', 'gm', 'owner'])],
             'is_tester' => ['nullable', 'boolean'],
             'vip_tier' => ['nullable', Rule::in(['none', 'bronze', 'gold', 'diamond'])],
             'vip_expires_at' => ['nullable', 'date'],

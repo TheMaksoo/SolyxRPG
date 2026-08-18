@@ -16,7 +16,7 @@ class ItemSeeder extends Seeder
             // warrior's only defense item — see the shield ladder (still 150 at this tier) for the other half.
             // Now priced the same as the rest of the legendary ladder (dual gold/gems, see comment below) —
             // it used to be gems-only and cheaper than its ladder-mates for no real reason.
-            ['key' => 'aegis_plate', 'name' => 'Aegis Plate', 'type' => 'armor', 'class_key' => 'warrior', 'min_level' => 35, 'rarity' => 'legendary', 'glyph' => '🛡', 'description' => 'Impenetrable plate armor blessed by the old gods — the chest half of a warrior\'s armor+shield set.', 'def' => 65, 'price_gold' => 10000, 'price_gems' => 1000],
+            ['key' => 'aegis_plate', 'name' => 'Aegis Plate', 'type' => 'armor', 'class_key' => 'warrior', 'set_key' => 'warrior_vanguard', 'min_level' => 35, 'rarity' => 'legendary', 'glyph' => '🛡', 'description' => 'Impenetrable plate armor blessed by the old gods — the chest half of a warrior\'s armor+shield set.', 'def' => 65, 'price_gold' => 10000, 'price_gems' => 1000],
             ['key' => 'health_potion', 'name' => 'Health Potion', 'type' => 'consumable', 'rarity' => 'common', 'glyph' => '🧪', 'description' => 'Restores 120 HP instantly in battle.', 'heal_hp_flat' => 120, 'price_gold' => 80, 'price_gems' => null],
             ['key' => 'greater_health_potion', 'name' => 'Greater Health Potion', 'type' => 'consumable', 'rarity' => 'rare', 'glyph' => '🧪', 'description' => 'Restores 240 HP instantly in battle.', 'heal_hp_flat' => 240, 'price_gold' => 290, 'price_gems' => null],
             ['key' => 'mana_potion', 'name' => 'Mana Potion', 'type' => 'consumable', 'rarity' => 'common', 'glyph' => '💧', 'description' => 'Restores 120 MP instantly in battle.', 'heal_mp_flat' => 120, 'price_gold' => 80, 'price_gems' => null],
@@ -45,6 +45,14 @@ class ItemSeeder extends Seeder
             ['key' => 'silver_bar', 'name' => 'Silver Bar', 'type' => 'material', 'rarity' => 'epic', 'glyph' => '⬜', 'description' => 'Silver ore smelted at the forge — unlocked at Smelting level 15.', 'price_gold' => 65, 'price_gems' => null],
             ['key' => 'gold_bar', 'name' => 'Gold Bar', 'type' => 'material', 'rarity' => 'legendary', 'glyph' => '🥇', 'description' => 'Gold ore smelted at the forge — unlocked at Smelting level 30.', 'price_gold' => 200, 'price_gems' => null],
             ['key' => 'mythril_bar', 'name' => 'Mythril Bar', 'type' => 'material', 'rarity' => 'mythic', 'glyph' => '💠', 'description' => 'Mythril ore smelted at the forge — unlocked at Smelting level 45.', 'price_gold' => 480, 'price_gems' => null],
+
+            // Boss trophy materials — never sold in the Shop (no price_gold/price_gems), only dropped by
+            // their named zone boss (see MonsterSeeder's loot_table_json). Required by the Legendary/
+            // Mythic tier gear recipes (see RecipeSeeder) so top-end gear genuinely requires beating that
+            // zone's boss, not just gold and shop materials.
+            ['key' => 'frost_wyrm_scale', 'name' => "Frost Wyrm Scale", 'type' => 'material', 'rarity' => 'legendary', 'glyph' => '🐲', 'description' => 'A shard of frozen hide from the Frost Wyrm of Frostpeak Caverns. Required for Legendary-tier gear.', 'price_gold' => null, 'price_gems' => null],
+            ['key' => 'ashfang_dragon_scale', 'name' => "Ashfang Dragon Scale", 'type' => 'material', 'rarity' => 'mythic', 'glyph' => '🐉', 'description' => 'A molten scale torn from the Ashfang Dragon of Emberpeak Volcano. Required for Mythic-tier gear.', 'price_gold' => null, 'price_gems' => null],
+
             // Every class crafts its OWN weapon+armor line at EVERY rarity tier — no more universal
             // "anyone can craft it" gear. Warrior's armor slot is explicitly a shield/aegis line (not
             // generic body armor) at every tier, so it reads unambiguously as "weapon + shield" in the UI.
@@ -109,16 +117,16 @@ class ItemSeeder extends Seeder
             // flat €5-per-1000 rate), the old 1900-gems price was already under the €10 real-money ceiling,
             // but making every legendary+ item gems-only meant real money was the ONLY way to skip the grind —
             // the gold price is that grind path, sized to feel like a real but achievable investment.
-            ['key' => 'gilded_saber', 'name' => 'Gilded Broadsword', 'type' => 'weapon', 'weapon_category' => 'sword', 'class_key' => 'warrior', 'rarity' => 'legendary', 'min_level' => 35, 'glyph' => '⚔', 'description' => 'A saber cast in gold and bound in elderwood — a serious material investment.', 'atk' => 150, 'crit' => 8, 'lifesteal_pct' => 3, 'price_gold' => 10000, 'price_gems' => 1000],
-            ['key' => 'gilded_fang', 'name' => 'Gilded Fang', 'type' => 'weapon', 'weapon_category' => 'dagger', 'class_key' => 'rogue', 'rarity' => 'legendary', 'min_level' => 35, 'glyph' => '🗡', 'description' => 'A gold-cast fang blade that draws blood in an instant.', 'atk' => 145, 'crit' => 16, 'lifesteal_pct' => 3, 'price_gold' => 10000, 'price_gems' => 1000],
-            ['key' => 'gilded_war_bow', 'name' => 'Gilded War Bow', 'type' => 'weapon', 'weapon_category' => 'bow', 'class_key' => 'ranger', 'rarity' => 'legendary', 'min_level' => 35, 'glyph' => '🏹', 'description' => 'A gold-limbed war bow that puts an arrow through anything.', 'atk' => 148, 'dodge_pct' => 8, 'lifesteal_pct' => 3, 'price_gold' => 10000, 'price_gems' => 1000],
-            ['key' => 'gilded_quiver', 'name' => 'Gilded Quiver', 'type' => 'quiver', 'weapon_category' => 'quiver', 'class_key' => 'ranger', 'rarity' => 'legendary', 'min_level' => 35, 'glyph' => '🎯', 'description' => 'Gold-banded arrows, fletched with elderwood — a serious material investment.', 'atk' => 74, 'crit' => 8, 'lifesteal_pct' => 2, 'price_gold' => 8500, 'price_gems' => 800],
-            ['key' => 'gilded_knife_holder', 'name' => 'Gilded Knife Holder', 'type' => 'quiver', 'weapon_category' => 'quiver', 'class_key' => 'rogue', 'rarity' => 'legendary', 'min_level' => 35, 'glyph' => '🔪', 'description' => 'Gold-banded throwing knives with an elderwood grip — a serious material investment.', 'atk' => 73, 'crit' => 8, 'lifesteal_pct' => 2, 'price_gold' => 8500, 'price_gems' => 800],
-            ['key' => 'gilded_spire_staff', 'name' => 'Gilded Spire Staff', 'type' => 'weapon', 'weapon_category' => 'staff', 'class_key' => 'mage', 'rarity' => 'legendary', 'min_level' => 35, 'glyph' => '🔮', 'description' => 'A gold-capped spire staff brimming with stored mana.', 'atk' => 115, 'mp' => 90, 'lifesteal_pct' => 3, 'price_gold' => 10000, 'price_gems' => 1000],
-            ['key' => 'guardians_bulwark', 'name' => "Guardian's Bulwark", 'type' => 'shield', 'class_key' => 'warrior', 'rarity' => 'legendary', 'min_level' => 35, 'glyph' => '🛡', 'description' => 'A massive gold-bound bulwark shield blessed by the old gods.', 'def' => 150, 'luck' => 4, 'price_gold' => 10000, 'price_gems' => 1000],
-            ['key' => 'duskblade_leathers', 'name' => 'Duskblade Leathers', 'type' => 'armor', 'class_key' => 'rogue', 'rarity' => 'legendary', 'min_level' => 35, 'glyph' => '🥋', 'description' => 'Gold-threaded leathers that seem to drink the light.', 'def' => 95, 'crit' => 14, 'luck' => 4, 'price_gold' => 10000, 'price_gems' => 1000],
-            ['key' => 'stormwatch_cloak', 'name' => 'Stormwatch Cloak', 'type' => 'armor', 'class_key' => 'ranger', 'rarity' => 'legendary', 'min_level' => 35, 'glyph' => '🧥', 'description' => 'A storm-touched cloak that seems to bend arrows around you.', 'def' => 98, 'dodge_pct' => 16, 'luck' => 4, 'price_gold' => 10000, 'price_gems' => 1000],
-            ['key' => 'gilded_aether_robe', 'name' => 'Gilded Aether Robe', 'type' => 'armor', 'class_key' => 'mage', 'rarity' => 'legendary', 'min_level' => 35, 'glyph' => '👘', 'description' => 'A gold-hemmed robe that hums with raw aether.', 'def' => 92, 'mp' => 100, 'luck' => 4, 'price_gold' => 10000, 'price_gems' => 1000],
+            ['key' => 'gilded_saber', 'name' => 'Gilded Broadsword', 'type' => 'weapon', 'weapon_category' => 'sword', 'class_key' => 'warrior', 'set_key' => 'warrior_vanguard', 'rarity' => 'legendary', 'min_level' => 35, 'glyph' => '⚔', 'description' => 'A saber cast in gold and bound in elderwood — a serious material investment.', 'atk' => 150, 'crit' => 8, 'lifesteal_pct' => 3, 'price_gold' => 10000, 'price_gems' => 1000],
+            ['key' => 'gilded_fang', 'name' => 'Gilded Fang', 'type' => 'weapon', 'weapon_category' => 'dagger', 'class_key' => 'rogue', 'set_key' => 'rogue_shadowblade', 'rarity' => 'legendary', 'min_level' => 35, 'glyph' => '🗡', 'description' => 'A gold-cast fang blade that draws blood in an instant.', 'atk' => 145, 'crit' => 16, 'lifesteal_pct' => 3, 'price_gold' => 10000, 'price_gems' => 1000],
+            ['key' => 'gilded_war_bow', 'name' => 'Gilded War Bow', 'type' => 'weapon', 'weapon_category' => 'bow', 'class_key' => 'ranger', 'set_key' => 'ranger_hunter', 'rarity' => 'legendary', 'min_level' => 35, 'glyph' => '🏹', 'description' => 'A gold-limbed war bow that puts an arrow through anything.', 'atk' => 148, 'dodge_pct' => 8, 'lifesteal_pct' => 3, 'price_gold' => 10000, 'price_gems' => 1000],
+            ['key' => 'gilded_quiver', 'name' => 'Gilded Quiver', 'type' => 'quiver', 'weapon_category' => 'quiver', 'class_key' => 'ranger', 'set_key' => 'ranger_hunter', 'rarity' => 'legendary', 'min_level' => 35, 'glyph' => '🎯', 'description' => 'Gold-banded arrows, fletched with elderwood — a serious material investment.', 'atk' => 74, 'crit' => 8, 'lifesteal_pct' => 2, 'price_gold' => 8500, 'price_gems' => 800],
+            ['key' => 'gilded_knife_holder', 'name' => 'Gilded Knife Holder', 'type' => 'quiver', 'weapon_category' => 'quiver', 'class_key' => 'rogue', 'set_key' => 'rogue_shadowblade', 'rarity' => 'legendary', 'min_level' => 35, 'glyph' => '🔪', 'description' => 'Gold-banded throwing knives with an elderwood grip — a serious material investment.', 'atk' => 73, 'crit' => 8, 'lifesteal_pct' => 2, 'price_gold' => 8500, 'price_gems' => 800],
+            ['key' => 'gilded_spire_staff', 'name' => 'Gilded Spire Staff', 'type' => 'weapon', 'weapon_category' => 'staff', 'class_key' => 'mage', 'set_key' => 'mage_archmagi', 'rarity' => 'legendary', 'min_level' => 35, 'glyph' => '🔮', 'description' => 'A gold-capped spire staff brimming with stored mana.', 'atk' => 115, 'mp' => 90, 'lifesteal_pct' => 3, 'price_gold' => 10000, 'price_gems' => 1000],
+            ['key' => 'guardians_bulwark', 'name' => "Guardian's Bulwark", 'type' => 'shield', 'class_key' => 'warrior', 'set_key' => 'warrior_vanguard', 'rarity' => 'legendary', 'min_level' => 35, 'glyph' => '🛡', 'description' => 'A massive gold-bound bulwark shield blessed by the old gods.', 'def' => 150, 'luck' => 4, 'price_gold' => 10000, 'price_gems' => 1000],
+            ['key' => 'duskblade_leathers', 'name' => 'Duskblade Leathers', 'type' => 'armor', 'class_key' => 'rogue', 'set_key' => 'rogue_shadowblade', 'rarity' => 'legendary', 'min_level' => 35, 'glyph' => '🥋', 'description' => 'Gold-threaded leathers that seem to drink the light.', 'def' => 95, 'crit' => 14, 'luck' => 4, 'price_gold' => 10000, 'price_gems' => 1000],
+            ['key' => 'stormwatch_cloak', 'name' => 'Stormwatch Cloak', 'type' => 'armor', 'class_key' => 'ranger', 'set_key' => 'ranger_hunter', 'rarity' => 'legendary', 'min_level' => 35, 'glyph' => '🧥', 'description' => 'A storm-touched cloak that seems to bend arrows around you.', 'def' => 98, 'dodge_pct' => 16, 'luck' => 4, 'price_gold' => 10000, 'price_gems' => 1000],
+            ['key' => 'gilded_aether_robe', 'name' => 'Gilded Aether Robe', 'type' => 'armor', 'class_key' => 'mage', 'set_key' => 'mage_archmagi', 'rarity' => 'legendary', 'min_level' => 35, 'glyph' => '👘', 'description' => 'A gold-hemmed robe that hums with raw aether.', 'def' => 92, 'mp' => 100, 'luck' => 4, 'price_gold' => 10000, 'price_gems' => 1000],
 
             // Mythic tier (level 50) — the old universal Mythril Aegis is now the warrior's mythic shield only.
             // Same dual gold/gems logic as Legendary above, gems side capped at 1800 (well under the 2000-gem
@@ -153,7 +161,7 @@ class ItemSeeder extends Seeder
             ['key' => 'runed_focus', 'name' => 'Runed Focus', 'type' => 'trinket', 'class_key' => 'mage', 'rarity' => 'common', 'min_level' => 8, 'glyph' => '💠', 'description' => "A rune-carved focus that steadies a mage's reserve of mana.", 'mp' => 15, 'mana_regen_flat' => 2, 'price_gold' => 1700, 'price_gems' => null],
             ['key' => 'warded_focus', 'name' => 'Warded Focus', 'type' => 'trinket', 'class_key' => 'mage', 'rarity' => 'rare', 'min_level' => 15, 'glyph' => '💠', 'description' => 'A warded focus that draws mana back in faster than it\'s spent.', 'mp' => 25, 'mana_regen_flat' => 3, 'price_gold' => 3800, 'price_gems' => null],
             ['key' => 'silvered_focus', 'name' => 'Silvered Focus', 'type' => 'trinket', 'class_key' => 'mage', 'rarity' => 'epic', 'min_level' => 20, 'glyph' => '💠', 'description' => 'A silver-cast focus, a real test of your Crafting rank.', 'mp' => 40, 'mana_regen_flat' => 4, 'price_gold' => null, 'price_gems' => 290],
-            ['key' => 'gilded_focus', 'name' => 'Gilded Focus', 'type' => 'trinket', 'class_key' => 'mage', 'rarity' => 'legendary', 'min_level' => 35, 'glyph' => '💠', 'description' => 'A gold-cast focus, a serious material investment.', 'mp' => 60, 'mana_regen_flat' => 6, 'price_gold' => 8500, 'price_gems' => 800],
+            ['key' => 'gilded_focus', 'name' => 'Gilded Focus', 'type' => 'trinket', 'class_key' => 'mage', 'set_key' => 'mage_archmagi', 'rarity' => 'legendary', 'min_level' => 35, 'glyph' => '💠', 'description' => 'A gold-cast focus, a serious material investment.', 'mp' => 60, 'mana_regen_flat' => 6, 'price_gold' => 8500, 'price_gems' => 800],
             ['key' => 'mythril_focus', 'name' => 'Mythril Focus', 'type' => 'trinket', 'class_key' => 'mage', 'rarity' => 'mythic', 'min_level' => 50, 'glyph' => '💠', 'description' => 'A near-mythical focus, a near-bottomless mana well.', 'mp' => 85, 'mana_regen_flat' => 8, 'price_gold' => 18000, 'price_gems' => 1500],
 
             // Tools — equip one to boost that gathering skill's speed and yield. Higher tiers need rarer ore/wood to forge.
@@ -287,6 +295,15 @@ class ItemSeeder extends Seeder
         // so signature gear feels distinctly more well-rounded than the general ladder it replaces.
         $tertiaryByLevel = [20 => 2, 50 => 4, 100 => 6, 150 => 8, 200 => 10];
 
+        // Unlike the general gear ladder above (which already varies atk per class — e.g. mythic tier
+        // warrior 205 / rogue 198 / ranger 200 / mage 155), $scale's primary/penalty used to be shared
+        // flat across every class, making a level-200 warrior sword and mage staff both hit for 780 atk.
+        // These ratios are anchored to that same existing mythic-tier split so signature gear follows the
+        // established class-power language instead of inventing a new one; the freed-up "budget" on the
+        // lower-atk classes is redistributed into their own secondary stat instead of lost.
+        $classPowerMult = ['warrior' => 1.00, 'rogue' => 0.95, 'ranger' => 0.95, 'mage' => 0.75];
+        $classSecondaryMult = ['warrior' => 1.00, 'rogue' => 1.20, 'ranger' => 1.20, 'mage' => 1.45];
+
         // [class_key, weapon_category, weapon glyph, armor glyph, weapon secondary stat, armor secondary stat]
         $classInfo = [
             'warrior' => ['sword', '⚔', '🥋', 'crit', null],
@@ -329,7 +346,10 @@ class ItemSeeder extends Seeder
 
         $rows = [];
         foreach ($branches as [$key, $name, $class, $pole, $level]) {
-            [$primary, $secondary, $penalty] = $scale[$level];
+            [$basePrimary, $baseSecondary, $basePenalty] = $scale[$level];
+            $primary = (int) round($basePrimary * $classPowerMult[$class]);
+            $secondary = (int) round($baseSecondary * $classSecondaryMult[$class]);
+            $penalty = (int) round($basePenalty * $classPowerMult[$class]);
             [$weaponCategory, $weaponGlyph, $armorGlyph, $weaponSecondaryStat, $armorSecondaryStat] = $classInfo[$class];
             $isWeapon = $pole === 'offense';
             $tertiary = $tertiaryByLevel[$level];

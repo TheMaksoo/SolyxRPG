@@ -309,6 +309,7 @@ Route::middleware(['auth:sanctum', 'not-banned'])->group(function () {
         Route::put('/config/{key}', [GmConfigController::class, 'update']);
 
         Route::get('/players', [GmPlayerController::class, 'index']);
+        Route::post('/players/mass-grant', [GmPlayerController::class, 'massGrant']);
         Route::post('/players/{user}/grant', [GmPlayerController::class, 'grant']);
         Route::post('/players/{user}/ban', [GmPlayerController::class, 'ban']);
         Route::post('/players/{user}/mail', [GmPlayerController::class, 'mail']);

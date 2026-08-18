@@ -19,6 +19,7 @@ class RecipeSeeder extends Seeder
     {
         $ids = Item::whereIn('key', [
             'stone', 'iron_bar', 'wood', 'oak_wood', 'silver_bar', 'gold_bar', 'mythril_bar', 'ironwood', 'elderwood', 'moonwood',
+            'frost_wyrm_scale', 'ashfang_dragon_scale',
             'iron_sword', 'iron_dagger', 'wooden_bow', 'oak_staff',
             'steel_broadsword', 'serrated_kris', 'recurve_longbow', 'ashwood_staff',
             'silvered_blade', 'silvered_fang', 'silvered_recurve', 'silvertide_staff',
@@ -58,10 +59,19 @@ class RecipeSeeder extends Seeder
             50 => ['mythril_bar', 12, 800, 46300],
         ];
 
+        // Legendary/Mythic tier gear additionally requires that level band's zone boss trophy (see
+        // MonsterSeeder's loot_table_json) — every $gearFor recipe at these two levels now needs a real
+        // kill, not just gold and shop materials, so top-end gear is a genuine reward for beating that
+        // zone's boss rather than something anyone can grind gold for.
+        $trophyByLevel = [35 => 'frost_wyrm_scale', 50 => 'ashfang_dragon_scale'];
+
         $gearFor = fn (string $label, string $result, int $level) => [
             'name' => "Craft {$label}",
             'result' => $result,
-            'materials' => [['item' => $tier[$level][0], 'qty' => $tier[$level][1]]],
+            'materials' => array_merge(
+                [['item' => $tier[$level][0], 'qty' => $tier[$level][1]]],
+                isset($trophyByLevel[$level]) ? [['item' => $trophyByLevel[$level], 'qty' => 1]] : []
+            ),
             'craft_seconds' => $tier[$level][2],
             'min_level' => $level,
             'gold_cost' => $tier[$level][3],

@@ -8,6 +8,8 @@ use App\Models\CharacterQuest;
 use App\Models\Cosmetic;
 use App\Models\FeatureFlag;
 use App\Models\GemLedger;
+use App\Models\Inventory;
+use App\Models\Item;
 use App\Models\Quest;
 use App\Services\AchievementService;
 use App\Services\BattlePassService;
@@ -56,6 +58,15 @@ class QuestController extends Controller
         }
         if (! empty($reward['xp'])) {
             $character->increment('xp', $reward['xp']);
+        }
+        if (! empty($reward['item_id'])) {
+            $item = Item::find($reward['item_id']);
+            if ($item) {
+                $qty = $reward['item_qty'] ?? 1;
+                $inventory = Inventory::firstOrNew(['character_id' => $character->id, 'item_id' => $item->id, 'equipped' => false]);
+                $inventory->qty = ($inventory->qty ?? 0) + $qty;
+                $inventory->save();
+            }
         }
 
         CharacterQuest::updateOrCreate(

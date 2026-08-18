@@ -28,7 +28,9 @@ function showMessage(text, type = 'success') {
 const tabs = [
   { key: 'weapon', label: 'Weapons', glyph: '⚔' },
   { key: 'armor', label: 'Armor', glyph: '🛡' },
+  { key: 'shield', label: 'Shields', glyph: '🛡️' },
   { key: 'quiver', label: 'Quivers', glyph: '🎯' },
+  { key: 'trinket', label: 'Trinkets', glyph: '📿' },
   { key: 'pickaxe', label: 'Pickaxes', glyph: '⛏' },
   { key: 'axe', label: 'Axes', glyph: '🪓' },
   { key: 'sickle', label: 'Sickles', glyph: '🔪' },

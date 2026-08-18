@@ -13,6 +13,24 @@ class DungeonService
 {
     private const STAGES_BY_DIFFICULTY = ['normal' => 1, 'hard' => 2, 'raid' => 3, 'mythic' => 4];
 
+    /** Real per-difficulty stage count, for display (see WikiSyncService::syncDungeon()) without
+     * duplicating STAGES_BY_DIFFICULTY. */
+    public static function stageCountFor(string $difficulty): int
+    {
+        return self::STAGES_BY_DIFFICULTY[$difficulty] ?? 1;
+    }
+
+    /** Real per-difficulty boss-add count — mirrors pickAddMonsters()'s own match, exposed for display
+     * (see WikiSyncService::syncDungeon()) without duplicating the mapping. */
+    public static function bossAddCountFor(string $difficulty): int
+    {
+        return match ($difficulty) {
+            'raid' => 1,
+            'mythic' => 2,
+            default => 0,
+        };
+    }
+
     public function __construct(
         private CombatService $combat,
         private QuestService $quests = new QuestService(),
@@ -30,7 +48,7 @@ class DungeonService
             return ['run' => $run, 'battle' => $run->battle->load(['monster', 'battleMonsters.monster'])];
         }
 
-        $totalStages = self::STAGES_BY_DIFFICULTY[$dungeon->difficulty] ?? 1;
+        $totalStages = self::stageCountFor($dungeon->difficulty);
         $monster = $totalStages > 1 ? $this->pickStageMonster($dungeon, 1, $totalStages) : $dungeon->bossMonster;
         $isBossStage = $monster->id === $dungeon->boss_monster_id;
 
@@ -118,11 +136,7 @@ class DungeonService
      * single-targeting. Normal and Hard dungeons stay a clean 1v1 boss fight. */
     private function pickAddMonsters(Dungeon $dungeon): array
     {
-        $addCount = match ($dungeon->difficulty) {
-            'raid' => 1,
-            'mythic' => 2,
-            default => 0,
-        };
+        $addCount = self::bossAddCountFor($dungeon->difficulty);
 
         if ($addCount === 0) {
             return [];

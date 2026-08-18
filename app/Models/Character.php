@@ -319,9 +319,14 @@ class Character extends Model
         $gearCrit = 0;
         $gearMp = 0;
         $hasArmorSlotEquipped = false;
+        $setCounts = [];
         foreach ($equipped as $slot) {
             if ($slot->durability_max !== null && $slot->durability <= 0) {
                 continue; // broken gear contributes nothing until repaired
+            }
+
+            if ($slot->item->set_key) {
+                $setCounts[$slot->item->set_key] = ($setCounts[$slot->item->set_key] ?? 0) + 1;
             }
 
             $stats = $slot->item->stat_json ?? [];
@@ -346,12 +351,34 @@ class Character extends Model
             }
         }
 
+        // Set bonuses (see ItemSet) — only the single highest piece-count threshold each equipped set
+        // meets contributes, not every threshold crossed, so this is a lookup + fold, not a running sum
+        // per set. Broken gear was already skipped above, so a set piece that's broken doesn't count
+        // toward its own set either.
+        $setAtkPct = 0;
+        $setDefPct = 0;
+        $setCritFlat = 0;
+        if ($setCounts) {
+            $sets = ItemSet::whereIn('key', array_keys($setCounts))->get()->keyBy('key');
+            foreach ($setCounts as $setKey => $count) {
+                $bonus = $sets[$setKey]?->bonusFor($count);
+                if (! $bonus) {
+                    continue;
+                }
+                $setAtkPct += $bonus['atk_pct'] ?? 0;
+                $setDefPct += $bonus['def_pct'] ?? 0;
+                $setCritFlat += $bonus['crit_chance_flat'] ?? 0;
+            }
+        }
+
         $petAtkPct = 0;
         $petDefPct = 0;
         $petCritPct = 0;
         $petXpPct = 0;
         $petGatherSpeedPct = 0;
         $petCraftSpeedPct = 0;
+        $petHpPct = 0;
+        $petDodgeFlat = 0;
         foreach ($this->activePets() as $activePet) {
             $bonus = $activePet->pet->bonus_json ?? [];
             $mult = $activePet->bonusMultiplier();
@@ -361,6 +388,8 @@ class Character extends Model
             $petXpPct += ($bonus['xp_pct'] ?? 0) * $mult;
             $petGatherSpeedPct += ($bonus['gather_speed_pct'] ?? 0) * $mult;
             $petCraftSpeedPct += ($bonus['craft_speed_pct'] ?? 0) * $mult;
+            $petHpPct += ($bonus['hp_pct'] ?? 0) * $mult;
+            $petDodgeFlat += ($bonus['dodge_flat'] ?? 0) * $mult;
         }
 
         $skillPassives = $this->passiveSkillBonuses();
@@ -374,13 +403,13 @@ class Character extends Model
         $elixirAtkPct = $this->atk_buff_fights_left > 0 ? $this->atk_buff_pct : 0;
 
         $atkSubtotal = $this->base_atk + $attr->damage * 5 + $gearAtk;
-        $effAtk = (int) round($atkSubtotal * (1 + ($petAtkPct + $skillPassives['atk_pct'] + $party['atk_pct'] + $classPassives['atk_pct'] + $specPassives['atk_pct'] + $elixirAtkPct) / 100));
+        $effAtk = (int) round($atkSubtotal * (1 + ($petAtkPct + $skillPassives['atk_pct'] + $party['atk_pct'] + $classPassives['atk_pct'] + $specPassives['atk_pct'] + $elixirAtkPct + $setAtkPct) / 100));
 
         $defSubtotal = $this->base_def + $attr->armor * 4 + $gearDef;
-        $effDef = (int) round($defSubtotal * (1 + ($petDefPct + $skillPassives['def_pct'] + $party['def_pct'] + $classPassives['def_pct'] + $classPassives['shield_def_pct'] + $specPassives['def_pct']) / 100));
+        $effDef = (int) round($defSubtotal * (1 + ($petDefPct + $skillPassives['def_pct'] + $party['def_pct'] + $classPassives['def_pct'] + $classPassives['shield_def_pct'] + $specPassives['def_pct'] + $setDefPct) / 100));
 
         $hpSubtotal = $this->hp_max + $attr->hp_cap * 30;
-        $effHpMax = (int) round($hpSubtotal * (1 + ($classPassives['hp_pct'] + $specPassives['hp_pct'] + $skillPassives['hp_pct']) / 100));
+        $effHpMax = (int) round($hpSubtotal * (1 + ($classPassives['hp_pct'] + $specPassives['hp_pct'] + $skillPassives['hp_pct'] + $petHpPct) / 100));
 
         $mpSubtotal = $this->mana_max + $attr->mana_cap * 20 + $gearMp;
         $effMpMax = (int) round($mpSubtotal * (1 + ($party['mp_pct'] + $classPassives['mp_pct'] + $specPassives['mp_pct'] + $skillPassives['mp_pct']) / 100));
@@ -390,14 +419,14 @@ class Character extends Model
         // pets, party, class/spec passives, skills) with no natural ceiling — hard-capped the same way
         // dodge already is (AttributeService::DODGE_CAP_PCT), so no build reaches a guaranteed-crit or
         // absurd crit-multiplier floor/ceiling. Both caps are GM-tunable like every other balance lever.
-        $critChanceRaw = 18 + $attr->crit * 2 + $gearCrit + $petCritPct + $party['crit_chance'] + $specPassives['crit_chance_flat'] + $skillPassives['crit_chance_flat'];
+        $critChanceRaw = 18 + $attr->crit * 2 + $gearCrit + $petCritPct + $party['crit_chance'] + $specPassives['crit_chance_flat'] + $skillPassives['crit_chance_flat'] + $setCritFlat;
         $critChance = min(GameConfig::number('crit_chance_cap_pct', 75), $critChanceRaw);
         $critDamageBase = 1.8 + ($attr->crit_damage ?? 0) * 0.02;
         $critDamageMult = min(GameConfig::number('crit_damage_mult_cap', 4.0), round($critDamageBase * (1 + $skillPassives['crit_damage_pct'] / 100), 2));
         $guildLuckBonusPct = ($this->guildMembership?->guild?->upgradeBonusPct('luck') ?? 0) / 100;
         $luckSubtotal = ($attr->luck ?? 0) + $gearLuck + ($this->user?->vipLuckBonus() ?? 0) + $party['luck'] + $skillPassives['luck_flat'];
         $luck = (int) round($luckSubtotal * (1 + $guildLuckBonusPct));
-        $dodgeChance = (new AttributeService())->dodgeChance(($attr->dodge ?? 0), $gearDodge + $classPassives['dodge_flat'] + $specPassives['dodge_flat'] + $skillPassives['dodge_flat']);
+        $dodgeChance = (new AttributeService())->dodgeChance(($attr->dodge ?? 0), $gearDodge + $classPassives['dodge_flat'] + $specPassives['dodge_flat'] + $skillPassives['dodge_flat'] + $petDodgeFlat);
 
         // Power is the sum of every progression axis: gear + attributes (both already baked into eff_atk/
         // eff_def/luck above), plus combat skill investment (previously uncounted) weighted so a fully
@@ -420,6 +449,7 @@ class Character extends Model
                 ['label' => 'Class Passive', 'value' => $classPassives['atk_pct']],
                 ['label' => 'Class Branch Passive', 'value' => $specPassives['atk_pct']],
                 ['label' => 'Elixir Buff', 'value' => $elixirAtkPct],
+                ['label' => 'Set Bonus', 'value' => $setAtkPct],
             ]),
             'eff_def' => $this->statSourceBreakdown($effDef, [
                 ['label' => 'Base', 'value' => $this->base_def, 'always' => true],
@@ -432,6 +462,7 @@ class Character extends Model
                 ['label' => 'Class Passive', 'value' => $classPassives['def_pct']],
                 ['label' => 'Shield Block', 'value' => $classPassives['shield_def_pct']],
                 ['label' => 'Class Branch Passive', 'value' => $specPassives['def_pct']],
+                ['label' => 'Set Bonus', 'value' => $setDefPct],
             ]),
             'eff_hp_max' => $this->statSourceBreakdown($effHpMax, [
                 ['label' => 'Base', 'value' => $this->hp_max, 'always' => true],
@@ -439,6 +470,8 @@ class Character extends Model
             ], $hpSubtotal, [
                 ['label' => 'Class Passive', 'value' => $classPassives['hp_pct']],
                 ['label' => 'Class Branch Passive', 'value' => $specPassives['hp_pct']],
+                ['label' => 'Skill Passives', 'value' => $skillPassives['hp_pct']],
+                ['label' => 'Pet Bonus', 'value' => $petHpPct],
             ]),
             'eff_mp_max' => $this->statSourceBreakdown($effMpMax, [
                 ['label' => 'Base', 'value' => $this->mana_max, 'always' => true],
@@ -481,6 +514,8 @@ class Character extends Model
                 ['label' => 'Gear', 'value' => $gearDodge],
                 ['label' => 'Class Passive', 'value' => $classPassives['dodge_flat']],
                 ['label' => 'Class Branch Passive', 'value' => $specPassives['dodge_flat']],
+                ['label' => 'Skill Passives', 'value' => $skillPassives['dodge_flat']],
+                ['label' => 'Pet Bonus', 'value' => $petDodgeFlat],
             ]),
             'power' => $this->statSourceBreakdown($power, [
                 ['label' => 'From Attack (x4)', 'value' => $effAtk * 4, 'always' => true],

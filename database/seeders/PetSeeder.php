@@ -17,9 +17,11 @@ class PetSeeder extends Seeder
             ['key' => 'worker_badger', 'name' => 'Worker Badger', 'glyph' => '🦡', 'description' => 'A tireless digger that speeds up every gathering skill.', 'bonus_json' => ['gather_speed_pct' => 12], 'unlock_gems' => 250],
             ['key' => 'forge_sprite', 'name' => 'Forge Sprite', 'glyph' => '🧚', 'description' => 'A nimble sprite that works the forge alongside you, speeding up crafting.', 'bonus_json' => ['craft_speed_pct' => 15], 'unlock_gems' => 300],
             // Themed after the two newest endgame zones (Crimson Wastes, Astral Expanse) — priced/bonused
-            // above every pet before them so they read as a genuine upgrade, not just new flavor.
-            ['key' => 'sand_wyrm', 'name' => 'Sand Wyrm', 'glyph' => '🪱', 'description' => 'A burrowing wyrm from the Crimson Wastes that sharpens your attacks.', 'bonus_json' => ['atk_pct' => 14], 'unlock_gems' => 450],
-            ['key' => 'star_phoenix', 'name' => 'Star Phoenix', 'glyph' => '🐦‍🔥', 'description' => 'A phoenix born of the Astral Expanse, wreathed in starlight and rebirth.', 'bonus_json' => ['xp_pct' => 22], 'unlock_gems' => 700],
+            // above every pet before them so they read as a genuine upgrade, not just new flavor. Bonus
+            // types deliberately don't repeat frost_wolf's atk_pct or spirit_owl's xp_pct — dodge_flat and
+            // hp_pct were the only two bonus types no pet granted at all.
+            ['key' => 'sand_wyrm', 'name' => 'Sand Wyrm', 'glyph' => '🪱', 'description' => 'A burrowing wyrm from the Crimson Wastes that slips past incoming blows.', 'bonus_json' => ['dodge_flat' => 6], 'unlock_gems' => 450],
+            ['key' => 'star_phoenix', 'name' => 'Star Phoenix', 'glyph' => '🐦‍🔥', 'description' => 'A phoenix born of the Astral Expanse, its rebirth fortifying your own vitality.', 'bonus_json' => ['hp_pct' => 15], 'unlock_gems' => 700],
         ];
 
         foreach ($pets as $index => $pet) {

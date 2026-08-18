@@ -1151,6 +1151,7 @@ onMounted(() => {
               <div v-if="result.gems" class="reward-chip--gems">+{{ result.gems }} Gems</div>
               <div v-if="result.pet_food_dropped" class="reward-chip--gold">🍖 {{ result.pet_food_dropped }} +1</div>
               <div v-if="result.crate_dropped" class="reward-chip--gold">📦 {{ result.crate_dropped }} +1</div>
+              <div v-for="drop in result.monster_loot_dropped" :key="drop" class="reward-chip--gold">✨ {{ drop }} +1</div>
               <div v-if="result.leveled_up" class="reward-chip--level">
                 Level up! +{{ result.leveled_up * 3 }} attr · +{{ result.leveled_up }} skill pts
               </div>

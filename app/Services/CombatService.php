@@ -1507,6 +1507,7 @@ class CombatService
         }
         $petFoodDropped = $this->maybeDropPetFood($character, $monster, $log);
         $crateDropped = $this->maybeDropLootCrate($character, $monster, $log);
+        $monsterLootDropped = $this->maybeDropMonsterLoot($character, $monster, $log);
         $battle->update(['status' => 'won', 'log_json' => $log]);
 
         $this->quests->progress($character, 'battles_won', $monster);
@@ -1525,6 +1526,7 @@ class CombatService
                 'pets' => $petResults,
                 'pet_food_dropped' => $petFoodDropped,
                 'crate_dropped' => $crateDropped,
+                'monster_loot_dropped' => $monsterLootDropped,
                 'character' => $freshCharacter,
                 'stats' => $freshCharacter->effectiveStats(),
                 'achievements' => $newAchievements,
@@ -1826,6 +1828,36 @@ class CombatService
         $log[] = "{$item->name} dropped!";
 
         return $item->name;
+    }
+
+    /** Rolls the monster's own zone/boss-specific material drops (see MonsterSeeder's loot_table_json —
+     * each entry is independent, so a monster with multiple entries can drop more than one on the same
+     * win). Distinct from the pet-food/lootbox rolls above: this is the ONLY mechanism that hands out a
+     * specific, named item tied to a specific monster rather than a random pick or a generic chance.
+     * Returns the names of everything actually dropped, for the result payload's reward chips. */
+    private function maybeDropMonsterLoot(Character $character, Monster $monster, array &$log): array
+    {
+        $dropped = [];
+
+        foreach ($monster->loot_table_json ?? [] as $entry) {
+            if (! $this->rollPercent($entry['chance_pct'] ?? 0)) {
+                continue;
+            }
+
+            $item = Item::find($entry['item_id'] ?? null);
+            if (! $item) {
+                continue;
+            }
+
+            $inventory = Inventory::firstOrNew(['character_id' => $character->id, 'item_id' => $item->id, 'equipped' => false]);
+            $inventory->qty = ($inventory->qty ?? 0) + 1;
+            $inventory->save();
+
+            $log[] = "{$item->name} dropped!";
+            $dropped[] = $item->name;
+        }
+
+        return $dropped;
     }
 
     /** Chance to grant one lootbox on a battle win — the box itself is just an inert inventory item until

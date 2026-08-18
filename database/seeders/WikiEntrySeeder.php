@@ -22,5 +22,9 @@ class WikiEntrySeeder extends Seeder
         $wiki->syncEvents();
         $wiki->syncClasses();
         $wiki->syncStatusEffects();
+        $wiki->syncQuests();
+        $wiki->syncRecipes();
+        $wiki->syncCosmetics();
+        $wiki->pruneOrphans();
     }
 }

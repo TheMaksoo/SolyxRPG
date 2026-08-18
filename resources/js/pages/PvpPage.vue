@@ -18,6 +18,8 @@ const myRankPosition = ref(null);
 const history = ref([]);
 const loading = ref(false);
 const errorMessage = ref('');
+const attemptsUsed = ref(0);
+const attemptsMax = ref(10);
 
 // 'lobby' | 'live' — searching is no longer a separate view (League-of-Legends style): while queued,
 // the lobby stays fully visible and only the Find Match button swaps for a small inline timer, driven by
@@ -49,6 +51,8 @@ async function load() {
   leaderboard.value = data.leaderboard;
   myRankPosition.value = data.my_rank_position;
   history.value = data.history;
+  attemptsUsed.value = data.pvp_attempts_used;
+  attemptsMax.value = data.pvp_attempts_max;
 
   if (data.active_match_id) {
     matchId.value = data.active_match_id;
@@ -228,10 +232,13 @@ onUnmounted(stopAllPolling);
                 </div>
               </template>
               <template v-else>
-                <button @click="findMatch" :disabled="loading" class="btn-find-match">
+                <button @click="findMatch" :disabled="loading || attemptsUsed >= attemptsMax" class="btn-find-match">
                   Find match
                 </button>
-                <div class="rank-card__attempts">You can leave this page while searching</div>
+                <div class="rank-card__attempts">
+                  {{ attemptsMax - attemptsUsed }} / {{ attemptsMax }} attempts left today
+                  <template v-if="attemptsUsed < attemptsMax"> · you can leave this page while searching</template>
+                </div>
               </template>
             </div>
           </div>

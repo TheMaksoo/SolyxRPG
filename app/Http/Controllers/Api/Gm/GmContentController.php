@@ -20,6 +20,7 @@ use App\Services\SeederSyncService;
 use App\Services\WikiSyncService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class GmContentController extends Controller
 {
@@ -63,6 +64,9 @@ class GmContentController extends Controller
         'dungeons' => ['syncDungeon', 'dungeon'],
         'skills' => ['syncSkill', 'skill'],
         'events' => ['syncEvent', 'event'],
+        'quests' => ['syncQuest', 'quest'],
+        'recipes' => ['syncRecipe', 'recipe'],
+        'cosmetics' => ['syncCosmetic', 'cosmetic'],
     ];
 
     public function __construct(private WikiSyncService $wiki, private SeederSyncService $seederSync) {}
@@ -121,6 +125,7 @@ class GmContentController extends Controller
         AuditLog::record($request->user()->id, 'gm.content.delete', $resource, $id);
         if (isset(self::WIKI_SYNCED[$resource])) {
             $this->wiki->removeSource(self::WIKI_SYNCED[$resource][1], $id);
+            Cache::forget('wiki:index');
         }
 
         return response()->json(['message' => 'Deleted.']);
@@ -169,6 +174,7 @@ class GmContentController extends Controller
     {
         if (isset(self::WIKI_SYNCED[$resource])) {
             $this->wiki->{self::WIKI_SYNCED[$resource][0]}($row);
+            Cache::forget('wiki:index');
         }
     }
 }

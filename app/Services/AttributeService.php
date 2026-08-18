@@ -52,6 +52,35 @@ class AttributeService
         return $costs;
     }
 
+    /** Total points ever spent reaching $value in $attr — the sum of costForNextPoint() for every point
+     * already bought, closed-form rather than a per-point loop since $value can grow unbounded over a
+     * character's lifetime. Used to refund attribute points on a full respec. */
+    public function totalSpentFor(string $attr, int $value): int
+    {
+        if ($value <= 0) {
+            return 0;
+        }
+
+        $base = self::BASE_COST[$attr] ?? 1;
+        $fullTiers = intdiv($value, self::TIER_SIZE);
+        $remainder = $value % self::TIER_SIZE;
+
+        $tierSurcharge = self::TIER_SIZE * intdiv($fullTiers * ($fullTiers - 1), 2) + $remainder * $fullTiers;
+
+        return $base * $value + $tierSurcharge;
+    }
+
+    /** Total points ever spent across every attribute — the full refund for a character's whole allocation. */
+    public function totalSpentAll(CharacterAttribute $attr): int
+    {
+        $total = 0;
+        foreach (array_keys(self::BASE_COST) as $key) {
+            $total += $this->totalSpentFor($key, $attr->$key ?? 0);
+        }
+
+        return $total;
+    }
+
     public function dodgeChance(int $dodgePoints, float $gearDodgePct = 0): float
     {
         return min(self::DODGE_CAP_PCT, $dodgePoints + $gearDodgePct);

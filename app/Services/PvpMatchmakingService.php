@@ -31,6 +31,40 @@ class PvpMatchmakingService
         PvpQueueEntry::where('character_id', $characterId)->delete();
     }
 
+    /** Daily attempts only ever deplete when a real match starts (see createLiveMatch()) — joining or
+     * waiting in the queue never costs anything, so a long search never punishes the player for it. */
+    private function resetPvpAttemptsIfNeeded(Character $character): void
+    {
+        if (! $character->pvp_attempts_reset_at || $character->pvp_attempts_reset_at->isPast()) {
+            $character->pvp_attempts_used = 0;
+            $character->pvp_attempts_reset_at = now()->endOfDay();
+        }
+    }
+
+    /** Not persisted — mirrors DungeonController::index()'s read-only reset-window check, used both to
+     * gate queueJoin() up front and to report a used/max pair on the lobby (see PvpController::index()). */
+    public function pvpAttemptsSnapshot(Character $character): array
+    {
+        $this->resetPvpAttemptsIfNeeded($character);
+        $max = 10 + $character->user->vipPvpBonusAttempts();
+
+        return ['used' => $character->pvp_attempts_used, 'max' => $max];
+    }
+
+    public function remainingPvpAttempts(Character $character): int
+    {
+        $snapshot = $this->pvpAttemptsSnapshot($character);
+
+        return max(0, $snapshot['max'] - $snapshot['used']);
+    }
+
+    private function consumePvpAttempt(Character $character): void
+    {
+        $this->resetPvpAttemptsIfNeeded($character);
+        $character->pvp_attempts_used++;
+        $character->save();
+    }
+
     /** Backstop for players who close the tab/app while queued and never poll queue/status again (which
      * is what normally catches the same 5-minute timeout) — swept alongside sweep() so a stale queue row
      * can't sit forever inflating the pool. Returns how many entries were purged. */
@@ -96,6 +130,13 @@ class PvpMatchmakingService
 
     public function createLiveMatch(Character $a, Character $b): PvpLiveMatch
     {
+        // Attempts are consumed here, and only here — the single choke point every match creation path
+        // (queueJoin's immediate pairing, queueStatus's poll-driven pairing, and the background sweep)
+        // funnels through, so a fighter is charged exactly once per real battle regardless of which path
+        // matched them.
+        $this->consumePvpAttempt($a);
+        $this->consumePvpAttempt($b);
+
         return PvpLiveMatch::create([
             'character_a_id' => $a->id,
             'character_b_id' => $b->id,

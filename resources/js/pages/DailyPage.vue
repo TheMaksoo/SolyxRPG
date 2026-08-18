@@ -1,9 +1,13 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue';
 import api from '../api/client';
+import { useAuthStore } from '../stores/auth';
+import { useCharacterStore } from '../stores/character';
 import AdBanner from '../components/AdBanner.vue';
 import Toast from '../components/Toast.vue';
 
+const auth = useAuthStore();
+const characterStore = useCharacterStore();
 const info = ref(null);
 const message = ref('');
 let messageToastTimer = null;
@@ -24,6 +28,10 @@ async function claim() {
     const gemsPart = data.gems ? ` +${data.gems}◆` : '';
     message.value = `+${data.gold}g${gemsPart} (streak ${data.streak})`;
     info.value = data;
+    if (data.character) {
+      characterStore.character = data.character;
+      if (auth.user) auth.user.character = data.character;
+    }
   } catch (e) {
     message.value = e.response?.data?.message || 'Already claimed.';
   }

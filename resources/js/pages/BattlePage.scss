@@ -1473,11 +1473,20 @@
 }
 
 // Wraps the predicted-hit bar, primary button, skill grid, and consumables control (BattlePage.vue) —
-// plain block flow on desktop, same as before it existed. Pinned to the bottom of the screen on mobile
-// instead (see its 768px override below), so the controls that actually matter stay in thumb's reach
-// rather than scrolling away above the fold while the enemy grid / battle log / sidebar grow the page.
+// sticky to the bottom of the viewport at every width (not just the <768px override below), so Attack/
+// Walk never drifts as the enemy grid / battle log / sidebar above it change height — the player's mouse
+// stays put between actions instead of having to chase a moving button. Sticky (not fixed) so it still
+// respects .fight-view__main's own column width and never overlaps the .fight-view__intel sidebar next
+// to it; it only "floats" once its parent column is taller than the viewport, same as normal scroll.
 .action-dock {
-  display: block;
+  position: sticky;
+  bottom: 16px;
+  z-index: 5;
+  background: #0e0e10;
+  border: 1px solid v.$border-subtle;
+  border-radius: v.$radius-lg;
+  padding: 14px 16px 10px;
+  box-shadow: 0 -12px 24px rgba(0, 0, 0, 0.35);
 }
 
 // Predicted-damage preview strip, directly above the Attack button — every number mirrors
