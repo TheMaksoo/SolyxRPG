@@ -57,6 +57,7 @@ const SECTIONS = [
   { key: 'repair_pack', label: 'Repair Packs', glyph: '🧰' },
   { key: 'weapon', label: 'Weapons', glyph: '⚔' },
   { key: 'armor', label: 'Armor', glyph: '🛡' },
+  { key: 'shield', label: 'Shields', glyph: '🛡️' },
   // 'quiver' is one shared item TYPE (see InventoryController::equip()'s ranger/rogue special-case),
   // but ranger's Quiver and rogue's Knife Holder are different enough recipes that filing both under
   // one "Quivers" heading buried the rogue half — split by class here into two section keys instead.
