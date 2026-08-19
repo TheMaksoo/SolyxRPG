@@ -5,12 +5,6 @@ import { useGameTick } from './gameTick';
 // Matches the server's Character::REGEN_TICK_SECONDS — regenPerTick/manaRegenPerTick/energyRegenPerTick
 // are amounts per this many seconds, not per single tick.
 const RATE_TICK_SECONDS = 5;
-// Batched server save/check cadence — persists the client-projected values, doesn't drive the display
-// (the local projection below still animates every single tick regardless of this). Was 5 real seconds,
-// making /character/save-tick the single most frequent request in the whole app, firing for the entire
-// session even while completely idle — 15s keeps the persisted value from drifting far from what's on
-// screen while cutting that specific traffic by two-thirds.
-const REGEN_SYNC_TICKS = 15;
 
 /** Given a known value at a known time plus a steady rate, what should the value be right now? Mirrors
  * the server's own regenResource() — real elapsed time × rate — evaluated client-side every tick instead
@@ -194,28 +188,41 @@ export function useRegen() {
         energyRatePerSecond.value = (rate ?? 0) / RATE_TICK_SECONDS;
       });
 
-      // The tick heartbeat never stops for combat/navigation — energy regens mid-battle too, and this is
-      // the one periodic "game save" push, running for as long as any page anywhere is using the shared
-      // game tick, regardless of which one is currently mounted. It sends exactly what's on screen right
-      // now (see CharacterController::saveTick) rather than letting the server silently recompute and
-      // possibly disagree with it.
-      watch(tickCount, (count) => {
+      // Drives the continuous display projection only now — the periodic server sync this used to also
+      // trigger every 15 ticks is gone (see trySync below); this just keeps clockNow current every second
+      // so localHp/localMana/localEnergy/displayHp keep animating regardless of when the last sync fired.
+      watch(tickCount, () => {
         clockNow.value = Date.now();
-        if (count % REGEN_SYNC_TICKS === 0) {
-          const hp = Math.round(displayHp.value);
-          const mana = Math.round(localMana.value);
-          const energy = Math.round(localEnergy.value);
-          const battleId = activeBattleId.value;
-          const dirty = hp !== lastSyncedHp || mana !== lastSyncedMana
-            || energy !== lastSyncedEnergy || battleId !== lastSyncedBattleId;
-          if (!dirty) return;
-          lastSyncedHp = hp;
-          lastSyncedMana = mana;
-          lastSyncedEnergy = energy;
-          lastSyncedBattleId = battleId;
-          characterStore.syncRegen({ hp, mana, energy, battle_id: battleId });
-        }
       });
+
+      // Persists exactly what's on screen right now (see CharacterController::saveTick) — but only when
+      // the player is actually leaving (switching tabs, minimizing, closing), not on a timer. Closing a
+      // tab fires 'visibilitychange' (hidden) before 'pagehide' in every modern browser, so the hidden
+      // check below already covers the close case; pagehide is kept as a cheap best-effort second chance
+      // in case that ordering doesn't hold for some reason. Trades a periodic request for a real risk: a
+      // crash or force-quit between syncs loses that stretch of regen until the next real action recomputes
+      // it server-side (Character::applyPassiveRegen runs independently on every real action regardless of
+      // this — this sync only keeps the *stored* number close to what was displayed, it was never the
+      // source of gameplay truth).
+      function trySync() {
+        const hp = Math.round(displayHp.value);
+        const mana = Math.round(localMana.value);
+        const energy = Math.round(localEnergy.value);
+        const battleId = activeBattleId.value;
+        const dirty = hp !== lastSyncedHp || mana !== lastSyncedMana
+          || energy !== lastSyncedEnergy || battleId !== lastSyncedBattleId;
+        if (!dirty) return;
+        lastSyncedHp = hp;
+        lastSyncedMana = mana;
+        lastSyncedEnergy = energy;
+        lastSyncedBattleId = battleId;
+        characterStore.syncRegen({ hp, mana, energy, battle_id: battleId });
+      }
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) trySync();
+      });
+      window.addEventListener('pagehide', trySync);
     });
   }
 

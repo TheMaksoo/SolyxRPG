@@ -61,7 +61,12 @@ class WikiController extends Controller
                 ->values();
 
             return [
-                'categories' => $categories,
+                // ->toArray(): config/cache.php sets 'serializable_classes' => false (blocks unserializing
+                // any PHP object from cache, a security hardening default), so a cached Collection comes
+                // back as __PHP_Incomplete_Class on every read after the first (works on a fresh cache miss
+                // since that path never round-trips through serialize/unserialize, then breaks for the rest
+                // of the 5-minute TTL) — caching plain arrays instead sidesteps the restriction entirely.
+                'categories' => $categories->toArray(),
                 'entries' => $entries->map(fn ($e) => [
                     'id' => $e->id,
                     'category' => $e->category,
@@ -75,7 +80,7 @@ class WikiController extends Controller
                     'desc' => $e->description,
                     'stats' => $e->stats,
                     'details' => $e->details,
-                ]),
+                ])->values()->toArray(),
             ];
         }));
     }
